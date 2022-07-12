@@ -1,12 +1,13 @@
 name: docs
 channels:
 dependencies:
-    # Base depends
+  # Base depends
   - python
+  - pandoc
+  - ipykkernel
   - pip
-
-
-
-    # Pip-only installs
-  #- pip:
+  
+  # Pip-only installs
+  - pip:
+    - nbsphinx
 
