@@ -1,14 +1,23 @@
-import os, errno
+####################################################################
+#                                                                  #
+#    ensemble_md,                                                  #
+#    a python package for running GROMACS simulation ensembles     #
+#                                                                  #
+#    Written by Wei-Tse Hsu <wehs7661@colorado.edu>                #
+#    Copyright (c) 2022 University of Colorado Boulder             #
+#                                                                  #
+####################################################################
+"""
+The `gmx_parser` module provides parsers to parse GROMACS files.
+"""
+import os
 import re
-import warnings
 import six
-import numpy as np 
 import logging
 from collections import OrderedDict as odict
 
 import ensemble_md.utils as utils
 from ensemble_md.exceptions import ParseError
-
 
 
 def parse_log(log_file):
@@ -20,12 +29,12 @@ def parse_log(log_file):
     - Case 2: The weights were equilibrated during the simulation.
     - Case 3: The weights were fixed in the simulation.
 
-    In both Cases 1 and 2, we will get final wl_delta, weights, counts, and equil_bool, although wl_delta 
+    In both Cases 1 and 2, we will get final wl_delta, weights, counts, and equil_bool, although wl_delta
     will be useless in Case 2 and the final weights will be the same as the equilibrated weights.
-    (In Case 1, equil_bool should always be False, while in Case 2, euqil_bool should always be True.)    
-    In Case 3, equil_bool should always be True. What's different from Case 2 is that 
+    (In Case 1, equil_bool should always be False, while in Case 2, euqil_bool should always be True.)
+    In Case 3, equil_bool should always be True. What's different from Case 2 is that
     we will not find the final wl_delta. We can still find the final weights (which acutall do not change at all
-    during the simulation) and the final counts though. 
+    during the simulation) and the final counts though.
 
     Parameters
     ----------
@@ -46,19 +55,19 @@ def parse_log(log_file):
     weights, counts = [], []
     case_1_3, equil_time_found = False, False
 
-    for l in lines:
+    for l in lines:     # noqa: E741
         if 'n-lambdas' in l:
             N_states = int(l.split('=')[1])
         if 'lmc-stats' in l:
             if l.split('=')[1].split()[0] in ['no', 'No']:
-                # Case 3: The weights are fixed. -> Typically weights have been equilibrated in the previous iteration. 
+                # Case 3: The weights are fixed. -> Typically weights have been equilibrated in the previous iteration.
                 fixed_bool = True
                 equil_bool = True
                 wl_delta = None
                 wl_delta_found = True
                 case_1_3 = True
             else:
-                # Either Case 1 or Case 2 
+                # Either Case 1 or Case 2
                 fixed_bool = False
                 equil_bool = False
         if 'dt  ' in l:
@@ -66,7 +75,7 @@ def parse_log(log_file):
 
     lines.reverse()  # We find the information from the end
     n = -1
-    for l in lines:
+    for l in lines:    # noqa: E741
         n += 1
         if wl_delta_found is False:  # Case 1 or Case 2
             if 'Wang-Landau incrementor is' in l:
@@ -84,17 +93,17 @@ def parse_log(log_file):
                         weights.append(float(lines[n - i].split()[-2]))
                         counts.append(int(lines[n - i].split()[-3]))
                 if 'Wang-Landau incrementor is' in lines[n + 1]:  # Caes 1
-                    equil_bool = False   
+                    equil_bool = False
                     wl_delta_found = True
                     wl_delta = float(lines[n + 1].split(':')[1])
                     case_1_3 = True
-                else:  
+                else:
                     # This would include Case 2 and 3
                     equil_bool = True
                     if fixed_bool is True:
-                        case_1_3 = True 
+                        case_1_3 = True
                     else:
-                        case_1_3 = False 
+                        case_1_3 = False
 
         if case_1_3 is False:   # for finding when the weights were equilibrated in Case 2
             if 'Weights have equilibrated' in l:
@@ -103,20 +112,21 @@ def parse_log(log_file):
                 equil_time = equil_step * dt    # ps
                 if equil_time > 1000:
                     units = 'ns'
-                    equil_time /= 1000 
+                    equil_time /= 1000
                 else:
                     units = 'ps'
                 print(f'Weights were equilibrated at {equil_time} {units}. (file: {log_file})')
 
-        # For Case 1 and Case 3 (case_1_3 = True), we can break the loop after getting weights, counts, and wl_delta. 
+        # For Case 1 and Case 3 (case_1_3 = True), we can break the loop after getting weights, counts, and wl_delta.
         if case_1_3 is True and weights_found is True and wl_delta_found is True:
             break
 
-        # For Case 2, we can break the loop only if equil_time is found as well. 
+        # For Case 2, we can break the loop only if equil_time is found as well.
         if case_1_3 is False and weights_found is True and wl_delta_found is True and equil_time_found is True:
             break
 
     return wl_delta, weights, counts, equil_bool
+
 
 class FileUtils(object):
     """Mixin class to provide additional file-related capabilities.
@@ -147,7 +157,7 @@ class FileUtils(object):
         #: Current full path of the object for reading and writing I/O.
         self.real_filename = os.path.realpath(filename)
 
-    def filename(self,filename=None,ext=None,set_default=False,use_my_ext=False):
+    def filename(self, filename=None, ext=None, set_default=False, use_my_ext=False):
         """Supply a file name for the class object.
 
         Typical uses::
@@ -173,7 +183,7 @@ class FileUtils(object):
            An empty string as *ext* = "" will suppress appending an extension.
         """
         if filename is None:
-            if not hasattr(self,'_filename'):
+            if not hasattr(self, '_filename'):
                 self._filename = None        # add attribute to class
             if self._filename:
                 filename = self._filename
@@ -193,57 +203,6 @@ class FileUtils(object):
                 filename = filename + os.extsep + ext
         return filename
 
-    def check_file_exists(self, filename, resolve='exception', force=None):
-        """If a file exists then continue with the action specified in ``resolve``.
-
-        ``resolve`` must be one of
-
-        "ignore"
-              always return ``False``
-        "indicate"
-              return ``True`` if it exists
-        "warn"
-              indicate and issue a :exc:`UserWarning`
-        "exception"
-              raise :exc:`IOError` if it exists
-
-        Alternatively, set *force* for the following behaviour (which
-        ignores *resolve*):
-
-        ``True``
-              same as *resolve* = "ignore" (will allow overwriting of files)
-        ``False``
-              same as *resolve* = "exception" (will prevent overwriting of files)
-        ``None``
-              ignored, do whatever *resolve* says
-        """
-        def _warn(x):
-            msg = "File {0!r} already exists.".format(x)
-            logger.warn(msg)
-            warnings.warn(msg)
-            return True
-        def _raise(x):
-            msg = "File {0!r} already exists.".format(x)
-            logger.error(msg)
-            raise IOError(errno.EEXIST, x, msg)
-        solutions = {'ignore': lambda x: False,      # file exists, but we pretend that it doesn't
-                     'indicate': lambda x: True,     # yes, file exists
-                     'warn': _warn,
-                     'warning': _warn,
-                     'exception': _raise,
-                     'raise': _raise,
-                     }
-
-        if force is True:
-            resolve = 'ignore'
-        elif force is False:
-            resolve = 'exception'
-
-        if not os.path.isfile(filename):
-            return False
-        else:
-            return solutions[resolve](filename)
-
     def infix_filename(self, name, default, infix, ext=None):
         """Unless *name* is provided, insert *infix* before the extension *ext* of *default*."""
         if name is None:
@@ -258,16 +217,19 @@ class FileUtils(object):
     def __repr__(self):
         fmt = "{0!s}(filename=%r)".format(self.__class__.__name__)
         try:
-            fn =  self.filename()
+            fn = self.filename()
         except ValueError:
             fn = None
         return fmt % fn
 
+
 class MDP(odict, FileUtils):
     """Class that represents a Gromacs mdp run input file.
     Modified from GromacsWrapper
-    Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com> 
+    Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com>
     https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/fileformats/mdp.py
+
+    Specifically, we removed functions such as "check_file_exists" from the original version.
 
     The MDP instance is an ordered dictionary.
 
@@ -289,12 +251,12 @@ class MDP(odict, FileUtils):
     default_extension = "mdp"
     logger = logging.getLogger('gromacs.formats.MDP')
 
-    COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")   # eat initial ws
+    COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")   # eat initial ws  # noqa: W605
     # see regex in cbook.edit_mdp()
     PARAMETER = re.compile("""
-                            \s*(?P<parameter>[^=]+?)\s*=\s*  # parameter (ws-stripped), before '='
-                            (?P<value>[^;]*)                # value (stop before comment=;)
-                            (?P<comment>\s*;.*)?            # optional comment
+                            \s*(?P<parameter>[^=]+?)\s*=\s*  # parameter (ws-stripped), before '='  # noqa: W605
+                            (?P<value>[^;]*)                # value (stop before comment=;)  # noqa: W605
+                            (?P<comment>\s*;.*)?            # optional comment  # noqa: W605
                             """, re.VERBOSE)
 
     def __init__(self, filename=None, autoconvert=True, **kwargs):
@@ -331,6 +293,7 @@ class MDP(odict, FileUtils):
 
         def BLANK(i):
             return "B{0:04d}".format(i)
+
         def COMMENT(i):
             return "C{0:04d}".format(i)
 
@@ -353,16 +316,14 @@ class MDP(odict, FileUtils):
                 if m:
                     # check for comments after parameter?? -- currently discarded
                     parameter = m.group('parameter')
-                    value =  self._transform(m.group('value'))
+                    value = self._transform(m.group('value'))
                     data[parameter] = value
                 else:
                     errmsg = '{filename!r}: unknown line in mdp file, {line!r}'.format(**vars())
                     self.logger.error(errmsg)
                     raise ParseError(errmsg)
 
-        super(MDP,self).update(data)
-
-
+        super(MDP, self).update(data)
 
     def write(self, filename=None, skipempty=False):
         """Write mdp file to *filename*.
@@ -380,7 +341,7 @@ class MDP(odict, FileUtils):
         """
 
         with open(self.filename(filename, ext='mdp'), 'w') as mdp:
-            for k,v in self.items():
+            for k, v in self.items():
                 if k[0] == 'B':        # blank line
                     mdp.write("\n")
                 elif k[0] == 'C':      # comment
@@ -391,4 +352,4 @@ class MDP(odict, FileUtils):
                     if isinstance(v, six.string_types) or not hasattr(v, '__iter__'):
                         mdp.write("{k!s} = {v!s}\n".format(**vars()))
                     else:
-                         mdp.write("{} = {}\n".format(k,' '.join(map(str, v))))
+                        mdp.write("{} = {}\n".format(k, ' '.join(map(str, v))))
