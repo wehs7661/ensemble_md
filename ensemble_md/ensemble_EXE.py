@@ -37,8 +37,9 @@ class EnsembleEXE:
 
         Parameters
         ----------
-        yml_file (str): The file name of the YAML file for specifying the parameters for EEXE.
-        outfile  (str):
+        yml_file : str
+            The file name of the YAML file for specifying the parameters for EEXE.
+        outfile : str
             The file name of the log file for documenting how different replicas interact
             during the process.
         """
@@ -123,11 +124,13 @@ class EnsembleEXE:
 
         Parameter
         ---------
-        idx (int): The index of the simulation whose MDP parameters need to be initialized.
+        idx : int
+            The index of the simulation whose MDP parameters need to be initialized.
 
         Return
         ------
-        MDP (gmx_parser.MDP obj): An updated object of gmx_parser.MDP that can be used to write MDP files.
+        MDP : gmx_parser.MDP obj
+            An updated object of gmx_parser.MDP that can be used to write MDP files.
         """
         MDP = copy.deepcopy(self.template)
         MDP['nsteps'] = self.nst_sim
@@ -147,17 +150,25 @@ class EnsembleEXE:
 
         Parameters
         ----------
-        new_template (str): The file name of the new MDP template. Typically the MDP file of the previous iteration.
-        sim_idx      (int): The index of the simulation whose MDP parameters need to be updated.
-        iter_idx     (int): The index of the iteration to be performed later.
-        states       (list): A list of last sampled states of all simulaitons in the previous iteration.
-        wl_delta     (list): A list of final Wang-Landau incrementors of all simulations.
-        weights      (list): A list of lists final weights of all simulations.
-        equil_bools  (list): A list of booleans indicating if the weights of the simulations have been equilibrated.
+        new_template : str
+            The file name of the new MDP template. Typically the MDP file of the previous iteration.
+        sim_idx : int
+            The index of the simulation whose MDP parameters need to be updated.
+        iter_idx : int
+            The index of the iteration to be performed later.
+        states : list
+            A list of last sampled states of all simulaitons in the previous iteration.
+        wl_delta : list
+            A list of final Wang-Landau incrementors of all simulations.
+        weights : list
+            A list of lists final weights of all simulations.
+        equil_bools : list
+            A list of booleans indicating if the weights of the simulations have been equilibrated.
 
         Return
         ------
-        MDP (gmx_parser.MDP obj): An updated object of gmx_parser.MDP that can be used to write MDP files.
+        MDP : gmx_parser.MDP obj
+            An updated object of gmx_parser.MDP that can be used to write MDP files.
         """
         MDP = copy.deepcopy(new_template)
         MDP['tinit'] = self.nst_sim * self.dt * iter_idx
@@ -185,10 +196,10 @@ class EnsembleEXE:
 
         Attributes
         ----------
-        lambda_dict (dict):
+        lambda_dict : dict
             A dictionary whose keys are vectors of coupling parameters and
             values are the corresponding state indices (starting from 0).
-        lambda_ranges (list):
+        lambda_ranges : list
             A list of lambda vectors of each state range, e.g.
         """
         self.lambda_dict = {}   # key: vector of coupling parameters, value: state index
@@ -214,12 +225,15 @@ class EnsembleEXE:
 
         Parameters
         ----------
-        dhdl_files  (list): A list of dhdl file names
+        dhdl_files : list
+            A list of dhdl file names
 
         Returns
         -------
-        states      (list): A list of last sampled states of all simulaitons.
-        lambda_vecs (list): A list of lambda vectors corresponding to the last sampled states of all simulations.
+        states : list
+            A list of last sampled states of all simulaitons.
+        lambda_vecs : list
+            A list of lambda vectors corresponding to the last sampled states of all simulations.
         """
         states, lambda_vecs = [], []
 
@@ -243,14 +257,19 @@ class EnsembleEXE:
 
         Parameters
         ----------
-        log_files   (list): A list of log file names
+        log_files : list
+            A list of log file names
 
         Returns
         -------
-        wl_delta    (list): A list of final Wang-Landau incrementors of all simulations.
-        weights     (list): A list of lists of final weights of all simulations.
-        counts      (list): A list of lists of final counts of all simulations.
-        equil_bools (list): A list of booleans indicating if the weights were equilibrated in the simulation.
+        wl_delta : list
+            A list of final Wang-Landau incrementors of all simulations.
+        weights : list
+            A list of lists of final weights of all simulations.
+        counts : list
+            A list of lists of final counts of all simulations.
+        equil_bools : list
+            A list of booleans indicating if the weights were equilibrated in the simulation.
         """
         wl_delta, weights, counts, equil_bools = [], [], [], []
 
@@ -272,7 +291,8 @@ class EnsembleEXE:
 
         Return
         ------
-        swap_list (list): A list of tuples of simulation indices to be swapped.
+        swap_list : list
+            A list of tuples of simulation indices to be swapped.
         """
         swap_list = []
         sim_idx = list(range(self.n_sim))
@@ -303,19 +323,22 @@ class EnsembleEXE:
 
         Parameters
         ----------
-        swap         (tuple): A tuple of indices corresponding to the simulations to be swapped.
-        dhdl_files   (list): A list of two dhdl file names corresponding to the simulations to be swapped.
-        states       (list):
+        swap : tuple
+            A tuple of indices corresponding to the simulations to be swapped.
+        dhdl_files : list
+            A list of two dhdl file names corresponding to the simulations to be swapped.
+        states : list
             A list of last sampled states of ALL simulaitons. Typically generated by extract_final_dhdl_info.
-        lambda_vecs  (list):
+        lambda_vecs :list
             A list of lambda vectors corresponding to the last sampled states of ALL simulations.
             Typically generated by extract_final_dhdl_info.
-        weights      (list):
+        weights :list
             A list of lists of final weights of ALL simulations. Typiecally generated by extract_final_log_info.
 
         Returns
         -------
-        prob_acc (float): The acceptance ratio
+        prob_acc : float
+            The acceptance ratio
         """
         if states[swap[0]] not in self.state_ranges[swap[1]] or states[swap[1]] not in self.state_ranges[swap[0]]:
             # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the probability cannot be calculated.
@@ -377,11 +400,13 @@ class EnsembleEXE:
 
         Parameter
         ---------
-        prob_acc (float): The acceptance rate.
+        prob_acc : float
+            The acceptance rate.
 
         Return
         ------
-        swap_bool (bool): A boolean variable indicating whether the swap should be accepted.
+        swap_bool : bool
+            A boolean variable indicating whether the swap should be accepted.
         """
         if prob_acc == 0:
             swap_bool = False
@@ -408,13 +433,17 @@ def histogram_correction(weights, counts, cutoff=0):
 
     Parameters
     ----------
-    weights (list): A list of lists of weights (of ALL simulations) to be corrected.
-    counts  (list): A list of lists of counts (of ALL simulations).
-    cutoff  (list): The histogram cutoff.
+    weights : list
+        A list of lists of weights (of ALL simulations) to be corrected.
+    counts : list
+        A list of lists of counts (of ALL simulations).
+    cutoff : list
+        The histogram cutoff.
 
     Return
     ------
-    weights (list): An updated list of lists of corected weights.
+    weights : list
+        An updated list of lists of corected weights.
     """
     print('\nPerforming histogram correction for the lambda weights ...')
     for i in range(len(weights)):   # loop over the replicas
@@ -435,9 +464,12 @@ def run_EEXE(n_sim, n, parallel=True):
 
     Parameters
     ----------
-    n_sim    (int): The number of simulations in the ensemble.
-    n        (int): The iteration index (starting from 0).
-    parallel (bool): Whether to run the replicas in the serial or concurrent method.
+    n_sim : int
+        The number of simulations in the ensemble.
+    n : int
+        The iteration index (starting from 0).
+    parallel : bool
+        Whether to run the replicas in the serial or concurrent method.
     """
     if rank == 0:
         dir_before = [i for i in os.listdir('.') if os.path.isdir(os.path.join('.', i))]

@@ -38,14 +38,19 @@ def parse_log(log_file):
 
     Parameters
     ----------
-    log_file   (str): The log file to be parsed.
+    log_file : str
+        The log file to be parsed.
 
     Returns
     -------
-    wl_delta   (float): The final Wang-Landau incementor
-    weights    (list): The final list of lambda weights.
-    counts     (list): The final histogram counts.
-    equil_bool (bool): A boolean variable indiciating whether the weights have been equilibrated.
+    wl_delta : float
+        The final Wang-Landau incementor
+    weights : list
+        The final list of lambda weights.
+    counts : list
+        The final histogram counts.
+    equil_bool : bool
+        A boolean variable indiciating whether the weights have been equilibrated.
     """
     f = open(log_file, 'r')
     lines = f.readlines()
