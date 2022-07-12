@@ -1,0 +1,8 @@
+numpy
+natsort
+argparse
+alchemlyb
+mpi4py
+cmake
+pybind11
+gmxapi
