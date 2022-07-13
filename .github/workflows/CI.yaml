@@ -1,9 +1,5 @@
 name: CI
 
-env:
-  CMAKE_VERSION: 3.18.3
-  CCACHE_VERSION: 3.7.7
-
 on:
   # GitHub has started calling new repo's first branch "main" https://github.com/github/renaming
   # Existing codes likely still have "master" as the primary branch
@@ -28,11 +24,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # reference: https://github.com/gromacs/gromacs/blob/main/.github/workflows/build_cmake.yml
-        config:
-        - {os: windows-latest, cc: "cl", cxx: "cl", python-version: [3.7, 3.8, 3.9]}
-        - {os: ubuntu-latest, cc: "clang", cxx: "clang++", python-version: [3.7, 3.8, 3.9]}
-        - {os: macos-latest, cc: "gcc-10", cxx: "g++-10", pythhon-version: [3.7, 3.8, 3.9]}
+        os: [macOS-latest, ubuntu-latest, windows-latest]
+        python-version: [3.7, 3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v1
@@ -80,42 +73,4 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
-      
-    - name: Download cmake
-      shell: cmake -P {0}
-      run: |
-        set(cmake_version $ENV{CMAKE_VERSION})
 
-        message(STATUS "Using host CMake version: ${CMAKE_VERSION}")
-        if ("${{ runner.os }}" STREQUAL "Windows")
-          set(ninja_suffix "win.zip")
-          set(cmake_suffix "win64-x64.zip")
-          set(cmake_dir "cmake-${cmake_version}-win64-x64/bin")
-        elseif ("${{ runner.os }}" STREQUAL "macOS")
-          set(ninja_suffix "mac.zip")
-          set(cmake_suffix "Darwin-x86_64.tar.gz")
-          set(cmake_dir "cmake-${cmake_version}-Darwin-x86_64/CMake.app/Contents/bin")
-        endif()
-
-        set(cmake_url "https://github.com/Kitware/CMake/releases/download/v${cmake_version}/cmake-${cmake_version}-${cmake_suffix}")
-        file(DOWNLOAD "${cmake_url}" ./cmake.zip SHOW_PROGRESS)
-        execute_process(COMMAND ${CMAKE_COMMAND} -E tar xvf ./cmake.zip)
-      
-        # Add to PATH environment variable
-        file(TO_CMAKE_PATH "$ENV{GITHUB_WORKSPACE}/${cmake_dir}" cmake_dir)
-        set(path_separator ":")
-        if ("${{ runner.os }}" STREQUAL "Windows")
-          set(path_separator ";")
-        endif()
-        file(APPEND "$ENV{GITHUB_PATH}" "$ENV{GITHUB_WORKSPACE}${path_separator}${cmake_dir}")
-        if (NOT "${{ runner.os }}" STREQUAL "Windows")
-          execute_process(
-            COMMAND chmod +x ${cmake_dir}/cmake
-          )
-        endif()
-
-    - name: Install GROMACS 2021.2
-        wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-2021.2.tar.gz 
-        tar zxf gromacs-2021.2.tar.gz
-        cd gromacs-2020.2 && mkdir build && cd build
-        cmake .. -DCMAKE_CXX_COMPILER=g++-7 -DCMAKE_C_COMPILER=gcc-7

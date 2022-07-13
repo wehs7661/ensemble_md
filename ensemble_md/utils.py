@@ -17,6 +17,8 @@ import numpy as np
 
 
 class Logger():
+    """This redirect the STDOUT to a specified output file while preserving STDOUT on screen.
+    """
     def __init__(self, logfile):
         self.terminal = sys.stdout
         self.log = open(logfile, "a")
@@ -34,7 +36,7 @@ class Logger():
 
 def gmx_output(gmx_obj):
     """
-    Tells if a command launched by gmx.commandline_operation failed or not.
+    Tells if a command launched by ``gmxapi.commandline_operation`` failed or not.
     If the command failed, the function will print out STDOUT and STDERR of the process.
 
     Parameters
@@ -102,12 +104,11 @@ def format_time(t):
 
 def autoconvert(s):
     """Convert input to a numerical type if possible. Used for the MDP parser.
-    Modified from GromacsWrapper: utilities.py
+    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
-    https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py
-
-    1. A non-string object is returned as it is
-    2. Try conversion to int, float, str.
+    
+      - A non-string object is returned as it is
+      - Try conversion to int, float, str.
     """
     if type(s) is not str:
         return s

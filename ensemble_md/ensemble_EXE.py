@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The `ensemble_EXE` module helps set up ensemble of expanded ensemble.
+The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
 """
 import os
 import copy
@@ -24,13 +24,16 @@ from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 import gmxapi as gmx
 import ensemble_md.gmx_parser as gmx_parser
 import ensemble_md.utils as utils
-from  ensemble_md.exceptions import *   # noqa: F403, E271
+from ensemble_md.exceptions import ParameterError
 
 
 rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
 
 
 class EnsembleEXE:
+    """
+    This class helps set up input files of an ensemble of expanded ensemble.
+    """
     def __init__(self, yml_file):
         """
         Sets up or reads in the user-defined parameters from the yaml file and the mdp template.
@@ -122,13 +125,13 @@ class EnsembleEXE:
         to do with whether the weights are fixed or equilibrating. The user needs to make sure that
         the MDP template has all the common parameters of all replicas.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         idx : int
             The index of the simulation whose MDP parameters need to be initialized.
 
-        Return
-        ------
+        Returns
+        -------
         MDP : gmx_parser.MDP obj
             An updated object of gmx_parser.MDP that can be used to write MDP files.
         """
@@ -221,7 +224,7 @@ class EnsembleEXE:
     def extract_final_dhdl_info(self, dhdl_files):
         """
         For all the replica simulations, this function finds the last sampled state
-        and the corresponding lambda values from a DHDL file.
+        and the corresponding lambda values from a dhdl file.
 
         Parameters
         ----------
@@ -249,7 +252,8 @@ class EnsembleEXE:
 
     def extract_final_log_info(self, log_files):
         """
-        For all the replica simulations, this function finds the following information from a LOG file.
+        For all the replica simulations, this function finds the following information from a log file.
+
           - The final Wang-Landau incrementors.
           - The final lists of weights.
           - The final lists of counts.
@@ -286,11 +290,11 @@ class EnsembleEXE:
     def propose_swaps(self):
         """
         Proposes swaps of coordinates between replicas by drawing samples from the swappable pairs.
-        Note that only simulations with overlapping lambda ranges can be swapped, or Delta H, Delta g
-        will be unknown.)
+        Note that only simulations with overlapping lambda ranges can be swapped, or :math:`\Delta H`
+        and :math:`\Delta g` will be unknown.)
 
-        Return
-        ------
+        Returns
+        -------
         swap_list : list
             A list of tuples of simulation indices to be swapped.
         """
@@ -319,7 +323,7 @@ class EnsembleEXE:
 
     def calc_prob_acc(self, swap, dhdl_files, states, lambda_vecs, weights):
         """
-        Calculats the acceptance ratio given the MC scheme for swapping the simulations.
+        Calculates the acceptance ratio given the MC scheme for swapping the simulations.
 
         Parameters
         ----------
@@ -398,13 +402,13 @@ class EnsembleEXE:
         """
         Returns a boolean variable indiciating whether the proposed swap should be acceepted given the acceptance rate.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         prob_acc : float
             The acceptance rate.
 
-        Return
-        ------
+        Returns
+        -------
         swap_bool : bool
             A boolean variable indicating whether the swap should be accepted.
         """
@@ -426,10 +430,13 @@ class EnsembleEXE:
 
 def histogram_correction(weights, counts, cutoff=0):
     """
-    Corrects the lambda weights based on the histogram counts. Namely, g_k' = g_k + ln(N_{k-1}/N_k).
+    Corrects the lambda weights based on the histogram counts. Namely, 
+    :math:`g_k' = g_k + \ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
+    are the lambda weight after and before the correction, respectively.
     Notably, in any of the following situations, we don't do any correction.
-    - Either N_{k-1} or N_k is 0.
-    - Either N_{k-1} or N_k is smaller than the histogram cutoff.
+
+      - Either :math:`N_{k-1}` or :math:`N_k` is 0.
+      - Either :math:`N_{k-1}` or :math:`N_k` is smaller than the histogram cutoff.
 
     Parameters
     ----------
@@ -460,7 +467,7 @@ def histogram_correction(weights, counts, cutoff=0):
 def run_EEXE(n_sim, n, parallel=True):
     """
     Makes tpr files and run an ensemble of expanded ensemble simulations
-    IN PARALLEL using gmx.mdrun.
+    using :code:`gmxapi.mdrun`.
 
     Parameters
     ----------

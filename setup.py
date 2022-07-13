@@ -15,8 +15,8 @@ pytest_runner = ['pytest-runner'] if needs_pytest else []
 try:
     with open("README.md", "r") as handle:
         long_description = handle.read()
-except:
-    long_description = None
+except FileNotFoundError:
+    long_description = "\n".join(short_description[2:])
 
 
 setup(

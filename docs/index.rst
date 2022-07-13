@@ -5,7 +5,7 @@
 
 Welcome to ensemble_md's documentation!
 =========================================================
-`ensemble_md` is a Python package providing methods for running 
+``ensemble_md`` is a Python package providing methods for running 
 GROMACS simulation ensembles, including ensemble of expanded ensemble 
 and ensemble of alchemical metadynamics. The former is our main focus 
 in our current phase, while the latter will be under development in 

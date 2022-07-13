@@ -1,7 +1,7 @@
 """A repository for developing ensemble simulation methods"""
 
 # Add imports here
-from .ensemble_md import *   # noqa: ABS101, F403, F401
+# from .ensemble_md import canvas  # noqa: ABS101
 
 # Handle versioneer
 from ._version import get_versions   # noqa: ABS101
