@@ -17,7 +17,8 @@ import numpy as np
 
 
 class Logger():
-    """This redirect the STDOUT to a specified output file while preserving STDOUT on screen.
+    """
+    This redirect the STDOUT to a specified output file while preserving STDOUT on screen.
     """
     def __init__(self, logfile):
         self.terminal = sys.stdout
@@ -104,9 +105,9 @@ def format_time(t):
 
 def autoconvert(s):
     """Convert input to a numerical type if possible. Used for the MDP parser.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.
+    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.  # noqa: E501
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
-    
+
       - A non-string object is returned as it is
       - Try conversion to int, float, str.
     """

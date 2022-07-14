@@ -12,3 +12,6 @@ comment:
   behavior: default
   flags: null
   paths: null
+ignore:
+  "ensemble_md.exceptions.py"
+  "ensemble_md.utils.py"

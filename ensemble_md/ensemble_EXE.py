@@ -22,6 +22,7 @@ from alchemlyb.parsing.gmx import _get_headers as get_headers
 from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 
 import gmxapi as gmx
+import ensemble_md
 import ensemble_md.gmx_parser as gmx_parser
 import ensemble_md.utils as utils
 from ensemble_md.exceptions import ParameterError
@@ -61,7 +62,7 @@ class EnsembleEXE:
             setattr(self, attr, params[attr])
 
         # Step 2: Handle the YAML parameters
-        required_args = ['parallel', 'n_sim', 'n_iterations', 's']
+        required_args = ['parallel', 'n_sim', 'n_iterations', 's', 'mdp']
         for i in required_args:
             if hasattr(self, i) is False:
                 raise ParameterError(f"Required parameter '{i}' not specified in {yml_file}.")  # noqa: F405
@@ -105,13 +106,14 @@ class EnsembleEXE:
             print('\nImportant parameters of EXEE')
             print('============================')
             print(f'gmxapi version: {gmx.__version__}')
+            print(f'ensemble_md version: {ensemble_md.__version__}')
             print(f'Output log file: {self.outfile}')
             print(f'Whether the replicas run in parallel: {self.parallel}')
             print(f'MC scheme for swapping simulations: {self.mc_scheme}')
             print(f'Scheme for combining weights: {self.w_scheme}')
-            print(f'Scheme for histogram cutoff: {self.N_cutoff}')
+            print(f'Histogram cutoff: {self.N_cutoff}')
             print(f'Number of replicas: {self.n_sim}')
-            print(f'Number of iteration: {self.n_iterations}')
+            print(f'Number of iterations: {self.n_iterations}')
             print(f'Length of each replica: {self.dt * self.nst_sim} ps')
             print(f'Total number of states: {self.n_tot}')
             print('States sampled by each simulation:')
@@ -153,8 +155,8 @@ class EnsembleEXE:
 
         Parameters
         ----------
-        new_template : str
-            The file name of the new MDP template. Typically the MDP file of the previous iteration.
+        new_template : gmx_parser.MDP obj
+            The gmx_parser.MDP object of the new MDP template. Typically the MDP file of the previous iteration.
         sim_idx : int
             The index of the simulation whose MDP parameters need to be updated.
         iter_idx : int
@@ -176,7 +178,7 @@ class EnsembleEXE:
         MDP = copy.deepcopy(new_template)
         MDP['tinit'] = self.nst_sim * self.dt * iter_idx
         MDP['nsteps'] = self.nst_sim
-        MDP['init-lambda-state'] = states[sim_idx] - sim_idx * self.s   # 2nd term for shifting to the local index.
+        MDP['init-lambda-state'] = states[sim_idx] - sim_idx * self.s   # 2nd term is for shifting from the global to local index.
         MDP['init-lambda-weights'] = weights[sim_idx]
         MDP['init-wl-delta'] = wl_delta[sim_idx]
 
@@ -290,8 +292,8 @@ class EnsembleEXE:
     def propose_swaps(self):
         """
         Proposes swaps of coordinates between replicas by drawing samples from the swappable pairs.
-        Note that only simulations with overlapping lambda ranges can be swapped, or :math:`\Delta H`
-        and :math:`\Delta g` will be unknown.)
+        Note that only simulations with overlapping lambda ranges can be swapped, or :math:`\Delta H`  # noqa: W605
+        and :math:`\Delta g` will be unknown.)  # noqa: W605
 
         Returns
         -------
@@ -430,8 +432,8 @@ class EnsembleEXE:
 
 def histogram_correction(weights, counts, cutoff=0):
     """
-    Corrects the lambda weights based on the histogram counts. Namely, 
-    :math:`g_k' = g_k + \ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
+    Corrects the lambda weights based on the histogram counts. Namely,
+    :math:`g_k' = g_k + \ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`  # noqa: W605
     are the lambda weight after and before the correction, respectively.
     Notably, in any of the following situations, we don't do any correction.
 

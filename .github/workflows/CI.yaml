@@ -51,6 +51,11 @@ jobs:
         auto-activate-base: false
         show-channel-urls: true
 
+    -name: Install GROMACS
+      shell: bash -l {0}
+      run: |
+        mamba intall 'gromacs=2021.2' pocl
+
     - name: Install package
       # conda setup requires this special shell
       shell: bash -l {0}

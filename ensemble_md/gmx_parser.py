@@ -30,7 +30,7 @@ def parse_log(log_file):
       - Case 2: The weights were equilibrated during the simulation.
       - Case 3: The weights were fixed in the simulation.
 
-    In both Cases 1 and 2, we will get final ``wl_delta``, ``weights``, ``counts``, and ``equil_bool``, 
+    In both Cases 1 and 2, we will get final ``wl_delta``, ``weights``, ``counts``, and ``equil_bool``,
     although ``wl_delta`` will be useless in Case 2 and the final weights will be the same as the equilibrated weights.
     (In Case 1, ``equil_bool`` should always be ``False``, while in Case 2, ``euqil_bool`` should always be ``True``.)
     In Case 3, ``equil_bool`` should always be ``True``. What's different from Case 2 is that
@@ -136,7 +136,7 @@ def parse_log(log_file):
 
 class FileUtils(object):
     """Mixin class to provide additional file-related capabilities.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.
+    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.  # noqa: E501
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
     """
 
@@ -227,11 +227,11 @@ class FileUtils(object):
 
 class MDP(odict, FileUtils):
     """Class that represents a Gromacs mdp run input file.
-    Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/fileformats/mdp.py>`_.
+    Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/fileformats/mdp.py>`_.  # noqa: E501
     Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com>
     The MDP instance is an ordered dictionary.
 
-      - P*arameter names* are keys in the dictionary.
+      - *Parameter names* are keys in the dictionary.
       - *Comments* are sequentially numbered with keys Comment0001,
         Comment0002, ...
       - *Empty lines* are similarly preserved as Blank0001, ....
@@ -274,6 +274,16 @@ class MDP(odict, FileUtils):
         if filename is not None:
             self._init_filename(filename)
             self.read(filename)
+
+    def __eq__(self, other):
+        """
+        __eq__ inherited from FileUtils needs to be overridden if new attributes (autoconvert in
+        this case) are assigned to the instance of the subclass (MDP in our case).
+        See `this post by LGTM <https://lgtm.com/rules/9990086/>`_ for more details.
+        """
+        if not isinstance(other, MDP):
+            return False
+        return FileUtils.__eq__(self, other) and self.autoconvert == other.autoconvert
 
     def _transform(self, value):
         if self.autoconvert:

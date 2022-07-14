@@ -3,11 +3,8 @@ channels:
 dependencies:
   # Base depends
   - python
-  - pandoc
-  - ipykkernel
   - pip
   
   # Pip-only installs
-  - pip:
-    - nbsphinx
+  # - pip:
 
