@@ -202,10 +202,10 @@ class EnsembleEXE:
         Attributes
         ----------
         lambda_dict : dict
-            A dictionary whose keys are vectors of coupling parameters and
-            values are the corresponding state indices (starting from 0).
+            A dictionary whose keys are tuples of coupling parameters and
+            values are the corresponding GLOBAL state indices (starting from 0).
         lambda_ranges : list
-            A list of lambda vectors of each state range, e.g.
+            A list of lambda vectors of each state range.
         """
         self.lambda_dict = {}   # key: vector of coupling parameters, value: state index
         for i in range(self.n_tot):
@@ -236,7 +236,7 @@ class EnsembleEXE:
         Returns
         -------
         states : list
-            A list of last sampled states of all simulaitons.
+            A list of the global indices of the last sampled states of all simulaitons.
         lambda_vecs : list
             A list of lambda vectors corresponding to the last sampled states of all simulations.
         """

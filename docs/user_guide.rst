@@ -29,7 +29,14 @@ check :code:`requirements.txt`.
 
 Theory
 ======
+Basic idea
+----------
 
+MC schemes for swapping replicas
+--------------------------------
 
-Parameters
-==========
+Schemes for combining weights
+-----------------------------
+
+Free energy calculations
+------------------------

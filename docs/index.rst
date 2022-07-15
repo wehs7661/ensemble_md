@@ -16,12 +16,15 @@ the future.
    :maxdepth: 2
    :caption: User guide:
    
+.. toctree::
+   examples/EEXE_tutorial
+   :maxdepth: 2
+   :caption: Tutorials:
 
 .. toctree::
    api
    :maxdepth: 2
    :caption: API documentation:
-
 
 Indices and tables
 ==================

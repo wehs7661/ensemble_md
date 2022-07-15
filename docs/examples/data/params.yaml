@@ -1,0 +1,12 @@
+# User-defined parameters
+parallel: True               # Whether the replicas of EXEE should be run in parallel or not
+n_sim: 4                     # Number of replica simulations
+n_iterations: 5              # Number of iterations
+s: 1                         # Shift in λ ranges (e.g. s = 2 if λ_2 = (2, 3, 4) & λ_3 = (4, 5, 6))
+nst_sim: 500                 # Number of simulation steps for each homogeneous replica
+mdp: 'expanded.mdp'          # The MDP template that has the whole range of λ values
+mc_scheme: 'metropolis'      # The method for swapping simulations. Choices include "same_state", "metropolis", and "metropolis-eq".
+w_scheme: 'hist-exp-avg'     # The method for combining weights. Choices include "None" (unspecified), exp_avg, ...
+N_cutoff: 1000               # The histogram cutoff. Only required if histo-exp-avg is used.
+n_pairs: 2                   # Number of pairs of simulations to be swapped in each attempt.
+outfile: 'results.txt'       # The output file for logging how replicas interact with each other.
