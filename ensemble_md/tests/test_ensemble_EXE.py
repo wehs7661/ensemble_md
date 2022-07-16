@@ -1,5 +1,5 @@
 import os
-import numpy as np 
+import numpy as np
 import ensemble_md
 import ensemble_md.gmx_parser as gmx_parser
 from ensemble_md.ensemble_EXE import EnsembleEXE
@@ -18,10 +18,10 @@ class Test_EnsembleEXE:
         assert EEXE.w_scheme == 'exp-avg'
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_pairs == 1
-        assert EEXE.outfile == 'results.txt' 
+        assert EEXE.outfile == 'results.txt'
         assert EEXE.mdp == 'data/expanded.mdp'
         assert EEXE.nsteps == 500
-        assert EEXE.dt == 0.002 
+        assert EEXE.dt == 0.002
         assert EEXE.temp == 298
         assert EEXE.kT == k * NA * 298 / 1000
         assert EEXE.n_tot == 9
@@ -57,16 +57,16 @@ class Test_EnsembleEXE:
         iter_idx = 3
         states = [2, 5, 7, 4]
         wl_delta = [0.4, 0.32, 0.256, 0.32]
-        weights = [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [3.48, 2.78, 3.21, 4.56, 8.79, 0.48], [8.45, 0.52, 3.69, 2.43, 4.56, 6.73]]
+        weights = [[0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [3.48, 2.78, 3.21, 4.56, 8.79, 0.48], [8.45, 0.52, 3.69, 2.43, 4.56, 6.73]]  # noqa: E501
         equil_bools = [False, True, True, False]
         MDP_1 = EEXE.update_MDP(new_template, 2, iter_idx, states, wl_delta, weights, equil_bools)
         MDP_2 = EEXE.update_MDP(new_template, 3, iter_idx, states, wl_delta, weights, equil_bools)
-        
+
         assert MDP_1["tinit"] == MDP_2['tinit'] == 3
         assert MDP_1["nsteps"] == MDP_2['nsteps'] == 500
         assert MDP_1['init-lambda-state'] == 5
         assert MDP_2['init-lambda-state'] == 1
-        assert MDP_1['init-wl-delta'] == MDP_1['wl-scale'] == MDP_1['wl-ratio']  == ''  # because equil_bools is True
+        assert MDP_1['init-wl-delta'] == MDP_1['wl-scale'] == MDP_1['wl-ratio'] == ''  # because equil_bools is True
         assert MDP_1['lmc-weights-equil'] == MDP_1['weight-equil-wl-delta'] == ''  # because equil_bools is True
         assert MDP_2['init-wl-delta'] == 0.32
         assert all([a == b for a, b in zip(MDP_1['init-lambda-weights'], [3.48, 2.78, 3.21, 4.56, 8.79, 0.48])])
@@ -74,7 +74,7 @@ class Test_EnsembleEXE:
 
     def test_map_lambda2state(self):
         EEXE.map_lambda2state()
-        assert EEXE.lambda_dict == {(0, 0): 0, (0.25, 0): 1, (0.5, 0): 2, (0.75, 0): 3, (1, 0): 4, (1, 0.25): 5, (1, 0.5): 6, (1, 0.75): 7, (1, 1): 8}
+        assert EEXE.lambda_dict == {(0, 0): 0, (0.25, 0): 1, (0.5, 0): 2, (0.75, 0): 3, (1, 0): 4, (1, 0.25): 5, (1, 0.5): 6, (1, 0.75): 7, (1, 1): 8}  # noqa: E501
         assert EEXE.lambda_ranges == [
             [(0.0, 0.0), (0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25)],
             [(0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5)],
@@ -86,7 +86,7 @@ class Test_EnsembleEXE:
         pass
 
     def test_extract_final_log_info(self):
-        pass 
+        pass
 
     def test_propose_swaps(self):
         pass
@@ -97,10 +97,8 @@ class Test_EnsembleEXE:
     def test_accept_or_reject(self):
         pass
 
-def test_historgam_correction():
-    pass 
+    def test_historgam_correction(self):
+        pass
 
-def test_run_EEXE():
-    pass
-
-
+    def test_run_EEXE(self):
+        pass

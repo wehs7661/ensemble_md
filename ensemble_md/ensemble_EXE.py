@@ -178,7 +178,7 @@ class EnsembleEXE:
         MDP = copy.deepcopy(new_template)
         MDP['tinit'] = self.nst_sim * self.dt * iter_idx
         MDP['nsteps'] = self.nst_sim
-        MDP['init-lambda-state'] = states[sim_idx] - sim_idx * self.s   # 2nd term is for shifting from the global to local index.
+        MDP['init-lambda-state'] = states[sim_idx] - sim_idx * self.s   # 2nd term is for shifting from the global to local index.  # noqa: E501
         MDP['init-lambda-weights'] = weights[sim_idx]
         MDP['init-wl-delta'] = wl_delta[sim_idx]
 
@@ -205,7 +205,7 @@ class EnsembleEXE:
             A dictionary whose keys are tuples of coupling parameters and
             values are the corresponding GLOBAL state indices (starting from 0).
         lambda_ranges : list
-            A list of lambda vectors of each state range.
+            A list of lambda vectors of the state range of each replica.
         """
         self.lambda_dict = {}   # key: vector of coupling parameters, value: state index
         for i in range(self.n_tot):
@@ -429,102 +429,156 @@ class EnsembleEXE:
 
         return swap_bool
 
+    def histogram_correction(self, weights, counts):
+        """
+        Corrects the lambda weights based on the histogram counts. Namely,
+        :math:`g_k' = g_k + \ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`  # noqa: W605
+        are the lambda weight after and before the correction, respectively.
+        Notably, in any of the following situations, we don't do any correction.
 
-def histogram_correction(weights, counts, cutoff=0):
-    """
-    Corrects the lambda weights based on the histogram counts. Namely,
-    :math:`g_k' = g_k + \ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`  # noqa: W605
-    are the lambda weight after and before the correction, respectively.
-    Notably, in any of the following situations, we don't do any correction.
+        - Either :math:`N_{k-1}` or :math:`N_k` is 0.
+        - Either :math:`N_{k-1}` or :math:`N_k` is smaller than the histogram cutoff.
 
-      - Either :math:`N_{k-1}` or :math:`N_k` is 0.
-      - Either :math:`N_{k-1}` or :math:`N_k` is smaller than the histogram cutoff.
+        Parameters
+        ----------
+        weights : list
+            A list of lists of weights (of ALL simulations) to be corrected.
+        counts : list
+            A list of lists of counts (of ALL simulations).
 
-    Parameters
-    ----------
-    weights : list
-        A list of lists of weights (of ALL simulations) to be corrected.
-    counts : list
-        A list of lists of counts (of ALL simulations).
-    cutoff : list
-        The histogram cutoff.
+        Return
+        ------
+        weights : list
+            An updated list of lists of corected weights.
+        """
+        print('\nPerforming histogram correction for the lambda weights ...')
+        for i in range(len(weights)):   # loop over the replicas
+            print(f'  Counts of rep {i}:\t\t{counts[i]}')
+            print(f'  Original weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}')
+            for j in range(1, len(weights[i])):   # loop over the alchemical states
+                if counts[i][j-1] != 0 and counts[i][j-1] != 0:
+                    if np.min([counts[i][j-1], counts[i][j]]) > self.N_cutoff:
+                        weights[i][j] += np.log(counts[i][j-1] / counts[i][j])
+            print(f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n')
+        return weights
 
-    Return
-    ------
-    weights : list
-        An updated list of lists of corected weights.
-    """
-    print('\nPerforming histogram correction for the lambda weights ...')
-    for i in range(len(weights)):   # loop over the replicas
-        print(f'  Counts of rep {i}:\t\t{counts[i]}')
-        print(f'  Original weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}')
-        for j in range(1, len(weights[i])):   # loop over the alchemical states
-            if counts[i][j-1] != 0 and counts[i][j-1] != 0:
-                if np.min([counts[i][j-1], counts[i][j]]) > cutoff:
-                    weights[i][j] += np.log(counts[i][j-1] / counts[i][j])
-        print(f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n')
-    return weights
+    def combine_weights(self, weights, counts, swap):
+        """
+        Combines the lambda weights of the exchanging replicas as needed.
 
+        Parameters
+        ----------
+        weights : list
+            A list of Wang Landau weights of all simulations.
+        counts : list
+            A list of final counts of all simulations.
+        swap : tuple
+            A tuple of a pair of simulation indices to be swapped.
 
-def run_EEXE(n_sim, n, parallel=True):
-    """
-    Makes tpr files and run an ensemble of expanded ensemble simulations
-    using :code:`gmxapi.mdrun`.
+        Returns
+        -------
+        weights : list
+            A list of updated Wang Landau weights of all simulations. Note that the weights
+            of the simulations not involved in the exchange will remain the same.
+        """
+        if self.w_scheme is None:
+            pass
+        else:
+            # Step 1: "Correct" the weights as needed (hist-exp-avg or mbar-exp-avg).
+            # If min(N_{k-1}, N_k) < cutoff, there's no correction and hist-exp-avg/mbar-exp-avg reduces to exp-avg.
+            if self.w_scheme == 'hist-exp-avg':
+                weights = self.histogram_correction(weights, counts)
+            elif self.w_scheme == 'mbar-exp-avg':
+                pass
 
-    Parameters
-    ----------
-    n_sim : int
-        The number of simulations in the ensemble.
-    n : int
-        The iteration index (starting from 0).
-    parallel : bool
-        Whether to run the replicas in the serial or concurrent method.
-    """
-    if rank == 0:
-        dir_before = [i for i in os.listdir('.') if os.path.isdir(os.path.join('.', i))]
-        print('Preparing the tpr files for the simulation ensemble...')
+            # Step 2: Combine the weights
+            print(f'Performing weight combination between simulation {swap[0]} and simulation {swap[1]} ... ')
+            overlap = self.state_ranges[swap[0]].intersection(self.state_ranges[swap[1]])
+            print(f'  Alchemical range of simulation {swap[0]}: {list(self.state_ranges[swap[0]])}')
+            print(f'  Alchemical range of simulation {swap[1]}: {list(self.state_ranges[swap[1]])}')
+            print(f'  Overlapped alchemical ranges: {list(overlap)}\n')
 
-    grompp = gmx.commandline_operation('gmx',
-                                        arguments=['grompp'],  # noqa: E127
-                                        input_files=[          # noqa: E127
-                                            {
-                                                '-f': f'../sim_{i}/iteration_{n}/expanded.mdp',
-                                                '-c': f'../sim_{i}/iteration_{n}/sys.gro',
-                                                '-p': f'../sim_{i}/iteration_{n}/sys.top'
-                                            } for i in range(n_sim)],
-                                        output_files=[          # noqa: E127
-                                            {                   # noqa: E127
-                                                '-o': f'../sim_{i}/iteration_{n}/sys_EE.tpr',
-                                                '-po': f'../sim_{i}/iteration_{n}/mdout.mdp'
-                                            } for i in range(n_sim)])
-    grompp.run()
-    if rank == 0:   # just print the messages once
-        utils.gmx_output(grompp)
+            # swap[0] is always smaller than swap[1]
+            g_0 = np.array(weights[swap[0]][-len(overlap):])    # the last N values
+            g_1 = np.array(weights[swap[1]][:len(overlap)])     # the first N values (g_1[0] must be 0)
+            shifted_0 = g_0 - g_0[0]    # will be combined with g_1 to generate modified_1
+            shifted_1 = g_1 + g_0[0]    # will be combined with g_0 to generate modified_0
+            print(f'  Original g^i: {[float(f"{i:.3f}") for i in weights[swap[0]]]}')
+            print(f'  Original g^j: {[float(f"{i:.3f}") for i in weights[swap[1]]]}')
 
-    # Run all the simulations simultaneously using gmxapi
-    if rank == 0:
-        print('Running an ensemble of simulations ...\n')
+            if self.w_scheme == 'avg':
+                # DEPRECATED! Kept here just for conveneint testing.
+                modified_0 = (shifted_1 + g_0) / 2
+                modified_1 = (shifted_0 + g_1) / 2
+                weights[swap[0]][-len(overlap):] = modified_0
+                weights[swap[1]][:len(overlap)] = modified_1
+            else:
+                # This includes exp-avg, hist-exp-avg or mbar-exp-avg
+                modified_0 = -np.log((np.exp(-g_0) + np.exp(-shifted_1)) / 2)
+                modified_1 = -np.log((np.exp(-g_1) + np.exp(-shifted_0)) / 2)
+                weights[swap[0]][-len(overlap):] = modified_0
+                weights[swap[1]][:len(overlap)] = modified_1
 
-    if parallel is True:
-        tpr = [f'{grompp.output.file["-o"].result()[i]}' for i in range(n_sim)]
-        inputs = gmx.read_tpr(tpr)
-        md = gmx.mdrun(inputs)
-        md.run()
-    else:
-        # Note that we could use output_files argument to customize the output file
-        # names but here we'll just use the defaults.
-        md = gmx.commandline_operation('gmx',
-                                    arguments=['mdrun'],          # noqa: E128
-                                    input_files=[                 # noqa: E128
-                                        {
-                                            '-s': grompp.output.file['-o'].result()[i],
-                                        } for i in range(n_sim)])
-        md.run()
+            print(f'  Modified g^i: {[float(f"{i:.3f}") for i in weights[swap[0]]]}')
+            print(f'  Modified g^j: {[float(f"{i:.3f}") for i in weights[swap[1]]]}')
+
+        return weights
+
+    def run_EEXE(self, n):
+        """
+        Makes tpr files and run an ensemble of expanded ensemble simulations
+        using :code:`gmxapi.mdrun`.
+
+        Parameters
+        ----------
+        n : int
+            The iteration index (starting from 0).
+        """
+        if rank == 0:
+            dir_before = [i for i in os.listdir('.') if os.path.isdir(os.path.join('.', i))]
+            print('Preparing the tpr files for the simulation ensemble...')
+
+        grompp = gmx.commandline_operation('gmx',
+                                            arguments=['grompp'],  # noqa: E127
+                                            input_files=[          # noqa: E127
+                                                {
+                                                    '-f': f'../sim_{i}/iteration_{n}/expanded.mdp',
+                                                    '-c': f'../sim_{i}/iteration_{n}/sys.gro',
+                                                    '-p': f'../sim_{i}/iteration_{n}/sys.top'
+                                                } for i in range(self.n_sim)],
+                                            output_files=[          # noqa: E127
+                                                {                   # noqa: E127
+                                                    '-o': f'../sim_{i}/iteration_{n}/sys_EE.tpr',
+                                                    '-po': f'../sim_{i}/iteration_{n}/mdout.mdp'
+                                                } for i in range(self.n_sim)])
+        grompp.run()
         if rank == 0:   # just print the messages once
-            utils.gmx_output(md)
+            utils.gmx_output(grompp)
 
-    if rank == 0:
-        dir_after = [i for i in os.listdir('.') if os.path.isdir(os.path.join('.', i))]
-        utils.clean_up(dir_before, dir_after)
+        # Run all the simulations simultaneously using gmxapi
+        if rank == 0:
+            print('Running an ensemble of simulations ...\n')
 
-    return md
+        if self.parallel is True:
+            tpr = [f'{grompp.output.file["-o"].result()[i]}' for i in range(self.n_sim)]
+            inputs = gmx.read_tpr(tpr)
+            md = gmx.mdrun(inputs)
+            md.run()
+        else:
+            # Note that we could use output_files argument to customize the output file
+            # names but here we'll just use the defaults.
+            md = gmx.commandline_operation('gmx',
+                                        arguments=['mdrun'],          # noqa: E128
+                                        input_files=[                 # noqa: E128
+                                            {
+                                                '-s': grompp.output.file['-o'].result()[i],
+                                            } for i in range(self.n_sim)])
+            md.run()
+            if rank == 0:   # just print the messages once
+                utils.gmx_output(md)
+
+        if rank == 0:
+            dir_after = [i for i in os.listdir('.') if os.path.isdir(os.path.join('.', i))]
+            utils.clean_up(dir_before, dir_after)
+
+        return md

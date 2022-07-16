@@ -53,7 +53,7 @@ jobs:
     - name: Install GROMACS
       shell: bash -l {0}
       run: |
-        mamba intall 'gromacs=2021.2' pocl
+        mamba install 'gromacs==2021.2' pocl
 
     - name: Install package
       # conda setup requires this special shell
@@ -69,7 +69,7 @@ jobs:
       shell: bash -l {0}
 
       run: |
-        pytest -v --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
+        pytest -v --disable-pytest-warning --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
 
     - name: CodeCov
       uses: codecov/codecov-action@v1
@@ -77,4 +77,5 @@ jobs:
         file: ./coverage.xml
         flags: unittests
         name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
+        fail_ci_if_error: false
 
