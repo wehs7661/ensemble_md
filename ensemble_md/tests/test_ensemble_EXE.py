@@ -1,10 +1,11 @@
 import os
+import random
+import pytest
 import numpy as np
 import ensemble_md
 import ensemble_md.gmx_parser as gmx_parser
 from ensemble_md.ensemble_EXE import EnsembleEXE
 
-np.random.seed(0)
 current_path = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(current_path, 'data')
 EEXE = EnsembleEXE(os.path.join(input_path, 'params.yaml'))
@@ -83,22 +84,125 @@ class Test_EnsembleEXE:
         ]
 
     def test_extract_final_dhdl_info(self):
-        pass
+        dhdl_files = [os.path.join(input_path, f'dhdl_{i}.xvg') for i in range(EEXE.n_sim)]
+        states, lambda_vecs = EEXE.extract_final_dhdl_info(dhdl_files)
+        assert states == [5, 2, 2, 8]
+        assert lambda_vecs == [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
 
     def test_extract_final_log_info(self):
-        pass
+        log_files = [os.path.join(input_path, f'EXE_{i}.log') for i in range(EEXE.n_sim)]
+        wl_delta, weights, counts, equil_bools = EEXE.extract_final_log_info(log_files)
+        assert wl_delta == [0.4, 0.5, 0.5, 0.5]
+        assert weights == [
+            [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
+            [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
+            [0, 0.66431, 1.25475, 0.24443, 0.59472, 0.70726],
+            [0, 0.09620, 1.59937, -4.31679, -22.89436, -28.08701]
+        ]
+        assert counts == [[4, 11, 9, 9, 11, 6], [9, 8, 8, 11, 7, 7], [3, 1, 1, 9, 15, 21], [0, 0, 0, 1, 18, 31]]
+        assert equil_bools == [False, False, False, False]
 
     def test_propose_swaps(self):
-        pass
+        random.seed(0)
+        EEXE.n_sim = 8
+        EEXE.n_pairs = 5
+        EEXE.state_ranges = [set(range(i, i + 5)) for i in range(EEXE.n_sim)]  # 12 states, 5 for each replica
+        swap_list = EEXE.propose_swaps()
+        assert EEXE.n_pairs == 4
+        assert swap_list == [(3, 4), (5, 6), (0, 1)]  # The remaining pair of (2, 7) is not swappable
 
     def test_calc_prob_acc(self):
-        pass
+        EEXE.state_ranges = [{0, 1, 2, 3, 4, 5}, {1, 2, 3, 4, 5, 6}, {2, 3, 4, 5, 6, 7}, {3, 4, 5, 6, 7, 8}]
+        states = [5, 2, 2, 8]
+        lambda_vecs = [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
+        weights = [
+            [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
+            [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
+            [0, 0.66431, 1.25475, -5.24443, 0.59472, 0.70726],   # Changed the 4th from 0.24443 to -5.24443
+            [0, 0.09620, 1.59937, -4.31679, -22.89436, -28.08701]
+        ]
+
+        # Test 1: Swapping states not present in both lambda ranges
+        swap = (0, 3)
+        dhdl_files = [os.path.join(input_path, f'dhdl_{i}.xvg') for i in swap]
+        prob_acc_1 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        assert prob_acc_1 == 0
+
+        # Test 2: Same-state swapping (True)
+        swap = (1, 2)
+        EEXE.mc_scheme = 'same_state'
+        dhdl_files = [os.path.join(input_path, f'dhdl_{i}.xvg') for i in swap]
+        prob_acc_2 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        assert prob_acc_2 == 1
+
+        # Test 3: Same-state swapping (False)
+        swap = (0, 2)
+        dhdl_files = [os.path.join(input_path, f'dhdl_{i}.xvg') for i in swap]
+        prob_acc_3 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        assert prob_acc_3 == 0
+
+        # Test 4: Metropolis-eq
+        EEXE.mc_scheme = 'metropolis-eq'
+        dhdl_files = [os.path.join(input_path, f'dhdl_{i}.xvg') for i in swap]
+        prob_acc_4 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        assert prob_acc_4 == 1
+
+        # Test 5: Metropolis
+        EEXE.mc_scheme = 'metropolis'
+        dhdl_files = [os.path.join(input_path, f'dhdl_{i}.xvg') for i in swap]
+        prob_acc_4 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        assert prob_acc_4 == 0.13207042981597653
 
     def test_accept_or_reject(self):
-        pass
+        random.seed(0)
+        swap_bool_1 = EEXE.accept_or_reject(0)
+        swap_bool_2 = EEXE.accept_or_reject(0.8)    # rand = 0.844
+        swap_bool_3 = EEXE.accept_or_reject(0.8)    # rand = 0.758
+
+        assert swap_bool_1 is False
+        assert swap_bool_2 is False
+        assert swap_bool_3 is True
 
     def test_historgam_correction(self):
-        pass
+        EEXE.N_cutoff = 5000
+        weights_1 = [[0, 10.304, 20.073, 29.364]]
+        counts_1 = [[31415, 45701, 55457, 59557]]
+        weights_1 = EEXE.histogram_correction(weights_1, counts_1)
+        assert weights_1 == [[0, 10.304 + np.log(31415/45701), 20.073 + np.log(45701/55457), 29.364 + np.log(55457/59557)]]
 
+        weights_2 = [[0, 10.304, 20.073, 29.364]]
+        counts_2 = [[3141, 4570, 5545, 5955]]
+        weights_2 = EEXE.histogram_correction(weights_2, counts_2)
+        assert weights_2 == [[0, 10.304, 20.073, 29.364 + np.log(5545/5955)]]
+
+    def combine_w_inputs(self):
+        swap = (0, 1)
+        weights = [[0, 2.1, 4.0, 3.7, 4.8], [0, -0.4, 0.7, 1.5, 2.4]]
+        counts = [[31, 29, 13, 48, 21], [21, 27, 36, 19, 15]]  # will not be usd though
+        return weights, counts, swap
+
+    def test_combine_weights(self):
+        EEXE.state_ranges = [{0, 1, 2, 3, 4}, {2, 3, 4, 5, 6}]
+
+        EEXE.w_scheme = None
+        w1 = np.array(EEXE.combine_weights(*self.combine_w_inputs()))
+        np.testing.assert_array_almost_equal(w1, np.array([[0, 2.1, 4.0, 3.7, 4.8], [0, -0.4, 0.7, 1.5, 2.4]]))
+
+        EEXE.w_scheme = 'avg'
+        w2 = np.array(EEXE.combine_weights(*self.combine_w_inputs()))
+        np.testing.assert_array_almost_equal(w2, np.array([[0, 2.1, 4.0, 3.65, 4.75], [0, -0.35, 0.75, 1.5, 2.4]]))
+
+        EEXE.w_scheme = 'exp-avg'
+        w3 = np.array(EEXE.combine_weights(*self.combine_w_inputs()))
+        np.testing.assert_array_almost_equal(w3, np.array([
+            [0, 2.1, 4.0, -np.log(0.5 * (np.exp(-3.7) + np.exp(-3.6))), -np.log(0.5*(np.exp(-4.8) + np.exp(-4.7)))], 
+            [0, -np.log(0.5*(np.exp(0.4) + np.exp(0.3))), -np.log(0.5*(np.exp(-0.7) + np.exp(-0.8))), 1.5, 2.4]]))
+
+        EEXE.w_scheme = 'hist-exp-avg'  # should be the same as exp-avg because of low histogram counts
+        w4 = np.array(EEXE.combine_weights(*self.combine_w_inputs()))
+        np.testing.assert_array_almost_equal(w3, np.array([
+            [0, 2.1, 4.0, -np.log(0.5 * (np.exp(-3.7) + np.exp(-3.6))), -np.log(0.5*(np.exp(-4.8) + np.exp(-4.7)))], 
+            [0, -np.log(0.5*(np.exp(0.4) + np.exp(0.3))), -np.log(0.5*(np.exp(-0.7) + np.exp(-0.8))), 1.5, 2.4]]))
+        
     def test_run_EEXE(self):
         pass

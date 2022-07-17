@@ -314,12 +314,16 @@ class EnsembleEXE:
         for i in range(self.n_pairs):
             all_pairs = list(combinations(sim_idx, 2))
             swappables = [i for i in all_pairs if self.state_ranges[i[0]].intersection(self.state_ranges[i[1]]) != set()]  # noqa: E501
-            swap = random.choice(swappables)
-            swap_list.append(swap)
-
-            # Here we remove indices that have been picked such that all_pairs and swappables will be updated
-            sim_idx.remove(swap[0])
-            sim_idx.remove(swap[1])
+            try:
+                swap = random.choice(swappables)
+                swap_list.append(swap)
+                
+                # Here we remove indices that have been picked such that all_pairs and swappables will be updated
+                sim_idx.remove(swap[0])
+                sim_idx.remove(swap[1])
+            except IndexError:
+                # In the case that swappables is an empty list in the last few draws.
+                pass
 
         return swap_list
 
@@ -372,11 +376,11 @@ class EnsembleEXE:
 
                 old_state_0 = int(data_0[1])        # old local index, will only be used in "metropolis"
                 old_state_1 = int(data_1[1])        # old local index, will only be used in "metropolis"
-                new_state_0 = self.lambda_ranges[swap[0]].index(new_lambda_0)    # new state idex (local index in simulation swap[0]) # noqa: E501
+                new_state_0 = self.lambda_ranges[swap[0]].index(new_lambda_0)    # new state index (local index in simulation swap[0]) # noqa: E501
                 new_state_1 = self.lambda_ranges[swap[1]].index(new_lambda_1)    # new state index (local index in simulation swap[1]) # noqa: E501
 
                 dU_0 = dhdl_0[new_state_0] / self.kT  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state
-                dU_1 = dhdl_1[new_state_1] / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \dElta U (kT) to the new state
+                dU_1 = dhdl_1[new_state_1] / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state
                 dU = (dU_0 + dU_1)
                 print(f'  U^i_n - U^i_m = {dU_0:.2f} kT, U^j_m - U^j_n = {dU_1:.2f} kT, Total dU: {dU:.2f} kT')
 
@@ -397,7 +401,6 @@ class EnsembleEXE:
                     print(f'  g^i_n - g^i_m = {dg_0:.2f} kT, g^j_m - g^j_n = {dg_1:.2f} kT, Total dg: {dg:.2f} kT')
 
                     prob_acc = min(1, np.exp(-dU + dg))
-
         return prob_acc
 
     def accept_or_reject(self, prob_acc):
@@ -418,7 +421,7 @@ class EnsembleEXE:
             swap_bool = False
             print('  Swap rejected!')
         else:
-            rand = np.random.rand()
+            rand = random.random()
             print(f'  Acceptance rate: {prob_acc:.3f} / Random number drawn: {rand:.3f}')
             if rand < prob_acc:
                 swap_bool = True

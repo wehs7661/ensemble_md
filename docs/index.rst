@@ -18,6 +18,7 @@ the future.
    
 .. toctree::
    examples/EEXE_tutorial
+   examples/EMetaD_tutorial
    :maxdepth: 2
    :caption: Tutorials:
 
