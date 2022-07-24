@@ -4,6 +4,5 @@ argparse
 alchemlyb
 setuptools
 wheel
-mpi4py
 cmake
 pybind11

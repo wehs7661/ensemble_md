@@ -53,14 +53,21 @@ jobs:
       shell: bash -l {0}
       run: |
         conda install gromacs=2022
-        gmx
 
-    - name: Install package
+    - name: Install dependencies of gmxapi
       # conda setup requires this special shell
       shell: bash -l {0}
       run: |
+        ls
+        gmx
         python -m pip install . --no-deps
+        conda install mpi4py
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Install gmxapi
+      # conda setup requires this special shell
+      shell: bash -l {0}
+      run: |
         gmx
         pip install --no-cache-dir gmxapi
         conda list
