@@ -1,36 +1,5 @@
-Introduction
-============
-:code:`ensemble_md` is a Python package providing methods for running 
-GROMACS simulation ensembles, including ensemble of expanded ensemble 
-and ensemble of alchemical metadynamics. The former is our main focus 
-in our current phase, while the latter will be under development in 
-the future. Currently, :code:`ensemble_md` uses a higher level Python API 
-of GROMACS, :code:`gmxapi`, to launch GROMACS simulations and access relevant 
-files programmatically as needed. We will switch to :code:`scale-ms` for 
-this purpose in the future. 
-
-
-Installation
-============
-The package has not been published to PyPI, but can be installed from our
-`github repository`_ using the following commands:
-::
-
-    git clone https://github.com/wehs7661/ensemble_md.git
-    cd ensemble_md/
-    pip install -e .
-
-Note that this package requries a bunch of other Python packages to be installed,
-including NumPy, pymbar, natsort, and argparse. For the full list please
-check :code:`requirements.txt`.
-
-.. _`github repository`: https://github.com/wehs7661/ensemble_md.git
-
-
-Theory
-======
 Basic idea
-----------
+==========
 Ensemble of expanded ensemble (EEXE) integrates the core principles of replica exchange 
 molecular dynamics (REMD) and expanded ensemble (EXE).  Specifically, an ensemble of 
 expanded ensembles includes multiple non-interacting, parallel expanded ensemble simulations 
@@ -43,7 +12,7 @@ in the alchemical space given sufficiently long simulation time, properly specif
 and highly parallelizable computing architectures. 
 
 Acceptance ratio
-----------------
+================
 Here, we first consider a simulation ensemble that consists of :math:`M` non-interacting replicas 
 of the expanded ensemble simulations all at the same constant temperature :math:`T`. We assume 
 that the expanded ensembles collectively sample :math:`N` (:math:`N < M`) alchemical states with 
@@ -152,8 +121,28 @@ state (namely, :math:`m=n`) right before the exchange occurs, :math:`\Delta` wil
 0, meaning the the exchange will always be accepted. 
 
 MC schemes for swapping replicas
---------------------------------
+================================
+- Same-state swapping
+
+- Metropolis swapping 
+
+- Equilibrated Metropolis swapping
+
+Weight combination
+==================
+- Exponential averaging 
+
+- Exponential averaging with histogram corrections
 
 
-Schemes for combining weights
------------------------------
+Transition matrix
+=================
+- Theoretical and experimental transition matrix 
+
+- State transition matrix
+
+- Replica transition matrix
+
+
+Free energy calculation
+=======================

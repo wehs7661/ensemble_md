@@ -12,9 +12,14 @@ in our current phase, while the latter will be under development in
 the future.
 
 .. toctree::
-   user_guide
+   getting_started
    :maxdepth: 2
-   :caption: User guide:
+   :caption: Getting started:
+
+.. toctree::
+   theory_implementation
+   :maxdepth: 2
+   :caption: Theory and implementation:
    
 .. toctree::
    examples/EEXE_tutorial

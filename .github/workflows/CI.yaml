@@ -52,7 +52,7 @@ jobs:
     - name: Install GROMACS
       shell: bash -l {0}
       run: |
-        conda install -c gromacs=2022
+        conda install gromacs=2022
         gmx
 
     - name: Install package
