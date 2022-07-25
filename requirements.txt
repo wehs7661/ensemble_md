@@ -2,7 +2,3 @@ numpy
 natsort
 argparse
 alchemlyb
-setuptools
-wheel
-cmake
-pybind11

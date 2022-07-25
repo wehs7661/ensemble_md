@@ -1,6 +1,5 @@
 import os
 import random
-import pytest
 import numpy as np
 import ensemble_md
 import ensemble_md.gmx_parser as gmx_parser
@@ -168,7 +167,7 @@ class Test_EnsembleEXE:
         weights_1 = [[0, 10.304, 20.073, 29.364]]
         counts_1 = [[31415, 45701, 55457, 59557]]
         weights_1 = EEXE.histogram_correction(weights_1, counts_1)
-        assert weights_1 == [[0, 10.304 + np.log(31415/45701), 20.073 + np.log(45701/55457), 29.364 + np.log(55457/59557)]]
+        assert weights_1 == [[0, 10.304 + np.log(31415/45701), 20.073 + np.log(45701/55457), 29.364 + np.log(55457/59557)]]  # noqa: E501
 
         weights_2 = [[0, 10.304, 20.073, 29.364]]
         counts_2 = [[3141, 4570, 5545, 5955]]
@@ -195,14 +194,14 @@ class Test_EnsembleEXE:
         EEXE.w_scheme = 'exp-avg'
         w3 = np.array(EEXE.combine_weights(*self.combine_w_inputs()))
         np.testing.assert_array_almost_equal(w3, np.array([
-            [0, 2.1, 4.0, -np.log(0.5 * (np.exp(-3.7) + np.exp(-3.6))), -np.log(0.5*(np.exp(-4.8) + np.exp(-4.7)))], 
+            [0, 2.1, 4.0, -np.log(0.5 * (np.exp(-3.7) + np.exp(-3.6))), -np.log(0.5*(np.exp(-4.8) + np.exp(-4.7)))],
             [0, -np.log(0.5*(np.exp(0.4) + np.exp(0.3))), -np.log(0.5*(np.exp(-0.7) + np.exp(-0.8))), 1.5, 2.4]]))
 
         EEXE.w_scheme = 'hist-exp-avg'  # should be the same as exp-avg because of low histogram counts
         w4 = np.array(EEXE.combine_weights(*self.combine_w_inputs()))
-        np.testing.assert_array_almost_equal(w3, np.array([
-            [0, 2.1, 4.0, -np.log(0.5 * (np.exp(-3.7) + np.exp(-3.6))), -np.log(0.5*(np.exp(-4.8) + np.exp(-4.7)))], 
+        np.testing.assert_array_almost_equal(w4, np.array([
+            [0, 2.1, 4.0, -np.log(0.5 * (np.exp(-3.7) + np.exp(-3.6))), -np.log(0.5*(np.exp(-4.8) + np.exp(-4.7)))],
             [0, -np.log(0.5*(np.exp(0.4) + np.exp(0.3))), -np.log(0.5*(np.exp(-0.7) + np.exp(-0.8))), 1.5, 2.4]]))
-        
+
     def test_run_EEXE(self):
         pass

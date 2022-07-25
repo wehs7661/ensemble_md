@@ -317,7 +317,7 @@ class EnsembleEXE:
             try:
                 swap = random.choice(swappables)
                 swap_list.append(swap)
-                
+
                 # Here we remove indices that have been picked such that all_pairs and swappables will be updated
                 sim_idx.remove(swap[0])
                 sim_idx.remove(swap[1])

@@ -54,22 +54,23 @@ jobs:
       run: |
         conda install gromacs=2022
 
-    - name: Install dependencies of gmxapi
+    - name: Install gmxapi 
       # conda setup requires this special shell
       shell: bash -l {0}
       run: |
-        ls
-        gmx
-        python -m pip install . --no-deps
-        conda install mpi4py
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-
-    - name: Install gmxapi
-      # conda setup requires this special shell
-      shell: bash -l {0}
-      run: |
-        gmx
+        python -m ensurepip --default-pip
+        pip install --upgrade pip setuptools wheel
+        pip install --upgrade cmake pybind11
+        python -m pip install --upgrade pip setuptools
+        pip install --upgrade mpi4py
         pip install --no-cache-dir gmxapi
+
+    - name: Install ensemble_md dependencies
+      # conda setup requires this special shell
+      shell: bash -l {0}
+      run: |
+        python -m pip install . --no-deps
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         conda list
 
     - name: Run tests
