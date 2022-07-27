@@ -22,8 +22,8 @@ the future.
    :caption: Theory and implementation:
    
 .. toctree::
-   examples/EEXE_tutorial
-   examples/EMetaD_tutorial
+   examples/run_EEXE
+   examples/analyze_EEXE
    :maxdepth: 2
    :caption: Tutorials:
 

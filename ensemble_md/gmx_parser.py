@@ -136,7 +136,7 @@ def parse_log(log_file):
 
 class FileUtils(object):
     """Mixin class to provide additional file-related capabilities.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.  # noqa: E501
+    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
     """
 
@@ -227,7 +227,7 @@ class FileUtils(object):
 
 class MDP(odict, FileUtils):
     """Class that represents a Gromacs mdp run input file.
-    Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/fileformats/mdp.py>`_.  # noqa: E501
+    Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/fileformats/mdp.py>`_.
     Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com>
     The MDP instance is an ordered dictionary.
 

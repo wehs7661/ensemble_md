@@ -32,6 +32,7 @@ class Logger():
         # this flush method is needed for python 3 compatibility.
         # this handles the flush command by doing nothing.
         # you might want to specify some extra behavior here.
+        # self.terminal.log()
         pass
 
 
@@ -105,7 +106,7 @@ def format_time(t):
 
 def autoconvert(s):
     """Convert input to a numerical type if possible. Used for the MDP parser.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.  # noqa: E501
+    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
 
       - A non-string object is returned as it is
