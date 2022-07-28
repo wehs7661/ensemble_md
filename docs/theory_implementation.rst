@@ -193,7 +193,7 @@ Step 3-2: Identify swappable pairs and propose simulation swap(s)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 After the information of the final status of the previous iteration is extracted, we then identify swappable pairs.
 Specifically, replicas can be swapped only if the states to be swapped are present in both of the alchemical ranges 
-corresponding to the two replicas. This definition inherently implies one necessary but not sufficient condition that 
+corresponding to the two replicas. This definition automatically implies one necessary but not sufficient condition that 
 the replicas to be swapped should have overlapping alchemical ranges. Practically, if the states to be swapped are 
 not present in both alchemical ranges, information like :math:`\Delta U^i=U^i_n-U^j_m` will not be available 
 in either DHDL files and terms like :math:`\Delta g^i=g^i_n-g^i_m` cannot be calculated from the LOG files as well, which 
@@ -215,7 +215,6 @@ that the weights of these states be combined across all replicas that sampled th
 :obj:`combine_wieghts`, with the desired method specified in the input YAML file. For more details about different 
 methods for combining weights across different replicas, please refer to the section :ref:`doc_w_schemes`.
 
-
 Step 3-5: Modify the MDP files and swap out the GRO files (if needed)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Once it has been figured out whether there is a pair of simulations to be swapped, the user should set up the input 
@@ -224,8 +223,6 @@ This means:
 
   - For each replica, the input configuration for initializing a new iterations should be the output configuraiton of the previous iteration. If replicas :math:`i` and :math:`j` should be swapped, the new iteration of replica :math:`i` should be intialized by the output configuration of :math:`j` and vice versa. (Instead of exchanging the mdp files, we recommend swapping out the coordinate files to exchange replicas.)
   - For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion except that parameters like :code:`tinit`, :code:`init-lambda-state`, :code:`init-wl-delta`, and :code:`init-lambda-weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
-
-
 
 Step 4: Run the new iteration
 -----------------------------
@@ -288,18 +285,144 @@ standard Metropolis swapping scheme reduces to the following:
 Notably, this scheme does not consider the difference in the alchemical weights, which can 
 be non-zero frequently, so this swapping scheme does not strictly obey the detailed balance condition.
 
+Calculation of :math:`\Delta` in Metropolis-based methods
+---------------------------------------------------------
+To better understand how :math:`\Delta` is calculated in the Metropolise-based methods, 
+we need to first know what's available in the DHDL file of a GROMACS expanded ensemble simulation. As an example, below 
+we tabulate the data of a DHDL file, with the time column having units of ps and all energy quantities having
+units of kJ/mol. 
+
+.. list-table::
+   :widths: 10 10 10 10 10 10 10 10
+   :header-rows: 1
+
+   * - Time
+     - State
+     - Total energy
+     - :math:`dH/d\lambda` at :math:`\lambda_{\text{coul}}=0`
+     - :math:`dH/d\lambda` at :math:`\lambda_{\text{vdw}}=0`
+     - :math:`\Delta H` w.r.t :math:`(0, 0)`
+     - :math:`\Delta H` w.r.t :math:`(0, 0.2)`
+     - ...
+   * - 0.0
+     - 0
+     - -16328.070	
+     - 92.044243	
+     - -24.358231	
+     - 6.1035156e-05	
+     - 18.408772
+     - ...
+   * - 2.0	
+     - 1	
+     - -16259.254	
+     - 69.588318	
+     - -5.8508954	
+     - -13.917714	
+     - -1.5258789e-05
+     - ...
+   * - 4.0
+     - 7	
+     - -16060.098	
+     - -171.03197	
+     - -55.529320	
+     - 86505.967	
+     - 86471.757
+     - ...
+   * - 6.0	
+     - 6	
+     - -16164.012	
+     - -14.053808	
+     - 30.875639	
+     - 65.827232	
+     - 63.016821
+     - ...
+   * - ...
+     - ...
+     - ...
+     - ...
+     - ...
+     - ...
+     - ...
+     - ...
+
+Notably, in the DHDL file, the total energy (i.e. Hamiltonian, denoted as :math:`H` in the table above) 
+could be the sum of kinetic energy and potential energy or just the total potential energy, depending how the parameter 
+:code:`dhdl-print-energy` is specified in the MDP file. However, as we will see later, we only care about 
+:math:`\Delta H`, which should be equal to :math:`\Delta U` regardless of how :code:`dhdl-print-energy` is 
+specified. This is because at each time fram, the kinetic energy of the system being at differnt :math:`\lambda`
+values should be the same and cancelled out. (The kinetic energy is :math:`\lambda`-dependent.) With this, below 
+we describe more details about the calculation of the difference in the potential energies and the difference in the alchemical weights.
+
+The calculation of :math:`\beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)]` 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+As shown in the table above, the individual values of :math:`U^{i}_{n}`, :math:`U^{j}_{m}`, :math:`U^{i}_{m}`, and :math:`U^{j}_{n}` are not 
+available in from the DHDL file, but we do know :math:`\Delta H` (i.e. :math:`\Delta U`) between different states, which is sufficient 
+for us to calculate :math:`\beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)]`. As an example, here we assume that we have replicas labled as A, B, C, D, ...
+running in parallel and at :math:`t=6` ps, we are trying to swap the coordinates of replicas A and C
+that are respectively in state 6 and state 0 (coupling parmaeters :math:`(0, 0)`) at :math:`t=6` ps, we will need to calculated
+:math:`\beta[(U^A_0 + U^C_6) - (U^A_6+U^C_0)]`, or :math:`\beta[(U^A_0 - U^A_6) + (U^C_6 -U^C_0)]`. Assuming the table we see above 
+is the DHDL file generated by replica C, we can see that :math:`U^C_6 -U^C_0` is 65.82 kJ/mol. Similarly, :math:`U^A_0 - U^A_6` can be found in 
+the DHDL file of simulation 0 by looking for the row of :math:`t=6` ps (which should samples state 0). After getting the :math:`\Delta U` terms, 
+we convert their units for kJ/mol to kT, which is more convenient for the calculation of the acceptance ratio.
+
+The calculation of :math:`\beta[(g^i_n + g^j_m) - (g^i_m+g^j_n)]` 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In the log file of a GROMACS expanded ensemble simulation, the alchemical weights have units of kT, which is why we don't have 
+the inverse temperature :math:`\beta` multiplied with the weights. Unlike the potential energy terms, in the log file we can find 
+the individual values of :math:`g^{i}_{n}`, :math:`g^{j}_{m}`, :math:`g^{i}_{m}` and :math:`g^{j}_{n}`. Now say that the log file of replica C 
+reads below at :math:`t=6` ps:
+
+:: 
+
+              Step           Time
+                500        6.00000
+
+    Writing checkpoint, step 500 at Mon Jun 13 02:59:57 2022
+
+
+                MC-lambda information
+      Wang-Landau incrementor is:        0.32
+      N  CoulL   VdwL    Count   G(in kT)  dG(in kT)
+      1  0.000  0.000       18    0.00000    2.94000
+      2  0.250  0.000       11    2.94000    1.26000
+      3  0.500  0.000       13    4.20000    2.10000 <<
+      4  0.750  0.000        2    6.30000    0.84000
+      5  1.000  0.000        2    7.14000    0.04000
+      6  1.000  0.250        4    7.18000    0.00000
+
+Then apparently we have :math:`g^C_0=0` and :math:`g^C_6=7.18` kT, respectively. And the values of 
+:math:`g^A_0` and :math:`g^A_6` can be found in the log file of replica A, which enables use to 
+calculate :math:`(g^i_n+g^j_m)-(g^i_m+g^j_n)`. Notably, although it could be interesting to know 
+the bias difference between different configurations sampling the same state in different alchemical 
+ranges (i.e. :math:`g^i_n-g^j_n` and :math:`g^j_m-g^i_m`), it does not make sense to calculate such 
+values from the log file because alchemical weights from in the log files corresponding to simulations 
+sampling different alchemical ranges would have different references. Therefore, only values such as 
+:math:`g^i_n-g^i_m` and :math:`g^j_m-g^j_n` make sense, even if they are as interesting as :math:`g^i_n-g^j_n` and :math:`g^j_m-g^i_m`.
+
 .. _doc_w_schemes:
 
 Weight combination
 ==================
-When exchanging replicas in ensemble of expanded ensemble, we can swap 
-out the coordinates of the replicas, 
-
-
-
+As mentioned above, to leverage the stastics of the states collected from multiple replicas, we recommend 
+combining the alchemical weights of these states across replicas to initialize the next iteration. Before 
+we first describe how we shift weights to deal with the issue of different references of alchemical weights 
+in GROMACS LOG files, then, we describe weight-combining methods available in our current implementation. 
 
 Weight shifting
 ---------------
+In a GROMACS expanded ensemble simulation, the alchemical weight of the first alchemical intermediate state 
+is always shifted to 0 as the reference. Since in EEXE, different replicas have different ranges of alchemical
+states, i.e. different first states, hence difference references. For example, there could be 3 replicas having 
+the following weights:
+
+::
+
+    State     0       1       2       3       4       5       6       7       X       X
+    Rep 1     0.0     2.1     4.0     3.7     4.8     6.5     X       X       X       X
+    Rep 2     X       X       0.0     -0.4    0.7     2.3     2.4     3.9     6.5     X
+    Rep 3     X       X       X       X       0.0     1.5     2.1     3.3     6.0     9.2    
+
+sss
 
 Exponential averaging 
 ---------------------

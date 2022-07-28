@@ -19,13 +19,13 @@ on:
     - cron: "0 0 * * *"
 
 jobs:
-  test:
+  test:   # tests for ubuntu 
     name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macOS-latest, ubuntu-latest, windows-latest]
-        python-version: [3.7, 3.8, 3.9]
+        os: [ubuntu-latest]
+        python-version: [3.8, 3.9]
 
     steps:
     - uses: actions/checkout@v1
@@ -36,7 +36,6 @@ jobs:
         uname -a
         df -h
         ulimit -a
-
 
     # More info on options: https://github.com/conda-incubator/setup-miniconda
     - uses: conda-incubator/setup-miniconda@v2
@@ -49,15 +48,34 @@ jobs:
         auto-activate-base: false
         show-channel-urls: true
 
+    - name: Prepare OS 
+      run: |
+        sudo apt-get update
+        sudo apt install build-essential
+        sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
+
     - name: Install GROMACS
       shell: bash -l {0}
       run: |
-        conda install gromacs=2022
+        gcc --version
+        g++ --version 
+        export CC=`which gcc`
+        export CXX=`which g++`
+
+        cd $HOME && mkdir pkgs 
+        wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-2022.2.tar.gz 
+        tar zxf gromacs-2020.2.tar.gz
+        cd gromacs-2020.2 && mkdir build && cd build 
+        cmake .. -DCMAKE_CXX_COMPILER=$CC -DCMAKE_C_COMPILER=$CXX -DCMAKE_INSTALL_PREFIX=$HOME/install
+        make install 
+        source $HOME/pkgs/bin/GMXRC
+        gmx --version
 
     - name: Install gmxapi 
       # conda setup requires this special shell
       shell: bash -l {0}
       run: |
+        source $HOME/pkgs/bin/GMXRC
         python -m ensurepip --default-pip
         pip install --upgrade pip setuptools wheel
         pip install --upgrade cmake pybind11
