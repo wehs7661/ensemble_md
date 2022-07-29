@@ -404,31 +404,78 @@ sampling different alchemical ranges would have different references. Therefore,
 Weight combination
 ==================
 As mentioned above, to leverage the stastics of the states collected from multiple replicas, we recommend 
-combining the alchemical weights of these states across replicas to initialize the next iteration. Before 
+combining the alchemical weights of these states across replicas to initialize the next iteration. Below 
 we first describe how we shift weights to deal with the issue of different references of alchemical weights 
 in GROMACS LOG files, then, we describe weight-combining methods available in our current implementation. 
 
 Weight shifting
 ---------------
-In a GROMACS expanded ensemble simulation, the alchemical weight of the first alchemical intermediate state 
-is always shifted to 0 as the reference. Since in EEXE, different replicas have different ranges of alchemical
+In the log file of a GROMACS expanded ensemble simulation, the alchemical weight of the first alchemical intermediate state 
+is always shifted to 0 to serve as the reference. In EEXE, different replicas have different ranges of alchemical
 states, i.e. different first states, hence difference references. For example, there could be 3 replicas having 
 the following weights:
 
 ::
 
-    State     0       1       2       3       4       5       6       7       X       X
+    State     0       1       2       3       4       5       6       7       8       9
     Rep 1     0.0     2.1     4.0     3.7     4.8     6.5     X       X       X       X
-    Rep 2     X       X       0.0     -0.4    0.7     2.3     2.4     3.9     6.5     X
+    Rep 2     X       X       0.0     -0.4    0.7     2.3     2.8     3.9     X       X
     Rep 3     X       X       X       X       0.0     1.5     2.1     3.3     6.0     9.2    
 
-sss
+Each of these replicas sample 6 alchemical states. There alchemical ranges are different but overlapping. Specifically, 
+Replicas 1 and 2 have overlap at states 2 to 5 and replicas 2 and 3 have overlap at states 4 to 7. Notably, all 
+three replicas sampled states 4 and 5. Therefore, what we are going to do is
+
+  - For states 2 and 3, combine weights across replicas 1 and 2.
+  - For states 4 and 5, combine weights across replicas 1, 2 and 3.
+  - For states 6 and 7, combine weights across replicas 2 and 3.
+
+However, before we combine the weights, we should make sure the weights of all replicas have the same reference because now 
+the references of the 3 replicas are states 0, 2, and 4, respectively. Therefore could be 
+
 
 Exponential averaging 
 ---------------------
+In the limit that all alchemical states are equally sampled, the alchemical weight of a state 
+is equal to the dimensionless free energy of that state, i.e. in the units of kT, we have 
+:math:`g(\lambda)=f(\lambda)=-\ln p(\lambda)`, or :math:`p(\lambda)=\exp(-g(\lambda))`. Given this,
+one intuitive way is to average the probability of the two simulations. Let :math:`g` be the weight combined from 
+from the weights :math:`g_1` and :math:`g_2` and :math:`p`, :math:`p_1`, :math:`p_2` be the corresponding 
+probabilities, then we have 
+
+.. math::
+  p = \frac{p_1+p_2}{2} = \frac{\text{e}^{-g_1} + \text{e}^{-g_2}}{2}
+
+Given that :math:`p=\exp(-g)`, we have 
+
+.. math::
+  g = -\ln p = -\ln\left(\frac{\text{e}^{-g_1} + \text{e}^{-g_1}}{2} \right)
 
 Exponential averaging with histogram corrections
 ------------------------------------------------
+During the simulation, the histogram of the state visitation is generally not flat, such that
+:math:`g` is no longer equal to the dimensionless free energy, i.e. :math:`g(\lambda)=-\ln p(\lambda)`
+is no longer true. However, the ratio of counts is equal to the ratio of probabilities, whose natural
+logarithm is equal to the free energy difference of the states of interest. With this, we can do
+the following corrections before combining the weights:
+
+.. math::
+  g_k'=g_k + \ln\left(\frac{N_{k-1}}{N_k}\right)
+
+where :math`g_k'` is the corrected alchemical weight and :math:`N_{k-1}` and :math:`N_k` are the histogram 
+counts of states :math:`k-1` and :math:`k`. Combining this correction with exponential averaging, we have 
+
+.. math::
+  g =  -\ln\left(\frac{\text{e}^{-g_1'} + \text{e}^{-g_2'}}{2} \right)
+
+where :math:`g_1'` and :math:`g_2'` are weights corrected based on their histogram counts. 
+
+Notably, this histogram correction should be carried out before shifting the weights, so the workflow we be
+first correcting the weights, shifting the weights, and finally combining the weights. Also, this correction 
+method can be overcorrect the weights when the histogram counts :math:`N_k` or :math:`N_{k-1}` are too low. 
+To deal with this, the user can choose to specify :code:`N_cutoff` in the input YAML file, so that the the histogram
+correction will performed only when :math:`\text{argmin}(N_k, N_{k-1})` is larger than the cutoff, otherwise this method 
+will reduce to the standard exponential averaging method. 
 
 Transition matrix
 =================
