@@ -20,6 +20,11 @@ the future.
    theory_implementation
    :maxdepth: 2
    :caption: Theory and implementation:
+
+.. toctree::
+   analysis
+   :maxdepth: 2
+   :caption: Data analysis:
    
 .. toctree::
    examples/run_EEXE

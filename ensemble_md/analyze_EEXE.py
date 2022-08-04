@@ -17,7 +17,7 @@ from matplotlib import cm
 from ensemble_md.exceptions import ParseError
 
 
-def parse_transmtx(self, log_file):
+def parse_transmtx(log_file):
     """
     Parses the log file to get the final theoretical state transition matrix and empirical state transition matrix.
 
@@ -73,7 +73,7 @@ def calc_overall_transmtx(self):
     pass
 
 
-def plot_matrix(self, matrix, png_name, title=None, start_idx=0):
+def plot_matrix(matrix, png_name, title=None, start_idx=0):
     """
     Visualizes a matrix a in heatmap.
 
@@ -141,6 +141,10 @@ def plot_matrix(self, matrix, png_name, title=None, start_idx=0):
     plt.savefig(png_name, dpi=600)
     # plt.show()
     plt.close()
+
+
+def calc_spectral_gap(matrix):
+    pass
 
 
 class StateDiffusivity:

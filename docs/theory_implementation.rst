@@ -122,7 +122,8 @@ state (namely, :math:`m=n`) right before the exchange occurs, :math:`\Delta` wil
 
 Suggested workflow
 ==================
-In this section, we recommend a workflow of running an ensemble of expanded ensemble. 
+In this section, we recommend a workflow of running an ensemble of expanded ensemble, which can be 
+implmented by using functions defined :class:`ensemble_EXE`. 
 A hands-on tutorial that implements this workflow can be found in `Tutorial 1: Ensemble of expanded ensemble`_. 
 
 .. _`Tutorial 1: Ensemble of expanded ensemble`: examples/EEXE_tutorial.ipynb
@@ -476,17 +477,3 @@ method can be overcorrect the weights when the histogram counts :math:`N_k` or :
 To deal with this, the user can choose to specify :code:`N_cutoff` in the input YAML file, so that the the histogram
 correction will performed only when :math:`\text{argmin}(N_k, N_{k-1})` is larger than the cutoff, otherwise this method 
 will reduce to the standard exponential averaging method. 
-
-Transition matrix
-=================
-Theoretical and experimental transition matrix 
-----------------------------------------------
-
-State transition matrix
------------------------
-
-Replica transition matrix
--------------------------
-
-Free energy calculation
-=======================
