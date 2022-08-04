@@ -66,7 +66,7 @@ jobs:
         wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-2022.2.tar.gz 
         tar zxf gromacs-2022.2.tar.gz
         cd gromacs-2022.2 && mkdir build && cd build 
-        cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/install
+        cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/pkgs
         make install 
         source $HOME/pkgs/bin/GMXRC
         gmx --version

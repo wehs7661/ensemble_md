@@ -18,5 +18,5 @@ class ParseError(Exception):
 # The warning should always be displayed because other parameters
 # can have changed, eg during interactive use.
 for w in (AutoCorrectionWarning,):
-    warnings.simplefilter('always', category=w)
+    warnings.simplefilter("always", category=w)
 del w

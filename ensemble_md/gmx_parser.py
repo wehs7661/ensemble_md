@@ -53,7 +53,7 @@ def parse_log(log_file):
     equil_bool : bool
         A boolean variable indiciating whether the weights have been equilibrated.
     """
-    f = open(log_file, 'r')
+    f = open(log_file, "r")
     lines = f.readlines()
     f.close()
 
@@ -61,11 +61,11 @@ def parse_log(log_file):
     weights, counts = [], []
     case_1_3, equil_time_found = False, False
 
-    for l in lines:     # noqa: E741
-        if 'n-lambdas' in l:
-            N_states = int(l.split('=')[1])
-        if 'lmc-stats' in l:
-            if l.split('=')[1].split()[0] in ['no', 'No']:
+    for l in lines:  # noqa: E741
+        if "n-lambdas" in l:
+            N_states = int(l.split("=")[1])
+        if "lmc-stats" in l:
+            if l.split("=")[1].split()[0] in ["no", "No"]:
                 # Case 3: The weights are fixed. -> Typically weights have been equilibrated in the previous iteration.
                 fixed_bool = True
                 equil_bool = True
@@ -76,32 +76,32 @@ def parse_log(log_file):
                 # Either Case 1 or Case 2
                 fixed_bool = False
                 equil_bool = False
-        if 'dt  ' in l:
-            dt = float(l.split('=')[1])
+        if "dt  " in l:
+            dt = float(l.split("=")[1])
 
     lines.reverse()  # We find the information from the end
     n = -1
-    for l in lines:    # noqa: E741
+    for l in lines:  # noqa: E741
         n += 1
         if wl_delta_found is False:  # Case 1 or Case 2
-            if 'Wang-Landau incrementor is' in l:
+            if "Wang-Landau incrementor is" in l:
                 wl_delta_found = True
-                wl_delta = float(l.split(':')[1])
+                wl_delta = float(l.split(":")[1])
 
         if weights_found is False:
-            if 'Count   G(in kT)' in l:
-                weights_found = True   # The first occurrence would be the final weights. (We've reversed the lines!)
+            if "Count   G(in kT)" in l:
+                weights_found = True  # The first occurrence would be the final weights. (We've reversed the lines!)
                 for i in range(1, N_states + 1):
-                    if '<<' in lines[n - i]:
+                    if "<<" in lines[n - i]:
                         weights.append(float(lines[n - i].split()[-3]))
                         counts.append(int(lines[n - i].split()[-4]))
                     else:
                         weights.append(float(lines[n - i].split()[-2]))
                         counts.append(int(lines[n - i].split()[-3]))
-                if 'Wang-Landau incrementor is' in lines[n + 1]:  # Caes 1
+                if "Wang-Landau incrementor is" in lines[n + 1]:  # Caes 1
                     equil_bool = False
                     wl_delta_found = True
-                    wl_delta = float(lines[n + 1].split(':')[1])
+                    wl_delta = float(lines[n + 1].split(":")[1])
                     case_1_3 = True
                 else:
                     # This would include Case 2 and 3
@@ -111,24 +111,33 @@ def parse_log(log_file):
                     else:
                         case_1_3 = False
 
-        if case_1_3 is False:   # for finding when the weights were equilibrated in Case 2
-            if 'Weights have equilibrated' in l:
+        if (
+            case_1_3 is False
+        ):  # for finding when the weights were equilibrated in Case 2
+            if "Weights have equilibrated" in l:
                 equil_time_found = True
-                equil_step = int(l.split(':')[0].split('Step')[1])
-                equil_time = equil_step * dt    # ps
+                equil_step = int(l.split(":")[0].split("Step")[1])
+                equil_time = equil_step * dt  # ps
                 if equil_time > 1000:
-                    units = 'ns'
+                    units = "ns"
                     equil_time /= 1000
                 else:
-                    units = 'ps'
-                print(f'Weights were equilibrated at {equil_time} {units}. (file: {log_file})')
+                    units = "ps"
+                print(
+                    f"Weights were equilibrated at {equil_time} {units}. (file: {log_file})"
+                )
 
         # For Case 1 and Case 3 (case_1_3 = True), we can break the loop after getting weights, counts, and wl_delta.
         if case_1_3 is True and weights_found is True and wl_delta_found is True:
             break
 
         # For Case 2, we can break the loop only if equil_time is found as well.
-        if case_1_3 is False and weights_found is True and wl_delta_found is True and equil_time_found is True:
+        if (
+            case_1_3 is False
+            and weights_found is True
+            and wl_delta_found is True
+            and equil_time_found is True
+        ):
             break
 
     return wl_delta, weights, counts, equil_bool
@@ -136,7 +145,7 @@ def parse_log(log_file):
 
 class FileUtils(object):
     """Mixin class to provide additional file-related capabilities.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.
+    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
     """
 
@@ -158,7 +167,9 @@ class FileUtils(object):
         """
 
         extension = ext or self.default_extension
-        filename = self.filename(filename, ext=extension, use_my_ext=True, set_default=True)
+        filename = self.filename(
+            filename, ext=extension, use_my_ext=True, set_default=True
+        )
         #: Current full path of the object for reading and writing I/O.
         self.real_filename = os.path.realpath(filename)
 
@@ -185,16 +196,18 @@ class FileUtils(object):
         priority over a default ``ext`` tension.
         """
         if filename is None:
-            if not hasattr(self, '_filename'):
-                self._filename = None        # add attribute to class
+            if not hasattr(self, "_filename"):
+                self._filename = None  # add attribute to class
             if self._filename:
                 filename = self._filename
             else:
-                raise ValueError("A file name is required because no default file name was defined.")
+                raise ValueError(
+                    "A file name is required because no default file name was defined."
+                )
             my_ext = None
         else:
             filename, my_ext = os.path.splitext(filename)
-            if set_default:                  # replaces existing default file name
+            if set_default:  # replaces existing default file name
                 self._filename = filename
         if my_ext and use_my_ext:
             ext = my_ext
@@ -213,7 +226,7 @@ class FileUtils(object):
                 ext = oldext
             if ext.startswith(os.extsep):
                 ext = ext[1:]
-            name = self.filename(p+infix, ext=ext)
+            name = self.filename(p + infix, ext=ext)
         return name
 
     def __repr__(self):
@@ -227,7 +240,7 @@ class FileUtils(object):
 
 class MDP(odict, FileUtils):
     """Class that represents a Gromacs mdp run input file.
-    Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/fileformats/mdp.py>`_.
+    Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
     Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com>
     The MDP instance is an ordered dictionary.
 
@@ -242,16 +255,20 @@ class MDP(odict, FileUtils):
     Currently, comments after a parameter on the same line are
     discarded. Leading and trailing spaces are always stripped.
     """
-    default_extension = "mdp"
-    logger = logging.getLogger('gromacs.formats.MDP')
 
-    COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")   # eat initial ws  # noqa: W605
+    default_extension = "mdp"
+    logger = logging.getLogger("gromacs.formats.MDP")
+
+    COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")  # eat initial ws  # noqa: W605
     # see regex in cbook.edit_mdp()
-    PARAMETER = re.compile("""
+    PARAMETER = re.compile(
+        """
                             \s*(?P<parameter>[^=]+?)\s*=\s*  # parameter (ws-stripped), before '='  # noqa: W605
                             (?P<value>[^;]*)                # value (stop before comment=;)  # noqa: W605
                             (?P<comment>\s*;.*)?            # optional comment  # noqa: W605
-                            """, re.VERBOSE)
+                            """,
+        re.VERBOSE,
+    )
 
     def __init__(self, filename=None, autoconvert=True, **kwargs):
         """Initialize mdp structure.
@@ -267,7 +284,9 @@ class MDP(odict, FileUtils):
               does not work for keys that are not legal python variable names such
               as anything that includes a minus '-' sign or starts with a number).
         """
-        super(MDP, self).__init__(**kwargs)  # can use kwargs to set dict! (but no sanity checks!)
+        super(MDP, self).__init__(
+            **kwargs
+        )  # can use kwargs to set dict! (but no sanity checks!)
 
         self.autoconvert = autoconvert
 
@@ -308,22 +327,24 @@ class MDP(odict, FileUtils):
                 line = line.strip()
                 if len(line) == 0:
                     iblank += 1
-                    data[BLANK(iblank)] = ''
+                    data[BLANK(iblank)] = ""
                     continue
                 m = self.COMMENT.match(line)
                 if m:
                     icomment += 1
-                    data[COMMENT(icomment)] = m.group('value')
+                    data[COMMENT(icomment)] = m.group("value")
                     continue
                 # parameter
                 m = self.PARAMETER.match(line)
                 if m:
                     # check for comments after parameter?? -- currently discarded
-                    parameter = m.group('parameter')
-                    value = self._transform(m.group('value'))
+                    parameter = m.group("parameter")
+                    value = self._transform(m.group("value"))
                     data[parameter] = value
                 else:
-                    errmsg = '{filename!r}: unknown line in mdp file, {line!r}'.format(**vars())
+                    errmsg = "{filename!r}: unknown line in mdp file, {line!r}".format(
+                        **vars()
+                    )
                     self.logger.error(errmsg)
                     raise ParseError(errmsg)
 
@@ -341,16 +362,16 @@ class MDP(odict, FileUtils):
             ``True`` removes any parameter lines from output that contain empty values [``False``]
         """
 
-        with open(self.filename(filename, ext='mdp'), 'w') as mdp:
+        with open(self.filename(filename, ext="mdp"), "w") as mdp:
             for k, v in self.items():
-                if k[0] == 'B':        # blank line
+                if k[0] == "B":  # blank line
                     mdp.write("\n")
-                elif k[0] == 'C':      # comment
+                elif k[0] == "C":  # comment
                     mdp.write("; {v!s}\n".format(**vars()))
-                else:                  # parameter = value
-                    if skipempty and (v == '' or v is None):
+                else:  # parameter = value
+                    if skipempty and (v == "" or v is None):
                         continue
-                    if isinstance(v, six.string_types) or not hasattr(v, '__iter__'):
+                    if isinstance(v, six.string_types) or not hasattr(v, "__iter__"):
                         mdp.write("{k!s} = {v!s}\n".format(**vars()))
                     else:
-                        mdp.write("{} = {}\n".format(k, ' '.join(map(str, v))))
+                        mdp.write("{} = {}\n".format(k, " ".join(map(str, v))))

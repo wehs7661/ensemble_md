@@ -16,10 +16,11 @@ import natsort
 import numpy as np
 
 
-class Logger():
+class Logger:
     """
     This redirect the STDOUT to a specified output file while preserving STDOUT on screen.
     """
+
     def __init__(self, logfile):
         self.terminal = sys.stdout
         self.log = open(logfile, "a")
@@ -48,21 +49,23 @@ def gmx_output(gmx_obj):
     """
     try:
         rtn_code = gmx_obj.output.returncode.result()
-        if type(rtn_code) == list:   # simulation ensemble
+        if type(rtn_code) == list:  # simulation ensemble
             if sum(rtn_code) == 0:
-                print('The process was executed successfully.')
+                print("The process was executed successfully.")
             else:
-                print(f'Return codes: {rtn_code}')
+                print(f"Return codes: {rtn_code}")
                 for i in range(len(rtn_code)):
                     if rtn_code[i] != 0:
-                        print(f'STDERR of the process:\n\n {gmx_obj.output.stderr.result()[i]}\n')
-        else:    # single simulation
+                        print(
+                            f"STDERR of the process:\n\n {gmx_obj.output.stderr.result()[i]}\n"
+                        )
+        else:  # single simulation
             if rtn_code == 0:
-                print('The process was executed successfully.')
+                print("The process was executed successfully.")
             else:
-                print(f'STDERR of the process:\n\n {gmx_obj.output.stderr.result()}\n')
+                print(f"STDERR of the process:\n\n {gmx_obj.output.stderr.result()}\n")
     except AttributeError:
-        raise RuntimeError(f'{repr(gmx_obj)} is not a commandline_operation.')
+        raise RuntimeError(f"{repr(gmx_obj)} is not a commandline_operation.")
 
 
 def clean_up(dir_before, dir_after):
@@ -79,10 +82,10 @@ def clean_up(dir_before, dir_after):
     """
     new_dirs = natsort.natsorted([i for i in dir_after if i not in dir_before])
     if len(new_dirs) != 0:
-        print('Cleaning up/restructuring the directories ...')
+        print("Cleaning up/restructuring the directories ...")
     for i in new_dirs:
         if len(os.listdir(i)) == 0:
-            print(f'  Removing the empty folder {i} ...')
+            print(f"  Removing the empty folder {i} ...")
             os.rmdir(i)
 
 
@@ -91,22 +94,23 @@ def format_time(t):
     This function convert time in seconds to the "most readable" format.
     """
     import datetime
-    hh_mm_ss = str(datetime.timedelta(seconds=t)).split(':')
+
+    hh_mm_ss = str(datetime.timedelta(seconds=t)).split(":")
     hh, mm, ss = float(hh_mm_ss[0]), float(hh_mm_ss[1]), float(hh_mm_ss[2])
     if hh == 0:
         if mm == 0:
-            t_str = f'{ss:.1f} second(s)'
+            t_str = f"{ss:.1f} second(s)"
         else:
-            t_str = f'{mm:.0f} minute(s) {ss:.0f} second(s)'
+            t_str = f"{mm:.0f} minute(s) {ss:.0f} second(s)"
     else:
-        t_str = f'{hh:.0f} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)'
+        t_str = f"{hh:.0f} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)"
 
     return t_str
 
 
 def autoconvert(s):
     """Convert input to a numerical type if possible. Used for the MDP parser.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper/blob/master/gromacs/utilities.py>`_.
+    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
 
       - A non-string object is returned as it is
@@ -114,7 +118,7 @@ def autoconvert(s):
     """
     if type(s) is not str:
         return s
-    for converter in int, float, str:   # try them in increasing order of lenience
+    for converter in int, float, str:  # try them in increasing order of lenience
         try:
             s = [converter(i) for i in s.split()]
             if len(s) == 1:
