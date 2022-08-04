@@ -109,7 +109,8 @@ jobs:
         name: codecov-${{ matrix.os }}-py${{ matrix.python-version }}
         fail_ci_if_error: false
 
-  test:   # tests for macos  
+jobs:
+  test:   # tests for macOS
     name: Test on ${{ matrix.os }}, Python ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
