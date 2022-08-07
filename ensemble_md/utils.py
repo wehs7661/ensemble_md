@@ -82,7 +82,7 @@ def clean_up(dir_before, dir_after):
     """
     new_dirs = natsort.natsorted([i for i in dir_after if i not in dir_before])
     if len(new_dirs) != 0:
-        print("Cleaning up/restructuring the directories ...")
+        print("\nCleaning up/restructuring the directories ...")
     for i in new_dirs:
         if len(os.listdir(i)) == 0:
             print(f"  Removing the empty folder {i} ...")

@@ -2,3 +2,4 @@ numpy
 natsort
 argparse
 alchemlyb
+pyyaml

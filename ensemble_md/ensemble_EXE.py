@@ -75,7 +75,7 @@ class EnsembleEXE:
             "mc_scheme": "metropolis",
             "w_scheme": "exp-avg",
             "N_cutoff": 1000,
-            "n_pairs": 1,
+            "n_ex": 0,       # neighbor swaps
             "outfile": "results.txt",
         }
         for i in optional_args:
@@ -122,6 +122,7 @@ class EnsembleEXE:
             print(f"Histogram cutoff: {self.N_cutoff}")
             print(f"Number of replicas: {self.n_sim}")
             print(f"Number of iterations: {self.n_iterations}")
+            print(f"Number of exchanges in one attempt: {self.n_ex}")
             print(f"Length of each replica: {self.dt * self.nst_sim} ps")
             print(f"Total number of states: {self.n_tot}")
             print("States sampled by each simulation:")
@@ -311,9 +312,10 @@ class EnsembleEXE:
 
     def propose_swaps(self, states):
         """
-        Proposes swaps of coordinates between replicas by drawing samples from the swappable pairs.
-        Note that only simulations with overlapping lambda ranges can be swapped, or ΔH
-        and Δg will be unknown.)
+        Proposes swaps of coordinates between replicas by drawing samples from the swappable pairs,
+        which are defined as pairs of simulations whose last sampled states are in the alchemical ranges
+        of both simulations. This is required, or ΔH and Δg will be unknown. Note that this automatically 
+        assume the simulations to be swapped should have overlapping lambda ranges.
 
         Parameters
         ----------
@@ -327,43 +329,79 @@ class EnsembleEXE:
         """
         swap_list = []
         sim_idx = list(range(self.n_sim))
-        n_pairs_max = int(np.floor(self.n_sim / 2))
 
-        # First, examine if n_pairs makes sense
-        if self.n_pairs > n_pairs_max:
-            print(
-                f"\nThe parameter `n_pairs` specified in the YAML file (n_pairs = {self.n_pairs}) \
-                exceeds the maximal number of simulation pairs that can be exchanged ({n_pairs_max})."
-            )
-            print(
-                f"Therefore, {n_pairs_max} pairs will be proposed to be swapped in each attempt."
-            )
-            self.n_pairs = n_pairs_max
+        # Before drawing samples, we need to identify the swappable pairs
+        all_pairs = list(combinations(sim_idx, 2))
 
-        for i in range(self.n_pairs):
-            all_pairs = list(combinations(sim_idx, 2))
+        # First, we identify pairs of replicas with overlapping ranges
+        swappables = [i for i in all_pairs if self.state_ranges[i[0]].intersection(self.state_ranges[i[1]]) != set()]  # noqa: E501
+        print(f"\nReplicas with overlapping λ ranges: {swappables}")
 
-            # First, we identify pairs of replicas with overlapping ranges
-            swappables = [i for i in all_pairs if self.state_ranges[i[0]].intersection(self.state_ranges[i[1]]) != set()]  # noqa: E501
-            print(f"\nReplicas with overlapping λ ranges: {swappables}")
+        # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
+        # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the probability cannot be calculated.
+        swappables = [i for i in swappables if states[i[0]] in self.state_ranges[i[1]] and states[i[1]] in self.state_ranges[i[0]]]  # noqa: E501
+        print(f"Swappable pairs: {swappables}")
 
-            # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
-            # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the probability cannot be calculated.
-            swappables = [i for i in swappables if states[i[0]] in self.state_ranges[i[1]] and states[i[1]] in self.state_ranges[i[0]]]  # noqa: E501
-            print(f"Swappable pairs: {swappables}")
-
+        for i in range(self.n_ex):
             try:
-                swap = random.choice(swappables)
-                swap_list.append(swap)
-
-                # Here we remove indices that have been picked such that all_pairs and swappables will be updated
-                sim_idx.remove(swap[0])
-                sim_idx.remove(swap[1])
+                swap_list = random.choices(swappables, k=self.n_ex)
             except IndexError:
-                # In the case that swappables is an empty list in the last few draws.
-                pass
+                # In the case that swappables is an empty list, i.e. no swappable pairs.
+                swap_list = None
 
         return swap_list
+
+    def get_swapped_configs(self, swap_list, dhdl_files, states, lambda_vecs, weights):
+        """
+        Finds the configuration each replica corresponds to after multiple swaps proposed in one attempt. 
+        
+        Parameters
+        ----------
+        swap_list : list or None
+            A list of tuples of simulation indices to be swapped.
+        dhdl_files : list
+            A list of dhdl files of ALL simulations. Note that the filename should be ordered 
+            with ascending simulation/replica indices, i.e. the n-th filename in the list should be
+            the dhdl file of the n-th simulation.
+        states : list
+            A list of last sampled states of ALL simulaitons. Typically generated by extract_final_dhdl_info.
+        lambda_vecs : list
+            A list of lambda vectors corresponding to the last sampled states of ALL simulations.
+            Typically generated by extract_final_dhdl_info.
+        weights : list
+            A list of lists of final weights of ALL simulations. Typiecally generated by extract_final_log_info.
+
+        Returns
+        -------
+        configs : list
+            The list of the final configurations after all the swaps.
+
+        """
+        configs = list(range(self.n_sim))   # Can be regarded as the indices corresponding to dhdl files/configurations
+        if swap_list is None:
+            print('No swap is proposed because there is no swappable pair at all.')
+        else:
+            for i in range(len(swap_list)):
+                swap = swap_list[i]
+                print(f'\nA swap ({i + 1}/{len(swap_list)}) is proposed between Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')
+
+                # For each swap, calculate the acceptance ratio and decide whether to accept the swap.
+                prob_acc = self.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+                swap_bool = self.accept_or_reject(prob_acc)
+
+                # Each dhdl file corresponds to one configuration, so if the swap is accepted,
+                # we switch the order of the two corresponding dhdl file names in the dhdl_files. 
+                # Also, the indices in configs need to be update correspondingly. 
+                if swap_bool is True:
+                    # The assignments need to be done at the same time in just one line.
+                    dhdl_files[swap[0]], dhdl_files[swap[1]] = dhdl_files[swap[1]], dhdl_files[swap[0]]
+                    configs[swap[0]], configs[swap[1]] = configs[swap[1]], configs[swap[0]] 
+                else:
+                    pass
+
+                print(f' (Current configurations: {configs})')
+        
+        return configs
 
     def calc_prob_acc(self, swap, dhdl_files, states, lambda_vecs, weights):
         """
@@ -374,13 +412,15 @@ class EnsembleEXE:
         swap : tuple
             A tuple of indices corresponding to the simulations to be swapped.
         dhdl_files : list
-            A list of two dhdl file names corresponding to the simulations to be swapped.
+            A list of dhdl files of ALL simulations. Note that the filename should be ordered 
+            with ascending simulation/replica indices, i.e. the n-th filename in the list should be
+            the dhdl file of the n-th simulation.
         states : list
             A list of last sampled states of ALL simulaitons. Typically generated by extract_final_dhdl_info.
-        lambda_vecs :list
+        lambda_vecs : list
             A list of lambda vectors corresponding to the last sampled states of ALL simulations.
             Typically generated by extract_final_dhdl_info.
-        weights :list
+        weights : list
             A list of lists of final weights of ALL simulations. Typiecally generated by extract_final_log_info.
 
         Returns
@@ -397,7 +437,7 @@ class EnsembleEXE:
         else:  # i.e. metropolis-eq or metropolis, which both require the calculation of dU
             # Now we calculate dU
             print("  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...")
-            f0, f1 = dhdl_files[0], dhdl_files[1]
+            f0, f1 = dhdl_files[swap[0]], dhdl_files[swap[1]]
             h0, h1 = get_headers(f0), get_headers(f1)
             data_0, data_1 = (
                 extract_dataframe(f0, headers=h0).iloc[-1],
@@ -405,8 +445,9 @@ class EnsembleEXE:
             )
 
             # \Delta H to all states at the last time frame
+            # Notably, the can be regarded as H for each state since the reference state will have a value of 0 anyway.
             dhdl_0 = data_0[-self.n_sub:]
-            dhdl_1 = data_0[-self.n_sub:]
+            dhdl_1 = data_1[-self.n_sub:]
 
             new_lambda_0 = lambda_vecs[swap[1]]  # new lambda vector (tuple) for swap[0]
             new_lambda_1 = lambda_vecs[swap[0]]  # new lambda vector (tuple) for swap[1]
@@ -418,8 +459,8 @@ class EnsembleEXE:
             new_state_0 = self.lambda_ranges[swap[0]].index(new_lambda_0)  # new state index (local index in simulation swap[0]) # noqa: E501
             new_state_1 = self.lambda_ranges[swap[1]].index(new_lambda_1)  # new state index (local index in simulation swap[1]) # noqa: E501
 
-            dU_0 = (dhdl_0[new_state_0] / self.kT)  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state
-            dU_1 = (dhdl_1[new_state_1] / self.kT)  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state
+            dU_0 = (dhdl_0[new_state_0] - dhdl_0[old_state_0]) / self.kT  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state
+            dU_1 = (dhdl_1[new_state_1] - dhdl_1[old_state_1]) / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state
             dU = dU_0 + dU_1
             print(
                 f"  U^i_n - U^i_m = {dU_0:.2f} kT, U^j_m - U^j_n = {dU_1:.2f} kT, Total dU: {dU:.2f} kT"
@@ -470,10 +511,11 @@ class EnsembleEXE:
             )
             if rand < prob_acc:
                 swap_bool = True
-                print("  Swap accepeted!")
+                # Below we flush the buffer so the next STDOUT (current configs) will be appended
+                print("  Swap accepeted!", end="", flush=True)
             else:
                 swap_bool = False
-                print("  Swap rejected!")
+                print("  Swap rejected!", end="", flush=True)
 
         return swap_bool
 
@@ -627,7 +669,7 @@ class EnsembleEXE:
 
         # Run all the simulations simultaneously using gmxapi
         if rank == 0:
-            print("Running an ensemble of simulations ...\n")
+            print("Running an ensemble of simulations ...")
 
         if self.parallel is True:
             tpr = [f'{grompp.output.file["-o"].result()[i]}' for i in range(self.n_sim)]
