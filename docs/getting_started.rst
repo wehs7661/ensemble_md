@@ -28,4 +28,10 @@ check :code:`requirements.txt`.
 
 .. _`github repository`: https://github.com/wehs7661/ensemble_md.git
 
+Testing
+=======
+To perform unit tests for this package, execute the following command in the home directory:
+::
+
+    pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
 

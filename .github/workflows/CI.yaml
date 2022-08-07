@@ -99,7 +99,7 @@ jobs:
       run: |
         pip install pytest 
         pip install pytest-cov
-        pytest -v --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
+        pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
 
     - name: CodeCov
       uses: codecov/codecov-action@v1

@@ -77,12 +77,42 @@ class EnsembleEXE:
             "N_cutoff": 1000,
             "n_ex": 0,       # neighbor swaps
             "outfile": "results.txt",
+            "verbose": True
         }
         for i in optional_args:
             if hasattr(self, i) is False:
                 setattr(self, i, optional_args[i])
 
-        # Step 3: Read in parameters from the MDP template
+        # Step 3: Check if the parameters in the YAML file is well-defined
+        if self.mc_scheme not in ['same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
+            raise ParameterError("The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
+
+        params_int = ['n_sim', 'n_iterations', 's', 'nst_sim', 'N_cutoff', 'n_ex']  # integer parameters
+        for i in params_int:
+            if type(getattr(self, i)) != int:
+                raise ParameterError(f"The parameter {i} should be an integer.")
+
+        params_pos = ['n_sim', 'n_iterations', 's', 'nst_sim']  # positive parameters
+        for i in params_pos:
+            if getattr(self, i) <= 0:
+                raise ParameterError(f"The parameter {i} should be positive.")
+
+        params_non_neg = ['N_cutoff', 'n_ex']  # non-negative parameters
+        for i in params_non_neg:
+            if getattr(self, i) < 0:
+                raise ParameterError(f"The parameter {i} should be non-negative.")
+
+        params_str = ['mdp', 'outfile']
+        for i in params_str:
+            if type(getattr(self, i)) != str:
+                raise ParameterError(f"The parameter {i} should be a string.")
+
+        params_bool = ['parallel', 'verbose']
+        for i in params_bool:
+            if type(getattr(self, i)) != bool:
+                raise ParameterError(f"The parameter {i} should be a boolean variable.")
+
+        # Step 4: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
         self.nsteps = self.template["nsteps"]  # will be overwritten by self.nst_sim if nst_sim is specified.
         self.dt = self.template["dt"]  # ps
@@ -116,6 +146,7 @@ class EnsembleEXE:
             print(f"gmxapi version: {gmx.__version__}")
             print(f"ensemble_md version: {ensemble_md.__version__}")
             print(f"Output log file: {self.outfile}")
+            print(f"Verbose log file: {self.verbose}")
             print(f"Whether the replicas run in parallel: {self.parallel}")
             print(f"MC scheme for swapping simulations: {self.mc_scheme}")
             print(f"Scheme for combining weights: {self.w_scheme}")
@@ -125,7 +156,7 @@ class EnsembleEXE:
             print(f"Number of exchanges in one attempt: {self.n_ex}")
             print(f"Length of each replica: {self.dt * self.nst_sim} ps")
             print(f"Total number of states: {self.n_tot}")
-            print("States sampled by each simulation:")
+            print("States sampled by each simulation/replica:")
             for i in range(self.n_sim):
                 print(f"  - Simulation {i}: States {list(self.state_ranges[i])}")
 
@@ -260,8 +291,9 @@ class EnsembleEXE:
             A list of lambda vectors corresponding to the last sampled states of all simulations.
         """
         states, lambda_vecs = [], []
-
-        print("\nBelow are the final states being visited:")
+        if self.verbose is True:
+            print('\n', end='')
+        print("Below are the final states being visited:")
         for j in range(self.n_sim):
             dhdl = extract_dHdl(dhdl_files[j], T=self.temp)
             lambda_vecs.append(dhdl.index[-1][1:])
@@ -270,6 +302,7 @@ class EnsembleEXE:
                 f"  Simulation {j}: State {states[j]}, (coul, vdw) = \
                 {list(self.lambda_dict.keys())[list(self.lambda_dict.values()).index(states[j])]}"
             )
+        print('\n', end='')
 
         return states, lambda_vecs
 
@@ -314,7 +347,7 @@ class EnsembleEXE:
         """
         Proposes swaps of coordinates between replicas by drawing samples from the swappable pairs,
         which are defined as pairs of simulations whose last sampled states are in the alchemical ranges
-        of both simulations. This is required, or ΔH and Δg will be unknown. Note that this automatically 
+        of both simulations. This is required, or ΔH and Δg will be unknown. Note that this automatically
         assume the simulations to be swapped should have overlapping lambda ranges.
 
         Parameters
@@ -335,16 +368,24 @@ class EnsembleEXE:
 
         # First, we identify pairs of replicas with overlapping ranges
         swappables = [i for i in all_pairs if self.state_ranges[i[0]].intersection(self.state_ranges[i[1]]) != set()]  # noqa: E501
-        print(f"\nReplicas with overlapping λ ranges: {swappables}")
+        print(f"Replicas with overlapping λ ranges: {swappables}")
 
         # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
         # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the probability cannot be calculated.
         swappables = [i for i in swappables if states[i[0]] in self.state_ranges[i[1]] and states[i[1]] in self.state_ranges[i[0]]]  # noqa: E501
+
+        if self.n_ex == 0:
+            n_ex = 1    # One swap will be carried out.
+            print('Note: At most only 1 swap will be carried out, which is between neighboring replicas.')
+            swappables = [i for i in swappables if np.abs(i[0] - i[1]) == 1]
+        else:
+            n_ex = self.n_ex
+
         print(f"Swappable pairs: {swappables}")
 
-        for i in range(self.n_ex):
+        for i in range(n_ex):
             try:
-                swap_list = random.choices(swappables, k=self.n_ex)
+                swap_list = random.choices(swappables, k=n_ex)
             except IndexError:
                 # In the case that swappables is an empty list, i.e. no swappable pairs.
                 swap_list = None
@@ -353,14 +394,14 @@ class EnsembleEXE:
 
     def get_swapped_configs(self, swap_list, dhdl_files, states, lambda_vecs, weights):
         """
-        Finds the configuration each replica corresponds to after multiple swaps proposed in one attempt. 
-        
+        Finds the configuration each replica corresponds to after multiple swaps proposed in one attempt.
+
         Parameters
         ----------
         swap_list : list or None
             A list of tuples of simulation indices to be swapped.
         dhdl_files : list
-            A list of dhdl files of ALL simulations. Note that the filename should be ordered 
+            A list of dhdl files of ALL simulations. Note that the filename should be ordered
             with ascending simulation/replica indices, i.e. the n-th filename in the list should be
             the dhdl file of the n-th simulation.
         states : list
@@ -383,24 +424,30 @@ class EnsembleEXE:
         else:
             for i in range(len(swap_list)):
                 swap = swap_list[i]
-                print(f'\nA swap ({i + 1}/{len(swap_list)}) is proposed between Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')
+                if self.verbose is True:
+                    print(f'\nA swap ({i + 1}/{len(swap_list)}) is proposed between Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
 
                 # For each swap, calculate the acceptance ratio and decide whether to accept the swap.
                 prob_acc = self.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
                 swap_bool = self.accept_or_reject(prob_acc)
 
                 # Each dhdl file corresponds to one configuration, so if the swap is accepted,
-                # we switch the order of the two corresponding dhdl file names in the dhdl_files. 
-                # Also, the indices in configs need to be update correspondingly. 
+                # we switch the order of the two corresponding dhdl file names in the dhdl_files.
+                # Also, the indices in configs need to be update correspondingly.
                 if swap_bool is True:
                     # The assignments need to be done at the same time in just one line.
                     dhdl_files[swap[0]], dhdl_files[swap[1]] = dhdl_files[swap[1]], dhdl_files[swap[0]]
-                    configs[swap[0]], configs[swap[1]] = configs[swap[1]], configs[swap[0]] 
+                    configs[swap[0]], configs[swap[1]] = configs[swap[1]], configs[swap[0]]
                 else:
                     pass
 
-                print(f' (Current configurations: {configs})')
-        
+                if self.verbose is True:
+                    print(f'(Current configurations: {configs})')
+                else:
+                    if i == len(swap_list) - 1:
+                        print(f'\n{len(swap_list)} swaps have been proposed.')
+                        print(f'Final configuration: {configs}')
+
         return configs
 
     def calc_prob_acc(self, swap, dhdl_files, states, lambda_vecs, weights):
@@ -412,7 +459,7 @@ class EnsembleEXE:
         swap : tuple
             A tuple of indices corresponding to the simulations to be swapped.
         dhdl_files : list
-            A list of dhdl files of ALL simulations. Note that the filename should be ordered 
+            A list of dhdl files of ALL simulations. Note that the filename should be ordered
             with ascending simulation/replica indices, i.e. the n-th filename in the list should be
             the dhdl file of the n-th simulation.
         states : list
@@ -436,7 +483,8 @@ class EnsembleEXE:
 
         else:  # i.e. metropolis-eq or metropolis, which both require the calculation of dU
             # Now we calculate dU
-            print("  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...")
+            if self.verbose is True:
+                print("  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...")
             f0, f1 = dhdl_files[swap[0]], dhdl_files[swap[1]]
             h0, h1 = get_headers(f0), get_headers(f1)
             data_0, data_1 = (
@@ -459,12 +507,13 @@ class EnsembleEXE:
             new_state_0 = self.lambda_ranges[swap[0]].index(new_lambda_0)  # new state index (local index in simulation swap[0]) # noqa: E501
             new_state_1 = self.lambda_ranges[swap[1]].index(new_lambda_1)  # new state index (local index in simulation swap[1]) # noqa: E501
 
-            dU_0 = (dhdl_0[new_state_0] - dhdl_0[old_state_0]) / self.kT  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state
-            dU_1 = (dhdl_1[new_state_1] - dhdl_1[old_state_1]) / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state
+            dU_0 = (dhdl_0[new_state_0] - dhdl_0[old_state_0]) / self.kT  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state  # noqa: E501
+            dU_1 = (dhdl_1[new_state_1] - dhdl_1[old_state_1]) / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state  # noqa: E501
             dU = dU_0 + dU_1
-            print(
-                f"  U^i_n - U^i_m = {dU_0:.2f} kT, U^j_m - U^j_n = {dU_1:.2f} kT, Total dU: {dU:.2f} kT"
-            )
+            if self.verbose is True:
+                print(
+                    f"  U^i_n - U^i_m = {dU_0:.2f} kT, U^j_m - U^j_n = {dU_1:.2f} kT, Total dU: {dU:.2f} kT"
+                )
 
             if self.mc_scheme == "metropolis_eq" or self.mc_scheme == "metropolis-eq":
                 prob_acc = min(1, np.exp(-dU))
@@ -480,9 +529,10 @@ class EnsembleEXE:
                 so g^{i}_{n} - g^{j}_{n} or g^{j}_{m} - g^{i}_{m} wouldn't not make sense.
                 We therefore print g^i_n - g^i_m and g^j_m - g^j_n instead even if they are less interesting.
                 """
-                print(
-                    f"  g^i_n - g^i_m = {dg_0:.2f} kT, g^j_m - g^j_n = {dg_1:.2f} kT, Total dg: {dg:.2f} kT"
-                )
+                if self.verbose is True:
+                    print(
+                        f"  g^i_n - g^i_m = {dg_0:.2f} kT, g^j_m - g^j_n = {dg_1:.2f} kT, Total dg: {dg:.2f} kT"
+                    )
 
                 prob_acc = min(1, np.exp(-dU + dg))
         return prob_acc
@@ -503,19 +553,23 @@ class EnsembleEXE:
         """
         if prob_acc == 0:
             swap_bool = False
-            print("  Swap rejected!")
+            if self.verbose is True:
+                print("  Swap rejected! ")
         else:
             rand = random.random()
-            print(
-                f"  Acceptance rate: {prob_acc:.3f} / Random number drawn: {rand:.3f}"
-            )
+            if self.verbose is True:
+                print(
+                    f"  Acceptance rate: {prob_acc:.3f} / Random number drawn: {rand:.3f}"
+                )
             if rand < prob_acc:
                 swap_bool = True
                 # Below we flush the buffer so the next STDOUT (current configs) will be appended
-                print("  Swap accepeted!", end="", flush=True)
+                if self.verbose is True:
+                    print("  Swap accepeted! ", end="", flush=True)
             else:
                 swap_bool = False
-                print("  Swap rejected!", end="", flush=True)
+                if self.verbose is True:
+                    print("  Swap rejected! ", end="", flush=True)
 
         return swap_bool
 
@@ -639,10 +693,15 @@ class EnsembleEXE:
             The iteration index (starting from 0).
         """
         if rank == 0:
+            iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
+            print(iter_str + '\n' + '=' * (len(iter_str) - 1))
+
+        if rank == 0:
             dir_before = [
                 i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))
             ]
-            print("Preparing the tpr files for the simulation ensemble...")
+            if self.verbose is True:
+                print("Preparing the tpr files for the simulation ensemble...")
 
         grompp = gmx.commandline_operation(
             "gmx",
@@ -665,10 +724,10 @@ class EnsembleEXE:
         )
         grompp.run()
         if rank == 0:  # just print the messages once
-            utils.gmx_output(grompp)
+            utils.gmx_output(grompp, self.verbose)
 
         # Run all the simulations simultaneously using gmxapi
-        if rank == 0:
+        if rank == 0 and self.verbose is True:
             print("Running an ensemble of simulations ...")
 
         if self.parallel is True:
@@ -691,12 +750,12 @@ class EnsembleEXE:
             )
             md.run()
             if rank == 0:  # just print the messages once
-                utils.gmx_output(md)
+                utils.gmx_output(md, self.verbose)
 
         if rank == 0:
             dir_after = [
                 i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))
             ]
-            utils.clean_up(dir_before, dir_after)
+            utils.clean_up(dir_before, dir_after, self.verbose)
 
         return md
