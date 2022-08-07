@@ -54,10 +54,7 @@ class EnsembleEXE:
 
         # Step 1: Read in parameters from the YAML file.
         with open(yml_file) as f:
-            try:
-                params = yaml.load(f, Loader=yaml.FullLoader)
-            except AttributeError:
-                params = yaml.load(f)
+            params = yaml.load(f, Loader=yaml.FullLoader)
 
         for attr in params:
             setattr(self, attr, params[attr])
@@ -394,7 +391,11 @@ class EnsembleEXE:
 
     def get_swapped_configs(self, swap_list, dhdl_files, states, lambda_vecs, weights):
         """
-        Finds the configuration each replica corresponds to after multiple swaps proposed in one attempt.
+        Returns a list of indices that represent the final configurations of all replicas after swap(s).
+        The list is always intiliazed with `[0, 1, 2, ...]` and gets updated with swap acceptance/rejection.
+        For example, if the final configurations returned are represented by `[0, 2, 1, 3]`, that means the
+        configurations of replicas 1 and 2 are swapped. If it's `[2, 0, 1, 3]`, then 3 replicas (indices 0, 1, 2)
+        need to swap its configuration in the next iteration.
 
         Parameters
         ----------

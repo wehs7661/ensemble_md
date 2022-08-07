@@ -134,10 +134,10 @@ Step 1: Set up parameters
 To run an ensemble of expanded ensemble in GROMACS using :code:`ensemble_md`, one at 
 least needs to following four files:
 
-  - One GRO file of the system of interest
-  - One TOP file of the system of interest
-  - One MDP template for customizing different MDP files for different replicas. 
-  - One YAML file that specify the EEXE-relevant parameters.
+- One GRO file of the system of interest
+- One TOP file of the system of interest
+- One MDP template for customizing different MDP files for different replicas. 
+- One YAML file that specify the EEXE-relevant parameters.
 
 Notably, here we are assuming that all replicas start from the same configuration represented 
 by the single GRO file, but the user should also be able to use the methods defined in 
@@ -151,22 +151,23 @@ Importantly, to instantiate the class :class:`.EnsembleEXE`, the input YAML file
 In this YAML file, the user needs to specify how the replicas should be set up or interact with each 
 other during the simulation ensemble. Below we decribe the details of these parameters.
 
-  - Required parameters
+- Required parameters
 
-    - :code:`parallel`: Whether the replicas of EEXE should be run in parallel or not.
-    - :code:`n_sim`: The number of replica simulations.
-    - :code:`n_iterations`: The number of iterations.
-    - :code:`s`: The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
-    - :code:`mdp`: The MDP template that has the whole range of :math:`λ` values.
+  - :code:`parallel`: Whether the replicas of EEXE should be run in parallel or not.
+  - :code:`n_sim`: The number of replica simulations.
+  - :code:`n_iterations`: The number of iterations.
+  - :code:`s`: The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
+  - :code:`mdp`: The MDP template that has the whole range of :math:`λ` values.
 
-  - Optional parameters
+- Optional parameters
 
-    - :code:`nst_sim`: The number of simulation steps, i.e. exchange frequency. This option assumes replicas with homogeneous simulation lengths. If this option is not specified, the number of steps defined in the template MDP file will be used. 
-    - :code:`mc_scheme`: The method for swapping simulations. Choices include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. For more details, please refer to :ref:`doc_mc_schemes`. (Default: :code:`metropolis`)
-    - :code:`w_scheme`: The method for combining weights. Choices include :code:`None` (unspecified), :code:`exp-avg`/:code:`exp_avg`, and :code:`hist-exp-avg`/:code:`hist_exp_avg`. For more details, please refer to :ref:`doc_w_schemes`. (Default: :code:`hist-exp-avg`)
-    - :code:`N_cutoff`: The histogram cutoff. Only required if :code:`hist-exp-avg` is used. (Default: 0)
-    - :code:`n_pairs`: The number of pairs of simulations to be swapped in each attempt. Note that the maximum number of :code:`n_pairs` is half of :code:`n_sim`
-    - :code:`outfile`: The output file for logging how replicas interact with each other. 
+  - :code:`nst_sim`: The number of simulation steps, i.e. exchange frequency. This option assumes replicas with homogeneous simulation lengths. If this option is not specified, the number of steps defined in the template MDP file will be used. 
+  - :code:`mc_scheme`: The method for swapping simulations. Choices include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. For more details, please refer to :ref:`doc_mc_schemes`. (Default: :code:`metropolis`)
+  - :code:`w_scheme`: The method for combining weights. Choices include :code:`None` (unspecified), :code:`exp-avg`/:code:`exp_avg`, and :code:`hist-exp-avg`/:code:`hist_exp_avg`. For more details, please refer to :ref:`doc_w_schemes`. (Default: :code:`hist-exp-avg`)
+  - :code:`N_cutoff`: The histogram cutoff. Only required if :code:`hist-exp-avg` is used. (Default: 0)
+  - :code:`n_ex`: The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS. A recommended value is :math:`N^3`, where :math:`N` is the number of replicas. If `n_ex` is unspecified or specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`. (Default: 0)
+  - :code:`outfile`: The output file for logging how replicas interact with each other. 
+  - :code:`verbose`: Whether a verbse log is wanted. 
 
 Step 2: Run the 1st iteration
 -----------------------------
@@ -185,10 +186,12 @@ Step 3-1: Extract the final status of the previous iteration
 To calculate the acceptance ratio and modify the mdp files in later steps, we first need to extract the information
 of the final status of the previous iteration. Specifically, for all the replica simulations, we need to
 
-  - Find the last sampled state and the corresponding lambda values from the DHDL files
-  - Find the final Wang-Landau incrementors and weights from the LOG files. 
+- Find the last sampled state and the corresponding lambda values from the DHDL files
+- Find the final Wang-Landau incrementors and weights from the LOG files. 
 
 These two tasks are done by :obj:`.extract_final_dhdl_info` and :obj:`.extract_final_log_info`.
+
+.. _doc_swap_basics:
 
 Step 3-2: Identify swappable pairs and propose simulation swap(s)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -200,13 +203,19 @@ not present in both alchemical ranges, information like :math:`\Delta U^i=U^i_n-
 in either DHDL files and terms like :math:`\Delta g^i=g^i_n-g^i_m` cannot be calculated from the LOG files as well, which 
 makes the calculation of the acceptance ratio technicaly impossible. (For more details about the acceptance ratio is calculated
 in different schemes for swapping, check the section :ref:`doc_mc_schemes`.) After the swappable pairs are identified, 
-the user can propose swap(s) using :obj:`propose_swaps`. 
+the user can propose swap(s) using :obj:`propose_swaps`. Note that having multiple swaps proposed in one attempt is possible 
+with :code:`n_ex` specified larger than 1 in the YAML file. In that case, :code:`n_ex` swaps will be drawn from the list of 
+swappable pairs with replacement, so there is no upper limit for :code:`n_ex` and a recommended value is :math:`N^3`, where
+:math:`N` is the number of replicas. If :code:`n_ex` is unspecified or specified as 0, then only 1 swap will be proposed and 
+it will be between a pair of adjacent simulations (i.e. neighboring swapping). 
 
 Step 3-3: Decide whether to reject/accept the swap(s)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This step is mainly done by :obj:`.calc_prob_acc` and :obj:`.accept_or_reject`. The former calculates the acceptance 
-ratio from the DHDL/LOG files of the swapping replicas, while the latter draws a random number and compare with the 
-acceptance ratio to decide whether the proposed swap should be accepted or not.
+This step is mainly done by :obj:`.get_swapped_configs`, which calls functions :obj:`.calc_prob_acc` and :obj:`.accept_or_reject`. 
+The former calculates the acceptance ratio from the DHDL/LOG files of the swapping replicas, while the latter draws a random number 
+and compare with the acceptance ratio to decide whether the proposed swap should be accepted or not. If mutiple swaps are wanted,
+in :obj:`.get_swapped_configs`, the acceptance ratio of each swap will be evaluated so to decide whether the swap should be accepted
+or not. Based on this :obj:`get_swapped_configs` returns a list of indices that represents the final configurations after all the swaps. 
 
 Step 3-4: Combine the weights if needed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -218,12 +227,13 @@ methods for combining weights across different replicas, please refer to the sec
 
 Step 3-5: Modify the MDP files and swap out the GRO files (if needed)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Once it has been figured out whether there is a pair of simulations to be swapped, the user should set up the input 
-fils for the next iteration. In principle, the new iteration should inherit the final status of the previous iteration. 
+After the final configuration has been figured out by :obj:`get_swapped_configs` (and weights have bee combined by :obj:`combine_weights`
+when needed), the user should set up the input files for the next iteration. In principle, the new iteration should inherit the final
+status of the previous iteration. 
 This means:
 
-  - For each replica, the input configuration for initializing a new iterations should be the output configuraiton of the previous iteration. If replicas :math:`i` and :math:`j` should be swapped, the new iteration of replica :math:`i` should be intialized by the output configuration of :math:`j` and vice versa. (Instead of exchanging the mdp files, we recommend swapping out the coordinate files to exchange replicas.)
-  - For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion except that parameters like :code:`tinit`, :code:`init-lambda-state`, :code:`init-wl-delta`, and :code:`init-lambda-weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
+- For each replica, the input configuration for initializing a new iterations should be the output configuraiton of the previous iteration. For example, if the final configurations are represented by :code:`[1, 2, 0, 3]` (returned by :obj:`.get_swapped_configs`), then in the next iteration, replica 0 should be initialized by the output configuration of replica 1 in the previous iteration, while replica 3 can just inherit the output configuration from previous iteration of the same replica. Notably, instead of exchanging the MDP files, we recommend swapping out the coordinate files to exchange replicas.
+- For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion of the same replica except that parameters like :code:`tinit`, :code:`init-lambda-state`, :code:`init-wl-delta`, and :code:`init-lambda-weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
 
 Step 4: Run the new iteration
 -----------------------------
@@ -231,10 +241,14 @@ After the input files for a new iteration have been set up, we use the procedure
 run a new iteration. Then, the user should loop between Steps 3 and 4 until the desired number of 
 iterations (:code:`n_iterations`) is reached. 
 
+
+Replica swapping
+================
+
 .. _doc_mc_schemes:
 
 MC schemes for swapping replicas
-================================
+--------------------------------
 In ensemble of expanded ensemble, we need to periodically exchange coordinates between 
 replicas. Currently, we have implemented 3 Monte Carlo schemes for swapping replicas that can be specified 
 in the input YAML file (e.g. :code:`params.yaml`) via the parameter :code:`mc_scheme`, including :code:`same-state`/:code:`same_state`, 
@@ -245,14 +259,14 @@ Below we elaborate the details of each of the swapping schemes.
 .. _doc_same_state:
 
 Same-state swapping
--------------------
+~~~~~~~~~~~~~~~~~~~
 The simplest scheme for swapping replicas is the same-state swapping scheme, which only swaps 
 replicas only if they both happen to same the same alchemical states right before the swap. That
 is, the acceptance ratio is always either :math:`1` (same state) or :math:`0` (different states).
 Notably, this swapping scheme does not obey the detailed balance condition.
 
 Metropolis swapping 
--------------------
+~~~~~~~~~~~~~~~~~~~
 Metropolis swapping uses the Metropolis criterion to swap replicas, i.e. 
 
 .. math::
@@ -273,7 +287,7 @@ In theory, this swapping scheme should obey the detailed balance condition, as d
 in :ref:`doc_basic_idea`.
 
 Equilibrated Metropolis swapping
---------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In the limit of inifite simulation length, the alchemical weights of a certain 
 alchemical (e.g. :math:`m` or :math:`n`) should be indepedent of the configuration
 (e.g. :math:`i` or :math:`j`) being sampled, i.e. :math:`g^i_n=g^i_m` and :math:`g^j_n=g^j_m`. 
@@ -288,7 +302,8 @@ be non-zero frequently, so this swapping scheme does not strictly obey the detai
 
 Calculation of :math:`\Delta` in Metropolis-based methods
 ---------------------------------------------------------
-To better understand how :math:`\Delta` is calculated in the Metropolise-based methods, 
+The calculation of :math:`\Delta` is important because the acceptance ratio :math:`w(X\rightarrow X')=\min(1, \exp(-\Delta))` is 
+directly related to :math:`\Delta`. To better understand how :math:`\Delta` is calculated in the Metropolise-based methods, 
 we need to first know what's available in the DHDL file of a GROMACS expanded ensemble simulation. As an example, below 
 we tabulate the data of a DHDL file, with the time column having units of ps and all energy quantities having
 units of kJ/mol. 
@@ -350,23 +365,55 @@ Notably, in the DHDL file, the total energy (i.e. Hamiltonian, denoted as :math:
 could be the sum of kinetic energy and potential energy or just the total potential energy, depending how the parameter 
 :code:`dhdl-print-energy` is specified in the MDP file. However, as we will see later, we only care about 
 :math:`\Delta H`, which should be equal to :math:`\Delta U` regardless of how :code:`dhdl-print-energy` is 
-specified. This is because at each time fram, the kinetic energy of the system being at differnt :math:`\lambda`
+specified. This is because at each time frame, the kinetic energy of the system being at differnt :math:`\lambda`
 values should be the same and cancelled out. (The kinetic energy is :math:`\lambda`-dependent.) With this, below 
 we describe more details about the calculation of the difference in the potential energies and the difference in the alchemical weights.
 
 The calculation of :math:`\beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)]` 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-As shown in the table above, the individual values of :math:`U^{i}_{n}`, :math:`U^{j}_{m}`, :math:`U^{i}_{m}`, and :math:`U^{j}_{n}` are not 
-available in from the DHDL file, but we do know :math:`\Delta H` (i.e. :math:`\Delta U`) between different states, which is sufficient 
-for us to calculate :math:`\beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)]`. As an example, here we assume that we have replicas labled as A, B, C, D, ...
-running in parallel and at :math:`t=6` ps, we are trying to swap the coordinates of replicas A and C
-that are respectively in state 6 and state 0 (coupling parmaeters :math:`(0, 0)`) at :math:`t=6` ps, we will need to calculated
-:math:`\beta[(U^A_0 + U^C_6) - (U^A_6+U^C_0)]`, or :math:`\beta[(U^A_0 - U^A_6) + (U^C_6 -U^C_0)]`. Assuming the table we see above 
-is the DHDL file generated by replica C, we can see that :math:`U^C_6 -U^C_0` is 65.82 kJ/mol. Similarly, :math:`U^A_0 - U^A_6` can be found in 
-the DHDL file of simulation 0 by looking for the row of :math:`t=6` ps (which should samples state 0). After getting the :math:`\Delta U` terms, 
-we convert their units for kJ/mol to kT, which is more convenient for the calculation of the acceptance ratio.
+Note that for each time frame shown in the table above, there is always one :math:`\Delta H` being 0, which happens when 
+:math:`\Delta H` is calculated with respect to the state being sampled at that time frame. For example, if the vector of coupling 
+parameters of state 6 is :math:`(0.5, 0)`, then at :math:`t=6` ps, when the replica is sampling state 6, :math:`\Delta H` w.r.t. :math:`(0.5, 0)` should be 0. This 
+allows us to get the individual values of :math:`U^{i}_{n}`, :math:`U^{j}_{m}`, :math:`U^{i}_{m}`, and :math:`U^{j}_{n}` by assuming
+the state being visited as the reference (i.e. :math:`U=0`). With this, we can calulcate :math:`\beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)]`
+with ease. 
 
-The calculation of :math:`\beta[(g^i_n + g^j_m) - (g^i_m+g^j_n)]` 
+As an example, here we assume that we have four replicas labelled as 0, 1, 2, and 3 sampling configurations A, B, C and D and they 
+ended up at states a, b, c, and d. Schematically, we have 
+::
+
+    replica       0       1       2       3
+    state         a       b       c       d
+    config        A       B       C       D
+
+When swapping the configurations of replicas 0 and 1, we need to calculate the term :math:`\beta[(U^A_b + U^B_a) - (U^A_a+U^B_b)]`, or equivalently
+:math:`\beta[(U^A_b - U^A_a) + (U^B_a-U^B_b)]`. Since now replica 0 is at state a at the end of the simulation, :math:`U^A_b - U^A_a` is immediately 
+available in the DHDL file in replica 0, which is the final value of :math:`\Delta H` w.r.t :math:`(x, y)`, where :math:`(x, y)` 
+is the vector of the coupling parameter of state b. 
+
+Now let's say the table above comes from the DHDL file of replica 0. If at :math:`t=6` ps, we are swapping replicas A and B and 
+:math:`a=6`, :math:`b=0` (i.e. at  :math:`t=6` ps, replicas A and B are sampling states 6 and 0, respectively), then :math:`U^A_b - U^A_a=U^A_0 - U^A_6=65.827232`.
+Similarly, :math:`U^B_a - U^B_b` can be looked up in the DHDL file of replica 1, so :math:`\Delta` can be calculated. 
+(Note that we need to convert the units of :math:`\Delta U` from kJ/mol to kT, which is more convenient for the calculation of the acceptance ratio.
+
+In the case that mutiple swaps are desired, say :code:`n_ex` is 2, if the first swap between replicas 0 and 1 shown above is accepted and now 
+we are swapping replicas 1 and 2 in the second swap, then we must be aware that the configurations now corresponding to replicas 0 and 1 is not A and B, 
+but B and A, repsecitvely:
+::
+
+    replica       0       1       2       3
+    state         a       b       c       d
+    config        B       A       C       D
+
+Therefore, when swapping replicas 1 and 2, instead of calculating :math:`\beta[(U^B_c - U^B_b) + (U^C_b-U^C_c)]`, we calculate :math:`\beta[(U^A_c - U^A_b) + (U^C_b-U^C_c)]`.
+That is, when swapping replicas 1 and 2 in this case, instead of getting values from the DHDL files of replicas 1 and 2, we actually need to get values from 
+the DHDL files of reaplicas 0 and 2. In this case, :math:`U^A_c - U^A_b` is not immediately available in the table because configuration A 
+was at state :math:`a=6`, so the whole vector of :math:`\Delta H` is calculated against state 6. However, as mentioned above, we have 
+:math:`U^A_6=0`, so we can still calculate :math:`U^A_c - U^A_b` by just taking the difference between :math:`\Delta H` w.r.t. :math:`(x_c, y_c)`
+and :math:`\Delta H` w.r.t. :math:`(x_b, y_b)`, where :math:`(x_c, y_c)` and :math:`(x_b, y_b)` are the vectors of coupling parameters of states c and b. 
+While all this process can sound a little confusing, it has been already taken care of by the function :obj:`.calc_prob_acc`.
+
+The calculation of :math:`[(g^i_n + g^j_m) - (g^i_m+g^j_n)]` 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 In the log file of a GROMACS expanded ensemble simulation, the alchemical weights have units of kT, which is why we don't have 
 the inverse temperature :math:`\beta` multiplied with the weights. Unlike the potential energy terms, in the log file we can find 
@@ -427,9 +474,9 @@ Each of these replicas sample 6 alchemical states. There alchemical ranges are d
 Replicas 1 and 2 have overlap at states 2 to 5 and replicas 2 and 3 have overlap at states 4 to 7. Notably, all 
 three replicas sampled states 4 and 5. Therefore, what we are going to do is
 
-  - For states 2 and 3, combine weights across replicas 1 and 2.
-  - For states 4 and 5, combine weights across replicas 1, 2 and 3.
-  - For states 6 and 7, combine weights across replicas 2 and 3.
+- For states 2 and 3, combine weights across replicas 1 and 2.
+- For states 4 and 5, combine weights across replicas 1, 2 and 3.
+- For states 6 and 7, combine weights across replicas 2 and 3.
 
 However, before we combine the weights, we should make sure the weights of all replicas have the same reference because now 
 the references of the 3 replicas are states 0, 2, and 4, respectively. Therefore could be 
