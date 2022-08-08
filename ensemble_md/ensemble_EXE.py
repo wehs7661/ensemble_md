@@ -34,6 +34,9 @@ rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
 class EnsembleEXE:
     """
     This class helps set up input files of an ensemble of expanded ensemble.
+    Note that for easier parsing of the mdp template file when initializing the class, please make sure that at least the following GROMACS mdp
+    parameters specified using dashes instead of underscores: :code:`ref-t`, :code:`vdw-lambdas`,
+    :code:`coul-lambdas`, :code:`restraint-lambdas`, and :code:`init-lambda-weights`.
     """
 
     def __init__(self, yml_file):
@@ -47,12 +50,6 @@ class EnsembleEXE:
         outfile : str
             The file name of the log file for documenting how different replicas interact
             during the process.
-
-        Notes
-        -----
-        For easier parsing of the mdp template file, please make sure that at least the following GROMACS mdp
-        parameters specified using dashes instead of underscores: :code:`ref-t`, :code:`vdw-lambdas`,
-        :code:`coul-lambdas`, :code:`restraint-lambdas`, and :code:`init-lambda-weights`.
         """
         # Step 0: Set up constants
         k = 1.380649e-23

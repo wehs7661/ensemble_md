@@ -451,76 +451,239 @@ sampling different alchemical ranges would have different references. Therefore,
 
 Weight combination
 ==================
-As mentioned above, to leverage the stastics of the states collected from multiple replicas, we recommend 
-combining the alchemical weights of these states across replicas to initialize the next iteration. Below 
-we first describe how we shift weights to deal with the issue of different references of alchemical weights 
-in GROMACS LOG files, then, we describe weight-combining methods available in our current implementation. 
 
-Weight shifting
----------------
-In the log file of a GROMACS expanded ensemble simulation, the alchemical weight of the first alchemical intermediate state 
-is always shifted to 0 to serve as the reference. In EEXE, different replicas have different ranges of alchemical
-states, i.e. different first states, hence difference references. For example, there could be 3 replicas having 
-the following weights:
+Basic idea
+----------
+As mentioned above, to leverage the stastics of the states collected from multiple replicas, we recommend 
+combining the alchemical weights of these states across replicas to initialize the next iteration. Ideally,
+well-modified weights should facilitate the convergence of the alchemical weights in expanded ensemble, which 
+in the limit of inifinite simulation time correspond to dimensionless free energies of the alchemical states. 
+The modified weights also directly influence the the accpetance ratio, hence the convergence of the simulation
+ensemble. Potentially, there are various methods for combining weights across multiple replicas. One intuitive 
+method to average the probabilities :math:`p_1` and :math:`p_1` that respectively correspond to weights :math:`g_1` 
+and :math:`g_1`, i.e. 
+
+.. math::
+  g=\ln p = -\ln\left(\frac{p_1+p_2}{2}\right) = -\ln\left(\frac{\text{e}^{-g_1} + \text{e}^{-g_2}}{2}\right)
+
+This exploits the fact that in expanded ensemble, the alchemical weight of a state is the dimensionless free energy
+of that state given an exactly flat histogram of state visitation. While this assumption of flat histograms is generally 
+not true, espeically in cases where the free energy differen of interest is large, one can consider "correcting"
+the weights before combining them. (See :ref:`doc_histogram` for more details.)
+
+While the method illustrated above is intuitive and easy to operate, it suffers from the issue of reference state selection.
+This issue comes from the fact that GROMACS always shifts the weight of the first state to 0 to make it as the reference state.
+Given that the first state of different replicas in EEXE are different, this essentially means that the vector of 
+alchemical weights of different replicas have different references. Although it is possible to pick a reference 
+state for all replicas before weight combination could solve this issue, different choices of references could lead to 
+slightly different combined weights, hence probability ratios. As there is no real justification which state should be favored
+as the reference, instead of the method explained above, we implemented another method that exploits the average of "probability ratios"
+to circumvent the issue of reference selection. 
+
+Weight combinination based on probability ratios
+------------------------------------------------
+Generally, weight combination is performed after the final configurations have beeen figured out and it is just for 
+the initialization of the MDP files for the next iteration. Now, to demonstrate the method implemented in 
+:code:`ensemble_md` (or more specifically, :obj:`.combine_weights`, here we consider the following sets of weights 
+as an example, with :code:`X` denoting a state not present in the alchemical range:
 
 ::
 
-    State     0       1       2       3       4       5       6       7       8       9
-    Rep 1     0.0     2.1     4.0     3.7     4.8     6.5     X       X       X       X
-    Rep 2     X       X       0.0     -0.4    0.7     2.3     2.8     3.9     X       X
-    Rep 3     X       X       X       X       0.0     1.5     2.1     3.3     6.0     9.2    
+    State       0         1         2         3         4         5      
+    Rep 1       0.0       2.1       4.0       3.7       X         X  
+    Rep 2       X         0.0       1.7       1.2       2.6       X    
+    Rep 3       X         X         0.0       -0.4      0.9       1.9
 
-Each of these replicas sample 6 alchemical states. There alchemical ranges are different but overlapping. Specifically, 
-Replicas 1 and 2 have overlap at states 2 to 5 and replicas 2 and 3 have overlap at states 4 to 7. Notably, all 
-three replicas sampled states 4 and 5. Therefore, what we are going to do is
+As shown above, the three replicas sample different but overlapping states. Now, our goal 
+is to
 
-* For states 2 and 3, combine weights across replicas 1 and 2.
-* For states 4 and 5, combine weights across replicas 1, 2 and 3.
-* For states 6 and 7, combine weights across replicas 2 and 3.
+* For state 1, combine the weights arcoss replicas 1 and 2.
+* For states 2 and 3, combine the weights across all three replicas.
+* For state 4, combine the weights across replicas 1 and 2. 
 
-However, before we combine the weights, we should make sure the weights of all replicas have the same reference because now 
-the references of the 3 replicas are states 0, 2, and 4, respectively. Therefore could be 
+That is, we combine weights arcoss all replicas that sample the state of interest regardless 
+which replicas are swapping. The outcome of the whole process should be three vectors of modified 
+alchemical weights, one for each replica, that should be specified in the MDP files for the next iteration. 
+Below we elaborate the details of each step carried out by our method.
+
+Step 1: Convert the weights into probabilities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For weight :math:`g_ij` that corresponds to state :math:`j` in replica :math:`i`, we can calculate its 
+corresopnding probability as follows:
+
+.. math::
+  p_{ij}=\frac{\exp(-g_{ij})}{\sum_{j=1}^N \exp(-g_{ij})}
+
+where :math:`N` is the number of states in replica :math:`i`. As a result, we have the following probabilities
+for each replica. Note that the sum of the probabilities of each row (replica) should be 1.
+
+::
+
+    State       0         1         2         3         4         5      
+    Rep 1       0.858     0.105     0.016     0.021     X         X  
+    Rep 2       X         0.642     0.117     0.193     0.048     X   
+    Rep 3       X         X         0.328     0.489     0.133     0.049
 
 
-Exponential averaging 
+Step 2: Calculate the probability ratios between each pair of replicas
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Ideally (in the limit of inifinite simulation time), for the 3 states overlapped between replicas 1 and 2, 
+we should have
+
+.. math::
+    r_{2, 1} = \frac{p_{2i}}{p_{1i}} = \frac{p_{21}}{p_{11}} = \frac{p_{22}}{p_{12}}= \frac{p_{23}}{p_{13}} 
+
+where :math:`r_{2, 1}` is the "probability ratio" between replicas 2 and 1. However, the probability ratios 
+corresopnding to different states will not be the same in practice, but will diverge with statistical noise
+for short timescales. For example, in our case we have
+
+.. math::
+    \frac{p_{21}}{p_{11}}=6.1143, \; \frac{p_{22}}{p_{12}} = 7.3125, \; \frac{p_{23}}{p_{13}}=9.1905
+
+Similarly, for states 2 to 4, we need to calculate the probability ratios between replicas 2 and 3:
+
+.. math::
+    \frac{p_{32}}{p_{22}}=2.8034, \; \frac{p_{33}}{p_{23}} = 2.5337, \; \frac{p_{34}}{p_{24}}=2.7708
+
+Notably, in this case, there is no need to calculate :math:`r_{3, 1}` because :math:`r_{3, 1}` is already determined
+as :math:`r_{3, 1}=r_{3, 2} \times r_{2, 1}`. Also, there are only 2 overlapping states between replicas 1 and 3,
+but we want to maximize the overlap when combining weights. Therefore, the rule of thumb of calculating the 
+probability ratios is that we only calculate the ones betwee adjacent replicas, i.e. :math:`r_{i+1, i}`.
+
+
+Step 3: Average the probability ratios
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Now, to determine an unifying probability ratio between a pair of replicas, we can choose to take simple averages 
+or geometric averages. 
+
+- Method 1: Simple average
+
+.. math::
+    r_{2, 1} = \frac{1}{3}\left(\frac{p_{21}}{p_{11}} + \frac{p_{22}}{p_{12}} + \frac{p_{23}}{p_{13}} \right) \approx 7.5391, \;
+    r_{3, 2} = \frac{1}{3}\left(\frac{p_{32}}{p_{22}} + \frac{p_{33}}{p_{23}} + \frac{p_{34}}{p_{24}} \right) \approx 2.7026
+
+- Method 2: Geometric average
+
+.. math::
+    r_{2, 1}' = \left(\frac{p_{21}}{p_{11}} \times \frac{p_{22}}{p_{12}} \times \frac{p_{23}}{p_{13}} \right)^{\frac{1}{3}} \approx 7.4345, \;
+    r_{3, 2}' = \left(\frac{p_{32}}{p_{22}} \times \frac{p_{33}}{p_{23}} \times \frac{p_{34}}{p_{24}} \right)^{\frac{1}{3}} \approx 2.6999
+
+Notably, if we take the negative natural logarithm of a probability ratio, we will get a free energy difference. For example, 
+:math:`-\ln (p_{21}/p_{11})=f_{21}-f_{11}`, i.e. the free energy difference between state 1 in replica 2 and state 1 in replica 1. 
+(This value is generally not 0 because different replicas have different references.) Therefore, while Method 1 takes the simple 
+average the probability ratios, Method 2 essentially averages such free energy differences. Both methods are valid in theory and 
+should not make a big difference in the convergence speed of the simulations because we just need an estimate of free energy for each 
+state better than the weight of a single simulation. In fact, the closer the probability ratios are from each other, the closer 
+the simple average is from the geometric average. 
+
+Step 4: Scale the probabilities for each replica
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using the simple averages of the probability ratios :math:`r_{21}` and :math:`r_{32}`, we can scale the probability vectors of 
+replicas 2 and 3 as follows:
+
+::
+
+    State       0         1         2         3         4         5      
+    Rep 1       0.858     0.105     0.016     0.021     X         X  
+    Rep 2’      X         0.08529   0.01552   0.02560   0.00637   X   
+    Rep 3’      X         X         0.01610   0.02400   0.00653   0.00240
+  
+As shown above, we keep the probability vector of replica 1 the same but scale that for the other two. Specifically, the probability 
+vector of replica 2' is that of replica 2 divided by :math:`r_21` and the probability vector of replica 3' is that of replica 3 
+divided by :math:`r_{21} \times r_{32}`. 
+
+Similarly, if we used the probability ratios :math:`r_{21}'` and :math:`r_{32}'`, we would have had:
+
+::
+
+    State        0        1         2         3         4         5      
+    Rep 1        0.858    0.105     0.016     0.021     X         X  
+    Rep 2’       X        0.08645   0.01573   0.02596   0.00646   X   
+    Rep 3’       X        X         0.01634   0.02436   0.00663   0.00244 
+
+
+Step 5: Average and convert the probabilities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+After we have the scaled probabilities, we need to average them for each state, with the averaging method we used 
+to average the probability ratios. For example, for state 1, we need to calculate the simple average of 0.105 and 0.08529, 
+or the geometric average of 0.105 nad 0.08529. As such, for the first case (where the probabilities were scaled with :math:`r_{21}` 
+and :math:`r_{32}`), we have the following probability vector of full range:
+
+:: 
+
+    Final p   0.858    0.9515    0.01587    0.02353    0.00645    0.00240
+
+which can be converted to the following vector of alchemical weights  (denoted as :math:`\vec{g}`) by taking the negative natural logarithm:
+
+::
+
+    Final g   0.1532    0.0497    4.1433    3.7495    5.0437    6.0322
+
+For the second case (scaled with :math:`r_{21}'` and :math:`r_{32}'`), we have 
+
+::
+
+    Final p    0.858    0.09527   0.01602    0.02368    0.00654    0.00244
+
+which can be converted to the following vector of alchemical weights (denoted as :math:`\vec{g'}`):
+
+::
+
+    Final g    0.1532    2.3510    4.1339    3.7431    5.0437    6.0158
+
+
+Step 6: Determine the vector of alchemical weights for each replica
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Lastly, with the the vector of alchemical weights of the full range, we can figure out the alchemical weights 
+for each replica, by shifting the weight of the first state of each replica back to 0. That is, with :math:`\vec{g}`,
+we have:
+
+::
+
+    State     0       1       2       3       4       5      
+    Rep 1     0.0     2.199   3.990   3.596   X       X  
+    Rep 2     X       0.0     1.791   1.397   2.691   X   
+    Rep 3     X       X       0.0    -0.393   0.900   1.889 
+
+Similarly, with :math:`\vec{g'}`, we have:
+
+::
+
+    State     0       1       2       3       4       5      
+    Rep 1     0.0     2.198   3.981   3.590   X       X  
+    Rep 2     X       0.0     1.783   1.392   2.693   X   
+    Rep 3     X       X       0.0    -0.391   0.910   1.882 
+
+
+As shown above, the results using Method 1 and Method 2 are pretty close to each other. Notably, regardless of 
+which type of averages we took, in the case here we were assuming that each replica is equally weighted. In the 
+future, we might want to assign different weights to different replicas such that the uncertainty of free energies
+can be minimized. For example, if we are combining probabilities :math:`p_1` and :math:`p_2` that respectively 
+have uncertainties :math:`\sigma_1` and :math:`\sigma_2`, we can have 
+
+.. math::
+    p = \left(\frac{\sigma_2}{\sigma_1 + \sigma_2}\right)p_1 + \left(\frac{\sigma_1}{\sigma_1 + \sigma_2}\right)p_2
+
+However, calculating the uncertainties of the :math:`p_1` and :math:`p_2` on-the-fly is generally difficult, so 
+this method has not been implemented. 
+
+.. _doc_histogram: 
+
+Histogram corrections
 ---------------------
-In the limit that all alchemical states are equally sampled, the alchemical weight of a state 
-is equal to the dimensionless free energy of that state, i.e. in the units of kT, we have 
-:math:`g(\lambda)=f(\lambda)=-\ln p(\lambda)`, or :math:`p(\lambda)=\exp(-g(\lambda))`. Given this,
-one intuitive way is to average the probability of the two simulations. Let :math:`g` be the weight combined from 
-from the weights :math:`g_1` and :math:`g_2` and :math:`p`, :math:`p_1`, :math:`p_2` be the corresponding 
-probabilities, then we have 
-
-.. math::
-  p = \frac{p_1+p_2}{2} = \frac{\text{e}^{-g_1} + \text{e}^{-g_2}}{2}
-
-Given that :math:`p=\exp(-g)`, we have 
-
-.. math::
-  g = -\ln p = -\ln\left(\frac{\text{e}^{-g_1} + \text{e}^{-g_1}}{2} \right)
-
-Exponential averaging with histogram corrections
-------------------------------------------------
-During the simulation, the histogram of the state visitation is generally not flat, such that
-:math:`g` is no longer equal to the dimensionless free energy, i.e. :math:`g(\lambda)=-\ln p(\lambda)`
-is no longer true. However, the ratio of counts is equal to the ratio of probabilities, whose natural
-logarithm is equal to the free energy difference of the states of interest. With this, we can do
-the following corrections before combining the weights:
+In the weight-combining method shown above, we frequently exploted the relationship :math:`g(\lambda)=f(\lambda)=-\ln p(\lambda)`. 
+However, this relationship is true only when the histogram of state vistation is exactly flat, which rarely happens in reality. 
+To correct this deviation, we can convert the difference in the histogram counts into the difference in free energies. This is based 
+on the fact that the ratio of histogram counts is equal to the ratio of probabilities, whose natural
+logarithm is equal to the free energy difference of the states of interest. Specifically, we have:
 
 .. math::
   g_k'=g_k + \ln\left(\frac{N_{k-1}}{N_k}\right)
 
 where :math`g_k'` is the corrected alchemical weight and :math:`N_{k-1}` and :math:`N_k` are the histogram 
-counts of states :math:`k-1` and :math:`k`. Combining this correction with exponential averaging, we have 
+counts of states :math:`k-1` and :math:`k`. 
 
-.. math::
-  g =  -\ln\left(\frac{\text{e}^{-g_1'} + \text{e}^{-g_2'}}{2} \right)
-
-where :math:`g_1'` and :math:`g_2'` are weights corrected based on their histogram counts. 
-
-Notably, this histogram correction should be carried out before shifting the weights, so the workflow we be
-first correcting the weights, shifting the weights, and finally combining the weights. Also, this correction 
-method can be overcorrect the weights when the histogram counts :math:`N_k` or :math:`N_{k-1}` are too low. 
+Notably, this correction method can possibly overcorrect the weights when the histogram counts :math:`N_k` or :math:`N_{k-1}` are too low. 
 To deal with this, the user can choose to specify :code:`N_cutoff` in the input YAML file, so that the the histogram
-correction will performed only when :math:`\text{argmin}(N_k, N_{k-1})` is larger than the cutoff, otherwise this method 
-will reduce to the standard exponential averaging method. 
+correction will performed only when :math:`\text{argmin}(N_k, N_{k-1})` is larger than the cutoff. Also, this histogram correction 
+should always be carried out before weight combination. This method is implemented in :obj:`.histogram_correction`.
