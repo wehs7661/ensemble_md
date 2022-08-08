@@ -47,6 +47,12 @@ class EnsembleEXE:
         outfile : str
             The file name of the log file for documenting how different replicas interact
             during the process.
+
+        Notes
+        -----
+        For easier parsing of the mdp template file, please make sure that at least the following GROMACS mdp
+        parameters specified using dashes instead of underscores: :code:`ref-t`, :code:`vdw-lambdas`,
+        :code:`coul-lambdas`, :code:`restraint-lambdas`, and :code:`init-lambda-weights`.
         """
         # Step 0: Set up constants
         k = 1.380649e-23
@@ -87,33 +93,33 @@ class EnsembleEXE:
         params_int = ['n_sim', 'n_iterations', 's', 'nst_sim', 'N_cutoff', 'n_ex']  # integer parameters
         for i in params_int:
             if type(getattr(self, i)) != int:
-                raise ParameterError(f"The parameter {i} should be an integer.")
+                raise ParameterError(f"The parameter '{i}' should be an integer.")
 
         params_pos = ['n_sim', 'n_iterations', 's', 'nst_sim']  # positive parameters
         for i in params_pos:
             if getattr(self, i) <= 0:
-                raise ParameterError(f"The parameter {i} should be positive.")
+                raise ParameterError(f"The parameter '{i}' should be positive.")
 
         params_non_neg = ['N_cutoff', 'n_ex']  # non-negative parameters
         for i in params_non_neg:
             if getattr(self, i) < 0:
-                raise ParameterError(f"The parameter {i} should be non-negative.")
+                raise ParameterError(f"The parameter '{i}' should be non-negative.")
 
         params_str = ['mdp', 'outfile']
         for i in params_str:
             if type(getattr(self, i)) != str:
-                raise ParameterError(f"The parameter {i} should be a string.")
+                raise ParameterError(f"The parameter '{i}' should be a string.")
 
         params_bool = ['parallel', 'verbose']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
-                raise ParameterError(f"The parameter {i} should be a boolean variable.")
+                raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
         # Step 4: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
         self.nsteps = self.template["nsteps"]  # will be overwritten by self.nst_sim if nst_sim is specified.
         self.dt = self.template["dt"]  # ps
-        self.temp = self.template["ref_t"]
+        self.temp = self.template["ref-t"]
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
 
         # Total # of states. n_tot = n_sub * n_sim - (n_overlap) * (n_sum - 1), where n_overlap = n_sub - s
@@ -179,7 +185,7 @@ class EnsembleEXE:
                         (
                             self.template["coul-lambdas"][i],
                             self.template["vdw-lambdas"][i],
-                            self.template["restraint_lambdas"][i],
+                            self.template["restraint-lambdas"][i],
                         )
                     ] = i
                 else:
@@ -190,8 +196,9 @@ class EnsembleEXE:
                         )
                     ] = i
             else:
-                self.lambda_dict[(self.template["vdw-lambdas"][i])] = i
-
+                self.lambda_dict[(self.template["vdw-lambdas"][i],)] = i
+        print(self.lambda_dict)
+        print(self.state_ranges)
         self.lambda_ranges = [[list(self.lambda_dict.keys())[j] for j in self.state_ranges[i]]for i in range(len(self.state_ranges))]  # noqa: E501
 
     def initialize_MDP(self, idx):
@@ -380,12 +387,11 @@ class EnsembleEXE:
 
         print(f"Swappable pairs: {swappables}")
 
-        for i in range(n_ex):
-            try:
-                swap_list = random.choices(swappables, k=n_ex)
-            except IndexError:
-                # In the case that swappables is an empty list, i.e. no swappable pairs.
-                swap_list = None
+        try:
+            swap_list = random.choices(swappables, k=n_ex)
+        except IndexError:
+            # In the case that swappables is an empty list, i.e. no swappable pairs.
+            swap_list = None
 
         return swap_list
 

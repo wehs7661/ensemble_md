@@ -8,14 +8,16 @@
 #                                                                  #
 ####################################################################
 """
-Unit tests for the module ensemble_EXE.py. The working directory shoul be the home directory of the package.
+Unit tests for the module ensemble_EXE.py.
 """
 import os
+import pytest
 import random
 import numpy as np
 import ensemble_md
 import ensemble_md.gmx_parser as gmx_parser
 from ensemble_md.ensemble_EXE import EnsembleEXE
+from ensemble_md.exceptions import ParameterError
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(current_path, "data")
@@ -23,7 +25,7 @@ EEXE = EnsembleEXE(os.path.join(input_path, "params.yaml"))
 
 
 class Test_EnsembleEXE:
-    def test_init(self):
+    def test_init_1(self):
         k = 1.380649e-23
         NA = 6.0221408e23
         assert EEXE.mc_scheme == "metropolis"
@@ -45,9 +47,6 @@ class Test_EnsembleEXE:
             {3, 4, 5, 6, 7, 8},
         ]
         assert EEXE.nst_sim == 500
-
-    def test_map_lambda2state(self):
-        EEXE.map_lambda2state()
         assert EEXE.lambda_dict == {
             (0, 0): 0,
             (0.25, 0): 1,
@@ -64,6 +63,75 @@ class Test_EnsembleEXE:
             [(0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5)],
             [(0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75)],
             [(0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75), (1.0, 1.0)],
+        ]
+
+    def test_init_2(self):
+        yaml_1 = os.path.join(input_path, "other_yamls/1.yaml")
+        with pytest.raises(ParameterError, match=f"Required parameter 'parallel' not specified in {yaml_1}"):
+            E1 = EnsembleEXE(yaml_1)  # noqa: F841
+
+        yaml_2 = os.path.join(input_path, "other_yamls/2.yaml")
+        with pytest.raises(ParameterError, match="The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'."):  # noqa: E501
+            E2 = EnsembleEXE(yaml_2)  # noqa: F841
+
+        yaml_3 = os.path.join(input_path, "other_yamls/3.yaml")
+        with pytest.raises(ParameterError, match="The parameter 'n_sim' should be an integer."):
+            E3 = EnsembleEXE(yaml_3)  # noqa: F841
+
+        yaml_4 = os.path.join(input_path, "other_yamls/4.yaml")
+        with pytest.raises(ParameterError, match="The parameter 'n_iterations' should be positive."):
+            E4 = EnsembleEXE(yaml_4)  # noqa: F841
+
+        yaml_5 = os.path.join(input_path, "other_yamls/5.yaml")
+        with pytest.raises(ParameterError, match="The parameter 'n_ex' should be non-negative."):
+            E5 = EnsembleEXE(yaml_5)  # noqa: F841
+
+        yaml_6 = os.path.join(input_path, "other_yamls/6.yaml")
+        with pytest.raises(ParameterError, match="The parameter 'mdp' should be a string."):
+            E6 = EnsembleEXE(yaml_6)  # noqa: F841
+
+        yaml_7 = os.path.join(input_path, "other_yamls/7.yaml")
+        with pytest.raises(ParameterError, match="The parameter 'parallel' should be a boolean variable."):
+            E7 = EnsembleEXE(yaml_7)  # noqa: F841
+
+        yaml_8 = os.path.join(input_path, "other_yamls/8.yaml")
+        E8 = EnsembleEXE(yaml_8)
+        assert E8.lambda_dict == {
+            (0.1,): 0,
+            (0.2,): 1,
+            (0.3,): 2,
+            (0.4,): 3,
+            (0.5,): 4,
+            (0.6,): 5,
+            (0.7,): 6,
+            (0.8,): 7,
+            (1,): 8,
+        }  # noqa: E501
+        assert E8.lambda_ranges == [
+            [(0.1,), (0.2,), (0.3,), (0.4,), (0.5,), (0.6,)],
+            [(0.2,), (0.3,), (0.4,), (0.5,), (0.6,), (0.7,)],
+            [(0.3,), (0.4,), (0.5,), (0.6,), (0.7,), (0.8,)],
+            [(0.4,), (0.5,), (0.6,), (0.7,), (0.8,), (1.0,)],
+        ]
+
+        yaml_9 = os.path.join(input_path, "other_yamls/9.yaml")
+        E9 = EnsembleEXE(yaml_9)
+        assert E9.lambda_dict == {
+            (0, 0, 0): 0,
+            (0.25, 0, 0): 1,
+            (0.5, 0, 0): 2,
+            (0.75, 0, 0): 3,
+            (1, 0, 0): 4,
+            (1, 0.25, 0.2): 5,
+            (1, 0.5, 0.6): 6,
+            (1, 0.75, 0.8): 7,
+            (1, 1, 1): 8,
+        }  # noqa: E501
+        assert E9.lambda_ranges == [
+            [(0.0, 0.0, 0.0), (0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2)],
+            [(0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6)],
+            [(0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8)],
+            [(0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8), (1.0, 1.0, 1.0)],
         ]
 
     def test_print_params(self, capfd):
@@ -182,24 +250,28 @@ class Test_EnsembleEXE:
         assert equil_bools == [False, False, False, False]
 
     def test_propose_swaps(self):
-        pass
-        """
-        # This needs to be rewritten for multiple swapping.
         random.seed(0)
-        EEXE.n_sim = 8
-        EEXE.n_pairs = 5
-        EEXE.state_ranges = [
-            set(range(i, i + 5)) for i in range(EEXE.n_sim)
-        ]  # 12 states, 5 for each replica
-        states = [5, 2, 2, 8]
+        EEXE.n_sim = 4
+        EEXE.state_ranges = [set(range(i, i + 5)) for i in range(EEXE.n_sim)]  # 5 states per replica
+        states = [5, 2, 2, 7]   # This would lead to the swappables: [(0, 1), (0, 2), (1, 2)]
+
+        # Case 1: Neighboring swapping (n_ex = 0 --> swappables = [(0, 1), (1, 2)])
+        EEXE.n_ex = 0
         swap_list = EEXE.propose_swaps(states)
-        assert EEXE.n_pairs == 4
-        assert swap_list == [
-            (3, 4),
-            (5, 6),
-            (0, 1),
-        ]  # The remaining pair of (2, 7) is not swappable
-        """
+        assert swap_list == [(1, 2)]
+
+        # Case 2: Multiple swaps (n_ex = 3)
+        EEXE.n_ex = 5
+        swap_list = EEXE.propose_swaps(states)
+        assert swap_list == [(1, 2), (0, 2), (0, 1), (0, 2), (0, 2)]
+
+        # Case 3: Empty swappable list
+        states = [10, 10, 10, 10]
+        swap_list = EEXE.propose_swaps(states)
+        assert swap_list is None
+
+    def test_gest_swapped_configus(self):
+        pass
 
     def test_calc_prob_acc(self):
         pass

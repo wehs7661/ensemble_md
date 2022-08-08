@@ -1,5 +1,5 @@
 # User-defined parameters
-parallel: False              # Whether the replicas of EXEE should be run in parallel or not
+parallel: 3                  # Whether the replicas of EXEE should be run in parallel or not
 n_sim: 4                     # Number of replica simulations
 n_iterations: 10             # Number of iterations
 nst_sim: 500                 # Number of simulation steps for each homogeneous replica

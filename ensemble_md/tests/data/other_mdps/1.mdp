@@ -105,6 +105,4 @@ lmc-weights-equil        = wl-delta
 weight-equil-wl-delta    = 0.001
 
 ; lambda-states          = 1      2      3      4      5      6      7      8      9
-coul-lambdas             = 0.00   0.25   0.50   0.75   1.00   1.00   1.00   1.00   1.00 
-vdw-lambdas              = 0.00   0.00   0.00   0.00   0.00   0.25   0.50   0.75   1.00   
-init-lambda-weights      = 0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00
+vdw-lambdas              = 0.1   0.20   0.30   0.40   0.50   0.60   0.70   0.8   1.00   

@@ -134,10 +134,10 @@ Step 1: Set up parameters
 To run an ensemble of expanded ensemble in GROMACS using :code:`ensemble_md`, one at 
 least needs to following four files:
 
-- One GRO file of the system of interest
-- One TOP file of the system of interest
-- One MDP template for customizing different MDP files for different replicas. 
-- One YAML file that specify the EEXE-relevant parameters.
+* One GRO file of the system of interest
+* One TOP file of the system of interest
+* One MDP template for customizing different MDP files for different replicas. 
+* One YAML file that specify the EEXE-relevant parameters.
 
 Notably, here we are assuming that all replicas start from the same configuration represented 
 by the single GRO file, but the user should also be able to use the methods defined in 
@@ -151,23 +151,23 @@ Importantly, to instantiate the class :class:`.EnsembleEXE`, the input YAML file
 In this YAML file, the user needs to specify how the replicas should be set up or interact with each 
 other during the simulation ensemble. Below we decribe the details of these parameters.
 
-- Required parameters
+* Required parameters
 
-  - :code:`parallel`: Whether the replicas of EEXE should be run in parallel or not.
-  - :code:`n_sim`: The number of replica simulations.
-  - :code:`n_iterations`: The number of iterations.
-  - :code:`s`: The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
-  - :code:`mdp`: The MDP template that has the whole range of :math:`λ` values.
+  * :code:`parallel`: Whether the replicas of EEXE should be run in parallel or not.
+  * :code:`n_sim`: The number of replica simulations.
+  * :code:`n_iterations`: The number of iterations.
+  * :code:`s`: The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
+  * :code:`mdp`: The MDP template that has the whole range of :math:`λ` values.
 
-- Optional parameters
+* Optional parameters
 
-  - :code:`nst_sim`: The number of simulation steps, i.e. exchange frequency. This option assumes replicas with homogeneous simulation lengths. If this option is not specified, the number of steps defined in the template MDP file will be used. 
-  - :code:`mc_scheme`: The method for swapping simulations. Choices include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. For more details, please refer to :ref:`doc_mc_schemes`. (Default: :code:`metropolis`)
-  - :code:`w_scheme`: The method for combining weights. Choices include :code:`None` (unspecified), :code:`exp-avg`/:code:`exp_avg`, and :code:`hist-exp-avg`/:code:`hist_exp_avg`. For more details, please refer to :ref:`doc_w_schemes`. (Default: :code:`hist-exp-avg`)
-  - :code:`N_cutoff`: The histogram cutoff. Only required if :code:`hist-exp-avg` is used. (Default: 0)
-  - :code:`n_ex`: The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS. A recommended value is :math:`N^3`, where :math:`N` is the number of replicas. If `n_ex` is unspecified or specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`. (Default: 0)
-  - :code:`outfile`: The output file for logging how replicas interact with each other. 
-  - :code:`verbose`: Whether a verbse log is wanted. 
+  * :code:`nst_sim`: The number of simulation steps, i.e. exchange frequency. This option assumes replicas with homogeneous simulation lengths. If this option is not specified, the number of steps defined in the template MDP file will be used. 
+  * :code:`mc_scheme`: The method for swapping simulations. Choices include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. For more details, please refer to :ref:`doc_mc_schemes`. (Default: :code:`metropolis`)
+  * :code:`w_scheme`: The method for combining weights. Choices include :code:`None` (unspecified), :code:`exp-avg`/:code:`exp_avg`, and :code:`hist-exp-avg`/:code:`hist_exp_avg`. For more details, please refer to :ref:`doc_w_schemes`. (Default: :code:`hist-exp-avg`)
+  * :code:`N_cutoff`: The histogram cutoff. Only required if :code:`hist-exp-avg` is used. (Default: 0)
+  * :code:`n_ex`: The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS. A recommended value is :math:`N^3`, where :math:`N` is the number of replicas. If `n_ex` is unspecified or specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`. (Default: 0)
+  * :code:`outfile`: The output file for logging how replicas interact with each other. 
+  * :code:`verbose`: Whether a verbse log is wanted. 
 
 Step 2: Run the 1st iteration
 -----------------------------
@@ -186,8 +186,8 @@ Step 3-1: Extract the final status of the previous iteration
 To calculate the acceptance ratio and modify the mdp files in later steps, we first need to extract the information
 of the final status of the previous iteration. Specifically, for all the replica simulations, we need to
 
-- Find the last sampled state and the corresponding lambda values from the DHDL files
-- Find the final Wang-Landau incrementors and weights from the LOG files. 
+* Find the last sampled state and the corresponding lambda values from the DHDL files
+* Find the final Wang-Landau incrementors and weights from the LOG files. 
 
 These two tasks are done by :obj:`.extract_final_dhdl_info` and :obj:`.extract_final_log_info`.
 
@@ -232,8 +232,8 @@ when needed), the user should set up the input files for the next iteration. In 
 status of the previous iteration. 
 This means:
 
-- For each replica, the input configuration for initializing a new iterations should be the output configuraiton of the previous iteration. For example, if the final configurations are represented by :code:`[1, 2, 0, 3]` (returned by :obj:`.get_swapped_configs`), then in the next iteration, replica 0 should be initialized by the output configuration of replica 1 in the previous iteration, while replica 3 can just inherit the output configuration from previous iteration of the same replica. Notably, instead of exchanging the MDP files, we recommend swapping out the coordinate files to exchange replicas.
-- For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion of the same replica except that parameters like :code:`tinit`, :code:`init-lambda-state`, :code:`init-wl-delta`, and :code:`init-lambda-weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
+* For each replica, the input configuration for initializing a new iterations should be the output configuraiton of the previous iteration. For example, if the final configurations are represented by :code:`[1, 2, 0, 3]` (returned by :obj:`.get_swapped_configs`), then in the next iteration, replica 0 should be initialized by the output configuration of replica 1 in the previous iteration, while replica 3 can just inherit the output configuration from previous iteration of the same replica. Notably, instead of exchanging the MDP files, we recommend swapping out the coordinate files to exchange replicas.
+* For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion of the same replica except that parameters like :code:`tinit`, :code:`init-lambda-state`, :code:`init-wl-delta`, and :code:`init-lambda-weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
 
 Step 4: Run the new iteration
 -----------------------------
@@ -474,9 +474,9 @@ Each of these replicas sample 6 alchemical states. There alchemical ranges are d
 Replicas 1 and 2 have overlap at states 2 to 5 and replicas 2 and 3 have overlap at states 4 to 7. Notably, all 
 three replicas sampled states 4 and 5. Therefore, what we are going to do is
 
-- For states 2 and 3, combine weights across replicas 1 and 2.
-- For states 4 and 5, combine weights across replicas 1, 2 and 3.
-- For states 6 and 7, combine weights across replicas 2 and 3.
+* For states 2 and 3, combine weights across replicas 1 and 2.
+* For states 4 and 5, combine weights across replicas 1, 2 and 3.
+* For states 6 and 7, combine weights across replicas 2 and 3.
 
 However, before we combine the weights, we should make sure the weights of all replicas have the same reference because now 
 the references of the 3 replicas are states 0, 2, and 4, respectively. Therefore could be 
