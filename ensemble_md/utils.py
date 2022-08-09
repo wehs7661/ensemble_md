@@ -53,21 +53,17 @@ def gmx_output(gmx_obj, verbose=False):
         rtn_code = gmx_obj.output.returncode.result()
         if type(rtn_code) == list:  # simulation ensemble
             if sum(rtn_code) == 0:
-                if verbose is True:
-                    print("The process was executed successfully.")
+                print(" DONE")
             else:
-                print(f"Return codes: {rtn_code}")
+                print(f" Return codes: {rtn_code}")
                 for i in range(len(rtn_code)):
                     if rtn_code[i] != 0:
-                        print(
-                            f"STDERR of the process:\n\n {gmx_obj.output.stderr.result()[i]}\n"
-                        )
+                        print(f"\nSTDERR of the process:\n\n {gmx_obj.output.stderr.result()[i]}\n")
         else:  # single simulation
             if rtn_code == 0:
-                if verbose is True:
-                    print("The process was executed successfully.")
+                print(" DONE")
             else:
-                print(f"STDERR of the process:\n\n {gmx_obj.output.stderr.result()}\n")
+                print(f"\nSTDERR of the process:\n\n {gmx_obj.output.stderr.result()}\n")
     except AttributeError:
         raise RuntimeError(f"{repr(gmx_obj)} is not a commandline_operation.")
 

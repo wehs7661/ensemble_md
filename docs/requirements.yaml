@@ -9,4 +9,4 @@ dependencies:
   # Pip-only installs
   - pip:
     - nbsphinx
-    - docutils=0.16
+    - docutils==0.16

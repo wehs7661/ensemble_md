@@ -34,9 +34,10 @@ rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
 class EnsembleEXE:
     """
     This class helps set up input files of an ensemble of expanded ensemble.
-    Note that for easier parsing of the mdp template file when initializing the class, please make sure that at least the following GROMACS mdp
-    parameters specified using dashes instead of underscores: :code:`ref-t`, :code:`vdw-lambdas`,
-    :code:`coul-lambdas`, :code:`restraint-lambdas`, and :code:`init-lambda-weights`.
+    Note that for easier parsing of the mdp template file when initializing the class, please make
+    sure that at least the following GROMACS mdp parameters specified using dashes instead of underscores:
+    :code:`ref-t`, :code:`vdw-lambdas`, :code:`coul-lambdas`, :code:`restraint-lambdas`, and
+    :code:`init-lambda-weights`.
     """
 
     def __init__(self, yml_file):
@@ -73,7 +74,7 @@ class EnsembleEXE:
         # Key: Optional argument; Value: Default value
         optional_args = {
             "mc_scheme": "metropolis",
-            "w_scheme": "exp-avg",
+            "w_scheme": None,
             "N_cutoff": 1000,
             "n_ex": 0,       # neighbor swaps
             "outfile": "results.txt",
@@ -84,6 +85,9 @@ class EnsembleEXE:
                 setattr(self, i, optional_args[i])
 
         # Step 3: Check if the parameters in the YAML file is well-defined
+        if self.w_scheme not in [None, 'mean', 'geo-mean']:
+            raise ParameterError("The specified weight combining scheme is not available. Options include None, 'mean', and 'geo-mean'/'geo_mean'.")  # noqa: E501
+
         if self.mc_scheme not in ['same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
@@ -97,10 +101,11 @@ class EnsembleEXE:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
 
-        params_non_neg = ['N_cutoff', 'n_ex']  # non-negative parameters
-        for i in params_non_neg:
-            if getattr(self, i) < 0:
-                raise ParameterError(f"The parameter '{i}' should be non-negative.")
+        if self.n_ex < 0:
+            raise ParameterError("The parameter 'n_ex' should be non-negative.")
+
+        if self.N_cutoff < 0 and self.N_cutoff != -1:
+            raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
 
         params_str = ['mdp', 'outfile']
         for i in params_str:
@@ -194,8 +199,6 @@ class EnsembleEXE:
                     ] = i
             else:
                 self.lambda_dict[(self.template["vdw-lambdas"][i],)] = i
-        print(self.lambda_dict)
-        print(self.state_ranges)
         self.lambda_ranges = [[list(self.lambda_dict.keys())[j] for j in self.state_ranges[i]]for i in range(len(self.state_ranges))]  # noqa: E501
 
     def initialize_MDP(self, idx):
@@ -292,9 +295,7 @@ class EnsembleEXE:
             A list of lambda vectors corresponding to the last sampled states of all simulations.
         """
         states, lambda_vecs = [], []
-        if self.verbose is True:
-            print('\n', end='')
-        print("Below are the final states being visited:")
+        print("\nBelow are the final states being visited:")
         for j in range(self.n_sim):
             dhdl = extract_dHdl(dhdl_files[j], T=self.temp)
             lambda_vecs.append(dhdl.index[-1][1:])
@@ -599,92 +600,110 @@ class EnsembleEXE:
         weights : list
             An updated list of lists of corected weights.
         """
-        print("\nPerforming histogram correction for the lambda weights ...")
-        for i in range(len(weights)):  # loop over the replicas
-            print(f"  Counts of rep {i}:\t\t{counts[i]}")
-            print(
-                f'  Original weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}'
-            )
-            for j in range(1, len(weights[i])):  # loop over the alchemical states
-                if counts[i][j - 1] != 0 and counts[i][j - 1] != 0:
-                    if np.min([counts[i][j - 1], counts[i][j]]) > self.N_cutoff:
-                        weights[i][j] += np.log(counts[i][j - 1] / counts[i][j])
-            print(
-                f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n'
-            )
+        if self.N_cutoff == -1:
+            print('\nNote: No histogram correction will be performed.')
+        else:
+            if self.verbose is True:
+                print("\nPerforming histogram correction for the lambda weights ...")
+            else:
+                print("\nPerforming histogram correction for the lambda weights ...", end="")
+
+            for i in range(len(weights)):  # loop over the replicas
+                if self.verbose is True:
+                    print(f"  Counts of rep {i}:\t\t{counts[i]}")
+                    print(f'  Original weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}')
+
+                for j in range(1, len(weights[i])):  # loop over the alchemical states
+                    if counts[i][j - 1] != 0 and counts[i][j - 1] != 0:
+                        if np.min([counts[i][j - 1], counts[i][j]]) > self.N_cutoff:
+                            weights[i][j] += np.log(counts[i][j - 1] / counts[i][j])
+
+                if self.verbose is True:
+                    print(f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n')
+
+            if self.verbose is False:
+                print(' Done')
+
         return weights
 
-    def combine_weights(self, weights, counts, swap):
+    def combine_weights(self, weights, method):
         """
-        Combines the lambda weights of the exchanging replicas as needed.
+        Combine alchemical weights across multiple replicas using probability ratios.
 
         Parameters
         ----------
         weights : list
-            A list of Wang Landau weights of all simulations.
-        counts : list
-            A list of final counts of all simulations.
-        swap : tuple
-            A tuple of a pair of simulation indices to be swapped.
+            A list of Wang-Landau weights of ALL simulations
+        method : str
+            Method for combining probabilities and probability ratios. Choices include "None", "mean" and "geo-mean".
 
         Returns
         -------
         weights : list
-            A list of updated Wang Landau weights of all simulations. Note that the weights
-            of the simulations not involved in the exchange will remain the same.
+            A list of original (method==None) or modified Wang-Landau weights of ALL simulations.
         """
-        if self.w_scheme is None:
-            pass
+        if method is None:
+            print('Note: No weight combination will be performed.')
+            return weights
         else:
-            # Step 1: "Correct" the weights as needed (hist-exp-avg or mbar-exp-avg).
-            # If min(N_{k-1}, N_k) < cutoff, there's no correction and hist-exp-avg/mbar-exp-avg reduces to exp-avg.
-            if self.w_scheme == "hist-exp-avg":
-                weights = self.histogram_correction(weights, counts)
-            elif self.w_scheme == "mbar-exp-avg":
-                pass
-
-            # Step 2: Combine the weights
-            print(
-                f"Performing weight combination between simulation {swap[0]} and simulation {swap[1]} ... "
-            )
-            overlap = self.state_ranges[swap[0]].intersection(
-                self.state_ranges[swap[1]]
-            )
-            print(
-                f"  Alchemical range of simulation {swap[0]}: {list(self.state_ranges[swap[0]])}"
-            )
-            print(
-                f"  Alchemical range of simulation {swap[1]}: {list(self.state_ranges[swap[1]])}"
-            )
-            print(f"  Overlapped alchemical ranges: {list(overlap)}\n")
-
-            # swap[0] is always smaller than swap[1]
-            g_0 = np.array(weights[swap[0]][-len(overlap):])  # the last N values
-            g_1 = np.array(
-                weights[swap[1]][: len(overlap)]
-            )  # the first N values (g_1[0] must be 0)
-            shifted_0 = g_0 - g_0[0]  # will be combined with g_1 to generate modified_1
-            shifted_1 = g_1 + g_0[0]  # will be combined with g_0 to generate modified_0
-            print(f'  Original g^i: {[float(f"{i:.3f}") for i in weights[swap[0]]]}')
-            print(f'  Original g^j: {[float(f"{i:.3f}") for i in weights[swap[1]]]}')
-
-            if self.w_scheme == "avg":
-                # DEPRECATED! Kept here just for conveneint testing.
-                modified_0 = (shifted_1 + g_0) / 2
-                modified_1 = (shifted_0 + g_1) / 2
-                weights[swap[0]][-len(overlap):] = modified_0
-                weights[swap[1]][: len(overlap)] = modified_1
+            if self.verbose is True:
+                print(f'Performing weight combination with the {method} method ...')
             else:
-                # This includes exp-avg, hist-exp-avg or mbar-exp-avg
-                modified_0 = -np.log((np.exp(-g_0) + np.exp(-shifted_1)) / 2)
-                modified_1 = -np.log((np.exp(-g_1) + np.exp(-shifted_0)) / 2)
-                weights[swap[0]][-len(overlap):] = modified_0
-                weights[swap[1]][: len(overlap)] = modified_1
+                print(f'Performing weight combination with the {method} method ...', end='')
 
-            print(f'  Modified g^i: {[float(f"{i:.3f}") for i in weights[swap[0]]]}')
-            print(f'  Modified g^j: {[float(f"{i:.3f}") for i in weights[swap[1]]]}')
+            if self.verbose is True:
+                w = np.round(weights, decimals=3).tolist()  # just for printing
+                print('  Original weights:')
+                for i in range(len(w)):
+                    print(f'    Rep {i}: {w[i]}')
 
-        return weights
+            # Step 1: Convert the weights into probabilities
+            weights = np.array(weights)
+            prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
+
+            # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)
+            overlapped = [self.state_ranges[i].intersection(self.state_ranges[i + 1]) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
+            prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
+
+            # Step 3: Average the probability ratios
+            avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
+            if method == 'mean':
+                avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
+            elif method == 'geo-mean':
+                avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
+
+            # Step 4: Scale the probabilities for each replica
+            scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
+
+            # Step 5: Average and convert the probabilities
+            final_p = []
+            for i in range(self.n_tot):   # global state index
+                p = []   # a list of probabilities to be averaged for each state
+                for j in range(len(self.state_ranges)):   # j can be regared as the replica index
+                    if i in self.state_ranges[j]:
+                        local_idx = i - j * self.s
+                        p.append(scaled_prob[j][local_idx])
+                if method == 'mean':
+                    final_p.append(np.mean(p))
+                elif method == 'geo-mean' or method == 'geo_mean':
+                    final_p.append(np.prod(p) ** (1 / len(p)))
+
+            final_g = -np.log(final_p)
+
+            # Step 6: Determine the vector of alchemical weights for each replica
+            weights = [list(final_g[i: i + self.n_sub] - final_g[i: i + self.n_sub][0]) for i in range(self.n_sim)]
+            weights = np.round(weights, decimals=5).tolist()
+
+            if self.verbose is True:
+                w = np.round(weights, decimals=3).tolist()  # just for printing
+                print('\n  Modified weights:')
+                for i in range(len(w)):
+                    print(f'    Rep {i}: {w[i]}')
+
+            if self.verbose is False:
+                print(' DONE')
+
+            return weights
 
     def run_EEXE(self, n):
         """
@@ -702,10 +721,8 @@ class EnsembleEXE:
 
         if rank == 0:
             dir_before = [
-                i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))
-            ]
-            if self.verbose is True:
-                print("Preparing the tpr files for the simulation ensemble...")
+                i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))]
+            print("Preparing the tpr files for the simulation ensemble ...", end="")
 
         grompp = gmx.commandline_operation(
             "gmx",
@@ -731,8 +748,8 @@ class EnsembleEXE:
             utils.gmx_output(grompp, self.verbose)
 
         # Run all the simulations simultaneously using gmxapi
-        if rank == 0 and self.verbose is True:
-            print("Running an ensemble of simulations ...")
+        if rank == 0:
+            print("Running an ensemble of simulations ...", end="")
 
         if self.parallel is True:
             tpr = [f'{grompp.output.file["-o"].result()[i]}' for i in range(self.n_sim)]

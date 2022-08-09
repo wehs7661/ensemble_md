@@ -29,7 +29,7 @@ class Test_EnsembleEXE:
         k = 1.380649e-23
         NA = 6.0221408e23
         assert EEXE.mc_scheme == "metropolis"
-        assert EEXE.w_scheme == "exp-avg"
+        assert EEXE.w_scheme is None
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_ex == 0
         assert EEXE.outfile == "results.txt"
@@ -66,6 +66,10 @@ class Test_EnsembleEXE:
         ]
 
     def test_init_2(self):
+        yaml_0 = os.path.join(input_path, "other_yamls/0.yaml")
+        with pytest.raises(ParameterError, match="The specified weight combining scheme is not available. Options include None, 'mean', and 'geo-mean'/'geo_mean'."):  # noqa: E501
+            E0 = EnsembleEXE(yaml_0)  # noqa: F841
+
         yaml_1 = os.path.join(input_path, "other_yamls/1.yaml")
         with pytest.raises(ParameterError, match=f"Required parameter 'parallel' not specified in {yaml_1}"):
             E1 = EnsembleEXE(yaml_1)  # noqa: F841
@@ -87,16 +91,20 @@ class Test_EnsembleEXE:
             E5 = EnsembleEXE(yaml_5)  # noqa: F841
 
         yaml_6 = os.path.join(input_path, "other_yamls/6.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'mdp' should be a string."):
+        with pytest.raises(ParameterError, match="The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1."):  # noqa: E501
             E6 = EnsembleEXE(yaml_6)  # noqa: F841
 
         yaml_7 = os.path.join(input_path, "other_yamls/7.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'parallel' should be a boolean variable."):
+        with pytest.raises(ParameterError, match="The parameter 'mdp' should be a string."):
             E7 = EnsembleEXE(yaml_7)  # noqa: F841
 
         yaml_8 = os.path.join(input_path, "other_yamls/8.yaml")
-        E8 = EnsembleEXE(yaml_8)
-        assert E8.lambda_dict == {
+        with pytest.raises(ParameterError, match="The parameter 'parallel' should be a boolean variable."):
+            E8 = EnsembleEXE(yaml_8)  # noqa: F841
+
+        yaml_9 = os.path.join(input_path, "other_yamls/9.yaml")
+        E9 = EnsembleEXE(yaml_9)
+        assert E9.lambda_dict == {
             (0.1,): 0,
             (0.2,): 1,
             (0.3,): 2,
@@ -107,16 +115,16 @@ class Test_EnsembleEXE:
             (0.8,): 7,
             (1,): 8,
         }  # noqa: E501
-        assert E8.lambda_ranges == [
+        assert E9.lambda_ranges == [
             [(0.1,), (0.2,), (0.3,), (0.4,), (0.5,), (0.6,)],
             [(0.2,), (0.3,), (0.4,), (0.5,), (0.6,), (0.7,)],
             [(0.3,), (0.4,), (0.5,), (0.6,), (0.7,), (0.8,)],
             [(0.4,), (0.5,), (0.6,), (0.7,), (0.8,), (1.0,)],
         ]
 
-        yaml_9 = os.path.join(input_path, "other_yamls/9.yaml")
-        E9 = EnsembleEXE(yaml_9)
-        assert E9.lambda_dict == {
+        yaml_10 = os.path.join(input_path, "other_yamls/10.yaml")
+        E10 = EnsembleEXE(yaml_10)
+        assert E10.lambda_dict == {
             (0, 0, 0): 0,
             (0.25, 0, 0): 1,
             (0.5, 0, 0): 2,
@@ -127,7 +135,7 @@ class Test_EnsembleEXE:
             (1, 0.75, 0.8): 7,
             (1, 1, 1): 8,
         }  # noqa: E501
-        assert E9.lambda_ranges == [
+        assert E10.lambda_ranges == [
             [(0.0, 0.0, 0.0), (0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2)],
             [(0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6)],
             [(0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8)],
@@ -142,7 +150,7 @@ class Test_EnsembleEXE:
         L += "\nImportant parameters of EXEE\n============================\n"
         L += f"gmxapi version: 0.3.2\nensemble_md version: {ensemble_md.__version__}\n"
         L += "Output log file: results.txt\nVerbose log file: True\nWhether the replicas run in parallel: False\n"
-        L += "MC scheme for swapping simulations: metropolis\nScheme for combining weights: exp-avg\n"
+        L += "MC scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of exchanges in one attempt: 0\n"
         L += "Length of each replica: 1.0 ps\nTotal number of states: 9\n"
@@ -346,6 +354,32 @@ class Test_EnsembleEXE:
         weights_2 = EEXE.histogram_correction(weights_2, counts_2)
         assert weights_2 == [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]]
 
+    def test_combine_weights(self):
+        EEXE.n_tot = 6
+        EEXE.n_sub = 4
+        EEXE.s = 1
+        EEXE.n_sim = 3
+        EEXE.state_ranges = [{0, 1, 2, 3}, {1, 2, 3, 4}, {2, 3, 4, 5}]
+        weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
+
+        w1 = EEXE.combine_weights(weights, method=None)
+        w2 = EEXE.combine_weights(weights, method='mean')
+        w3 = EEXE.combine_weights(weights, method='geo-mean')
+
+        print(w1)
+        print(w2)
+
+        assert w1 == weights
+        assert w2 == [
+            [0.0, 2.20097, 3.99803, 3.59516],
+            [0.0, 1.79706, 1.39419, 2.69607],
+            [0.0, -0.40286, 0.89901, 1.88303]]
+        assert w3 == [
+            [0.0, 2.2, 3.98889, 3.58889],
+            [0.0, 1.78889, 1.38889, 2.68333],
+            [0.0, -0.4, 0.89444, 1.87778]]
+
+    """
     def combine_w_inputs(self):
         swap = (0, 1)
         weights = [[0, 2.1, 4.0, 3.7, 4.8], [0, -0.4, 0.7, 1.5, 2.4]]
@@ -414,6 +448,6 @@ class Test_EnsembleEXE:
                 ]
             ),
         )
-
+        """
     def test_run_EEXE(self):
         pass

@@ -163,8 +163,8 @@ other during the simulation ensemble. Below we decribe the details of these para
 
   * :code:`nst_sim`: The number of simulation steps, i.e. exchange frequency. This option assumes replicas with homogeneous simulation lengths. If this option is not specified, the number of steps defined in the template MDP file will be used. 
   * :code:`mc_scheme`: The method for swapping simulations. Choices include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. For more details, please refer to :ref:`doc_mc_schemes`. (Default: :code:`metropolis`)
-  * :code:`w_scheme`: The method for combining weights. Choices include :code:`None` (unspecified), :code:`exp-avg`/:code:`exp_avg`, and :code:`hist-exp-avg`/:code:`hist_exp_avg`. For more details, please refer to :ref:`doc_w_schemes`. (Default: :code:`hist-exp-avg`)
-  * :code:`N_cutoff`: The histogram cutoff. Only required if :code:`hist-exp-avg` is used. (Default: 0)
+  * :code:`w_scheme`: The method for combining weights. Choices include :code:`None` (unspecified), :code:`mean`, and :code:`geo-mean`/:code:`geo_mean`. For more details, please refer to :ref:`doc_w_schemes`. (Default: :code:`None`)
+  * :code:`N_cutoff`: The histogram cutoff. -1 means that no histogram correction will be performed. (Default: 1000)
   * :code:`n_ex`: The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS. A recommended value is :math:`N^3`, where :math:`N` is the number of replicas. If `n_ex` is unspecified or specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`. (Default: 0)
   * :code:`outfile`: The output file for logging how replicas interact with each other. 
   * :code:`verbose`: Whether a verbse log is wanted. 
@@ -519,14 +519,14 @@ for each replica. Note that the sum of the probabilities of each row (replica) s
 
 ::
 
-    State       0         1         2         3         4         5      
-    Rep 1       0.858     0.105     0.016     0.021     X         X  
-    Rep 2       X         0.642     0.117     0.193     0.048     X   
-    Rep 3       X         X         0.328     0.489     0.133     0.049
+    State      0            1            2            3            4          5      
+    Rep 1      0.85800      0.10507      0.01571      0.02121      X          X  
+    Rep 2      X            0.64179      0.11724      0.19330      0.04767    X   
+    Rep 3      X            X            0.32809      0.48945      0.13339    0.04907
 
 
-Step 2: Calculate the probability ratios between each pair of replicas
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Step 2: Calculate the probability ratios
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Ideally (in the limit of inifinite simulation time), for the 3 states overlapped between replicas 1 and 2, 
 we should have
 
@@ -535,15 +535,16 @@ we should have
 
 where :math:`r_{2, 1}` is the "probability ratio" between replicas 2 and 1. However, the probability ratios 
 corresopnding to different states will not be the same in practice, but will diverge with statistical noise
-for short timescales. For example, in our case we have
+for short timescales. For example, in our case we have the following ratios. (Note that here we calculate with
+full precision but only present a few significant figures.)
 
 .. math::
-    \frac{p_{21}}{p_{11}}=6.1143, \; \frac{p_{22}}{p_{12}} = 7.3125, \; \frac{p_{23}}{p_{13}}=9.1905
+    \frac{p_{21}}{p_{11}}=6.10828, \; \frac{p_{22}}{p_{12}} = 7.46068, \; \frac{p_{23}}{p_{13}}=9.11249
 
 Similarly, for states 2 to 4, we need to calculate the probability ratios between replicas 2 and 3:
 
 .. math::
-    \frac{p_{32}}{p_{22}}=2.8034, \; \frac{p_{33}}{p_{23}} = 2.5337, \; \frac{p_{34}}{p_{24}}=2.7708
+    \frac{p_{32}}{p_{22}}=2.79834, \; \frac{p_{33}}{p_{23}} = 2.53204, \; \frac{p_{34}}{p_{24}}=2.79834
 
 Notably, in this case, there is no need to calculate :math:`r_{3, 1}` because :math:`r_{3, 1}` is already determined
 as :math:`r_{3, 1}=r_{3, 2} \times r_{2, 1}`. Also, there are only 2 overlapping states between replicas 1 and 3,
@@ -559,14 +560,14 @@ or geometric averages.
 - Method 1: Simple average
 
 .. math::
-    r_{2, 1} = \frac{1}{3}\left(\frac{p_{21}}{p_{11}} + \frac{p_{22}}{p_{12}} + \frac{p_{23}}{p_{13}} \right) \approx 7.5391, \;
-    r_{3, 2} = \frac{1}{3}\left(\frac{p_{32}}{p_{22}} + \frac{p_{33}}{p_{23}} + \frac{p_{34}}{p_{24}} \right) \approx 2.7026
+    r_{2, 1} = \frac{1}{3}\left(\frac{p_{21}}{p_{11}} + \frac{p_{22}}{p_{12}} + \frac{p_{23}}{p_{13}} \right) \approx 7.56049, \;
+    r_{3, 2} = \frac{1}{3}\left(\frac{p_{32}}{p_{22}} + \frac{p_{33}}{p_{23}} + \frac{p_{34}}{p_{24}} \right) \approx 2.70957
 
 - Method 2: Geometric average
 
 .. math::
-    r_{2, 1}' = \left(\frac{p_{21}}{p_{11}} \times \frac{p_{22}}{p_{12}} \times \frac{p_{23}}{p_{13}} \right)^{\frac{1}{3}} \approx 7.4345, \;
-    r_{3, 2}' = \left(\frac{p_{32}}{p_{22}} \times \frac{p_{33}}{p_{23}} \times \frac{p_{34}}{p_{24}} \right)^{\frac{1}{3}} \approx 2.6999
+    r_{2, 1}' = \left(\frac{p_{21}}{p_{11}} \times \frac{p_{22}}{p_{12}} \times \frac{p_{23}}{p_{13}} \right)^{\frac{1}{3}} \approx 7.46068, \;
+    r_{3, 2}' = \left(\frac{p_{32}}{p_{22}} \times \frac{p_{33}}{p_{23}} \times \frac{p_{34}}{p_{24}} \right)^{\frac{1}{3}} \approx 2.70660
 
 Notably, if we take the negative natural logarithm of a probability ratio, we will get a free energy difference. For example, 
 :math:`-\ln (p_{21}/p_{11})=f_{21}-f_{11}`, i.e. the free energy difference between state 1 in replica 2 and state 1 in replica 1. 
@@ -583,10 +584,10 @@ replicas 2 and 3 as follows:
 
 ::
 
-    State       0         1         2         3         4         5      
-    Rep 1       0.858     0.105     0.016     0.021     X         X  
-    Rep 2’      X         0.08529   0.01552   0.02560   0.00637   X   
-    Rep 3’      X         X         0.01610   0.02400   0.00653   0.00240
+    State       0            1            2            3            4            5      
+    Rep 1       0.85800      0.10507      0.01571      0.02121      X            X  
+    Rep 2’      X            0.08489      0.01551      0.02557      0.00630      X   
+    Rep 3’      X            X            0.01602      0.02389      0.00651      0.00240
   
 As shown above, we keep the probability vector of replica 1 the same but scale that for the other two. Specifically, the probability 
 vector of replica 2' is that of replica 2 divided by :math:`r_21` and the probability vector of replica 3' is that of replica 3 
@@ -596,10 +597,10 @@ Similarly, if we used the probability ratios :math:`r_{21}'` and :math:`r_{32}'`
 
 ::
 
-    State        0        1         2         3         4         5      
-    Rep 1        0.858    0.105     0.016     0.021     X         X  
-    Rep 2’       X        0.08645   0.01573   0.02596   0.00646   X   
-    Rep 3’       X        X         0.01634   0.02436   0.00663   0.00244 
+    State       0            1            2            3            4            5      
+    Rep 1       0.85800      0.10507      0.01614      0.02121      X            X  
+    Rep 2’      X            0.08602      0.01571      0.02591      0.00639      X   
+    Rep 3’      X            X            0.01625      0.02424      0.00661      0.00243 
 
 
 Step 5: Average and convert the probabilities
@@ -611,25 +612,25 @@ and :math:`r_{32}`), we have the following probability vector of full range:
 
 :: 
 
-    Final p   0.858    0.9515    0.01587    0.02353    0.00645    0.00240
+    Final p      0.85800      0.09498      0.01575      0.02356      0.00641      0.00240
 
 which can be converted to the following vector of alchemical weights  (denoted as :math:`\vec{g}`) by taking the negative natural logarithm:
 
 ::
 
-    Final g   0.1532    0.0497    4.1433    3.7495    5.0437    6.0322
+    Final g      0.15321      2.35412      4.15117      3.74831      5.05019      6.03420
 
 For the second case (scaled with :math:`r_{21}'` and :math:`r_{32}'`), we have 
 
 ::
 
-    Final p    0.858    0.09527   0.01602    0.02368    0.00654    0.00244
+    Final p      0.85800      0.09507      0.01589      0.02371      0.00649      0.00243
 
-which can be converted to the following vector of alchemical weights (denoted as :math:`\vec{g'}`):
+which can be converted to the following vector of alchemical weights (denoted as :math:`\vec{g}'`):
 
 ::
 
-    Final g    0.1532    2.3510    4.1339    3.7431    5.0437    6.0158
+    Final g      0.15315      2.35314      4.14203      3.74204      5.03658      6.01981
 
 
 Step 6: Determine the vector of alchemical weights for each replica
@@ -640,20 +641,28 @@ we have:
 
 ::
 
-    State     0       1       2       3       4       5      
-    Rep 1     0.0     2.199   3.990   3.596   X       X  
-    Rep 2     X       0.0     1.791   1.397   2.691   X   
-    Rep 3     X       X       0.0    -0.393   0.900   1.889 
+    State      0            1            2           3             4           5      
+    Rep 1      0.00000      2.20097      3.99802     3.59516       X           X  
+    Rep 2      X            0.00000      1.79706     1.39419       2.69607     X   
+    Rep 3      X            X            0.00000     -0.40286      0.89901     1.88303 
 
-Similarly, with :math:`\vec{g'}`, we have:
+Similarly, with :math:`\vec{g}'`, we have:
 
 ::
 
-    State     0       1       2       3       4       5      
-    Rep 1     0.0     2.198   3.981   3.590   X       X  
-    Rep 2     X       0.0     1.783   1.392   2.693   X   
-    Rep 3     X       X       0.0    -0.391   0.910   1.882 
+    State      0            1            2            3            4            5      
+    Rep 1      0.00000      2.20000      3.98889      3.58889      X            X  
+    Rep 2      X            0.00000      1.78889      1.38889      2.68333      X   
+    Rep 3      X            X            0.00000      -0.40000     0.89444      1.87778 
 
+As a reference, here are the original weights:
+
+::
+
+    State       0           1            2            3            4            5
+    Rep 1       0.0         2.1          4.0          3.7          X            X
+    Rep 2       X           0.0          1.7          1.2          2.6          X
+    Rep 3       X           X            0.0          -0.4         0.9          1.9
 
 As shown above, the results using Method 1 and Method 2 are pretty close to each other. Notably, regardless of 
 which type of averages we took, in the case here we were assuming that each replica is equally weighted. In the 
