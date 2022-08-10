@@ -1,12 +1,3 @@
-####################################################################
-#                                                                  #
-#    ensemble_md,                                                  #
-#    a python package for running GROMACS simulation ensembles     #
-#                                                                  #
-#    Written by Wei-Tse Hsu <wehs7661@colorado.edu>                #
-#    Copyright (c) 2022 University of Colorado Boulder             #
-#                                                                  #
-####################################################################
 """
 The :code:`gmx_parser` module provides parsers to parse GROMACS files.
 """
@@ -217,25 +208,6 @@ class FileUtils(object):
             if ext != "":
                 filename = filename + os.extsep + ext
         return filename
-
-    def infix_filename(self, name, default, infix, ext=None):
-        """Unless *name* is provided, insert *infix* before the extension *ext* of *default*."""
-        if name is None:
-            p, oldext = os.path.splitext(default)
-            if ext is None:
-                ext = oldext
-            if ext.startswith(os.extsep):
-                ext = ext[1:]
-            name = self.filename(p + infix, ext=ext)
-        return name
-
-    def __repr__(self):
-        fmt = "{0!s}(filename=%r)".format(self.__class__.__name__)
-        try:
-            fn = self.filename()
-        except ValueError:
-            fn = None
-        return fmt % fn
 
 
 class MDP(odict, FileUtils):

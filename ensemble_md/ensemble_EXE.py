@@ -1,12 +1,3 @@
-####################################################################
-#                                                                  #
-#    ensemble_md,                                                  #
-#    a python package for running GROMACS simulation ensembles     #
-#                                                                  #
-#    Written by Wei-Tse Hsu <wehs7661@colorado.edu>                #
-#    Copyright (c) 2022 University of Colorado Boulder             #
-#                                                                  #
-####################################################################
 """
 The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
 """
@@ -575,7 +566,7 @@ class EnsembleEXE:
                 swap_bool = False
                 if self.verbose is True:
                     print("  Swap rejected! ", end="", flush=True)
-
+        print(prob_acc)
         return swap_bool
 
     def histogram_correction(self, weights, counts):
