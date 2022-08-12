@@ -1,3 +1,12 @@
+####################################################################
+#                                                                  #
+#    ensemble_md,                                                  #
+#    a python package for running GROMACS simulation ensembles     #
+#                                                                  #
+#    Written by Wei-Tse Hsu <wehs7661@colorado.edu>                #
+#    Copyright (c) 2022 University of Colorado Boulder             #
+#                                                                  #
+####################################################################
 import os
 import sys
 import time
@@ -68,7 +77,7 @@ def main():
             dhdl_files = [f'sim_{j}/iteration_{i - 1}/dhdl.xvg' for j in range(EEXE.n_sim)]
             log_files = [f'sim_{j}/iteration_{i - 1}/md.log' for j in range(EEXE.n_sim)]
             states, lambda_vecs = EEXE.extract_final_dhdl_info(dhdl_files)
-            wl_delta, weights, counts, equil_bools = EEXE.extract_final_log_info(log_files)
+            wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
 
             # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
             swap_list = EEXE.propose_swaps(states)
@@ -85,7 +94,7 @@ def main():
             # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
             for j in list(range(EEXE.n_sim)):
                 os.mkdir(f'sim_{j}/iteration_{i}')
-                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights, equil_bools)   # modify with a new template  # noqa: E501
+                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights)   # modify with a new template  # noqa: E501
                 MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
                 shutil.copy(f'{EEXE.top}', f"sim_{j}/iteration_{i}/{EEXE.top.split('/')[-1]}")
 
@@ -111,5 +120,21 @@ def main():
 
     np.save('g_vecs.npy', g_vecs)
 
+    # Step 5: Write a summary for the simulation ensemble
     if rank == 0:
+        print('\nSummary of the simulation ensemble')
+        print('==================================')
+        print('Simulation status:')
+        for i in range(EEXE.n_sim):
+            if EEXE.equil[i] == -1:
+                print(f'  - Rep {i}: The weights have not been equilibrated.')
+            else:
+                idx = int(np.floor(EEXE.equil[i] / (EEXE.dt * EEXE.nst_sim)))
+                if EEXE.equil[i] > 1000:
+                    units = 'ns'
+                    EEXE.equil[i] /= 1000
+                else:
+                    units = 'ps'
+                print(f'  - Rep {i}: The weights have been equilibrated at {EEXE.equil[i]} {units} (iteration {idx}).')
+
         print(f'\nElapsed time: {utils.format_time(time.time() - t1)}')

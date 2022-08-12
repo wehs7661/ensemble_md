@@ -54,7 +54,7 @@ jobs:
         sudo apt install build-essential
         sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
 
-    - name: Install GROMACS 2022.2 
+    - name: Install GROMACS 2022.2 and gmxapi
       shell: bash -l {0}
       run: |
         gcc --version
@@ -70,11 +70,7 @@ jobs:
         make install 
         source $HOME/pkgs/bin/GMXRC
         gmx --version
-
-    - name: Install gmxapi 
-      # conda setup requires this special shell
-      shell: bash -l {0}
-      run: |
+        
         source $HOME/pkgs/bin/GMXRC
         python -m ensurepip --default-pip
         pip install --upgrade pip setuptools wheel

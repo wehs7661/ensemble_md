@@ -1,3 +1,15 @@
+####################################################################
+#                                                                  #
+#    ensemble_md,                                                  #
+#    a python package for running GROMACS simulation ensembles     #
+#                                                                  #
+#    Written by Wei-Tse Hsu <wehs7661@colorado.edu>                #
+#    Copyright (c) 2022 University of Colorado Boulder             #
+#                                                                  #
+####################################################################
+"""
+The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
+"""
 import os
 import sys
 import copy
@@ -121,6 +133,9 @@ class EnsembleEXE:
             set(range(i * self.s, i * self.s + self.n_sub)) for i in range(self.n_sim)
         ]
 
+        # A list of simulation statuses to be updated
+        self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
+
         if hasattr(self, "nst_sim") is False:
             self.nst_sim = self.nsteps
 
@@ -221,7 +236,7 @@ class EnsembleEXE:
 
         return MDP
 
-    def update_MDP(self, new_template, sim_idx, iter_idx, states, wl_delta, weights, equil_bools):
+    def update_MDP(self, new_template, sim_idx, iter_idx, states, wl_delta, weights):
         """
         Updates the MDP file for a new iteration based on the new MDP template coming from the previous iteration.
         Note that if the weights got equilibrated in the previous iteration, then we need to fix the weights in
@@ -241,8 +256,6 @@ class EnsembleEXE:
             A list of final Wang-Landau incrementors of all simulations.
         weights : list
             A list of lists final weights of all simulations.
-        equil_bools : list
-            A list of booleans indicating if the weights of the simulations have been equilibrated.
 
         Return
         ------
@@ -257,7 +270,7 @@ class EnsembleEXE:
         MDP["init-lambda-weights"] = weights[sim_idx]
         MDP["init-wl-delta"] = wl_delta[sim_idx]
 
-        if equil_bools[sim_idx] is False:
+        if self.equil[sim_idx] == -1:   # the weights haven't been equilibrated
             MDP["init-wl-delta"] = wl_delta[sim_idx]
         else:
             MDP["lmc-stats"] = "no"
@@ -322,10 +335,8 @@ class EnsembleEXE:
             A list of lists of final weights of all simulations.
         counts : list
             A list of lists of final counts of all simulations.
-        equil_bools : list
-            A list of booleans indicating if the weights were equilibrated in the simulation.
         """
-        wl_delta, weights, counts, equil_bools = [], [], [], []
+        wl_delta, weights, counts = [], [], []
 
         # 2. Find the final Wang-Landau incrementors and weights
         for j in range(self.n_sim):
@@ -333,9 +344,16 @@ class EnsembleEXE:
             wl_delta.append(result[0])
             weights.append(result[1])
             counts.append(result[2])
-            equil_bools.append(result[3])
 
-        return wl_delta, weights, counts, equil_bools
+            # In Case 3, result[3] will be 0 but it will never be passed to self.equil[j]
+            # because once self.equil[j] is not -1, we stop updating. This way, we can keep
+            # the time when the weights get equilibrated all the way.
+            if self.equil[j] == -1:
+                self.equil[j] = result[3]
+            else:
+                pass
+
+        return wl_delta, weights, counts
 
     def propose_swaps(self, states):
         """
@@ -697,9 +715,9 @@ class EnsembleEXE:
 
             if self.verbose is False:
                 print(' DONE')
-                print(f'The alchemical weights of all states: {list(np.round(g_vec, decimals=3))}')
+                print(f'The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
             else:
-                print(f'\n  The alchemical weights of all states: {list(np.round(g_vec, decimals=3))}')
+                print(f'\n  The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
 
             return weights, g_vec
 

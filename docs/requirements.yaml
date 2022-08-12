@@ -8,5 +8,7 @@ dependencies:
   
   # Pip-only installs
   - pip:
-    - nbsphinx
-    - docutils==0.16
+    - sphinx==4.2.0
+    - nbsphinx==0.8.9
+    - sphinx_rtd_theme==1.0.0
+    - docutils==0.17.1

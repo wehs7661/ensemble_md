@@ -1,3 +1,15 @@
+####################################################################
+#                                                                  #
+#    ensemble_md,                                                  #
+#    a python package for running GROMACS simulation ensembles     #
+#                                                                  #
+#    Written by Wei-Tse Hsu <wehs7661@colorado.edu>                #
+#    Copyright (c) 2022 University of Colorado Boulder             #
+#                                                                  #
+####################################################################
+"""
+The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
+"""
 import os
 import re
 import six
@@ -15,16 +27,14 @@ def parse_log(log_file):
     important information especially for running new iterations in EEXE.
     Typically, there are three types of log files from an expanded ensemble simulation:
 
-      - Case 1: The weights are equilibrating in the simulation but the equilibration was not done.
-      - Case 2: The weights were equilibrated during the simulation.
-      - Case 3: The weights were fixed in the simulation.
-
-    In both Cases 1 and 2, we will get final ``wl_delta``, ``weights``, ``counts``, and ``equil_bool``,
-    although ``wl_delta`` will be useless in Case 2 and the final weights will be the same as the equilibrated weights.
-    (In Case 1, ``equil_bool`` should always be ``False``, while in Case 2, ``euqil_bool`` should always be ``True``.)
-    In Case 3, ``equil_bool`` should always be ``True``. What's different from Case 2 is that
-    we will not find the final ``wl_delta``. We can still find the final weights (which acutall do not change at all
-    during the simulation) and the final counts though.
+    - Case 1: The weights are equilibrating in the simulation but the equilibration was not done.
+      - :code:`equil_time` should always be -1.
+    - Case 2: The weights were equilibrated during the simulation.
+      - :code:`equil_time` should be the time (ps) that the weights get equilibrated.
+      - The final weights will just be the equilibrated weights.
+    - Case 3: The weights were fixed in the simulation.
+      - :code:`equil_time` should always be 0.
+      - We can still find the final weights (not changed though) and the final counts.
 
     Parameters
     ----------
@@ -39,8 +49,10 @@ def parse_log(log_file):
         The final list of lambda weights.
     counts : list
         The final histogram counts.
-    equil_bool : bool
-        A boolean variable indiciating whether the weights have been equilibrated.
+    equil_time : int or float
+        The time in ps that the weights get equilibrated.
+        -1 means that the weights have not been equilibrated (Case 1).
+        0 means that the weights were fixed during the simulation (Case 3).
     """
     f = open(log_file, "r")
     lines = f.readlines()
@@ -53,18 +65,20 @@ def parse_log(log_file):
     for l in lines:  # noqa: E741
         if "n-lambdas" in l:
             N_states = int(l.split("=")[1])
+        if "tinit" in l:
+            tinit = float(l.split("=")[1])
         if "lmc-stats" in l:
             if l.split("=")[1].split()[0] in ["no", "No"]:
                 # Case 3: The weights are fixed. -> Typically weights have been equilibrated in the previous iteration.
                 fixed_bool = True
-                equil_bool = True
+                equil_time = 0
                 wl_delta = None
                 wl_delta_found = True
                 case_1_3 = True
             else:
                 # Either Case 1 or Case 2
                 fixed_bool = False
-                equil_bool = False
+                equil_time = -1
         if "dt  " in l:
             dt = float(l.split("=")[1])
 
@@ -88,33 +102,22 @@ def parse_log(log_file):
                         weights.append(float(lines[n - i].split()[-2]))
                         counts.append(int(lines[n - i].split()[-3]))
                 if "Wang-Landau incrementor is" in lines[n + 1]:  # Caes 1
-                    equil_bool = False
+                    equil_time = -1
                     wl_delta_found = True
                     wl_delta = float(lines[n + 1].split(":")[1])
                     case_1_3 = True
                 else:
                     # This would include Case 2 and 3
-                    equil_bool = True
                     if fixed_bool is True:
                         case_1_3 = True
                     else:
                         case_1_3 = False
 
-        if (
-            case_1_3 is False
-        ):  # for finding when the weights were equilibrated in Case 2
+        if case_1_3 is False:  # for finding when the weights were equilibrated in Case 2
             if "Weights have equilibrated" in l:
                 equil_time_found = True
                 equil_step = int(l.split(":")[0].split("Step")[1])
-                equil_time = equil_step * dt  # ps
-                if equil_time > 1000:
-                    units = "ns"
-                    equil_time /= 1000
-                else:
-                    units = "ps"
-                print(
-                    f"Weights were equilibrated at {equil_time} {units}. (file: {log_file})"
-                )
+                equil_time = equil_step * dt + tinit  # ps
 
         # For Case 1 and Case 3 (case_1_3 = True), we can break the loop after getting weights, counts, and wl_delta.
         if case_1_3 is True and weights_found is True and wl_delta_found is True:
@@ -129,7 +132,7 @@ def parse_log(log_file):
         ):
             break
 
-    return wl_delta, weights, counts, equil_bool
+    return wl_delta, weights, counts, equil_time
 
 
 class FileUtils(object):

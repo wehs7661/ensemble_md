@@ -49,6 +49,7 @@ class Test_EnsembleEXE:
             {2, 3, 4, 5, 6, 7},
             {3, 4, 5, 6, 7, 8},
         ]
+        assert EEXE.equil == [-1, -1, -1, -1]
         assert EEXE.nst_sim == 500
         assert EEXE.lambda_dict == {
             (0, 0): 0,
@@ -196,13 +197,11 @@ class Test_EnsembleEXE:
             [3.48, 2.78, 3.21, 4.56, 8.79, 0.48],
             [8.45, 0.52, 3.69, 2.43, 4.56, 6.73],
         ]  # noqa: E501
-        equil_bools = [False, True, True, False]
+        EEXE.equil = [-1, 35, 0, -1]
         MDP_1 = EEXE.update_MDP(
-            new_template, 2, iter_idx, states, wl_delta, weights, equil_bools
-        )
+            new_template, 2, iter_idx, states, wl_delta, weights)
         MDP_2 = EEXE.update_MDP(
-            new_template, 3, iter_idx, states, wl_delta, weights, equil_bools
-        )
+            new_template, 3, iter_idx, states, wl_delta, weights)
 
         assert MDP_1["tinit"] == MDP_2["tinit"] == 3
         assert MDP_1["nsteps"] == MDP_2["nsteps"] == 500
@@ -241,10 +240,11 @@ class Test_EnsembleEXE:
         assert lambda_vecs == [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
 
     def test_extract_final_log_info(self):
+        EEXE.equil = [-1, -1, -1, -1]
         log_files = [
             os.path.join(input_path, f"EXE_{i}.log") for i in range(EEXE.n_sim)
         ]
-        wl_delta, weights, counts, equil_bools = EEXE.extract_final_log_info(log_files)
+        wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
         assert wl_delta == [0.4, 0.5, 0.5, 0.5]
         assert weights == [
             [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
@@ -258,7 +258,7 @@ class Test_EnsembleEXE:
             [3, 1, 1, 9, 15, 21],
             [0, 0, 0, 1, 18, 31],
         ]
-        assert equil_bools == [False, False, False, False]
+        assert EEXE.equil == [-1, -1, -1, -1]
 
     def test_propose_swaps(self):
         random.seed(0)
