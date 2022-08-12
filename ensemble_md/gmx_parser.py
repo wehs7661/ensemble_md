@@ -1,10 +1,8 @@
-"""
-The :code:`gmx_parser` module provides parsers to parse GROMACS files.
-"""
 import os
 import re
 import six
 import logging
+import warnings
 from collections import OrderedDict as odict
 
 import ensemble_md.utils as utils
@@ -333,6 +331,8 @@ class MDP(odict, FileUtils):
         skipempty : bool
             ``True`` removes any parameter lines from output that contain empty values [``False``]
         """
+        # The line 'if skipempty and (v == "" or v is None):' below could possibly incur FutureWarning
+        warnings.simplefilter(action='ignore', category=FutureWarning)
 
         with open(self.filename(filename, ext="mdp"), "w") as mdp:
             for k, v in self.items():

@@ -1,6 +1,3 @@
-"""
-The `utils` module provides useful utility functions.
-"""
 import os
 import sys
 import natsort

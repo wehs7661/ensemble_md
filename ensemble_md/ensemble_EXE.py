@@ -1,7 +1,5 @@
-"""
-The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
-"""
 import os
+import sys
 import copy
 import yaml
 import random
@@ -39,9 +37,6 @@ class EnsembleEXE:
         ----------
         yml_file : str
             The file name of the YAML file for specifying the parameters for EEXE.
-        outfile : str
-            The file name of the log file for documenting how different replicas interact
-            during the process.
         """
         # Step 0: Set up constants
         k = 1.380649e-23
@@ -55,7 +50,7 @@ class EnsembleEXE:
             setattr(self, attr, params[attr])
 
         # Step 2: Handle the YAML parameters
-        required_args = ["parallel", "n_sim", "n_iterations", "s", "mdp"]
+        required_args = ["parallel", "n_sim", "n_iterations", "s", "mdp", 'gro', 'top']
         for i in required_args:
             if hasattr(self, i) is False:
                 raise ParameterError(
@@ -98,7 +93,7 @@ class EnsembleEXE:
         if self.N_cutoff < 0 and self.N_cutoff != -1:
             raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
 
-        params_str = ['mdp', 'outfile']
+        params_str = ['gro', 'top', 'mdp', 'outfile']
         for i in params_str:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
@@ -115,7 +110,7 @@ class EnsembleEXE:
         self.temp = self.template["ref-t"]
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
 
-        # Total # of states. n_tot = n_sub * n_sim - (n_overlap) * (n_sum - 1), where n_overlap = n_sub - s
+        # Total # of states. n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
         self.n_tot = len(self.template["vdw-lambdas"])
 
         # Number of states of each replica (assuming the same for all rep)
@@ -131,6 +126,11 @@ class EnsembleEXE:
 
         # Map the lamda vectors to state indices
         self.map_lambda2state()
+
+        # Step 5: Set up output log file and print parameters
+        sys.stdout = utils.Logger(logfile=self.outfile)
+        sys.stderr = utils.Logger(logfile=self.outfile)
+        self.print_params()  # Print out important parameters
 
     def print_params(self):
         """
@@ -229,8 +229,8 @@ class EnsembleEXE:
 
         Parameters
         ----------
-        new_template : gmx_parser.MDP obj
-            The gmx_parser.MDP object of the new MDP template. Typically the MDP file of the previous iteration.
+        new_template : str
+            The new MDP template file. Typically the MDP file of the previous iteration.
         sim_idx : int
             The index of the simulation whose MDP parameters need to be updated.
         iter_idx : int
@@ -249,6 +249,7 @@ class EnsembleEXE:
         MDP : gmx_parser.MDP obj
             An updated object of gmx_parser.MDP that can be used to write MDP files.
         """
+        new_template = gmx_parser.MDP(new_template)  # turn into a  gmx_parser.MDP object
         MDP = copy.deepcopy(new_template)
         MDP["tinit"] = self.nst_sim * self.dt * iter_idx
         MDP["nsteps"] = self.nst_sim
@@ -566,7 +567,6 @@ class EnsembleEXE:
                 swap_bool = False
                 if self.verbose is True:
                     print("  Swap rejected! ", end="", flush=True)
-        print(prob_acc)
         return swap_bool
 
     def histogram_correction(self, weights, counts):
@@ -632,10 +632,13 @@ class EnsembleEXE:
         -------
         weights : list
             A list of original (method==None) or modified Wang-Landau weights of ALL simulations.
+        g_vec : np.array
+            An array of alchemical weights of the whole range of states.
         """
         if method is None:
             print('Note: No weight combination will be performed.')
-            return weights
+            g_vec = None
+            return weights, g_vec
         else:
             if self.verbose is True:
                 print(f'Performing weight combination with the {method} method ...')
@@ -667,7 +670,7 @@ class EnsembleEXE:
             scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
 
             # Step 5: Average and convert the probabilities
-            final_p = []
+            p_vec = []
             for i in range(self.n_tot):   # global state index
                 p = []   # a list of probabilities to be averaged for each state
                 for j in range(len(self.state_ranges)):   # j can be regared as the replica index
@@ -675,14 +678,15 @@ class EnsembleEXE:
                         local_idx = i - j * self.s
                         p.append(scaled_prob[j][local_idx])
                 if method == 'mean':
-                    final_p.append(np.mean(p))
+                    p_vec.append(np.mean(p))
                 elif method == 'geo-mean' or method == 'geo_mean':
-                    final_p.append(np.prod(p) ** (1 / len(p)))
+                    p_vec.append(np.prod(p) ** (1 / len(p)))
 
-            final_g = -np.log(final_p)
+            g_vec = -np.log(p_vec)
+            g_vec -= g_vec[0]
 
             # Step 6: Determine the vector of alchemical weights for each replica
-            weights = [list(final_g[i: i + self.n_sub] - final_g[i: i + self.n_sub][0]) for i in range(self.n_sim)]
+            weights = [list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0]) for i in range(self.n_sim)]
             weights = np.round(weights, decimals=5).tolist()
 
             if self.verbose is True:
@@ -693,8 +697,11 @@ class EnsembleEXE:
 
             if self.verbose is False:
                 print(' DONE')
+                print(f'The alchemical weights of all states: {list(np.round(g_vec, decimals=3))}')
+            else:
+                print(f'\n  The alchemical weights of all states: {list(np.round(g_vec, decimals=3))}')
 
-            return weights
+            return weights, g_vec
 
     def run_EEXE(self, n):
         """
@@ -720,9 +727,9 @@ class EnsembleEXE:
             arguments=["grompp"],  # noqa: E127
             input_files=[  # noqa: E127
                 {
-                    "-f": f"../sim_{i}/iteration_{n}/expanded.mdp",
-                    "-c": f"../sim_{i}/iteration_{n}/sys.gro",
-                    "-p": f"../sim_{i}/iteration_{n}/sys.top",
+                    "-f": f"../sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}",
+                    "-c": f"../sim_{i}/iteration_{n}/{self.gro.split('/')[-1]}",
+                    "-p": f"../sim_{i}/iteration_{n}/{self.top.split('/')[-1]}",
                 }
                 for i in range(self.n_sim)
             ],

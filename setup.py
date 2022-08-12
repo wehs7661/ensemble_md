@@ -44,6 +44,13 @@ setup(
     # Allows `setup.py test` to work correctly with pytest
     setup_requires=[] + pytest_runner,
 
+    # Add entry points
+    entry_points={
+        'console_scripts':[
+            'run_ensemble_EXE = ensemble_md.run_ensemble_EXE:main',
+        ],
+    },
+
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
     # install_requires=[],              # Required packages, pulls from pip if needed; do not use for Conda deployment

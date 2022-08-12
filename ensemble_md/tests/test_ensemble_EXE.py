@@ -17,7 +17,6 @@ import random
 import numpy as np
 import ensemble_md
 from mpi4py import MPI
-import ensemble_md.gmx_parser as gmx_parser
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.exceptions import ParameterError
 
@@ -36,6 +35,8 @@ class Test_EnsembleEXE:
         assert EEXE.n_ex == 0
         assert EEXE.outfile == "results.txt"
         assert EEXE.mdp == "ensemble_md/tests/data/expanded.mdp"
+        assert EEXE.gro == "ensemble_md/tests/data/sys.gro"
+        assert EEXE.top == "ensemble_md/tests/data/sys.top"
         assert EEXE.nsteps == 500
         assert EEXE.dt == 0.002
         assert EEXE.temp == 298
@@ -185,7 +186,7 @@ class Test_EnsembleEXE:
         )
 
     def test_update_MDP(self):
-        new_template = gmx_parser.MDP("ensemble_md/tests/data/expanded.mdp")
+        new_template = "ensemble_md/tests/data/expanded.mdp"
         iter_idx = 3
         states = [2, 5, 7, 4]
         wl_delta = [0.4, 0.32, 0.256, 0.32]
@@ -391,11 +392,11 @@ class Test_EnsembleEXE:
         EEXE.state_ranges = [{0, 1, 2, 3}, {1, 2, 3, 4}, {2, 3, 4, 5}]
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
 
-        w1 = EEXE.combine_weights(weights, method=None)
-        w2 = EEXE.combine_weights(weights, method='mean')
+        w1, g_vec_1 = EEXE.combine_weights(weights, method=None)
+        w2, g_vec_2 = EEXE.combine_weights(weights, method='mean')
 
         EEXE.verbose = False   # just to reach some print statementss with verbose = False
-        w3 = EEXE.combine_weights(weights, method='geo-mean')
+        w3, g_vec_3 = EEXE.combine_weights(weights, method='geo-mean')
 
         assert w1 == weights
         assert w2 == [
@@ -406,6 +407,9 @@ class Test_EnsembleEXE:
             [0.0, 2.2, 3.98889, 3.58889],
             [0.0, 1.78889, 1.38889, 2.68333],
             [0.0, -0.4, 0.89444, 1.87778]]
+        assert g_vec_1 is None
+        assert list(g_vec_2) == [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005]  # noqa: E501
+        assert list(g_vec_3) == [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667]  # noqa: E501
 
     def test_run_EEXE(self):
         # We probably can only test serial EEXE
