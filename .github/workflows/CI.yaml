@@ -54,7 +54,7 @@ jobs:
         sudo apt install build-essential
         sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
 
-    - name: Install GROMACS 2022.2 and gmxapi
+    - name: Install the latest GROMACS and gmxpi
       shell: bash -l {0}
       run: |
         gcc --version
@@ -63,9 +63,8 @@ jobs:
         export CXX=`which g++`
 
         cd $HOME && mkdir pkgs 
-        wget ftp://ftp.gromacs.org/pub/gromacs/gromacs-2022.2.tar.gz 
-        tar zxf gromacs-2022.2.tar.gz
-        cd gromacs-2022.2 && mkdir build && cd build 
+        git clone https://gitlab.com/gromacs/gromacs.git
+        cd gromacs && mkdir build && cd build
         cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/pkgs
         make install 
         source $HOME/pkgs/bin/GMXRC
@@ -75,10 +74,11 @@ jobs:
         python -m ensurepip --default-pip
         pip install --upgrade pip setuptools wheel
         pip install --upgrade cmake pybind11
-        python -m pip install --upgrade pip setuptools
+        python -m pip install --upgrade pipsetuptools
         pip install --upgrade mpi4py
-        cd ../python_packaging/src
+        cd ../python_packaging/gmxapi
         pip install .
+        python -c "import gmxapi; print(gmxapi.__version__)"
 
     - name: Install ensemble_md dependencies
       # conda setup requires this special shell

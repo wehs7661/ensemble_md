@@ -13,7 +13,6 @@ comment:
   flags: null
   paths: null
 ignore:
-  - "ensemble_md.exceptions.py"
   - "ensemble_md.utils.py"
   - "ensemble_md.ensemble_md.py"
   - "ensemble_md.run_ensemble_EXE.py"

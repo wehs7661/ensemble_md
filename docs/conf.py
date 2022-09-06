@@ -19,7 +19,6 @@ sys.path.insert(0, os.path.abspath('..'))
 
 import ensemble_md
 
-
 # -- Project information -----------------------------------------------------
 
 project = 'ensemble_md'

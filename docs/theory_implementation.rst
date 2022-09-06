@@ -124,7 +124,8 @@ Suggested workflow
 ==================
 In this section, we recommend a workflow of running an ensemble of expanded ensemble, which can be 
 implmented by using functions defined :class:`ensemble_EXE`. 
-A hands-on tutorial that implements this workflow can be found in `Tutorial 1: Ensemble of expanded ensemble`_. 
+A hands-on tutorial that implements this workflow (using `run_ensemble_EXE.py`) can be found in 
+`Tutorial 1: Ensemble of expanded ensemble`_. 
 
 .. _`Tutorial 1: Ensemble of expanded ensemble`: examples/EEXE_tutorial.ipynb
 
