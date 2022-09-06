@@ -74,7 +74,7 @@ jobs:
         python -m ensurepip --default-pip
         pip install --upgrade pip setuptools wheel
         pip install --upgrade cmake pybind11
-        python -m pip install --upgrade pipsetuptools
+        python -m pip install --upgrade pip setuptools
         pip install --upgrade mpi4py
         cd ../python_packaging/gmxapi
         pip install .
