@@ -35,3 +35,8 @@ To perform unit tests for this package, execute the following command in the hom
 
     pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
 
+or 
+
+::
+
+    python -m pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/

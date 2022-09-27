@@ -16,6 +16,7 @@ import pytest
 import random
 import numpy as np
 import ensemble_md
+import gmxapi as gmx
 from mpi4py import MPI
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.exceptions import ParameterError
@@ -152,7 +153,7 @@ class Test_EnsembleEXE:
         out, err = capfd.readouterr()
         L = ""
         L += "\nImportant parameters of EXEE\n============================\n"
-        L += f"gmxapi version: 0.3.2\nensemble_md version: {ensemble_md.__version__}\n"
+        L += f"gmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"
         L += "Output log file: results.txt\nVerbose log file: True\nWhether the replicas run in parallel: False\n"
         L += "MC scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
@@ -246,12 +247,12 @@ class Test_EnsembleEXE:
         ]
         wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
         assert wl_delta == [0.4, 0.5, 0.5, 0.5]
-        assert weights == [
+        assert np.allclose(weights, [
             [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
             [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
             [0, 0.66431, 1.25475, 0.24443, 0.59472, 0.70726],
             [0, 0.09620, 1.59937, -4.31679, -22.89436, -28.08701],
-        ]
+        ])
         assert counts == [
             [4, 11, 9, 9, 11, 6],
             [9, 8, 8, 11, 7, 7],
@@ -344,7 +345,7 @@ class Test_EnsembleEXE:
         swap = (0, 2)
         EEXE.mc_scheme = "metropolis"
         prob_acc_4 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
-        assert prob_acc_4 == 0.18989559074633955   # check this number again
+        assert prob_acc_4 == pytest.approx(0.18989559074633955)   # check this number again
 
     def test_accept_or_reject(self):
         random.seed(0)
@@ -368,21 +369,21 @@ class Test_EnsembleEXE:
         EEXE.verbose = False
         EEXE.N_cutoff = 5000
         weights_1 = EEXE.histogram_correction(weights_1, counts_1)
-        assert weights_1 == [
+        assert np.allclose(weights_1, [
             [
                 0,
                 10.304 + np.log(31415 / 45701),
                 20.073 + np.log(45701 / 55457),
                 29.364 + np.log(55457 / 59557),
             ]
-        ]  # noqa: E501
+        ])  # noqa: E501
 
         # Case 3: Perform histogram correction (N_cutoff not reached)
         EEXE.verbose = True
         weights_2 = [[0, 10.304, 20.073, 29.364]]
         counts_2 = [[3141, 4570, 5545, 5955]]
         weights_2 = EEXE.histogram_correction(weights_2, counts_2)
-        assert weights_2 == [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]]
+        assert np.allclose(weights_2, [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]])
 
     def test_combine_weights(self):
         EEXE.n_tot = 6
@@ -398,18 +399,18 @@ class Test_EnsembleEXE:
         EEXE.verbose = False   # just to reach some print statementss with verbose = False
         w3, g_vec_3 = EEXE.combine_weights(weights, method='geo-mean')
 
-        assert w1 == weights
-        assert w2 == [
+        assert np.allclose(w1, weights)
+        assert np.allclose(w2, [
             [0.0, 2.20097, 3.99803, 3.59516],
             [0.0, 1.79706, 1.39419, 2.69607],
-            [0.0, -0.40286, 0.89901, 1.88303]]
-        assert w3 == [
+            [0.0, -0.40286, 0.89901, 1.88303]])
+        assert np.allclose(w3, [
             [0.0, 2.2, 3.98889, 3.58889],
             [0.0, 1.78889, 1.38889, 2.68333],
-            [0.0, -0.4, 0.89444, 1.87778]]
+            [0.0, -0.4, 0.89444, 1.87778]])
         assert g_vec_1 is None
-        assert list(g_vec_2) == [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005]  # noqa: E501
-        assert list(g_vec_3) == [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667]  # noqa: E501
+        assert np.allclose(list(g_vec_2), [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005])  # noqa: E501
+        assert np.allclose(list(g_vec_3), [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667])  # noqa: E501
 
     def test_run_EEXE(self):
         # We probably can only test serial EEXE
