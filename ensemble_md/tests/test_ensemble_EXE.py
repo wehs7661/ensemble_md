@@ -34,7 +34,7 @@ class Test_EnsembleEXE:
         assert EEXE.w_scheme is None
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_ex == 0
-        assert EEXE.outfile == "results.txt"
+        assert EEXE.output == "results.txt"
         assert EEXE.mdp == "ensemble_md/tests/data/expanded.mdp"
         assert EEXE.gro == "ensemble_md/tests/data/sys.gro"
         assert EEXE.top == "ensemble_md/tests/data/sys.top"
@@ -88,7 +88,7 @@ class Test_EnsembleEXE:
             E3 = EnsembleEXE(yaml_3)  # noqa: F841
 
         yaml_4 = os.path.join(input_path, "other_yamls/4.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'n_iterations' should be positive."):
+        with pytest.raises(ParameterError, match="The parameter 'n_iter' should be positive."):
             E4 = EnsembleEXE(yaml_4)  # noqa: F841
 
         yaml_5 = os.path.join(input_path, "other_yamls/5.yaml")
@@ -159,9 +159,9 @@ class Test_EnsembleEXE:
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of exchanges in one attempt: 0\n"
         L += "Length of each replica: 1.0 ps\nTotal number of states: 9\n"
-        L += "States sampled by each simulation/replica:\n  - Simulation 0: States [0, 1, 2, 3, 4, 5]\n"
-        L += "  - Simulation 1: States [1, 2, 3, 4, 5, 6]\n  - Simulation 2: States [2, 3, 4, 5, 6, 7]\n"
-        L += "  - Simulation 3: States [3, 4, 5, 6, 7, 8]\n"
+        L += "Alchemical ranges of each replica in EEXE:\n  - Replica 0: States [0, 1, 2, 3, 4, 5]\n"
+        L += "  - Replica 1: States [1, 2, 3, 4, 5, 6]\n  - Replica 2: States [2, 3, 4, 5, 6, 7]\n"
+        L += "  - Replica 3: States [3, 4, 5, 6, 7, 8]\n"
         assert out == L
 
     def test_initialize_MDP(self):

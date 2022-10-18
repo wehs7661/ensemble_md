@@ -69,7 +69,7 @@ def main():
 
     # Step 3: Swap the coordinates
     g_vecs = []
-    for i in range(1, EEXE.n_iterations):
+    for i in range(1, EEXE.n_iter):
         if rank == 0:
             # 3-1. For all the replica simulations,
             #   (1) Find the last sampled state and the corresponding lambda values from the DHDL files.

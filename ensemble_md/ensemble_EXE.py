@@ -25,7 +25,7 @@ from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 import gmxapi as gmx
 import ensemble_md
 import ensemble_md.gmx_parser as gmx_parser
-import ensemble_md.utils as utils
+from ensemble_md import utils
 from ensemble_md.exceptions import ParameterError
 
 
@@ -62,7 +62,7 @@ class EnsembleEXE:
             setattr(self, attr, params[attr])
 
         # Step 2: Handle the YAML parameters
-        required_args = ["parallel", "n_sim", "n_iterations", "s", "mdp", 'gro', 'top']
+        required_args = ["parallel", "n_sim", "n_iter", "s", "mdp", 'gro', 'top']
         for i in required_args:
             if hasattr(self, i) is False:
                 raise ParameterError(
@@ -75,7 +75,7 @@ class EnsembleEXE:
             "w_scheme": None,
             "N_cutoff": 1000,
             "n_ex": 0,       # neighbor swaps
-            "outfile": "results.txt",
+            "output": "results.txt",
             "verbose": True
         }
         for i in optional_args:
@@ -89,12 +89,12 @@ class EnsembleEXE:
         if self.mc_scheme not in ['same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iterations', 's', 'nst_sim', 'N_cutoff', 'n_ex']  # integer parameters
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'n_ex']  # integer parameters
         for i in params_int:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iterations', 's', 'nst_sim']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 's', 'nst_sim']  # positive parameters
         for i in params_pos:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
@@ -105,7 +105,7 @@ class EnsembleEXE:
         if self.N_cutoff < 0 and self.N_cutoff != -1:
             raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
 
-        params_str = ['gro', 'top', 'mdp', 'outfile']
+        params_str = ['gro', 'top', 'mdp', 'output']
         for i in params_str:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
@@ -129,9 +129,7 @@ class EnsembleEXE:
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
 
         # A list of sets of state indices
-        self.state_ranges = [
-            set(range(i * self.s, i * self.s + self.n_sub)) for i in range(self.n_sim)
-        ]
+        self.state_ranges = [set(np.arange(i, i + self.n_sub)) for i in range(self.n_sim)]
 
         # A list of simulation statuses to be updated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
@@ -143,8 +141,8 @@ class EnsembleEXE:
         self.map_lambda2state()
 
         # Step 5: Set up output log file and print parameters
-        sys.stdout = utils.Logger(logfile=self.outfile)
-        sys.stderr = utils.Logger(logfile=self.outfile)
+        sys.stdout = utils.Logger(logfile=self.output)
+        sys.stderr = utils.Logger(logfile=self.output)
         self.print_params()  # Print out important parameters
 
     def print_params(self):
@@ -156,20 +154,20 @@ class EnsembleEXE:
             print("============================")
             print(f"gmxapi version: {gmx.__version__}")
             print(f"ensemble_md version: {ensemble_md.__version__}")
-            print(f"Output log file: {self.outfile}")
+            print(f"Output log file: {self.output}")
             print(f"Verbose log file: {self.verbose}")
             print(f"Whether the replicas run in parallel: {self.parallel}")
             print(f"MC scheme for swapping simulations: {self.mc_scheme}")
             print(f"Scheme for combining weights: {self.w_scheme}")
             print(f"Histogram cutoff: {self.N_cutoff}")
             print(f"Number of replicas: {self.n_sim}")
-            print(f"Number of iterations: {self.n_iterations}")
+            print(f"Number of iterations: {self.n_iter}")
             print(f"Number of exchanges in one attempt: {self.n_ex}")
             print(f"Length of each replica: {self.dt * self.nst_sim} ps")
             print(f"Total number of states: {self.n_tot}")
-            print("States sampled by each simulation/replica:")
+            print("Alchemical ranges of each replica in EEXE:")
             for i in range(self.n_sim):
-                print(f"  - Simulation {i}: States {list(self.state_ranges[i])}")
+                print(f"  - Replica {i}: States {list(self.state_ranges[i])}")
 
     def map_lambda2state(self):
         """
@@ -431,7 +429,6 @@ class EnsembleEXE:
         -------
         configs : list
             The list of the final configurations after all the swaps.
-
         """
         configs = list(range(self.n_sim))   # Can be regarded as the indices corresponding to dhdl files/configurations
         if swap_list is None:

@@ -19,4 +19,4 @@ dependencies:
     - alchemlyb
     - seaborn
     - matplotlib
-    - mpi4py
+    # - mpi4py
