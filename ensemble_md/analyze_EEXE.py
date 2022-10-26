@@ -99,6 +99,10 @@ def calc_equil_prob(trans_mtx):
     Returns
     -------
     equil_prob : np.array
+
+    TODO
+    ----
+    Consider using PyEMMA instead.
     """
     if np.isclose(np.sum(trans_mtx[0]), 1):  # note that this also include doubly stochastic matrices
         # Right or doubly stachstic matrices - calculate the left eigenvector
@@ -156,7 +160,9 @@ def split_transmtx(trans_mtx, n_sim, n_sub):
     """
     Split the input transition matrix into blocks of smaller matrices corresponding to
     difrerent alchemical ranges of different replicas. Notably, the function assumes
-    homogeneous shifts and number of states across replicas.
+    homogeneous shifts and number of states across replicas. Also, the blocks of the
+    transition matrix is generally not doubly stochastic but right stochastic even if
+    the input is doubly stochastic.
 
     Parameters
     ----------
@@ -237,7 +243,7 @@ def plot_matrix(matrix, png_name, title=None, start_idx=0):
             "size": 5})
 
     K = len(matrix)
-    plt.figure(figsize=(K / 3, K / 3))     # or figsize=(K / 1.5, K / 1.5)
+    plt.figure(figsize=(K / 1.5, K / 1.5))     # or figsize=(K / 1.5, K / 1.5)
     annot_matrix = np.zeros([K, K])  # matrix for annotating values
 
     mask = []

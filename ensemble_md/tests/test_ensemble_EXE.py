@@ -44,6 +44,7 @@ class Test_EnsembleEXE:
         assert EEXE.kT == k * NA * 298 / 1000
         assert EEXE.n_tot == 9
         assert EEXE.n_sub == 6
+        assert EEXE.runtime_args is None
         assert EEXE.state_ranges == [
             {0, 1, 2, 3, 4, 5},
             {1, 2, 3, 4, 5, 6},
@@ -146,6 +147,7 @@ class Test_EnsembleEXE:
             [(0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8)],
             [(0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8), (1.0, 1.0, 1.0)],
         ]
+        assert E10.runtime_args == {'-nt': '16', '-ntomp': 8}
 
     def test_print_params(self, capfd):
         # capfd is a fixture in pytest for testing STDOUT
@@ -159,6 +161,7 @@ class Test_EnsembleEXE:
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of exchanges in one attempt: 0\n"
         L += "Length of each replica: 1.0 ps\nTotal number of states: 9\n"
+        L += "Additional runtime arguments: None\n"
         L += "Alchemical ranges of each replica in EEXE:\n  - Replica 0: States [0, 1, 2, 3, 4, 5]\n"
         L += "  - Replica 1: States [1, 2, 3, 4, 5, 6]\n  - Replica 2: States [2, 3, 4, 5, 6, 7]\n"
         L += "  - Replica 3: States [3, 4, 5, 6, 7, 8]\n"

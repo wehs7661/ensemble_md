@@ -56,10 +56,7 @@ def main():
 
     # 2-3. Restructure the directory (move the files from mdrun_0_i0_* to sim_*/iteration_0)
     if rank == 0:
-        if EEXE.parallel is True:
-            work_dir = md.output._work_dir.result()
-        else:
-            work_dir = md.output.directory.result()
+        work_dir = md.output.directory.result()
         for i in range(EEXE.n_sim):
             if EEXE.verbose is True:
                 print(f'  Moving files from {work_dir[i].split("/")[-1]}/ to sim_{i}/iteration_0/ ...')
@@ -107,10 +104,7 @@ def main():
 
         # 4-2. Restructure the directory (move the files from mdrun_{i}_i0_* to sim_*/iteration_{i})
         if rank == 0:
-            if EEXE.parallel is True:
-                work_dir = md.output._work_dir.result()
-            else:
-                work_dir = md.output.directory.result()
+            work_dir = md.output.directory.result()
             for j in range(EEXE.n_sim):
                 if EEXE.verbose is True:
                     print(f'  Moving files from {work_dir[j].split("/")[-1]}/ to sim_{j}/iteration_{i}/ ...')

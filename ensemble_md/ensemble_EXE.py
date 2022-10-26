@@ -76,7 +76,8 @@ class EnsembleEXE:
             "N_cutoff": 1000,
             "n_ex": 0,       # neighbor swaps
             "output": "results.txt",
-            "verbose": True
+            "verbose": True,
+            "runtime_args": None,
         }
         for i in optional_args:
             if hasattr(self, i) is False:
@@ -89,7 +90,9 @@ class EnsembleEXE:
         if self.mc_scheme not in ['same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'n_ex']  # integer parameters
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff']  # integer parameters
+        if self.n_ex != 'N^3':
+            params_int.append('n_ex')
         for i in params_int:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
@@ -99,7 +102,7 @@ class EnsembleEXE:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
 
-        if self.n_ex < 0:
+        if self.n_ex != 'N^3' and self.n_ex < 0:
             raise ParameterError("The parameter 'n_ex' should be non-negative.")
 
         if self.N_cutoff < 0 and self.N_cutoff != -1:
@@ -165,6 +168,7 @@ class EnsembleEXE:
             print(f"Number of exchanges in one attempt: {self.n_ex}")
             print(f"Length of each replica: {self.dt * self.nst_sim} ps")
             print(f"Total number of states: {self.n_tot}")
+            print(f"Additional runtime arguments: {self.runtime_args}")
             print("Alchemical ranges of each replica in EEXE:")
             for i in range(self.n_sim):
                 print(f"  - Replica {i}: States {list(self.state_ranges[i])}")
@@ -388,6 +392,8 @@ class EnsembleEXE:
             n_ex = 1    # One swap will be carried out.
             print('Note: At most only 1 swap will be carried out, which is between neighboring replicas.')
             swappables = [i for i in swappables if np.abs(i[0] - i[1]) == 1]
+        elif self.n_ex == 'N^3':
+            n_ex = len(swappables) ** 3
         else:
             n_ex = self.n_ex
 
@@ -767,14 +773,29 @@ class EnsembleEXE:
         if self.parallel is True:
             tpr = [f'{grompp.output.file["-o"].result()[i]}' for i in range(self.n_sim)]
             inputs = gmx.read_tpr(tpr)
-            md = gmx.mdrun(inputs)
+            md = gmx.mdrun(inputs, runtime_args=self.runtime_args)
             md.run()
         else:
             # Note that we could use output_files argument to customize the output file
             # names but here we'll just use the defaults.
+
+            arguments = ['mdrun']  # arguments for gmx.commandline_operation
+
+            if self.runtime_args is not None:
+                # Turn the dictionary into a list with the keys alternating with values
+                args_keys = list(self.runtime_args.keys())
+                args_vals = list(self.runtime_args.values())
+
+                add_args = []
+                for i in range(len(args_keys)):
+                    add_args.append(args_keys[i])
+                    add_args.append(args_vals[i])
+
+                arguments.extend(add_args)
+
             md = gmx.commandline_operation(
                 "gmx",
-                arguments=["mdrun"],  # noqa: E128
+                arguments=arguments,
                 input_files=[  # noqa: E128
                     {
                         "-s": grompp.output.file["-o"].result()[i],

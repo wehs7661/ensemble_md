@@ -8,3 +8,4 @@ nst_sim: 500                 # Number of simulation steps for each homogeneous r
 gro: 'ensemble_md/tests/data/sys.gro'
 top: 'ensemble_md/tests/data/sys.top'
 mdp: 'ensemble_md/tests/data/other_mdps/2.mdp'          # The MDP template that has the whole range of λ values
+runtime_args: {'-nt': '16', '-ntomp': 8}
