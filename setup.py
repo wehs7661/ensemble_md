@@ -47,7 +47,8 @@ setup(
     # Add entry points
     entry_points={
         'console_scripts':[
-            'run_ensemble_EXE = ensemble_md.run_ensemble_EXE:main',
+            'run_EEXE = ensemble_md.cli.run_EEXE:main',
+            'analyze_EEXE = ensemble_md.cli.analyze_EEXE:main',
         ],
     },
 

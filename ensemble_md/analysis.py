@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :code:`analyze_EEXE` module provides methods for performing data analysis for EEXE.
+The :code:`analysis` module provides methods for performing data analysis for EEXE.
 """
 import numpy as np
 import seaborn as sns
@@ -78,6 +78,34 @@ def parse_transmtx(log_file, expanded_ensemble=True):
             raise ParseError(f"No transition matrices found in {log_file}.")
 
     return empirical, theoretical, diff_matrix
+
+
+def traj2transmtx(traj, N):
+    """
+    Compute the transition matrix given a trajectory. For example, if a state-space
+    trajectory from a EXE or HREX simulation given, a state transition matrix is returned.
+    If a trajectory showing transitions between replicas in a EEXE simulation is given,
+    a replica transition matrix is returned.
+
+    Parameters
+    ---------
+    traj : list
+        A list of state indices showing the trajectory in the state space.
+    N : int
+        The size (N) of the expcted transition matrix (N by N).
+
+    Returns
+    -------
+    transmtx : np.array
+        The transition matrix computed from the trajectory
+    """
+    transmtx = np.zeros([N, N])
+    for i in range(1, len(traj)):
+        transmtx[traj[i - 1], traj[i]] += 1   # counts of transitions
+    transmtx /= np.sum(transmtx, axis=1)[:, None]   # normalize the transition matrix
+    transmtx[np.isnan(transmtx)] = 0   # for non-sampled state, there could be nan due to 0/0
+
+    return transmtx
 
 
 def calc_equil_prob(trans_mtx):
@@ -289,13 +317,3 @@ def plot_matrix(matrix, png_name, title=None, start_idx=0):
     plt.savefig(png_name, dpi=600)
     # plt.show()
     plt.close()
-
-
-class StateDiffusivity:
-    def __init__(self):
-        pass
-
-
-class FreeEnergyCalculation:
-    def __init__(self):
-        pass

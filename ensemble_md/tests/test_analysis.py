@@ -8,12 +8,12 @@
 #                                                                  #
 ####################################################################
 """
-Unit tests for the module analyze_EEXE.py.
+Unit tests for the module analysis.py.
 """
 import os
 import pytest
 import numpy as np
-from ensemble_md import analyze_EEXE
+from ensemble_md import analysis
 from ensemble_md.exceptions import ParseError
 
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +21,7 @@ input_path = os.path.join(current_path, "data")
 
 
 def test_parse_transmtx():
-    A1, B1, C1 = analyze_EEXE.parse_transmtx(os.path.join(input_path, 'EXE.log'))
+    A1, B1, C1 = analysis.parse_transmtx(os.path.join(input_path, 'EXE.log'))
     A1_expected = np.array([[0.5, 0.34782609, 0.15000001, 0, 0, 0],
        [0.34782609, 0.18181819, 0.15789473, 0.17647059, 0.10526316, 0.125     ],   # noqa: E128, E202, E203
        [0.15000001, 0.15789473, 0.        , 0.14285715, 0.4375    , 0.07692308],   # noqa: E202, E203
@@ -49,17 +49,17 @@ def test_parse_transmtx():
 
     log = os.path.join(input_path, 'EXE_0.log')
     with pytest.raises(ParseError, match=f'No transition matrices found in {log}.'):
-        A2, B2, C2 = analyze_EEXE.parse_transmtx(log)
+        A2, B2, C2 = analysis.parse_transmtx(log)
 
 
 def test_plot_matrix():
     """
     We can only check if the figures are generated. Not really able to check how they look like.
     """
-    A1, B1, C1 = analyze_EEXE.parse_transmtx(os.path.join(input_path, 'EXE.log'))
-    analyze_EEXE.plot_matrix(A1, 'test_1.png')
-    analyze_EEXE.plot_matrix(B1, 'test_2.png')
-    analyze_EEXE.plot_matrix(C1, 'test_3.png')
+    A1, B1, C1 = analysis.parse_transmtx(os.path.join(input_path, 'EXE.log'))
+    analysis.plot_matrix(A1, 'test_1.png')
+    analysis.plot_matrix(B1, 'test_2.png')
+    analysis.plot_matrix(C1, 'test_3.png')
 
     assert os.path.exists('test_1.png') is True
     assert os.path.exists('test_2.png') is True

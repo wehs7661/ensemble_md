@@ -39,6 +39,9 @@ def main():
     # Step 1: Set up MPI rank and instantiate EnsembleEXE to set up EEXE parameters
     rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
     EEXE = EnsembleEXE(args.yaml)
+    sys.stdout = utils.Logger(logfile=EEXE.output)
+    sys.stderr = utils.Logger(logfile=EEXE.output)
+    EEXE.print_params()
 
     # Step 2: Perform the 1st iteration (index 0)
     # 2-1. Set up input files for all simulations with 1 rank
@@ -78,7 +81,7 @@ def main():
 
             # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
             swap_list = EEXE.propose_swaps(states)
-            configs = EEXE.get_swapped_configs(swap_list, dhdl_files, states, lambda_vecs, weights)
+            swap_pattern = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, lambda_vecs, weights)
 
             # 3-3. Perform histogram correction for the weights as needed
             weights = EEXE.histogram_correction(weights, counts)
@@ -96,7 +99,7 @@ def main():
                 shutil.copy(f'{EEXE.top}', f"sim_{j}/iteration_{i}/{EEXE.top.split('/')[-1]}")
 
                 # Now we swap out the GRO files as needed
-                shutil.copy(f'sim_{configs[j]}/iteration_{i-1}/confout.gro', f"sim_{j}/iteration_{i}/{EEXE.gro.split('/')[-1]}")  # noqa: E501
+                shutil.copy(f'sim_{swap_pattern[j]}/iteration_{i-1}/confout.gro', f"sim_{j}/iteration_{i}/{EEXE.gro.split('/')[-1]}")  # noqa: E501
 
         # Step 4: Perform another iteration
         # 4-1. Run another ensemble of simulations
@@ -113,6 +116,7 @@ def main():
                 os.rmdir(work_dir[j])
 
     np.save('g_vecs.npy', g_vecs)
+    np.save('rep_trajs.npy', EEXE.rep_trajs)
 
     # Step 5: Write a summary for the simulation ensemble
     if rank == 0:
@@ -120,7 +124,9 @@ def main():
         print('==================================')
         print('Simulation status:')
         for i in range(EEXE.n_sim):
-            if EEXE.equil[i] == -1:
+            if EEXE.fixed_weights is True:
+                print(f'- Rep {i}: The weights were fixed throughout the simulation.')
+            elif EEXE.equil[i] == -1:
                 print(f'  - Rep {i}: The weights have not been equilibrated.')
             else:
                 idx = int(np.floor(EEXE.equil[i] / (EEXE.dt * EEXE.nst_sim)))
@@ -131,4 +137,6 @@ def main():
                     units = 'ps'
                 print(f'  - Rep {i}: The weights have been equilibrated at {EEXE.equil[i]} {units} (iteration {idx}).')
 
-        print(f'\nElapsed time: {utils.format_time(time.time() - t1)}')
+        print(f'\n{EEXE.n_rejected} out of {EEXE.n_iter}, or {EEXE.n_rejected / EEXE.n_iter * 100:.1f}% of attempted exchanges were rejected.')  # noqa: E501
+
+        print(f'\nTime elapsed: {utils.format_time(time.time() - t1)}')

@@ -34,7 +34,7 @@ class Test_EnsembleEXE:
         assert EEXE.w_scheme is None
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_ex == 0
-        assert EEXE.output == "results.txt"
+        assert EEXE.output == "run_EEXE_log.txt"
         assert EEXE.mdp == "ensemble_md/tests/data/expanded.mdp"
         assert EEXE.gro == "ensemble_md/tests/data/sys.gro"
         assert EEXE.top == "ensemble_md/tests/data/sys.top"
@@ -156,7 +156,7 @@ class Test_EnsembleEXE:
         L = ""
         L += "\nImportant parameters of EXEE\n============================\n"
         L += f"gmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"
-        L += "Output log file: results.txt\nVerbose log file: True\nWhether the replicas run in parallel: False\n"
+        L += "Output log file: run_EEXE_log.txt\nVerbose log file: True\nWhether the replicas run in parallel: False\n"
         L += "MC scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of exchanges in one attempt: 0\n"
@@ -303,13 +303,13 @@ class Test_EnsembleEXE:
 
         # Case 1: Empty swap list
         swap_list = []
-        configs_1 = EEXE.get_swapped_configs(swap_list, dhdl_files, states, lambda_vecs, weights)
+        configs_1 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, lambda_vecs, weights)
         assert configs_1 == [0, 1, 2, 3]
 
         # Case 2: Multiple swaps
         swap_list = [(0, 2) for i in range(5)]   # prob_acc should be around 0.516
         random.seed(0)  # r1 = 0.844, r2 = 0.758, r3=0.421, r4=0.259 r5=0.511 --> 3 accepted moves --> [2, 1, 0, 3]
-        configs_2 = EEXE.get_swapped_configs(swap_list, dhdl_files, states, lambda_vecs, weights)
+        configs_2 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, lambda_vecs, weights)
         assert configs_2 == [2, 1, 0, 3]
 
     def test_calc_prob_acc(self):

@@ -11,7 +11,6 @@
 The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
 """
 import os
-import sys
 import copy
 import yaml
 import random
@@ -75,7 +74,7 @@ class EnsembleEXE:
             "w_scheme": None,
             "N_cutoff": 1000,
             "n_ex": 0,       # neighbor swaps
-            "output": "results.txt",
+            "output": "run_EEXE_log.txt",
             "verbose": True,
             "runtime_args": None,
         }
@@ -124,29 +123,38 @@ class EnsembleEXE:
         self.dt = self.template["dt"]  # ps
         self.temp = self.template["ref-t"]
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
+        if hasattr(self, 'wl-scale') is False and hasattr(self, 'wl_scale') is False:
+            self.fixed_weights = True
+        else:
+            self.fixed_weights = False
 
-        # Total # of states. n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
+        # Step 5: Set up derived parameters
+        # 5-1. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
         self.n_tot = len(self.template["vdw-lambdas"])
 
-        # Number of states of each replica (assuming the same for all rep)
+        # 5-2. Number of states of each replica (assuming the same for all rep)
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
 
-        # A list of sets of state indices
+        # 5-3. A list of sets of state indices
         self.state_ranges = [set(np.arange(i, i + self.n_sub)) for i in range(self.n_sim)]
 
-        # A list of simulation statuses to be updated
+        # 5-4. A list of simulation statuses to be updated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
 
+        # 5-5. Numbe of steps per iteration
         if hasattr(self, "nst_sim") is False:
             self.nst_sim = self.nsteps
 
-        # Map the lamda vectors to state indices
+        # 5-6. Map the lamda vectors to state indices
         self.map_lambda2state()
 
-        # Step 5: Set up output log file and print parameters
-        sys.stdout = utils.Logger(logfile=self.output)
-        sys.stderr = utils.Logger(logfile=self.output)
-        self.print_params()  # Print out important parameters
+        # 5-7. For counting the number of rejected swaps later:
+        self.n_rejected = 0
+
+        # 5-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
+        # means that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
+        # respectively.
+        self.rep_trajs = [[i] for i in range(self.n_sim)]
 
     def print_params(self):
         """
@@ -342,6 +350,8 @@ class EnsembleEXE:
 
         # 2. Find the final Wang-Landau incrementors and weights
         for j in range(self.n_sim):
+            if self.verbose:
+                print(f'Parsing {log_files[j]} ...')
             result = gmx_parser.parse_log(log_files[j])
             wl_delta.append(result[0])
             weights.append(result[1])
@@ -382,7 +392,7 @@ class EnsembleEXE:
 
         # First, we identify pairs of replicas with overlapping ranges
         swappables = [i for i in all_pairs if self.state_ranges[i[0]].intersection(self.state_ranges[i[1]]) != set()]  # noqa: E501
-        print(f"Replicas with overlapping λ ranges: {swappables}")
+        print(f"\nReplicas with overlapping λ ranges: {swappables}")
 
         # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
         # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the probability cannot be calculated.
@@ -407,12 +417,12 @@ class EnsembleEXE:
 
         return swap_list
 
-    def get_swapped_configs(self, swap_list, dhdl_files, states, lambda_vecs, weights):
+    def get_swapping_pattern(self, swap_list, dhdl_files, states, lambda_vecs, weights):
         """
-        Returns a list of indices that represent the final configurations of all replicas after swap(s).
-        The list is always intiliazed with `[0, 1, 2, ...]` and gets updated with swap acceptance/rejection.
-        For example, if the final configurations returned are represented by `[0, 2, 1, 3]`, that means the
-        configurations of replicas 1 and 2 are swapped. If it's `[2, 0, 1, 3]`, then 3 replicas (indices 0, 1, 2)
+        Returns a list that represents how the replicas should be swapped. The list is always
+        intiliazed with `[0, 1, 2, ...]` and gets updated with swap acceptance/rejection.
+        For example, if the list returned is `[0, 2, 1, 3]`, it means the configurations of
+        replicas 1 and 2 are swapped. If it's `[2, 0, 1, 3]`, then 3 replicas (indices 0, 1, 2)
         need to swap its configuration in the next iteration.
 
         Parameters
@@ -433,10 +443,10 @@ class EnsembleEXE:
 
         Returns
         -------
-        configs : list
-            The list of the final configurations after all the swaps.
+        swap_pattern : list
+            A list that represents how the replicas should be swapped.
         """
-        configs = list(range(self.n_sim))   # Can be regarded as the indices corresponding to dhdl files/configurations
+        swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of dhdl files/configurations
         if swap_list is None:
             print('No swap is proposed because there is no swappable pair at all.')
         else:
@@ -451,22 +461,28 @@ class EnsembleEXE:
 
                 # Each dhdl file corresponds to one configuration, so if the swap is accepted,
                 # we switch the order of the two corresponding dhdl file names in the dhdl_files.
-                # Also, the indices in configs need to be update correspondingly.
+                # Also, the indices in swap_pattern need to be update correspondingly.
                 if swap_bool is True:
                     # The assignments need to be done at the same time in just one line.
                     dhdl_files[swap[0]], dhdl_files[swap[1]] = dhdl_files[swap[1]], dhdl_files[swap[0]]
-                    configs[swap[0]], configs[swap[1]] = configs[swap[1]], configs[swap[0]]
+                    swap_pattern[swap[0]], swap_pattern[swap[1]] = swap_pattern[swap[1]], swap_pattern[swap[0]]
                 else:
                     pass
 
                 if self.verbose is True:
-                    print(f'(Current configurations: {configs})')
+                    print(f'Swapping pattern: {swap_pattern})')
                 else:
                     if i == len(swap_list) - 1:
                         print(f'\n{len(swap_list)} swaps have been proposed.')
-                        print(f'Final configuration: {configs}')
+                        print(f'Swapping pattern: {swap_pattern}')
 
-        return configs
+        # Update the replica trajectories
+        last_states = [i[-1] for i in self.rep_trajs]
+        current_states = [last_states[swap_pattern[i]] for i in range(self.n_sim)]
+        for i in range(self.n_sim):   # note that self.n_sim = len(swap_pattern)
+            self.rep_trajs[i].append(current_states[i])
+
+        return swap_pattern
 
     def calc_prob_acc(self, swap, dhdl_files, states, lambda_vecs, weights):
         """
@@ -571,8 +587,9 @@ class EnsembleEXE:
         """
         if prob_acc == 0:
             swap_bool = False
+            self.n_rejected += 1
             if self.verbose is True:
-                print("  Swap rejected! ")
+                print("  Swap rejected! ", end="", flush=True)
         else:
             rand = random.random()
             if self.verbose is True:
@@ -581,11 +598,12 @@ class EnsembleEXE:
                 )
             if rand < prob_acc:
                 swap_bool = True
-                # Below we flush the buffer so the next STDOUT (current configs) will be appended
+                # Below we flush the buffer so the next STDOUT ("Swapping pattern: ...") will be appended
                 if self.verbose is True:
                     print("  Swap accepeted! ", end="", flush=True)
             else:
                 swap_bool = False
+                self.n_rejected += 1
                 if self.verbose is True:
                     print("  Swap rejected! ", end="", flush=True)
         return swap_bool
