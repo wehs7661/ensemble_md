@@ -4,27 +4,27 @@ ensemble\_md.ensemble_EXE
 .. automodule:: ensemble_md.ensemble_EXE
    :members:
 
-ensemble\_md.analyze_EEXE
-=========================
+ensemble\_md.analysis
+=====================
 
-.. automodule:: ensemble_md.analyze_EEXE
+.. automodule:: ensemble_md.analysis.analyze_trajs
    :members:
 
-ensemble\_md.gmx_parser
-=======================
+.. automodule:: ensemble_md.analysis.analyze_matrix
+   :members:
 
-.. automodule:: ensemble_md.gmx_parser
+.. automodule:: ensemble_md.analysis.calc_free_energy
    :members:
 
 ensemble\_md.utils
 ==================
 
-.. automodule:: ensemble_md.utils
+.. automodule:: ensemble_md.utils.gmx_parser
    :members:
 
-ensemble\_md.exceptions
-=======================
+.. automodule:: ensemble_md.utils.utils
+   :members:
 
-.. automodule:: ensemble_md.exceptions
+.. automodule:: ensemble_md.utils.exceptions
    :members:
 

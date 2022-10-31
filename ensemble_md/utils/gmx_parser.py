@@ -17,8 +17,8 @@ import logging
 import warnings
 from collections import OrderedDict as odict
 
-import ensemble_md.utils as utils
-from ensemble_md.exceptions import ParseError
+from ensemble_md.utils import utils
+from ensemble_md.utils.exceptions import ParseError
 
 
 def parse_log(log_file):

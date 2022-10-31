@@ -14,8 +14,8 @@ so here we are just testing the untested part.
 """
 import os
 import pytest
-import ensemble_md.gmx_parser as gmx_parser
-from ensemble_md.exceptions import ParseError
+from ensemble_md.utils import gmx_parser
+from ensemble_md.utils.exceptions import ParseError
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(current_path, "data")

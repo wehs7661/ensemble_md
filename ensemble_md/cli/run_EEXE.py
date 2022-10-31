@@ -15,7 +15,7 @@ import argparse
 import numpy as np
 from mpi4py import MPI
 
-import ensemble_md.utils as utils
+from ensemble_md.utils import utils
 from ensemble_md.ensemble_EXE import EnsembleEXE
 
 
@@ -137,6 +137,6 @@ def main():
                     units = 'ps'
                 print(f'  - Rep {i}: The weights have been equilibrated at {EEXE.equil[i]} {units} (iteration {idx}).')
 
-        print(f'\n{EEXE.n_rejected} out of {EEXE.n_iter}, or {EEXE.n_rejected / EEXE.n_iter * 100:.1f}% of attempted exchanges were rejected.')  # noqa: E501
+        print(f'\n{EEXE.n_rejected} out of {EEXE.n_swap_attempts}, or {EEXE.n_rejected / EEXE.n_swap_attempts * 100:.1f}% of attempted exchanges were rejected.')  # noqa: E501
 
         print(f'\nTime elapsed: {utils.format_time(time.time() - t1)}')

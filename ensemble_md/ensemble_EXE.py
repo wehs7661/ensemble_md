@@ -23,9 +23,9 @@ from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 
 import gmxapi as gmx
 import ensemble_md
-import ensemble_md.gmx_parser as gmx_parser
-from ensemble_md import utils
-from ensemble_md.exceptions import ParameterError
+from ensemble_md.utils import utils
+from ensemble_md.utils import gmx_parser
+from ensemble_md.utils.exceptions import ParameterError
 
 
 rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
@@ -148,12 +148,13 @@ class EnsembleEXE:
         # 5-6. Map the lamda vectors to state indices
         self.map_lambda2state()
 
-        # 5-7. For counting the number of rejected swaps later:
+        # 5-7. For counting the number swap attempts and the rejected ones
         self.n_rejected = 0
+        self.n_swap_attempts = 0
 
         # 5-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
         # means that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
-        # respectively.
+        # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
 
     def print_params(self):
@@ -407,6 +408,7 @@ class EnsembleEXE:
         else:
             n_ex = self.n_ex
 
+        self.n_swap_attempts += n_ex
         print(f"Swappable pairs: {swappables}")
 
         try:

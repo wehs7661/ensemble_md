@@ -1,11 +1,21 @@
+####################################################################
+#                                                                  #
+#    ensemble_md,                                                  #
+#    a python package for running GROMACS simulation ensembles     #
+#                                                                  #
+#    Written by Wei-Tse Hsu <wehs7661@colorado.edu>                #
+#    Copyright (c) 2022 University of Colorado Boulder             #
+#                                                                  #
+####################################################################
 import sys
 import time
 import argparse
 import warnings
 import numpy as np
 
-import ensemble_md.utils as utils
-import ensemble_md.analysis as analysis
+from ensemble_md.utils import utils
+from ensemble_md.analysis import analyze_trajs
+from ensemble_md.analysis import analyze_matrix
 from ensemble_md.ensemble_EXE import EnsembleEXE
 
 
@@ -41,14 +51,18 @@ def main():
     print('========================================')
     print('- Transitions between replicas')
     print('    Reading in rep_trajs.npy ...')
-    rep_trajs = np.load('rep_trajs.npy')  # the shape should be (n_sim, n_iter + 1)
+    rep_trajs = np.load('rep_trajs.npy')  # Shape: (n_sim, n_iter) (Note that n iterations involve n-1 times swapping.)
 
     print('    Plotting replica transition matrices ...')
-    rep_mtxs = [analysis.traj2transmtx(rep_trajs[i], EEXE.n_sim) for i in range(len(rep_trajs))]
+    rep_mtxs = [analyze_trajs.traj2transmtx(rep_trajs[i], EEXE.n_sim) for i in range(len(rep_trajs))]
     for i in range(len(rep_mtxs)):
-        analysis.plot_matrix(rep_mtxs[i], f'rep_transmtx_config_{i}.png')
-    avg_rep_mtx = np.mean(rep_mtxs, axis=0)  # Should be symmetric! (nescessarily true for each rep transmtx though.)
-    analysis.plot_matrix(avg_rep_mtx, 'rep_transmtx_avg.png')
+        analyze_matrix.plot_matrix(rep_mtxs[i], f'rep_transmtx_config_{i}.png')  # mostly not symmetric b.c. this is for each configuration # noqa: E501
+
+    # Get the replica transition matrix considering all configurations
+    counts = [analyze_trajs.traj2transmtx(rep_trajs[i], EEXE.n_sim, normalize=False) for i in range(len(rep_trajs))]
+    reps_mtx = np.sum(counts, axis=0)  # First sum up the counts. This should be symmetric if n_ex=1. Otherwise it might not be. # noqa: E501
+    reps_mtx /= np.sum(reps_mtx, axis=1)[:, None]   # and then normalize each row
+    analyze_matrix.plot_matrix(reps_mtx, 'rep_transmtx_allconfigs.png')
 
     # Below we only analyze the averaged transition matrix for assessing mixing between replicas
     # Note that if for any of the replicas, the sums of some rows are 0 due to restricted sampling,

@@ -19,4 +19,5 @@ dependencies:
     - alchemlyb
     - seaborn
     - matplotlib
+    - pyemma
     # - mpi4py

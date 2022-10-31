@@ -19,7 +19,7 @@ import ensemble_md
 import gmxapi as gmx
 from mpi4py import MPI
 from ensemble_md.ensemble_EXE import EnsembleEXE
-from ensemble_md.exceptions import ParameterError
+from ensemble_md.utils.exceptions import ParameterError
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(current_path, "data")
