@@ -49,6 +49,8 @@ class EnsembleEXE:
         yml_file : str
             The file name of the YAML file for specifying the parameters for EEXE.
         """
+        self.warnings = []  # Store warnings, if any.
+
         # Step 0: Set up constants
         k = 1.380649e-23
         NA = 6.0221408e23
@@ -77,6 +79,7 @@ class EnsembleEXE:
             "output": "run_EEXE_log.txt",
             "verbose": True,
             "runtime_args": None,
+            "maxwarn": 0,
         }
         for i in optional_args:
             if hasattr(self, i) is False:
@@ -89,7 +92,7 @@ class EnsembleEXE:
         if self.mc_scheme not in ['same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff']  # integer parameters
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'maxwarn']  # integer parameters
         if self.n_ex != 'N^3':
             params_int.append('n_ex')
         for i in params_int:
@@ -128,6 +131,9 @@ class EnsembleEXE:
         else:
             self.fixed_weights = False
 
+        if self.template['symmetrized-transition-matrix'] == 'yes':
+            self.warnings.append('Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.')
+
         # Step 5: Set up derived parameters
         # 5-1. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
         self.n_tot = len(self.template["vdw-lambdas"])
@@ -153,9 +159,18 @@ class EnsembleEXE:
         self.n_swap_attempts = 0
 
         # 5-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
-        # means that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
+        # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
+
+        # 6. Print out warnings and fail if needed:
+        for i in self.warnings:
+            print(f'{i}\n')
+
+        if len(self.warnings) > self.maxwarn:
+            raise ParameterError(
+                    f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them."  # noqa: E501, F541
+                )
 
     def print_params(self):
         """

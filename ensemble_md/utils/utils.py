@@ -132,3 +132,18 @@ def autoconvert(s):
         except (ValueError, AttributeError):
             pass
     raise ValueError("Failed to autoconvert {0!r}".format(s))
+
+
+def get_subplot_dimension(n_subplots):
+    if int(np.sqrt(n_subplots) + 0.5) ** 2 == n_subplots:
+        # perfect square number
+        n_cols = int(np.sqrt(n_subplots))
+    else:
+        n_cols = int(np.floor(np.sqrt(n_subplots))) + 1
+
+    if n_subplots % n_cols == 0:
+        n_rows = int(np.floor(n_subplots / n_cols))
+    else:
+        n_rows = int(np.floor(n_subplots / n_cols)) + 1
+
+    return n_rows, n_cols
