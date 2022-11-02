@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 
 from ensemble_md.utils import utils
 
+
 def plot_acf(models, n_tot, fig_name):
     """
     Plots the state index autocorrelation times for all configurations in a single plot
@@ -32,7 +33,7 @@ def plot_acf(models, n_tot, fig_name):
     plt.figure()
     for i in range(len(models)):
         if models[i] is not None:
-            times, acf = models[i].correlation(range(n_tot))
+            times, acf = models[i].correlation(models[i].active_set)
             plt.plot(times, acf, label=f'Configuration {i}')
     plt.xlabel('Time')   # Need to figure out what exactly this is ...
     plt.ylabel('Autocorrelation function (ACF)')
@@ -40,6 +41,7 @@ def plot_acf(models, n_tot, fig_name):
     plt.legend()
     plt.tight_layout()
     plt.savefig(fig_name, dpi=600)
+
 
 def plot_its(trajs, lags, fig_name, dt=1, units='step'):
     """
@@ -58,7 +60,7 @@ def plot_its(trajs, lags, fig_name, dt=1, units='step'):
         Physical time between frames. The default is 1.
     units : str
         The units of dt. The default is 'ps'.
-    
+
     Returns
     -------
     ts_list : list
@@ -82,7 +84,7 @@ def plot_its(trajs, lags, fig_name, dt=1, units='step'):
     plt.savefig(fig_name, dpi=600)
 
     return ts_list
-    
+
 
 def decide_lagtimes(ts_list):
     """
@@ -97,14 +99,14 @@ def decide_lagtimes(ts_list):
     ----------
     ts_list : list
         An list of instances of the ImpliedTimescales class in PyEMMA.
-    
+
     Returns
     -------
     chosen_lags: list
         A list of lag time automatically determined for each configuration.
     """
     # Workflow: first find the timescales larger than the corressponding lag times,
-    # then perform change change detection.    
+    # then perform change change detection.
     chosen_lags = []
     for i in range(len(ts_list)):   # for each configuration
         lag_list = []   # a list of lags chosen based on each timescale cure
@@ -112,16 +114,16 @@ def decide_lagtimes(ts_list):
         for j in range(len(ts.timescales[0])):  # compare each timescale curve with lag times
             ts_arr = ts.timescales[:, j]  # the j-th timescale curve, length: number of lagtimes
             ts_sub = ts_arr[ts_arr > ts.lagtimes]  # timescales that are larger than the corresponding lag times
-            if len(ts_sub) <= 10:   #  i.e. most timescales < lag time --> no appropirate lag time anyway, use 1
+            if len(ts_sub) <= 10:   # i.e. most timescales < lag time --> no appropirate lag time anyway, use 1
                 lag_list.append(1)
             else:
                 algo = rpt.Window(width=10, model='l2').fit(ts_sub)
                 change_loc = algo.predict(n_bkps=1)  # this returns indices
-                lag_list.append(ts.lagtimes[change_loc[0]])  # not sure if the first change point makes sense. Need to check.
-        print(f'       Suggested lag times (in trajectory frames) for each timescale curve of configuration {i}: {lag_list}')
+                lag_list.append(ts.lagtimes[change_loc[0]])  # not sure if the first change point makes sense. Need to check.  # noqa: E501
+        print(f'       Suggested lag times (in trajectory frames) for each timescale curve of configuration {i}: {lag_list}')  # noqa: E501
 
-        # There might be cases like [6, 1, 1, 1] but using 6 is probably equally bad as 1. 
+        # There might be cases like [6, 1, 1, 1] but using 6 is probably equally bad as 1.
         # If all are larger than one, using the max at least ensure all timescales are roughly constant.
         chosen_lags.append(max(lag_list))  # units: time frame
-    
+
     return chosen_lags

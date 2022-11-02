@@ -132,7 +132,7 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     fig_name : str
         The file name of the png file to be saved (with the extension).
     dt : str or float
-        One timestep between frames in input trajectories in ps. If None, it assumes there are no timeframes but MC steps.
+        One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
     stride : int
         The stride for plotting the time series. The default is 100 if the length of
         any trajectory has more than one million frames. Otherwise, it will be 1. Typically
@@ -191,7 +191,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
     fig_name : str
         The file name of the png file to be saved (with the extension).
     dt : str or float
-        One timestep between frames in input trajectories in ps. If None, it assumes there are no timeframes but MC steps.
+        One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
     stride : int
         The stride for plotting the time series. The default is 100 if the length of
         any trajectory has more than one million frames. Otherwise, it will be 1. Typically
@@ -272,7 +272,7 @@ def plot_transit_time(trajs, N, fig_name, dt=None):
     fig_name : str
         The file name of the png file to be saved (with the extension).
     dt : str or float
-        One timestep between frames in input trajectories in ps. If None, it assumes there are no timeframes but MC steps.
+        One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
 
     Returns
     -------
