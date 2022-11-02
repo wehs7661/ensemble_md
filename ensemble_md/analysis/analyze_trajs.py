@@ -132,7 +132,7 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     fig_name : str
         The file name of the png file to be saved (with the extension).
     dt : str or float
-        The timestep between frames in a trajectory in ps. If None, it assumes there are no timeframes but MC steps.
+        One timestep between frames in input trajectories in ps. If None, it assumes there are no timeframes but MC steps.
     stride : int
         The stride for plotting the time series. The default is 100 if the length of
         any trajectory has more than one million frames. Otherwise, it will be 1. Typically
@@ -191,7 +191,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
     fig_name : str
         The file name of the png file to be saved (with the extension).
     dt : str or float
-        The timestep between frames in a trajectory in ps. If None, it assumes there are no timeframes but MC steps.
+        One timestep between frames in input trajectories in ps. If None, it assumes there are no timeframes but MC steps.
     stride : int
         The stride for plotting the time series. The default is 100 if the length of
         any trajectory has more than one million frames. Otherwise, it will be 1. Typically
@@ -219,7 +219,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
 
     # x_range = [-5, len(trajs[0]) - 1 + 5]
     x_range = [np.min(x), np.max(x)]
-    y_range = [-0.2, np.max(trajs) - 1 + 0.2]
+    y_range = [-0.2, np.max(trajs) + 0.2]
     n_configs = len(trajs)
     n_rows, n_cols = utils.get_subplot_dimension(n_configs)
     _, ax = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(2.5 * n_cols, 2.5 * n_rows))
@@ -272,7 +272,7 @@ def plot_transit_time(trajs, N, fig_name, dt=None):
     fig_name : str
         The file name of the png file to be saved (with the extension).
     dt : str or float
-        The timestep between frames in a trajectory in ps. If None, it assumes there are no timeframes but MC steps.
+        One timestep between frames in input trajectories in ps. If None, it assumes there are no timeframes but MC steps.
 
     Returns
     -------

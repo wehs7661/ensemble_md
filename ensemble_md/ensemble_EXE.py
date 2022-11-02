@@ -134,6 +134,10 @@ class EnsembleEXE:
         if self.template['symmetrized-transition-matrix'] == 'yes':
             self.warnings.append('Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.')
 
+        if self.template['nstlog'] >= self.nst_sim:
+            raise ParameterError(
+                'The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.')  # noqa: E501
+
         # Step 5: Set up derived parameters
         # 5-1. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
         self.n_tot = len(self.template["vdw-lambdas"])
