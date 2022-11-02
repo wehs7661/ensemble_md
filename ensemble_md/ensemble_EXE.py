@@ -134,7 +134,7 @@ class EnsembleEXE:
         if self.template['symmetrized-transition-matrix'] == 'yes':
             self.warnings.append('Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.')
 
-        if self.template['nstlog'] >= self.nst_sim:
+        if self.template['nstlog'] > self.nst_sim:
             raise ParameterError(
                 'The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.')  # noqa: E501
 
