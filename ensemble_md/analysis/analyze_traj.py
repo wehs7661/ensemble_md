@@ -194,7 +194,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
         One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
     stride : int
         The stride for plotting the time series. The default is 100 if the length of
-        any trajectory has more than one million frames. Otherwise, it will be 1. Typically
+        any trajectory has more than 100,000 frames. Otherwise, it will be 1. Typically
         plotting more than 10 million frames can take a lot of memory.
     """
     n_sim = len(trajs)
@@ -212,7 +212,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
             units = 'ps'
 
     if stride is None:
-        if len(trajs[0]) > 1000000:
+        if len(trajs[0]) > 100000:
             stride = 100
         else:
             stride = 1

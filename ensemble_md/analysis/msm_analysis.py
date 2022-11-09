@@ -108,6 +108,7 @@ def decide_lagtimes(ts_list):
     # Workflow: first find the timescales larger than the corressponding lag times,
     # then perform change change detection.
     chosen_lags = []
+    print(f'     Suggested lag times (in trajectory frames) for each timescale curve of each configuration:')
     for i in range(len(ts_list)):   # for each configuration
         lag_list = []   # a list of lags chosen based on each timescale cure
         ts = ts_list[i]
@@ -120,7 +121,7 @@ def decide_lagtimes(ts_list):
                 algo = rpt.Window(width=10, model='l2').fit(ts_sub)
                 change_loc = algo.predict(n_bkps=1)  # this returns indices
                 lag_list.append(ts.lagtimes[change_loc[0]])  # not sure if the first change point makes sense. Need to check.  # noqa: E501
-        print(f'       Suggested lag times (in trajectory frames) for each timescale curve of configuration {i}: {lag_list}')  # noqa: E501
+        print(f'     - Configuration {i}: {lag_list}')  # noqa: E501
 
         # There might be cases like [6, 1, 1, 1] but using 6 is probably equally bad as 1.
         # If all are larger than one, using the max at least ensure all timescales are roughly constant.

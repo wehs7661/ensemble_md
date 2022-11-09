@@ -21,7 +21,7 @@ from deeptime.markov.tools.analysis import is_transition_matrix
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 from ensemble_md.utils import utils  # noqa: E402
-from ensemble_md.analysis import analyze_trajs  # noqa: E402
+from ensemble_md.analysis import analyze_traj  # noqa: E402
 from ensemble_md.analysis import analyze_matrix  # noqa: E402
 from ensemble_md.analysis import msm_analysis  # noqa: E402
 from ensemble_md.analysis import calc_free_energy  # noqa: E402
@@ -66,20 +66,23 @@ def main():
 
     print('\nData analysis of the simulation ensemble')
     print('========================================')
-    print('[ Section 1. Analysis based on transitions between replicas ]')
-    print('1-0. Reading in rep_trajs.npy ...')
 
     # Section 1. Analysis based on transitions betwee replicas
+    print('[ Section 1. Analysis based on transitions between replicas ]')
+    
+    # 1-0. Read in replica-space trajectories
+    print('1-0. Reading in rep_trajs.npy ...')
+    rep_trajs = np.load('rep_trajs.npy')  # Shape: (n_sim, n_iter)
+
     # 1-1. Plot the replica-sapce trajectory
     print('1-1. Plotting transitions between replicas ...')
-    rep_trajs = np.load('rep_trajs.npy')  # Shape: (n_sim, n_iter)
     dt_swap = EEXE.nst_sim * EEXE.dt    # dt for swapping replicas
-    analyze_trajs.plot_rep_trajs(rep_trajs, 'rep_trajs.png', dt_swap)
+    analyze_traj.plot_rep_trajs(rep_trajs, 'rep_trajs.png', dt_swap)
 
     # 1-2. Plot the replica transition matrix
     # Note that 1-2 and 1-3 assume lag time = 1. Will probably change this.
     print('1-2. Plotting the replica transition matrix (considering all configurations) ...')
-    counts = [analyze_trajs.traj2transmtx(rep_trajs[i], EEXE.n_sim, normalize=False) for i in range(len(rep_trajs))]
+    counts = [analyze_traj.traj2transmtx(rep_trajs[i], EEXE.n_sim, normalize=False) for i in range(len(rep_trajs))]
     reps_mtx = np.sum(counts, axis=0)  # First sum up the counts. This should be symmetric if n_ex=1. Otherwise it might not be. # noqa: E501
     reps_mtx /= np.sum(reps_mtx, axis=1)[:, None]   # and then normalize each row
     analyze_matrix.plot_matrix(reps_mtx, 'rep_transmtx_allconfigs.png')
@@ -92,18 +95,20 @@ def main():
     print('\n[ Section 2. Analysis based on transitions between replicas ]')
 
     # 2-0. Stitch the trajectories for each configuration
+    """
     print('2-0. Stitching trajectories for each configuration from dhdl files ...')
     dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
     shifts = np.arange(EEXE.n_sim) * EEXE.s
-    state_trajs = analyze_trajs.stitch_trajs(dhdl_files, rep_trajs, shifts)  # length: the number of replicas
+    state_trajs = analyze_traj.stitch_trajs(dhdl_files, rep_trajs, shifts)  # length: the number of replicas
     print('     Saving state_trajs.npy ...')
     np.save('state_trajs.npy', state_trajs)   # save the stithced trajectories
-
+    """
+    state_trajs = np.load('state_trajs.npy')
     # 2-1. Plot the state-space trajectory
     state_trajs = np.load('state_trajs.npy')
     print('\n2-1. Plotting transitions between different alchemical states ...')
     dt_traj = EEXE.dt * EEXE.template['nstdhdl']  # in ps
-    analyze_trajs.plot_state_trajs(state_trajs, EEXE.state_ranges, 'state_trajs.png', dt_traj)
+    analyze_traj.plot_state_trajs(state_trajs, EEXE.state_ranges, 'state_trajs.png', dt_traj)
 
     # 2-2. Plot the implied timescale as a function of lag time
     print('\n2-2. Plotting the implied timescale as a function of lag time for all configurations ...')
@@ -126,7 +131,7 @@ def main():
 
     for i in range(len(models)):
         print(f'     Plotting the CK-test results for configuration {i} ...')
-        mlags = 10  # this maps to 10 (mlags: multiples of lag times for testing the model)
+        mlags = 5  # this maps to 5 (mlags: multiples of lag times for testing the model)
         nsets = models[i].nstates  # number of metastable states.
         # Note that nstates is the number of unique states in the input trajectores counted with the effective mode
         # (see the documentation) Therefore, if a system barely sampled some of the states, those states will not be
@@ -219,8 +224,8 @@ def main():
     msm_analysis.plot_acf(models, EEXE.n_tot, 'state_ACF.png')
 
     # 2-10. Calculate the end-to-end transit time for each configuration
-    print('\n2-10. Plotting Average end-to-end transit time')
-    t_transit_list, units = analyze_trajs.plot_transit_time(state_trajs, EEXE.n_tot, 'transit_time.png', dt_traj)
+    print('\n2-10. Plotting average end-to-end transit time')
+    t_transit_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, 'transit_time.png', dt_traj)
     for i in range(EEXE.n_sim):
         if t_transit_list[i] is None:
             print(f'       - Configuration {i}: Skipped')
