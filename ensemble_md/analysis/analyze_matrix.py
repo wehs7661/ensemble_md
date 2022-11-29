@@ -140,9 +140,9 @@ def calc_spectral_gap(trans_mtx):
     spectral_gap : float
         The spectral gap of the input transition matrix
     """
-    if np.isclose(np.sum(trans_mtx[0]), 1):
+    if np.isclose(np.sum(trans_mtx[0]), 1, atol=1e-3):
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx.T)
-    elif np.isclose(np.sum(trans_mtx[:, 0]), 1):
+    elif np.isclose(np.sum(trans_mtx[:, 0]), 1, atol=1e-3):
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx)
     else:
         raise ParseError("The input transition matrix is neither right nor left stochastic.")

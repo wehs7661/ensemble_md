@@ -202,7 +202,7 @@ def main():
     for i in range(EEXE.n_sim):
         print(f'       - Configuration {i}: {spectral_gaps[i]:.3f}')
 
-    # 2-7. Calculate the staionary distribution for each configuration
+    # 2-7. Calculate the stationary distribution for each configuration
     print('\n2-7. Calculating the stationary distributions ...')
     pi_list = [m.pi for m in models]
     for i in range(EEXE.n_sim):

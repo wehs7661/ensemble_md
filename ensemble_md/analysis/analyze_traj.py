@@ -259,9 +259,12 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_transit_time(trajs, N, fig_name, dt=None):
+def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
     """
-    Caclulcates and plots the average end-to-end transit time for each configuraiton.
+    Caclulcates and plots the average transit times for each configuration, including the time 
+    it takes from states 0 to k, from k to 0 and from 0 to k back to 0 (i.e. round-trip time).
+    If there are more than 100 round-trips, 3 histograms corresponding to t_0k, t_k0 and t_roundtrip
+    will be generated. 
 
     Parameters
     ----------
@@ -269,20 +272,25 @@ def plot_transit_time(trajs, N, fig_name, dt=None):
         A list of arrays that represent the state space trajectories of all configurations.
     N : int
         The total number of states in the whole alchemical range.
-    fig_name : str
-        The file name of the png file to be saved (with the extension).
+    fig_prefix : str
+        A prefix to use for all generated figures.
     dt : str or float
         One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
 
     Returns
     -------
-    t_transit_list : list
-        A list of end-to-end transit time for each configuration.
+    t_0k_list : list
+        A list of transit time from states 0 to k for each configuration.
+    t_k0_list : list
+        A list of transit time from states k to 0 for each configuration.
+    t_roundtrip_list : list
+        A list of round-trip times for each configuration.
     units : str
-        The units of the end-to-end-transit time.
+        The units of the times.
     """
     if dt is None:
         x = np.arange(len(trajs[0]))
+        units = 'step'
     else:
         x = np.arange(len(trajs[0])) * dt
         if max(x) >= 10000:
@@ -291,58 +299,114 @@ def plot_transit_time(trajs, N, fig_name, dt=None):
         else:
             units = 'ps'
 
-    t_transit_list = []
-    t_transit_avg = []
-    plt.figure()
+    # The lists below are for storing data corresponding to different configurations.
+    t_0k_list, t_k0_list, t_roundtrip_list = [], [], []
+    t_0k_avg, t_k0_avg, t_roundtrip_avg = [], [], []
+
     sci = False  # whether to use scientific notation in the y-axis in the plot
     for i in range(len(trajs)):
         traj = trajs[i]
-        last_visited = None
+        last_visited = None   # last visited end
         k = N - 1
         t_0, t_k = [], []   # time frames visting states 0 and k (k is the other end)
-        t_transit = []  # end-to-end transit time
+        t_0k, t_k0, t_roundtrip = [], [], []   # time spent from statkes 0 to k, k to 0 and the round-trip time (from 0 to k to 0)
         end_0_found, end_k_found = None, None
-
         for t in range(len(traj)):
             if traj[t] == 0:
                 end_0_found = True
                 if last_visited != 0:
                     t_0.append(t)
                     if last_visited == k:
-                        t_transit.append(t - t_k[-1])
+                        t_k0.append(t - t_k[-1])
                 last_visited = 0
             if traj[t] == k:
                 end_k_found = True
                 if last_visited != k:
                     t_k.append(t)
                     if last_visited == 0:
-                        t_transit.append(t - t_0[-1])
+                        t_0k.append(t - t_0[-1])
                 last_visited = k
+        
+        # Here we figure out the round-trip time from t_0k and t_k0. 
+        if len(t_0k) != len(t_k0):   # then it must be len(t_0k) = len(t_k0) + 1, we drop the last element of t_0k
+            t_0k.pop()
+        t_roundtrip = list(np.array(t_0k) + np.array(t_k0))
 
         if end_0_found is True and end_k_found is True:
-            if dt is None:
-                units = 'step'
-            else:
-                t_transit = list(np.array(t_transit) * dt)  # units: ps
+            if dt is not None:
                 units = 'ps'
-                if np.max(t_transit) >= 10000:
+                t_0k = list(np.array(t_0k) * dt)  # units: ps
+                t_k0 = list(np.array(t_k0) * dt)  # units: ps
+                t_roundtrip = list(np.array(t_roundtrip) * dt)  # units: ps
+                
+                if np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
                     units = 'ns'
-                    t_transit = list(np.array(t_transit) / 1000)   # units: ns
+                    t_0k = list(np.array(t_0k) / 1000)   # units: ns
+                    t_k0 = list(np.array(t_k0) / 1000)   # units: ns
+                    t_roundtrip = list(np.array(t_roundtrip) / 1000)   # units: ns
 
-            if np.max(t_transit) >= 10000:
+            t_0k_list.append(t_0k)
+            t_0k_avg.append(np.mean(t_0k))
+
+            t_k0_list.append(t_k0)
+            t_k0_avg.append(np.mean(t_k0))
+
+            t_roundtrip_list.append(t_roundtrip)
+            t_roundtrip_avg.append(np.mean(t_roundtrip))
+
+            if sci is False and np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
                 sci = True
-            t_transit_list.append(t_transit)
-            t_transit_avg.append(np.mean(t_transit))
-            plt.plot(np.arange(len(t_transit)) + 1, t_transit, label=f'Configuration {i}')
         else:
-            t_transit_list.append(None)
+            t_0k_list.append([])
+            t_k0_list.append([])
+            t_roundtrip_list.append([])
 
-    if sci:
-        plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-    plt.xlabel('Event index')
-    plt.ylabel(f'Averaged end-to-end transit time ({units})')
-    plt.grid()
-    plt.legend()
-    plt.savefig(fig_name, dpi=600)
+    # Now we plot! (If there are no events, the figures will just be blank)
+    meta_list = [t_0k_list, t_k0_list, t_roundtrip_list]
+    y_labels = [
+        f'Average transit time from states 0 to k ({units})', 
+        f'Average transit time from states k to 0 ({units})', 
+        f'Average round-trip time ({units})', 
+    ]
+    fig_names = ['t_0k.png', 't_k0.png', 't_roundtrip.png']
+    for t in range(len(meta_list)):
+        t_list = meta_list[t]
+        if np.max(t_list) <= 10:
+            marker = 'o'
+        else:
+            marker = ''
 
-    return t_transit_list, units
+        plt.figure()
+        for i in range(len(t_list)):    # t_list[i] is the list for configuration i
+            plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)
+        if np.array(t_list).shape != (1, 0):  # at least one configuration has at least one event
+            if np.max(t_list) >= 10000:
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+        plt.xlabel('Event index')
+        plt.ylabel(f'{y_labels[t]}')
+        plt.grid()
+        plt.legend()
+        if fig_prefix is None:
+            plt.savefig(fig_names[t])
+        else:
+            plt.savefig(f'{fig_prefix}_{fig_names[t]}', dpi=600)
+
+        lens = [len(t_list[i]) for i in range(len(t_list))]
+        if np.min(lens) >= 100:  # plot a histogram
+            counts, bins = np.histogram(t_list[i])
+
+            plt.figure()
+            for i in range(len(t_list)):
+                plt.hist(t_list[i], bins=int(len(t_list[i]) / 20), label=f'Configuration {i}')
+                if max(counts) >= 10000:
+                    plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+            plt.xlabel(f'{y_labels[t]}')
+            plt.ylabel('Event count')
+            plt.grid()
+            plt.legend()
+            if fig_prefix is None:
+                plt.savefig(f'hist_{fig_names[t]}', dpi=600)
+            else:
+                plt.savefig(f'{fig_prefix}_hist_{fig_names[t]}', dpi=600)
+
+    return t_0k_list, t_k0_list, t_roundtrip_list, units
