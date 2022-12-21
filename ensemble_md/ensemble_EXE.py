@@ -296,7 +296,7 @@ class EnsembleEXE:
         MDP = copy.deepcopy(new_template)
         MDP["tinit"] = self.nst_sim * self.dt * iter_idx
         MDP["nsteps"] = self.nst_sim
-        MDP["init-lambda-state"] = (states[sim_idx] - sim_idx * self.s)  # 2nd term is for shifting from the global to local index.  # noqa: E501
+        # MDP["init-lambda-state"] = (states[sim_idx] - sim_idx * self.s)  # 2nd term is for shifting from the global to local index.  # noqa: E501
         MDP["init-lambda-weights"] = weights[sim_idx]
         MDP["init-wl-delta"] = wl_delta[sim_idx]
 

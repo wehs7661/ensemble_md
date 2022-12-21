@@ -328,8 +328,11 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
                 last_visited = k
         
         # Here we figure out the round-trip time from t_0k and t_k0. 
-        if len(t_0k) != len(t_k0):   # then it must be len(t_0k) = len(t_k0) + 1, we drop the last element of t_0k
-            t_0k.pop()
+        if len(t_0k) != len(t_k0):   # then it must be len(t_0k) = len(t_k0) + 1 or len(t_k0) = len(t_0k) + 1, so we drop the last element of the larger list
+            if len(t_0k) > len(t_k0):
+                t_0k.pop()
+            else:
+                t_k0.pop()
         t_roundtrip = list(np.array(t_0k) + np.array(t_k0))
 
         if end_0_found is True and end_k_found is True:
@@ -338,7 +341,6 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
                 t_0k = list(np.array(t_0k) * dt)  # units: ps
                 t_k0 = list(np.array(t_k0) * dt)  # units: ps
                 t_roundtrip = list(np.array(t_roundtrip) * dt)  # units: ps
-                
                 if np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
                     units = 'ns'
                     t_0k = list(np.array(t_0k) / 1000)   # units: ns
@@ -371,7 +373,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
     fig_names = ['t_0k.png', 't_k0.png', 't_roundtrip.png']
     for t in range(len(meta_list)):
         t_list = meta_list[t]
-        if np.max(t_list) <= 10:
+        len_list = [len(i) for i in t_list]
+        if np.max(len_list) <= 10:
             marker = 'o'
         else:
             marker = ''
@@ -380,7 +383,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
         for i in range(len(t_list)):    # t_list[i] is the list for configuration i
             plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)
         if np.array(t_list).shape != (1, 0):  # at least one configuration has at least one event
-            if np.max(t_list) >= 10000:
+            if np.max(np.max((t_list))) >= 10000:
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
         plt.xlabel('Event index')
         plt.ylabel(f'{y_labels[t]}')

@@ -35,12 +35,12 @@ def initialize(args):
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The input YAML file used to run the EEXE simulation.')
+                        help='The input YAML file used to run the EEXE simulation. (Default: params.yaml)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
                         default='analyze_EEXE_log.txt',
-                        help='The output log file that contains the analysis results of EEXE.')
+                        help='The output log file that contains the analysis results of EEXE. (Default: analyze_EEXE_log.txt)')
     args_parse = parser.parse_args(args)
 
     return args_parse

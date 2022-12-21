@@ -33,7 +33,6 @@ def plot_acf(models, n_tot, fig_name):
     plt.figure()
     for i in range(len(models)):
         if models[i] is not None:
-            print(models[i].active_set)
             times, acf = models[i].correlation(models[i].active_set)
             plt.plot(times, acf, label=f'Configuration {i}')
     plt.xlabel('Time')   # Need to figure out what exactly this is ...
