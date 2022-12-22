@@ -9,6 +9,7 @@
 ####################################################################
 import os
 import sys
+import glob
 import time
 import shutil
 import argparse
@@ -27,6 +28,16 @@ def initialize(args):
                         type=str,
                         default='params.yaml',
                         help='The input YAML file that contains EEXE parameters.')
+    parser.add_argument('-c',
+                        '--ckpt',
+                        type=str,
+                        default='rep_trajs.npy',
+                        help='The NPY file containing the replica-space trajectories. This file is a necessary checkpoint file for extending the simulaiton.')
+    parser.add_argument('-g',
+                        '--g_vecs',
+                        type=str,
+                        default='g_vecs.npy',
+                        help='The NPY file containing the timeseries of the whole-range alchemical weights. This file is a necessary input if ones wants to update the file when extending the simulation.')
     args_parse = parser.parse_args(args)
 
     return args_parse
@@ -43,34 +54,57 @@ def main():
     sys.stderr = utils.Logger(logfile=EEXE.output)
     EEXE.print_params()
 
-    # Step 2: Perform the 1st iteration (index 0)
-    # 2-1. Set up input files for all simulations with 1 rank
-    if rank == 0:
-        for i in range(EEXE.n_sim):
-            os.mkdir(f'sim_{i}')
-            os.mkdir(f'sim_{i}/iteration_0')
-            MDP = EEXE.initialize_MDP(i)
-            MDP.write(f"sim_{i}/iteration_0/{EEXE.mdp.split('/')[-1]}", skipempty=True)
-            shutil.copy(f'{EEXE.gro}', f"sim_{i}/iteration_0/{EEXE.gro.split('/')[-1]}")
-            shutil.copy(f'{EEXE.top}', f"sim_{i}/iteration_0/{EEXE.top.split('/')[-1]}")
-
-    # 2-2. Run the first ensemble of simulations
-    md = EEXE.run_EEXE(0)
-
-    # 2-3. Restructure the directory (move the files from mdrun_0_i0_* to sim_*/iteration_0)
-    if rank == 0:
-        work_dir = md.output.directory.result()
-        for i in range(EEXE.n_sim):
-            if EEXE.verbose is True:
-                print(f'  Moving files from {work_dir[i].split("/")[-1]}/ to sim_{i}/iteration_0/ ...')
-                print(f'  Removing the empty folder {work_dir[i].split("/")[-1]} ...')
-            os.system(f'mv {work_dir[i]}/* sim_{i}/iteration_0/.')
-            os.rmdir(work_dir[i])
-
-    # Step 3: Swap the coordinates
-    g_vecs = []
-    for i in range(1, EEXE.n_iter):
+    # Step 2: If there is no checkpoint file found/provided, perform the 1st iteration (index 0)
+    if os.path.isfile(args.ckpt) is False:
+        # 2-1. Set up input files for all simulations with 1 rank
         if rank == 0:
+            for i in range(EEXE.n_sim):
+                os.mkdir(f'sim_{i}')
+                os.mkdir(f'sim_{i}/iteration_0')
+                MDP = EEXE.initialize_MDP(i)
+                MDP.write(f"sim_{i}/iteration_0/{EEXE.mdp.split('/')[-1]}", skipempty=True)
+                shutil.copy(f'{EEXE.gro}', f"sim_{i}/iteration_0/{EEXE.gro.split('/')[-1]}")
+                shutil.copy(f'{EEXE.top}', f"sim_{i}/iteration_0/{EEXE.top.split('/')[-1]}")
+
+        # 2-2. Run the first ensemble of simulations
+        md = EEXE.run_EEXE(0)
+
+        # 2-3. Restructure the directory (move the files from mdrun_0_i0_* to sim_*/iteration_0)
+        if rank == 0:
+            work_dir = md.output.directory.result()
+            for i in range(EEXE.n_sim):
+                if EEXE.verbose is True:
+                    print(f'  Moving files from {work_dir[i].split("/")[-1]}/ to sim_{i}/iteration_0/ ...')
+                    print(f'  Removing the empty folder {work_dir[i].split("/")[-1]} ...')
+                os.system(f'mv {work_dir[i]}/* sim_{i}/iteration_0/.')
+                os.rmdir(work_dir[i])
+        start_idx = 1
+    else:
+        # If there is a checkpoint file, we see the execution as an exntension of an EEXE simulation
+        ckpt_data = np.load(args.ckpt)
+        start_idx = len(ckpt_data[0]) - 1
+        print(f'\nGetting prepared to extend the EEXE simulation from iteration {start_idx} ...')
+
+        print('Deleting data generated after the checkpoint ...')
+        corrupted = glob.glob('gmxapi.commandline.cli*') # corrupted iteration
+        corrupted.extend(glob.glob('mdrun*'))
+        for i in corrupted:
+            shutil.rmtree(i)
+
+        for i in range(EEXE.n_sim):
+            n_finished = len(next(os.walk(f'sim_{i}'))[1]) # number of finished iterations
+            for j in range(start_idx, n_finished):
+                print(f'  Deleting the folder sim_{i}/iteration_{j}')
+                shutil.rmtree(f'sim_{i}/iteration_{j}')
+        
+        # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
+        EEXE.rep_trajs = [list(i) for i in ckpt_data]
+        if os.path.isfile(args.g_vecs) is True:
+            EEXE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
+
+    for i in range(start_idx, EEXE.n_iter):
+        if rank == 0:
+            # Step 3: Swap the coordinates
             # 3-1. For all the replica simulations,
             #   (1) Find the last sampled state and the corresponding lambda values from the DHDL files.
             #   (2) Find the final Wang-Landau incrementors and weights from the LOG files.
@@ -88,7 +122,7 @@ def main():
 
             # 3-4. Combine the weights. Note that this is just for initializing the next iteration and is indepdent of swapping itself.  # noqa: E501
             weights, g_vec = EEXE.combine_weights(weights, method=EEXE.w_scheme)
-            g_vecs.append(g_vec)
+            EEXE.g_vecs.append(g_vec)
 
             # 3-5. Modify the MDP files and swap out the GRO files (if needed)
             # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
@@ -115,7 +149,16 @@ def main():
                 os.system(f'mv {work_dir[j]}/* sim_{j}/iteration_{i}/.')
                 os.rmdir(work_dir[j])
 
-    np.save('g_vecs.npy', g_vecs)
+        # 4-3. Checkpoint as needed
+        if (i + 1) % EEXE.n_ckpt == 0:
+            print('\n----- Saving .npy files to checkpoint the simulation ---')
+            if EEXE.g_vecs[0] is not None:
+                np.save('g_vecs.npy', EEXE.g_vecs)
+            np.save('rep_trajs.npy', EEXE.rep_trajs)
+
+    # Save the npy files at the end of the simulation anyway.
+    if EEXE.g_vecs[0] is not None:
+        np.save('g_vecs.npy', EEXE.g_vecs)
     np.save('rep_trajs.npy', EEXE.rep_trajs)
 
     # Step 5: Write a summary for the simulation ensemble

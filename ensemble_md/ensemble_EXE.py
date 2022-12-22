@@ -80,6 +80,7 @@ class EnsembleEXE:
             "verbose": True,
             "runtime_args": None,
             "maxwarn": 0,
+            "n_ckpt": 100,
         }
         for i in optional_args:
             if hasattr(self, i) is False:
@@ -166,6 +167,10 @@ class EnsembleEXE:
         # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
+
+        # 5-9. The time series of the (processed) whole-range alchemical weights
+        # If no weight combination is applied, self.g_vecs will just be a list of None's.
+        self.g_vecs = []
 
         # 6. Print out warnings and fail if needed:
         for i in self.warnings:
@@ -296,7 +301,7 @@ class EnsembleEXE:
         MDP = copy.deepcopy(new_template)
         MDP["tinit"] = self.nst_sim * self.dt * iter_idx
         MDP["nsteps"] = self.nst_sim
-        # MDP["init-lambda-state"] = (states[sim_idx] - sim_idx * self.s)  # 2nd term is for shifting from the global to local index.  # noqa: E501
+        MDP["init-lambda-state"] = (states[sim_idx] - sim_idx * self.s)  # 2nd term is for shifting from the global to local index.  # noqa: E501
         MDP["init-lambda-weights"] = weights[sim_idx]
         MDP["init-wl-delta"] = wl_delta[sim_idx]
 
