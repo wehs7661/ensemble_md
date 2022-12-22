@@ -80,27 +80,28 @@ def main():
                 os.rmdir(work_dir[i])
         start_idx = 1
     else:
-        # If there is a checkpoint file, we see the execution as an exntension of an EEXE simulation
-        ckpt_data = np.load(args.ckpt)
-        start_idx = len(ckpt_data[0]) - 1
-        print(f'\nGetting prepared to extend the EEXE simulation from iteration {start_idx} ...')
+        if rank == 0:
+            # If there is a checkpoint file, we see the execution as an exntension of an EEXE simulation
+            ckpt_data = np.load(args.ckpt)
+            start_idx = len(ckpt_data[0]) - 1
+            print(f'\nGetting prepared to extend the EEXE simulation from iteration {start_idx} ...')
 
-        print('Deleting data generated after the checkpoint ...')
-        corrupted = glob.glob('gmxapi.commandline.cli*') # corrupted iteration
-        corrupted.extend(glob.glob('mdrun*'))
-        for i in corrupted:
-            shutil.rmtree(i)
+            print('Deleting data generated after the checkpoint ...')
+            corrupted = glob.glob('gmxapi.commandline.cli*') # corrupted iteration
+            corrupted.extend(glob.glob('mdrun*'))
+            for i in corrupted:
+                shutil.rmtree(i)
 
-        for i in range(EEXE.n_sim):
-            n_finished = len(next(os.walk(f'sim_{i}'))[1]) # number of finished iterations
-            for j in range(start_idx, n_finished):
-                print(f'  Deleting the folder sim_{i}/iteration_{j}')
-                shutil.rmtree(f'sim_{i}/iteration_{j}')
-        
-        # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
-        EEXE.rep_trajs = [list(i) for i in ckpt_data]
-        if os.path.isfile(args.g_vecs) is True:
-            EEXE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
+            for i in range(EEXE.n_sim):
+                n_finished = len(next(os.walk(f'sim_{i}'))[1]) # number of finished iterations
+                for j in range(start_idx, n_finished):
+                    print(f'  Deleting the folder sim_{i}/iteration_{j}')
+                    shutil.rmtree(f'sim_{i}/iteration_{j}')
+            
+            # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
+            EEXE.rep_trajs = [list(i) for i in ckpt_data]
+            if os.path.isfile(args.g_vecs) is True:
+                EEXE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
 
     for i in range(start_idx, EEXE.n_iter):
         if rank == 0:
@@ -139,8 +140,8 @@ def main():
         # 4-1. Run another ensemble of simulations
         md = EEXE.run_EEXE(i)
 
-        # 4-2. Restructure the directory (move the files from mdrun_{i}_i0_* to sim_*/iteration_{i})
         if rank == 0:
+            # 4-2. Restructure the directory (move the files from mdrun_{i}_i0_* to sim_*/iteration_{i})
             work_dir = md.output.directory.result()
             for j in range(EEXE.n_sim):
                 if EEXE.verbose is True:
@@ -149,17 +150,18 @@ def main():
                 os.system(f'mv {work_dir[j]}/* sim_{j}/iteration_{i}/.')
                 os.rmdir(work_dir[j])
 
-        # 4-3. Checkpoint as needed
-        if (i + 1) % EEXE.n_ckpt == 0:
-            print('\n----- Saving .npy files to checkpoint the simulation ---')
-            if EEXE.g_vecs[0] is not None:
-                np.save('g_vecs.npy', EEXE.g_vecs)
-            np.save('rep_trajs.npy', EEXE.rep_trajs)
+            # 4-3. Checkpoint as needed
+            if (i + 1) % EEXE.n_ckpt == 0:
+                print('\n----- Saving .npy files to checkpoint the simulation ---')
+                if EEXE.g_vecs[0] is not None:
+                    np.save('g_vecs.npy', EEXE.g_vecs)
+                np.save('rep_trajs.npy', EEXE.rep_trajs)
 
     # Save the npy files at the end of the simulation anyway.
-    if EEXE.g_vecs[0] is not None:
-        np.save('g_vecs.npy', EEXE.g_vecs)
-    np.save('rep_trajs.npy', EEXE.rep_trajs)
+    if rank == 0:
+        if EEXE.g_vecs[0] is not None:
+            np.save('g_vecs.npy', EEXE.g_vecs)
+        np.save('rep_trajs.npy', EEXE.rep_trajs)
 
     # Step 5: Write a summary for the simulation ensemble
     if rank == 0:
