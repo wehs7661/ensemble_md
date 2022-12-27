@@ -78,7 +78,7 @@ jobs:
         python -m pip install --upgrade pip setuptools
         pip install --upgrade mpi4py
         cd ../python_packaging/gmxapi
-        pip install --verbose .
+        RDMAV_FORK_SAFE=1 pip install --verbose .
         python -c "import gmxapi; print(gmxapi.__version__)"
 
     - name: Install ensemble_md dependencies
