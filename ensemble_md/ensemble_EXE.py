@@ -147,7 +147,8 @@ class EnsembleEXE:
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
 
         # 5-3. A list of sets of state indices
-        self.state_ranges = [set(np.arange(i, i + self.n_sub)) for i in range(self.n_sim)]
+        start_idx = [i * self.s for i in range(self.n_sim)]
+        self.state_ranges = [set(np.arange(i, i + self.n_sub)) for i in start_idx]
 
         # 5-4. A list of simulation statuses to be updated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated

@@ -13,6 +13,7 @@ The `utils` module provides useful utility functions.
 import os
 import sys
 import natsort
+import datetime
 import numpy as np
 
 
@@ -97,17 +98,21 @@ def format_time(t):
     """
     This function convert time in seconds to the "most readable" format.
     """
-    import datetime
-
     hh_mm_ss = str(datetime.timedelta(seconds=t)).split(":")
-    hh, mm, ss = float(hh_mm_ss[0]), float(hh_mm_ss[1]), float(hh_mm_ss[2])
-    if hh == 0:
-        if mm == 0:
-            t_str = f"{ss:.1f} second(s)"
-        else:
-            t_str = f"{mm:.0f} minute(s) {ss:.0f} second(s)"
+    
+    if "day" in hh_mm_ss[0]:
+        # hh_mm_ss[0] will contain "day" and cannot be converted to float
+        hh, mm, ss = hh_mm_ss[0], float(hh_mm_ss[1]), float(hh_mm_ss[2])
+        t_str = f"{hh} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)"
     else:
-        t_str = f"{hh:.0f} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)"
+        hh, mm, ss = float(hh_mm_ss[0]), float(hh_mm_ss[1]), float(hh_mm_ss[2])
+        if hh == 0:
+            if mm == 0:
+                t_str = f"{ss:.1f} second(s)"
+            else:
+                t_str = f"{mm:.0f} minute(s) {ss:.0f} second(s)"
+        else:
+            t_str = f"{hh:.0f} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)"
 
     return t_str
 

@@ -48,7 +48,8 @@ def main():
     args = initialize(sys.argv[1:])
 
     # Step 1: Set up MPI rank and instantiate EnsembleEXE to set up EEXE parameters
-    rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()  # Note that this is a GLOBAL variable
     EEXE = EnsembleEXE(args.yaml)
     sys.stdout = utils.Logger(logfile=EEXE.output)
     sys.stderr = utils.Logger(logfile=EEXE.output)
@@ -102,6 +103,10 @@ def main():
             EEXE.rep_trajs = [list(i) for i in ckpt_data]
             if os.path.isfile(args.g_vecs) is True:
                 EEXE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
+        else:
+            start_idx = None
+    
+        start_idx = comm.bcast(start_idx, root=0)  # so that all the ranks are aware of start_idx
 
     for i in range(start_idx, EEXE.n_iter):
         if rank == 0:
