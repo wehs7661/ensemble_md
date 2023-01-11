@@ -63,6 +63,10 @@ def initialize(args):
                         default=False,
                         action='store_true',
                         help='Whether to perform free energy calculations.')
+    parser.add_argument('-d',
+                        '--dir',
+                        default='analysis',
+                        help='The name of the folder for storing the analysis results.')
     args_parse = parser.parse_args(args)
 
     return args_parse
@@ -74,6 +78,7 @@ def main():
     warnings.simplefilter(action='ignore', category=RuntimeWarning)
     sys.stdout = utils.Logger(logfile=args.output)
     sys.stderr = utils.Logger(logfile=args.output)
+    section_idx = 0
 
     rc('font', **{
         'family': 'sans-serif',
@@ -83,15 +88,22 @@ def main():
     rc('mathtext', **{'default': 'regular'})
     plt.rc('font', family='serif')
 
+    print(f'Command line: {" ".join(sys.argv)}')
+
     EEXE = EnsembleEXE(args.yaml)
     EEXE.print_params()
+
+    # Check if the folder for saving the outputs exist. If not, create the folder.
+    if os.path.exists(args.dir) is False:
+        os.mkdir(args.dir)
 
     print('\nData analysis of the simulation ensemble')
     print('========================================')
 
     # Section 1. Analysis based on transitions between replicas
     print('[ Section 1. Analysis based on transitions between replicas ]')
-    
+    section_idx += 1
+
     # 1-0. Read in replica-space trajectories
     print('1-0. Reading in the replica-space trajectory ...')
     rep_trajs = np.load(args.rep_trajs)  # Shape: (n_sim, n_iter)
@@ -99,14 +111,14 @@ def main():
     # 1-1. Plot the replica-sapce trajectory
     print('1-1. Plotting transitions between replicas ...')
     dt_swap = EEXE.nst_sim * EEXE.dt    # dt for swapping replicas
-    analyze_traj.plot_rep_trajs(rep_trajs, 'rep_trajs.png', dt_swap)
+    analyze_traj.plot_rep_trajs(rep_trajs, f'{args.dir}/rep_trajs.png', dt_swap)
 
     # 1-2. Plot the replica transition matrix
     print('1-2. Plotting the replica transition matrix (considering all configurations) ...')
     counts = [analyze_traj.traj2transmtx(rep_trajs[i], EEXE.n_sim, normalize=False) for i in range(len(rep_trajs))]
     reps_mtx = np.sum(counts, axis=0)  # First sum up the counts. This should be symmetric if n_ex=1. Otherwise it might not be. # noqa: E501
     reps_mtx /= np.sum(reps_mtx, axis=1)[:, None]   # and then normalize each row
-    analyze_matrix.plot_matrix(reps_mtx, 'rep_transmtx_allconfigs.png')
+    analyze_matrix.plot_matrix(reps_mtx, f'{args.dir}/rep_transmtx_allconfigs.png')
 
     # 1-3. Calculate the spectral gap for the replica transition amtrix
     spectral_gap = analyze_matrix.calc_spectral_gap(reps_mtx)
@@ -114,6 +126,7 @@ def main():
 
     # Section 2. Analysis based on transitions between states
     print('\n[ Section 2. Analysis based on transitions between states ]')
+    section_idx += 1
 
     # 2-0. Stitch the trajectories for each configuration
     if os.path.isfile(args.state_trajs) is True:
@@ -131,7 +144,7 @@ def main():
     # 2-1. Plot the state-space trajectory
     print('\n2-1. Plotting transitions between different alchemical states ...')
     dt_traj = EEXE.dt * EEXE.template['nstdhdl']  # in ps
-    analyze_traj.plot_state_trajs(state_trajs, EEXE.state_ranges, 'state_trajs.png', dt_traj)
+    analyze_traj.plot_state_trajs(state_trajs, EEXE.state_ranges, f'{args.dir}/state_trajs.png', dt_traj)
 
     # 2-2. Plot the overall state transition matrices calculated from the state-space trajectories
     print('\n2-2. Plotting the overall state transition matrices ...')
@@ -139,7 +152,7 @@ def main():
     for i in range(EEXE.n_sim):
         mtx = analyze_traj.traj2transmtx(state_trajs[i], EEXE.n_tot)
         mtx_list.append(mtx)
-        analyze_matrix.plot_matrix(mtx, f'config_{i}_state_transmtx.png')
+        analyze_matrix.plot_matrix(mtx, f'{args.dir}/config_{i}_state_transmtx.png')
 
     # 2-3. For each configurration, calculate the spectral gap of the overall transition matrix obtained in step 2-2.
     print('\n2-3. Calculating the spectral gap of the state transition matrices ...')
@@ -165,7 +178,7 @@ def main():
 
     # 2-6. Calculate transit times for each configuration
     print('\n2-6. Plotting the average transit times ...')
-    t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, dt=dt_traj)
+    t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, dt=dt_traj, folder=args.dir)
     meta_list = [t_0k_list, t_k0_list, t_roundtrip_list]
     t_names = [
         f'\n   - Average transit time from states 0 to k', 
@@ -183,6 +196,8 @@ def main():
         print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.1f} {units}')
 
     if args.msm is True:
+        section_idx += 1
+
         # Section 3. Analysis based on Markov state models
         print('\n[ Section 3. Analysis based on Markov state models ]')
 
@@ -190,7 +205,7 @@ def main():
         print('\n3-1. Plotting the implied timescale as a function of lag time for all configurations ...')
         lags = np.arange(EEXE.lag_spacing, EEXE.lag_max + EEXE.lag_spacing, EEXE.lag_spacing)
         # lags could also be None and decided automatically. Could consider using that.
-        ts_list = msm_analysis.plot_its(state_trajs, lags, fig_name='implied_timescales.png', dt=dt_traj, units='ps')
+        ts_list = msm_analysis.plot_its(state_trajs, lags, fig_name=f'{args.dir}/implied_timescales.png', dt=dt_traj, units='ps')
 
         # 3-2. Decide a lag time for building MSM
         print('\n3-2. Calculating recommended lag times for building MSMs ...')
@@ -217,7 +232,7 @@ def main():
             cktest = models[i].cktest(nsets=nsets, mlags=mlags, show_progress=False)
             pyemma.plots.plot_cktest(cktest, dt=dt_traj, units='ps')
             plt.tight_layout(rect=[0, 0.03, 1, 0.98])
-            plt.savefig(f'config_{i}_CKtest.png', dpi=600)
+            plt.savefig(f'{args.dir}/config_{i}_CKtest.png', dpi=600)
 
         # Additionally, check if the sampling is poor for each configuration
         for i in range(len(models)):
@@ -257,11 +272,11 @@ def main():
 
         avg_mtx = np.mean(mtx_list_modified, axis=0)
         print('     Saving transmtx.npy (plotted transition matrices)...')
-        np.save('transmtx.npy', mtx_list_modified)
+        np.save(f'{args.dir}/transmtx.npy', mtx_list_modified)
 
         for i in range(EEXE.n_sim):
-            analyze_matrix.plot_matrix(mtx_list[i], f'config_{i}_state_transmtx_msm.png')
-        analyze_matrix.plot_matrix(avg_mtx, 'state_transmtx_avg_msm.png')
+            analyze_matrix.plot_matrix(mtx_list[i], f'{args.dir}/config_{i}_state_transmtx_msm.png')
+        analyze_matrix.plot_matrix(avg_mtx, f'{args.dir}/state_transmtx_avg_msm.png')
 
         # Note that if a configuration never visited a certain replica, the rows in the alchemical range of that
         # replica will only have 0 entries. Below we check if this is the case.
@@ -296,48 +311,45 @@ def main():
 
         # 3-8. Calculate the state index correlation time for each configuration
         print('\n3-8. Plotting the state index correlation times for all configurations ...')
-        msm_analysis.plot_acf(models, EEXE.n_tot, 'state_ACF.png')
+        msm_analysis.plot_acf(models, EEXE.n_tot, f'{args.dir}/state_ACF.png')
 
     # Section 4 (or Section 3). Free energy calculations
-    if args.msm is True:
-        sec_str = '4'
-    else:
-        sec_str = '3'
+    if args.free_energy is True:
+        section_idx += 1
+        print(f'\n[ Section {section_idx}. Free energy calculations ]')
+        u_nk_list, dHdl_list = [], []
+        for i in range(EEXE.n_sim):
+            print(f'Reading dhdl files of replica {i} ...')
+            files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
+            u_nk, dHdl = calc_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)
+            u_nk_list.append(u_nk)
+            dHdl_list.append(dHdl)
 
-    print(f'\n[ Section {sec_str}. Free energy calculations ]')
-    u_nk_list, dHdl_list = [], []
-    for i in range(EEXE.n_sim):
-        print(f'Reading dhdl files of replica {i} ...')
-        files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
-        u_nk, dHdl = calc_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)
-        u_nk_list.append(u_nk)
-        dHdl_list.append(dHdl)
+        if EEXE.get_u_nk is True:
+            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(u_nk_list, EEXE.state_ranges)
+        else:
+            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(dHdl_list, EEXE.state_ranges)
+        
+        for i in range(EEXE.n_sim):
+            df_str = ''
+            print(f'Free energy profile of replica {i} (range: {EEXE.state_ranges[i]}): ')
+            for j in range(EEXE.n_sub):
+                if j == 0:
+                    df_str += '0.000 +/- 0.000 kT'
+                else:
+                    df_str += f', {df_all[i][j]: .3f} +/- {err_all[i][j]: .3f} kT'
+            print(f"  {df_str}")
 
-    if EEXE.get_u_nk is True:
-        df, err, df_all, err_all = calc_free_energy.calculate_free_energy(u_nk_list, EEXE.state_ranges)
-    else:
-        df, err, df_all, err_all = calc_free_energy.calculate_free_energy(dHdl_list, EEXE.state_ranges)
-    
-    for i in range(EEXE.n_sim):
+        print('The full-range free energy profile averaged over all replicas:')
         df_str = ''
-        print(f'Free energy profile of replica {i} (range: {EEXE.state_ranges[i]}): ')
-        for j in range(EEXE.n_sub):
-            if j == 0:
+        for i in range(EEXE.n_tot):
+            if i == 0:
                 df_str += '0.000 +/- 0.000 kT'
             else:
-                df_str += f', {df_all[i][j]: .3f} +/- {err_all[i][j]: .3f} kT'
+                df_str += f', {df[i]: .3f} +/- {err[i]: .3f} kT'
         print(f"  {df_str}")
 
-    print('The full-range free energy profile averaged over all replicas:')
-    df_str = ''
-    for i in range(EEXE.n_tot):
-        if i == 0:
-            df_str += '0.000 +/- 0.000 kT'
-        else:
-            df_str += f', {df[i]: .3f} +/- {err[i]: .3f} kT'
-    print(f"  {df_str}")
-
-    print(f'The free energy difference between the coupled and decoupled states: {np.sum(df): .3f} +/- {np.sqrt(np.sum(np.power(err, 2))): .3f} kT')
+        print(f'The free energy difference between the coupled and decoupled states: {np.sum(df): .3f} +/- {np.sqrt(np.sum(np.power(err, 2))): .3f} kT')
 
     """
     # TODO: Note that if no weight combination is used, g_vecs will be a list of None. This needs to be fixed.

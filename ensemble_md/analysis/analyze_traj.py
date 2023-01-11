@@ -259,7 +259,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
+def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     """
     Caclulcates and plots the average transit times for each configuration, including the time 
     it takes from states 0 to k, from k to 0 and from 0 to k back to 0 (i.e. round-trip time).
@@ -276,6 +276,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
         A prefix to use for all generated figures.
     dt : str or float
         One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
+    folder : str
+        The directory for saving the figures
 
     Returns
     -------
@@ -390,9 +392,9 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
         plt.grid()
         plt.legend()
         if fig_prefix is None:
-            plt.savefig(fig_names[t])
+            plt.savefig(f'{folder}/{fig_names[t]}')
         else:
-            plt.savefig(f'{fig_prefix}_{fig_names[t]}', dpi=600)
+            plt.savefig(f'{folder}/{fig_prefix}_{fig_names[t]}', dpi=600)
 
         lens = [len(t_list[i]) for i in range(len(t_list))]
         if np.min(lens) >= 100:  # plot a histogram
@@ -408,8 +410,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None):
             plt.grid()
             plt.legend()
             if fig_prefix is None:
-                plt.savefig(f'hist_{fig_names[t]}', dpi=600)
+                plt.savefig(f'{folder}/hist_{fig_names[t]}', dpi=600)
             else:
-                plt.savefig(f'{fig_prefix}_hist_{fig_names[t]}', dpi=600)
+                plt.savefig(f'{folder}/{fig_prefix}_hist_{fig_names[t]}', dpi=600)
 
     return t_0k_list, t_k0_list, t_roundtrip_list, units
