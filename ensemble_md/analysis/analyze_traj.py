@@ -21,7 +21,7 @@ from ensemble_md.utils import utils
 
 def extract_state_traj(dhdl):
     """
-    Extract the state-space trajectory from a dhdl file.
+    Extracts the state-space trajectory from a dhdl file.
 
     Parameters
     ----------
@@ -40,7 +40,7 @@ def extract_state_traj(dhdl):
 
 def stitch_trajs(dhdl_files, rep_trajs, shifts):
     """
-    Stitch the state-space trajectories for each configuration from dhdl files of different iterations.
+    Stitches the state-space trajectories for each configuration from dhdl files of different iterations.
 
     Parameters
     ----------
@@ -91,7 +91,7 @@ def stitch_trajs(dhdl_files, rep_trajs, shifts):
 
 def traj2transmtx(traj, N, normalize=True):
     """
-    Compute the transition matrix given a trajectory. For example, if a state-space
+    Computes the transition matrix given a trajectory. For example, if a state-space
     trajectory from a EXE or HREX simulation given, a state transition matrix is returned.
     If a trajectory showing transitions between replicas in a EEXE simulation is given,
     a replica transition matrix is returned.
@@ -123,7 +123,7 @@ def traj2transmtx(traj, N, normalize=True):
 
 def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     """
-    Plot the time series of replicas visited by each configuration in a single plot.
+    Plots the time series of replicas visited by each configuration in a single plot.
 
     Parameters
     ----------
@@ -180,7 +180,7 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
 
 def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
     """
-    Plot the time series of states visited by each configuration in a subplot.
+    Plots the time series of states visited by each configuration in a subplot.
 
     Parameters
     ----------

@@ -57,7 +57,12 @@ def initialize(args):
                         '--msm',
                         default=False,
                         action='store_true',
-                        help='When to build MSM models and perform relevant analysis.')
+                        help='Whether to build MSM models and perform relevant analysis.')
+    parser.add_argument('-f',
+                        '--free_energy',
+                        default=False,
+                        action='store_true',
+                        help='Whether to perform free energy calculations.')
     args_parse = parser.parse_args(args)
 
     return args_parse
@@ -115,6 +120,7 @@ def main():
         print('2-0. Reading in the stitched state-space trajectory ...')
         state_trajs = np.load(args.state_trajs)
     else:
+        # This may take a while.
         print('2-0. Stitching trajectories for each configuration from dhdl files ...')
         dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
         shifts = np.arange(EEXE.n_sim) * EEXE.s
@@ -299,10 +305,39 @@ def main():
         sec_str = '3'
 
     print(f'\n[ Section {sec_str}. Free energy calculations ]')
+    u_nk_list, dHdl_list = [], []
+    for i in range(EEXE.n_sim):
+        print(f'Reading dhdl files of replica {i} ...')
+        files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
+        u_nk, dHdl = calc_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)
+        u_nk_list.append(u_nk)
+        dHdl_list.append(dHdl)
 
+    if EEXE.get_u_nk is True:
+        df, err, df_all, err_all = calc_free_energy.calculate_free_energy(u_nk_list, EEXE.state_ranges)
+    else:
+        df, err, df_all, err_all = calc_free_energy.calculate_free_energy(dHdl_list, EEXE.state_ranges)
+    
+    for i in range(EEXE.n_sim):
+        df_str = ''
+        print(f'Free energy profile of replica {i} (range: {EEXE.state_ranges[i]}): ')
+        for j in range(EEXE.n_sub):
+            if j == 0:
+                df_str += '0.000 +/- 0.000 kT'
+            else:
+                df_str += f', {df_all[i][j]: .3f} +/- {err_all[i][j]: .3f} kT'
+        print(f"  {df_str}")
 
+    print('The full-range free energy profile averaged over all replicas:')
+    df_str = ''
+    for i in range(EEXE.n_tot):
+        if i == 0:
+            df_str += '0.000 +/- 0.000 kT'
+        else:
+            df_str += f', {df[i]: .3f} +/- {err[i]: .3f} kT'
+    print(f"  {df_str}")
 
-
+    print(f'The free energy difference between the coupled and decoupled states: {np.sum(df): .3f} +/- {np.sqrt(np.sum(np.power(err, 2))): .3f} kT')
 
     """
     # TODO: Note that if no weight combination is used, g_vecs will be a list of None. This needs to be fixed.
@@ -315,6 +350,5 @@ def main():
     else:
         print('No free energy calculations available as no weight combination was used. This will be allowed in future updates.')  # noqa: E501
     """
-
 
     print(f'\nTime elpased: {utils.format_time(time.time() - t0)}')

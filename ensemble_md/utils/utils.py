@@ -19,7 +19,7 @@ import numpy as np
 
 class Logger:
     """
-    This redirect the STDOUT to a specified output file while preserving STDOUT on screen.
+    Redirects the STDOUT to a specified output file while preserving STDOUT on screen.
     """
 
     def __init__(self, logfile):
@@ -96,14 +96,24 @@ def clean_up(dir_before, dir_after, verbose=False):
 
 def format_time(t):
     """
-    This function convert time in seconds to the "most readable" format.
+    Converts time in seconds to the "most readable" format.
+
+    Parameters
+    ----------
+    t : float
+        The time in seconds.
+    
+    Returns
+    -------
+    t_str : sttr
+        A string in the format of "XX day XX hour(s) XX minute(s) XX second(s)".
     """
     hh_mm_ss = str(datetime.timedelta(seconds=t)).split(":")
     
     if "day" in hh_mm_ss[0]:
         # hh_mm_ss[0] will contain "day" and cannot be converted to float
         hh, mm, ss = hh_mm_ss[0], float(hh_mm_ss[1]), float(hh_mm_ss[2])
-        t_str = f"{hh} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)"
+        t_str = f"{hh_mm_ss[0]} {hh} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)"
     else:
         hh, mm, ss = float(hh_mm_ss[0]), float(hh_mm_ss[1]), float(hh_mm_ss[2])
         if hh == 0:
@@ -118,7 +128,8 @@ def format_time(t):
 
 
 def autoconvert(s):
-    """Convert input to a numerical type if possible. Used for the MDP parser.
+    """
+    Converts input to a numerical type if possible. Used for the MDP parser.
     Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
 
@@ -139,16 +150,50 @@ def autoconvert(s):
     raise ValueError("Failed to autoconvert {0!r}".format(s))
 
 
-def get_subplot_dimension(n_subplots):
-    if int(np.sqrt(n_subplots) + 0.5) ** 2 == n_subplots:
-        # perfect square number
-        n_cols = int(np.sqrt(n_subplots))
-    else:
-        n_cols = int(np.floor(np.sqrt(n_subplots))) + 1
+def get_subplot_dimension(n_panels):
+    """
+    Gets the numbers of rows and columns in a subplot.
 
-    if n_subplots % n_cols == 0:
-        n_rows = int(np.floor(n_subplots / n_cols))
+    Parameters
+    ----------
+    n_panels : int
+        The number of panels in the subplot.
+    """
+    if int(np.sqrt(n_panels) + 0.5) ** 2 == n_panels:
+        # perfect square number
+        n_cols = int(np.sqrt(n_panels))
     else:
-        n_rows = int(np.floor(n_subplots / n_cols)) + 1
+        n_cols = int(np.floor(np.sqrt(n_panels))) + 1
+
+    if n_panels % n_cols == 0:
+        n_rows = int(np.floor(n_panels / n_cols))
+    else:
+        n_rows = int(np.floor(n_panels / n_cols)) + 1
 
     return n_rows, n_cols
+
+
+def weighted_mean(vals, errs):
+    """
+    Calculates the inverse-variance-weighted mean.
+
+    Parameters
+    ----------
+    vals : list
+        A list of values to be averaged. 
+    errs : list
+        A list of errors corresponding to the given values
+
+    Returns
+    -------
+    mean : float
+        The inverse-variance-weighted mean.
+    err : float
+        The propgated error of the mean. 
+    """
+    w = [1 / (i ** 2) for i in errs]
+    wx = [w[i] * vals[i] for i in range(len(vals))]
+    mean = np.sum(wx) / np.sum(w)
+    err = np.sqrt(1 / np.sum(w))
+    
+    return mean, err

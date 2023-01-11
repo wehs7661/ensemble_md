@@ -81,6 +81,8 @@ class EnsembleEXE:
             "runtime_args": None,
             "maxwarn": 0,
             "n_ckpt": 100,
+            "df_spacing": 1,
+            "df_method": "MBAR"
         }
         for i in optional_args:
             if hasattr(self, i) is False:
@@ -93,7 +95,7 @@ class EnsembleEXE:
         if self.mc_scheme not in ['same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'maxwarn']  # integer parameters
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'maxwarn', 'df_spacing']  # integer parameters
         if self.n_ex != 'N^3':
             params_int.append('n_ex')
         for i in params_int:
@@ -172,6 +174,14 @@ class EnsembleEXE:
         # 5-9. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
         self.g_vecs = []
+
+        # 5-10. Data analysis
+        if self.df_method == 'MBAR':
+            self.get_u_nk = True
+            self.get_dHdl = False
+        else:
+            self.get_u_nk = False
+            self.get_dHdl = True
 
         # 6. Print out warnings and fail if needed:
         for i in self.warnings:
