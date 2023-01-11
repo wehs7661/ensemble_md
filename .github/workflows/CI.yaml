@@ -76,8 +76,9 @@ jobs:
         pip install --upgrade cmake pybind11
         python -m pip install --upgrade pip setuptools
         pip install --upgrade mpi4py
-        cd ../python_packaging/gmxapi
-        pip install .
+        # cd ../python_packaging/gmxapi
+        # pip install .
+        pip install -i https://test.pypi.org/simple/ gmxapi==0.4.0rc2.dev1
         python -c "import gmxapi; print(gmxapi.__version__)"
 
     - name: Install ensemble_md dependencies
