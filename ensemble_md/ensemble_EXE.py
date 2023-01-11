@@ -268,7 +268,8 @@ class EnsembleEXE:
             MDP["coul-lambdas"] = coul[idx * self.s: idx * self.s + self.n_sub]
         if "init-lambda-weights" in self.template:
             init_w = self.template["init-lambda-weights"]
-            MDP["init-lambda-weights"] = init_w[idx: idx + self.n_sub]
+            start_idx = [i * self.s for i in range(self.n_sim)]
+            MDP["init-lambda-weights"] = init_w[start_idx[idx] : start_idx[idx] + self.n_sub]
 
         return MDP
 
