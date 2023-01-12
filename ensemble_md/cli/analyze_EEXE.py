@@ -13,6 +13,7 @@ import time
 import glob
 import pyemma
 import pymbar
+import pickle
 import natsort
 import argparse
 import warnings
@@ -317,36 +318,50 @@ def main():
     if args.free_energy is True:
         section_idx += 1
         print(f'\n[ Section {section_idx}. Free energy calculations ]')
-        u_nk_list, dHdl_list = [], []
-        for i in range(EEXE.n_sim):
-            print(f'Reading dhdl files of replica {i} ...')
-            files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
-            u_nk, dHdl = calc_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)
-            u_nk_list.append(u_nk)
-            dHdl_list.append(dHdl)
-
-        if EEXE.get_u_nk is True:
-            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(u_nk_list, EEXE.state_ranges)
-        else:
-            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(dHdl_list, EEXE.state_ranges)
         
+        u_nk_list, dHdl_list = [], []
+
+        if os.path.isfile('u_nk_data.pickle') is True:
+            print('Loading the preprocessed data u_nk ...')
+            with open('u_nk_data.pickle', 'rb') as handle:
+                u_nk_list = pickle.load(handle)
+        
+        if os.path.isfile('dHdl_data.pickle') is True:
+            print('Loading the preprocessed data dHdl ...')
+            with open('dHdl_data.pickle', 'rb') as handle:
+                dHdl_list = pickle.load(handle)
+
+        if u_nk_list == [] and dHdl_list == []:        
+            for i in range(EEXE.n_sim):
+                print(f'Reading dhdl files of replica {i} ...')
+                files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
+                u_nk, dHdl = calc_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)
+                u_nk_list.append(u_nk)
+                dHdl_list.append(dHdl)
+
+            with open('u_nk_data.pickle', 'wb') as handle:
+                pickle.dump(u_nk_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            
+            with open('dHdl_data.pickle', 'wb') as handle:
+                pickle.dump(dHdl_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        state_ranges = [list(i) for i in EEXE.state_ranges]
+        if EEXE.get_u_nk is True:
+            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(u_nk_list, state_ranges)
+        else:
+            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(dHdl_list, state_ranges)
+
         for i in range(EEXE.n_sim):
-            df_str = ''
+            df_str = '0.000 +/- 0.000 kT'
             print(f'Free energy profile of replica {i} (range: {EEXE.state_ranges[i]}): ')
-            for j in range(EEXE.n_sub):
-                if j == 0:
-                    df_str += '0.000 +/- 0.000 kT'
-                else:
-                    df_str += f', {df_all[i][j]: .3f} +/- {err_all[i][j]: .3f} kT'
+            for j in range(EEXE.n_sub - 1):
+                df_str += f', {df_all[i][j]: .3f} +/- {err_all[i][j]: .3f} kT'
             print(f"  {df_str}")
 
         print('The full-range free energy profile averaged over all replicas:')
-        df_str = ''
-        for i in range(EEXE.n_tot):
-            if i == 0:
-                df_str += '0.000 +/- 0.000 kT'
-            else:
-                df_str += f', {df[i]: .3f} +/- {err[i]: .3f} kT'
+        df_str = '0.000 +/- 0.000 kT'
+        for i in range(EEXE.n_tot - 1):
+            df_str += f', {df[i]: .3f} +/- {err[i]: .3f} kT'
         print(f"  {df_str}")
 
         print(f'The free energy difference between the coupled and decoupled states: {np.sum(df): .3f} +/- {np.sqrt(np.sum(np.power(err, 2))): .3f} kT')

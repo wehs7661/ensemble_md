@@ -62,10 +62,7 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
         truncated_u_nk = equilibrium_detection(u_nk, u_nk.iloc[:, 0], step=spacing)
         g_u_nk = statisticalInefficiency(u_nk.iloc[:, 0])
         preprocessed_u_nk = truncated_u_nk[::math.ceil(g_u_nk)]
-        print(f'  Statistical inefficiency of u_nk: {g_u_nk:.3f} (adjusted to {math.ceil(g_u_nk)}) ==> {len(preprocessed_u_nk)} effective samples.')
-
-        with open('u_nk_data.pickle', 'wb') as handle:
-            pickle.dump(preprocessed_u_nk, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        print(f'  Statistical inefficiency of u_nk: {g_u_nk:.3f} (adjusted to {math.ceil(g_u_nk)}) ==> {len(preprocessed_u_nk)} effective samples.\n')
     else:
         preprocessed_u_nk = None
 
@@ -79,9 +76,6 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
         g_dHdl = statisticalInefficiency(dHdl.iloc[:, 0])
         preprocessed_dHdl = truncated_dHdl[::math.ceil(g_dHdl)]
         print(f'  Statistical inefficiency of dHdl: {g_dHdl:.3f} (adjusted to {math.ceil(g_dHdl)}) ==> {len(preprocessed_dHdl)} effective samples.\n')
-
-        with open('dHdl_data.pickle', 'wb') as handle:
-            pickle.dump(preprocessed_dHdl, handle, protocol=pickle.HIGHEST_PROTOCOL)
     else:
         preprocessed_dHdl = None
 

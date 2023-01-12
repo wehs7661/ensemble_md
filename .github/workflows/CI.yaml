@@ -72,8 +72,8 @@ jobs:
         
         source $HOME/pkgs/bin/GMXRC
         python -m ensurepip --default-pip
-        pip install --upgrade pip setuptools wheel
-        pip install --upgrade cmake pybind11
+        pip install --upgrade pip wheel
+        pip install "cmake>=3.16" "pybind11>=2.6" "setuptools>=42.0"
         python -m pip install --upgrade pip setuptools
         pip install --upgrade mpi4py
         # cd ../python_packaging/gmxapi
