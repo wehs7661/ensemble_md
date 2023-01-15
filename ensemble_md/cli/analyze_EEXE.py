@@ -160,7 +160,7 @@ def main():
     spectral_gaps = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
     for i in range(EEXE.n_sim):
         print(f'   - Configuration {i}: {spectral_gaps[i]:.3f}')
-    print(f'   - Average of the above: {np.mean(spectral_gaps):.3f}')
+    print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
 
     # 2-4. For each configuration, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.
     print('\n2-4. Calculating the stationary distributions ...')
@@ -172,10 +172,10 @@ def main():
 
     # 2-5. Calculate the state index correlation time for each configuration (this step is more time-consuming one)
     print('\n2-5. Calculating the state index correlation time ...')
-    tau_list = [(pymbar.timeseries.statisticalInefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(EEXE.n_sim)]
+    tau_list = [(pymbar.timeseries.statistical_inefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(EEXE.n_sim)]
     for i in range(EEXE.n_sim):
         print(f'   - Configuration {i}: {tau_list[i]:.1f} ps')
-    print(f'   - Average of the above: {np.mean(tau_list):.1f} ps')
+    print(f'   - Average of the above: {np.mean(tau_list):.1f} ps (std: {np.std(tau_list, ddof=1):.1f} ps)')
 
     # 2-6. Calculate transit times for each configuration
     print('\n2-6. Plotting the average transit times ...')
@@ -194,7 +194,7 @@ def main():
                 print(f'     - Configuration {j}: Skipped')
             else:
                 print(f'     - Configuration {j} ({len(t_list[j])} events): {np.mean(t_list[j]):.1f} {units}')
-        print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.1f} {units}')
+        print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.1f} {units} (std: {np.std([np.mean(i) for i in t_list], ddof=1):.1f} {units})')
 
     if args.msm is True:
         section_idx += 1
@@ -308,7 +308,7 @@ def main():
         mfpt_list = [m.mfpt(0, m.nstates - 1) for m in models]
         for i in range(EEXE.n_sim):
             print(f'       - Configuration {i}: {mfpt_list[i]:.1f} ps')
-        print(f'       - Average of the above: {np.mean(mfpt_list):.1f} ps')
+        print(f'       - Average of the above: {np.mean(mfpt_list):.1f} ps (std: {np.std(mfpt_list, ddof=1):.1f} ps)')
 
         # 3-8. Calculate the state index correlation time for each configuration
         print('\n3-8. Plotting the state index correlation times for all configurations ...')
@@ -365,17 +365,5 @@ def main():
         print(f"  {df_str}")
 
         print(f'The free energy difference between the coupled and decoupled states: {np.sum(df): .3f} +/- {np.sqrt(np.sum(np.power(err, 2))): .3f} kT')
-
-    """
-    # TODO: Note that if no weight combination is used, g_vecs will be a list of None. This needs to be fixed.
-    print('3-1. Loading in g_vecs.npy')
-    g_vecs = np.load('g_vecs.npy', allow_pickle=True)  # to ensure data can be read even if it's a list of None
-    print('3-2. Calculating the free energy difference between two end states ...')
-    if None not in g_vecs:
-        dg_avg, dg_avg_err = calc_free_energy.average_dg(g_vecs, frac=EEXE.fe_frac, n_boots=EEXE.fe_boots)
-        print(f'     The free energy difference averaged over the last {EEXE.frac * 100} percent of simulation: {dg_avg} +/- {dg_avg_err} kT.')  # noqa: E501
-    else:
-        print('No free energy calculations available as no weight combination was used. This will be allowed in future updates.')  # noqa: E501
-    """
 
     print(f'\nTime elpased: {utils.format_time(time.time() - t0)}')

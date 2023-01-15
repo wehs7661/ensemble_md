@@ -18,10 +18,10 @@ import numpy as np
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from pymbar.timeseries import statisticalInefficiency
-from alchemlyb.estimators import TI, BAR, AutoMBAR
+from pymbar.timeseries import detect_equilibration, subsample_correlated_data
+from alchemlyb.estimators import TI, BAR, MBAR
 from alchemlyb.parsing.gmx import extract_dHdl, extract_u_nk
-from alchemlyb.preprocessing import equilibrium_detection
+from alchemlyb.preprocessing import subsampling
 from ensemble_md.utils import utils
 from ensemble_md.utils.exceptions import ParameterError
 
@@ -29,7 +29,9 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
     """
     This function preprocesses :math:`dH/d\lambda` data obtained from the EEXE simulation.
     For each replica, it reads in :math:`dH/d\lambda` data from all iterations, concatenate
-    them, and decorrelate the concatenated data. 
+    them, remove the equilibrium region and and decorrelate the concatenated data. Notably,
+    the data preprocessing protocol is basically the same as the one adopted in 
+    :code:`alchemlyb.subsampling.equilibrium_detection`.
     
     Parameters
     ----------
@@ -56,26 +58,44 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
     if get_u_nk is True:
         print('Collecting u_nk data from all iterations ...')
         u_nk = alchemlyb.concat([extract_u_nk(xvg, T=temp) for xvg in files])
-        u_nk = u_nk.loc[~u_nk.index.duplicated(keep='last')]
+        u_nk_series = subsampling.u_nk2series(u_nk)  # default method: 'dE'
+        u_nk, u_nk_series = subsampling._prepare_input(u_nk, u_nk_series, drop_duplicates=True, sort=True)
+        u_nk = subsampling.slicing(u_nk, step=spacing)
+        u_nk_series = subsampling.slicing(u_nk_series, step=spacing)
         
         print('Subsampling and decorrelating the concatenated u_nk data ...')
-        truncated_u_nk = equilibrium_detection(u_nk, u_nk.iloc[:, 0], step=spacing)
-        g_u_nk = statisticalInefficiency(u_nk.iloc[:, 0])
-        preprocessed_u_nk = truncated_u_nk[::math.ceil(g_u_nk)]
-        print(f'  Statistical inefficiency of u_nk: {g_u_nk:.3f} (adjusted to {math.ceil(g_u_nk)}) ==> {len(preprocessed_u_nk)} effective samples.\n')
+        t, statinef, Neff_max = detect_equilibration(u_nk_series.values)
+        print(f'  Adopted spacing: {spacing: .0f}')
+        print(f' {t / len(u_nk_series) * 100: .1f}% of the u_nk data was in the equilibrium region and therfore discarded.')
+        print(f'  Statistical inefficiency of u_nk: {statinef: .1f}')
+        print(f'  Number of effective samples: {Neff_max: .0f}\n')
+
+        u_nk_series_equil, u_nk_equil = u_nk_series[t:], u_nk[t:]
+        indices = subsample_correlated_data(u_nk_series_equil, g=statinef)
+        preprocessed_u_nk = u_nk_equil.iloc[indices]
+
     else:
         preprocessed_u_nk = None
 
     if get_dHdl is True:
         print('Collecting dHdl data from all iterations ...')
         dHdl = alchemlyb.concat([extract_dHdl(xvg, T=temp) for xvg in files])
-        dHdl = dHdl.loc[~dHdl.index.duplicated(keep='last')]
-        
+        dHdl_series = subsampling.dhdl2series(dHdl)  # default method: 'dE'
+        dHdl, dHdl_series = subsampling._prepare_input(dHdl, dHdl_series, drop_duplicates=True, sort=True)
+        dHdl = subsampling.slicing(dHdl, step=spacing)
+        dHdl_series = subsampling.slicing(dHdl_series, step=spacing)
+
         print('Subsampling and decorrelating the concatenated dHdl data ...')
-        truncated_dHdl = equilibrium_detection(dHdl, dHdl.iloc[:, 0], step=spacing)
-        g_dHdl = statisticalInefficiency(dHdl.iloc[:, 0])
-        preprocessed_dHdl = truncated_dHdl[::math.ceil(g_dHdl)]
-        print(f'  Statistical inefficiency of dHdl: {g_dHdl:.3f} (adjusted to {math.ceil(g_dHdl)}) ==> {len(preprocessed_dHdl)} effective samples.\n')
+        t, statinef, Neff_max = detect_equilibration(dHdl_series.values)
+        
+        print(f'  {t / len(dHdl_series) * 100: .1f}% of the dHdl data was in the equilibrium region and therfore discarded.')
+        print(f'  Statistical inefficiency of dHdl: {statinef: .1f}')
+        print(f'  Number of effective samples: {Neff_max}')
+
+        dHdl_series_equil, dHdl_equil = dHdl_series[t:], dHdl[t:]
+        indices = subsample_correlated_data(dHdl_series_equil, g=statinef)
+        preprocessed_dHdl = dHdl_equil.iloc[indices]
+
     else:
         preprocessed_dHdl = None
 
@@ -116,7 +136,7 @@ def calculate_free_energy(data, state_ranges, method="MBAR"):
         elif method == "BAR":
             estimators.append(BAR().fit(data[i]))
         elif method == "MBAR":
-            estimators.append(AutoMBAR().fit(data[i]))
+            estimators.append(MBAR().fit(data[i]))
         else:
             raise ParameterError('Specified estimator not available.')
 
