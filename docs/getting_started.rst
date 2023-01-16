@@ -5,7 +5,7 @@ GROMACS simulation ensembles. Currently, we have implemented the method
 of ensemble of expanded ensemble. Other methods such as ensemble of alchemical
 metadynamics will be under development in the future. In our present implementation, 
 `gmxapi`_, which is a higher level Python API of GROMACS, is used to launch GROMACS 
-commands, but we will switch to `SCALE-MS`_ for this purpose in the future. 
+commands, but we will switch to `SCALE-MS`_ for this purpose in the future when possible.
 
 
 .. _`gmxapi`: https://manual.gromacs.org/current/gmxapi/
@@ -20,17 +20,19 @@ The package has not been published to PyPI, but can be installed from our
 
     git clone https://github.com/wehs7661/ensemble_md.git
     cd ensemble_md/
-    pip install -e .
+    pip install .
 
-Note that this package requries a bunch of other Python packages to be installed,
-including NumPy, pymbar, natsort, and argparse. For the full list please
+If you wish to contribute to the project, append the installation command with the flag :code:`-e` to
+install the project in the editable mode so that you can make changes. (Pull requests to the project
+repository are welcome!) Notably, this package requries a bunch of other Python packages to be installed,
+including NumPy, pymbar, natsort, and argparse. For the full list of requirements, please
 check :code:`requirements.txt`.
 
 .. _`github repository`: https://github.com/wehs7661/ensemble_md.git
 
 Testing
 =======
-To perform unit tests for this package, execute the following command in the home directory:
+To perform unit tests for this package, execute the following command in the home directory of the project:
 ::
 
     pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/

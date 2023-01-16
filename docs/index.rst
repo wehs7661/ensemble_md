@@ -17,9 +17,14 @@ the future.
    :caption: Getting started:
 
 .. toctree::
-   theory_implementation
+   theory
    :maxdepth: 2
-   :caption: Theory and implementation:
+   :caption: Theory:
+
+.. toctree::
+   simulations
+   :maxdepth: 2
+   :caption: Launching EEXE simulations:
 
 .. toctree::
    analysis

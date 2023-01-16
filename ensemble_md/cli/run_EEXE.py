@@ -18,6 +18,7 @@ from mpi4py import MPI
 
 from ensemble_md.utils import utils
 from ensemble_md.ensemble_EXE import EnsembleEXE
+from ensemble_md.utils.exceptions import ParameterError
 
 
 def initialize(args):
@@ -43,6 +44,11 @@ def initialize(args):
                         type=str,
                         default='run_EEXE_log.txt',
                         help='The output file for logging how replicas interact with each other. (Default: run_EEXE_log.txt)')
+    parser.add_argument('-m',
+                        '--maxwarn',
+                        type=int,
+                        default=0,
+                        help='The maximum number of warnings in parameter specification to be ignored.')
     args_parse = parser.parse_args(args)
 
     return args_parse
@@ -62,7 +68,20 @@ def main():
         print(f'Command line: {" ".join(sys.argv)}\n')
 
     EEXE = EnsembleEXE(args.yaml)
-    EEXE.print_params()
+    
+    if rank == 0:
+        # Print out simulation parameters
+        EEXE.print_params()
+
+        # Print out warnings and fail if needed
+        for i in EEXE.warnings: 
+            print()
+            print(f'{i}')
+            print()
+        
+        if len(EEXE.warnings) > args.maxwarn:
+            raise ParameterError(
+                    f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them.")  # noqa: E501, F541
 
     # Step 2: If there is no checkpoint file found/provided, perform the 1st iteration (index 0)
     if os.path.isfile(args.ckpt) is False:

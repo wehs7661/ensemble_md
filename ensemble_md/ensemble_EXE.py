@@ -87,7 +87,6 @@ class EnsembleEXE:
             "n_ex": 0,       # neighbor swaps
             "verbose": True,
             "runtime_args": None,
-            "maxwarn": 0,
             "n_ckpt": 100,
             "msm": False,
             "free_energy": False,
@@ -118,7 +117,7 @@ class EnsembleEXE:
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'maxwarn', 'df_spacing', 'n_ckpt']  # integer parameters
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt']  # integer parameters
         if self.n_ex != 'N^3':
             params_int.append('n_ex')
         for i in params_int:
@@ -135,9 +134,6 @@ class EnsembleEXE:
 
         if self.N_cutoff < 0 and self.N_cutoff != -1:
             raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
-
-        if self.maxwarn < 0: 
-            raise ParameterError("The parameter 'maxwarn' should be non-negative.")
 
         params_str = ['gro', 'top', 'mdp']
         for i in params_str:
@@ -209,16 +205,6 @@ class EnsembleEXE:
             self.get_u_nk = False
             self.get_dHdl = True
 
-        # 6. Print out warnings and fail if needed:
-        for i in self.warnings:
-            print(f'{i}')
-            print()
-
-        if len(self.warnings) > self.maxwarn:
-            raise ParameterError(
-                    f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them."  # noqa: E501, F541
-                )
-
     def print_params(self, params_analysis=False):
         """
         Prints out important parameters.
@@ -228,33 +214,32 @@ class EnsembleEXE:
         params_analysis : bol
             Whether to print out parameters for data analysis.
         """
-        if rank == 0:
-            print("Important parameters of EXEE")
-            print("============================")
-            print(f"gmxapi version: {gmx.__version__}")
-            print(f"ensemble_md version: {ensemble_md.__version__}")
-            print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
-            print(f"Verbose log file: {self.verbose}")
-            print(f"Whether the replicas run in parallel: {self.parallel}")
-            print(f"MC scheme for swapping simulations: {self.mc_scheme}")
-            print(f"Scheme for combining weights: {self.w_scheme}")
-            print(f"Histogram cutoff: {self.N_cutoff}")
-            print(f"Number of replicas: {self.n_sim}")
-            print(f"Number of iterations: {self.n_iter}")
-            print(f"Number of exchanges in one attempt: {self.n_ex}")
-            print(f"Length of each replica: {self.dt * self.nst_sim} ps")
-            print(f"Frequency for checkpointing: {self.n_ckpt} iterations")
-            print(f"Total number of states: {self.n_tot}")
-            print(f"Additional runtime arguments: {self.runtime_args}")
-            print("Alchemical ranges of each replica in EEXE:")
-            for i in range(self.n_sim):
-                print(f"  - Replica {i}: States {list(self.state_ranges[i])}")
+        print("Important parameters of EXEE")
+        print("============================")
+        print(f"gmxapi version: {gmx.__version__}")
+        print(f"ensemble_md version: {ensemble_md.__version__}")
+        print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
+        print(f"Verbose log file: {self.verbose}")
+        print(f"Whether the replicas run in parallel: {self.parallel}")
+        print(f"MC scheme for swapping simulations: {self.mc_scheme}")
+        print(f"Scheme for combining weights: {self.w_scheme}")
+        print(f"Histogram cutoff: {self.N_cutoff}")
+        print(f"Number of replicas: {self.n_sim}")
+        print(f"Number of iterations: {self.n_iter}")
+        print(f"Number of exchanges in one attempt: {self.n_ex}")
+        print(f"Length of each replica: {self.dt * self.nst_sim} ps")
+        print(f"Frequency for checkpointing: {self.n_ckpt} iterations")
+        print(f"Total number of states: {self.n_tot}")
+        print(f"Additional runtime arguments: {self.runtime_args}")
+        print("Alchemical ranges of each replica in EEXE:")
+        for i in range(self.n_sim):
+            print(f"  - Replica {i}: States {list(self.state_ranges[i])}")
 
-            if params_analysis is True:
-                print()
-                print(f'The step to used in subsampling the DHDL data in free energy calculations: {self.df_spacing}')
-                print(f"The chosen free energy estimator: {self.df_method}")
-                print(f"The method for estimating the uncertainty of free energies: {self.err_method}")
+        if params_analysis is True:
+            print()
+            print(f'The step to used in subsampling the DHDL data in free energy calculations: {self.df_spacing}')
+            print(f"The chosen free energy estimator: {self.df_method}")
+            print(f"The method for estimating the uncertainty of free energies: {self.err_method}")
 
 
     def map_lambda2state(self):
