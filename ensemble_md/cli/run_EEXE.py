@@ -27,17 +27,22 @@ def initialize(args):
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The input YAML file that contains EEXE parameters.')
+                        help='The input YAML file that contains EEXE parameters. (Default: params.yaml)')
     parser.add_argument('-c',
                         '--ckpt',
                         type=str,
                         default='rep_trajs.npy',
-                        help='The NPY file containing the replica-space trajectories. This file is a necessary checkpoint file for extending the simulaiton.')
+                        help='The NPY file containing the replica-space trajectories. This file is a necessary checkpoint file for extending the simulaiton. (Default: rep_trajs.npy)')
     parser.add_argument('-g',
                         '--g_vecs',
                         type=str,
                         default='g_vecs.npy',
-                        help='The NPY file containing the timeseries of the whole-range alchemical weights. This file is a necessary input if ones wants to update the file when extending the simulation.')
+                        help='The NPY file containing the timeseries of the whole-range alchemical weights. This file is a necessary input if ones wants to update the file when extending the simulation. (Default: g_vecs.npy)')
+    parser.add_argument('-o',
+                        '--output',
+                        type=str,
+                        default='run_EEXE_log.txt',
+                        help='The output file for logging how replicas interact with each other. (Default: run_EEXE_log.txt)')
     args_parse = parser.parse_args(args)
 
     return args_parse
@@ -46,17 +51,17 @@ def initialize(args):
 def main():
     t1 = time.time()
     args = initialize(sys.argv[1:])
+    sys.stdout = utils.Logger(logfile=args.output)
+    sys.stderr = utils.Logger(logfile=args.output)
 
     # Step 1: Set up MPI rank and instantiate EnsembleEXE to set up EEXE parameters
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()  # Note that this is a GLOBAL variable
-
+    
     if rank == 0:
-        print(f'Command line: {" ".join(sys.argv)}')
-        
+        print(f'Command line: {" ".join(sys.argv)}\n')
+
     EEXE = EnsembleEXE(args.yaml)
-    sys.stdout = utils.Logger(logfile=EEXE.output)
-    sys.stderr = utils.Logger(logfile=EEXE.output)
     EEXE.print_params()
 
     # Step 2: If there is no checkpoint file found/provided, perform the 1st iteration (index 0)

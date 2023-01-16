@@ -103,7 +103,37 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
 
     return preprocessed_u_nk, preprocessed_dHdl
 
-def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='propagate'):
+def gen_estimators(data, df_method="MBAR"):
+    """
+    Generate a list of estimators fitting the input data.
+
+    Parameters
+    ----------
+    data : pd.Dataframe
+        A list of dHdl or u_nk dataframes obtained from all replicas of the EEXE simulation of interest. 
+        Preferrably, the dHdl or u_nk data should be preprocessed by the function proprocess_data. 
+
+    Returns
+    -------
+    estimators : list
+        A list of free energy estimators fitting the input data and with the free energy differences 
+        (and their uncertanties) available. 
+    """
+    n_sim = len(data)
+    estimators = []  # A list of objects of the corresponding class in alchemlyb.estimators
+    for i in range(n_sim):
+        if method == "TI": 
+            estimators.append(TI().fit(data[i]))
+        elif method == "BAR":
+            estimators.append(BAR().fit(data[i]))
+        elif method == "MBAR":
+            estimators.append(MBAR().fit(data[i]))
+        else:
+            raise ParameterError('Specified estimator not available.')
+    
+    return estimators
+
+def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='propagate', n_bootstrap=None):
     """
     Caculate the averaged free energy profile with the chosen method given dHdl or u_nk data obtained from all replicas of the 
     EEXE simulation of interest. Available methods include TI, BAR, and MBAR. TI requires dHdl data while the other two require
@@ -121,9 +151,20 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     err_method : str
         The method used to estimate the uncertainty of the free energy combined across multiple replicas. Available options include "propagate" and "bootstrap". 
         The bootstrapping method is more accurate but much more computationally expensive than simple error propagation.
+    n_bootstrap : int
+        The number of bootstrap iterations. This parameter is used only when the boostrapping method is chosen to 
+        estimate the uncertainties of the free energies.
 
     Returns
     -------
+    estimators : list
+        A list of estimators fitting the input data for all replicas.
+    f : list
+        The full-range free energy profile.
+    f_err : list
+        The uncertainty corresponding to the values in :code:`f`.
+
+    
     df : list
         A full-range free energy profile with each entry averaged over replicas.
     err : list
@@ -134,16 +175,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
         A list of lists of uncertainty corresponding to the values in :code:`df_all`.
     """
     n_sim = len(data)
-    estimators = []  # A list of objects of the corresponding class in alchemlyb.estimators
-    for i in range(n_sim):
-        if method == "TI": 
-            estimators.append(TI().fit(data[i]))
-        elif method == "BAR":
-            estimators.append(BAR().fit(data[i]))
-        elif method == "MBAR":
-            estimators.append(MBAR().fit(data[i]))
-        else:
-            raise ParameterError('Specified estimator not available.')
+    estimators = gen_estimators(data, df_method)
 
     n_tot = state_ranges[-1][-1] + 1
     df_all = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]

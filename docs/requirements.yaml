@@ -20,5 +20,5 @@ dependencies:
     - seaborn
     - matplotlib
     - pyemma
-    - pymbar=4.0.1
+    - pymbar==4.0.1
     # - mpi4py

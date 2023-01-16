@@ -63,7 +63,15 @@ class EnsembleEXE:
             setattr(self, attr, params[attr])
 
         # Step 2: Handle the YAML parameters
-        required_args = ["parallel", "n_sim", "n_iter", "s", "mdp", 'gro', 'top']
+        required_args = [
+            "gro", 
+            "top",
+            "mdp", 
+            "parallel", 
+            "n_sim", 
+            "n_iter", 
+            "s",
+        ]
         for i in required_args:
             if hasattr(self, i) is False:
                 raise ParameterError(
@@ -72,15 +80,17 @@ class EnsembleEXE:
 
         # Key: Optional argument; Value: Default value
         optional_args = {
+            "nst_sim": None,
             "mc_scheme": "metropolis",
             "w_scheme": None,
             "N_cutoff": 1000,
             "n_ex": 0,       # neighbor swaps
-            "output": "run_EEXE_log.txt",
             "verbose": True,
             "runtime_args": None,
             "maxwarn": 0,
             "n_ckpt": 100,
+            "msm": False,
+            "free_energy": False,
             "df_spacing": 1,
             "df_method": "MBAR",
             "err_method": "propagate"
@@ -89,7 +99,13 @@ class EnsembleEXE:
             if hasattr(self, i) is False:
                 setattr(self, i, optional_args[i])
 
-        # Step 3: Check if the parameters in the YAML file is well-defined
+        # all_args: Arguments that can be specified in the YAML file.
+        all_args = required_args + list(optional_args.keys())
+        for i in params:
+            if i not in all_args:
+                self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
+
+        # Step 3: Check if the parameters in the YAML file are well-defined
         if self.w_scheme not in [None, 'mean', 'geo-mean']:
             raise ParameterError("The specified weight combining scheme is not available. Options include None, 'mean', and 'geo-mean'/'geo_mean'.")  # noqa: E501
 
@@ -123,12 +139,12 @@ class EnsembleEXE:
         if self.maxwarn < 0: 
             raise ParameterError("The parameter 'maxwarn' should be non-negative.")
 
-        params_str = ['gro', 'top', 'mdp', 'output']
+        params_str = ['gro', 'top', 'mdp']
         for i in params_str:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['parallel', 'verbose']
+        params_bool = ['parallel', 'verbose', 'msm', 'free_energy']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
@@ -166,7 +182,7 @@ class EnsembleEXE:
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
 
         # 5-5. Numbe of steps per iteration
-        if hasattr(self, "nst_sim") is False:
+        if self.nst_sim is None:
             self.nst_sim = self.nsteps
 
         # 5-6. Map the lamda vectors to state indices
@@ -195,7 +211,8 @@ class EnsembleEXE:
 
         # 6. Print out warnings and fail if needed:
         for i in self.warnings:
-            print(f'{i}\n')
+            print(f'{i}')
+            print()
 
         if len(self.warnings) > self.maxwarn:
             raise ParameterError(
@@ -212,12 +229,11 @@ class EnsembleEXE:
             Whether to print out parameters for data analysis.
         """
         if rank == 0:
-            print("\nImportant parameters of EXEE")
+            print("Important parameters of EXEE")
             print("============================")
             print(f"gmxapi version: {gmx.__version__}")
             print(f"ensemble_md version: {ensemble_md.__version__}")
             print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
-            print(f"Output log file: {self.output}")
             print(f"Verbose log file: {self.verbose}")
             print(f"Whether the replicas run in parallel: {self.parallel}")
             print(f"MC scheme for swapping simulations: {self.mc_scheme}")
@@ -233,8 +249,6 @@ class EnsembleEXE:
             print("Alchemical ranges of each replica in EEXE:")
             for i in range(self.n_sim):
                 print(f"  - Replica {i}: States {list(self.state_ranges[i])}")
-            for i in self.warnings:
-                print(f'\n{i}')
 
             if params_analysis is True:
                 print()

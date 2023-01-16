@@ -54,16 +54,6 @@ def initialize(args):
                         type=str,
                         default='state_trajs.npy',
                         help='The NPY file containing the stitched state-space trajectory. If the specified file is not found, the code will try to find all the trajectories and stitch them. (Default: state_trajs.npy)')
-    parser.add_argument('-msm',
-                        '--msm',
-                        default=False,
-                        action='store_true',
-                        help='Whether to build MSM models and perform relevant analysis.')
-    parser.add_argument('-f',
-                        '--free_energy',
-                        default=False,
-                        action='store_true',
-                        help='Whether to perform free energy calculations.')
     parser.add_argument('-d',
                         '--dir',
                         default='analysis',
@@ -196,7 +186,7 @@ def main():
                 print(f'     - Configuration {j} ({len(t_list[j])} events): {np.mean(t_list[j]):.1f} {units}')
         print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.1f} {units} (std: {np.std([np.mean(i) for i in t_list], ddof=1):.1f} {units})')
 
-    if args.msm is True:
+    if EEXE.msm is True:
         section_idx += 1
 
         # Section 3. Analysis based on Markov state models
@@ -315,20 +305,20 @@ def main():
         msm_analysis.plot_acf(models, EEXE.n_tot, f'{args.dir}/state_ACF.png')
 
     # Section 4 (or Section 3). Free energy calculations
-    if args.free_energy is True:
+    if EEXE.free_energy is True:
         section_idx += 1
         print(f'\n[ Section {section_idx}. Free energy calculations ]')
         
         u_nk_list, dHdl_list = [], []
 
-        if os.path.isfile('u_nk_data.pickle') is True:
+        if os.path.isfile(f'{args.dir}/u_nk_data.pickle') is True:
             print('Loading the preprocessed data u_nk ...')
-            with open('u_nk_data.pickle', 'rb') as handle:
+            with open(f'{args.dir}/u_nk_data.pickle', 'rb') as handle:
                 u_nk_list = pickle.load(handle)
         
-        if os.path.isfile('dHdl_data.pickle') is True:
+        if os.path.isfile(f'{args.dir}/dHdl_data.pickle') is True:
             print('Loading the preprocessed data dHdl ...')
-            with open('dHdl_data.pickle', 'rb') as handle:
+            with open(f'{args.dir}/dHdl_data.pickle', 'rb') as handle:
                 dHdl_list = pickle.load(handle)
 
         if u_nk_list == [] and dHdl_list == []:        
@@ -339,10 +329,10 @@ def main():
                 u_nk_list.append(u_nk)
                 dHdl_list.append(dHdl)
 
-            with open('u_nk_data.pickle', 'wb') as handle:
+            with open(f'{args.dir}/u_nk_data.pickle', 'wb') as handle:
                 pickle.dump(u_nk_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
             
-            with open('dHdl_data.pickle', 'wb') as handle:
+            with open(f'{args.dir}/dHdl_data.pickle', 'wb') as handle:
                 pickle.dump(dHdl_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         state_ranges = [list(i) for i in EEXE.state_ranges]

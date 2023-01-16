@@ -155,15 +155,26 @@ In :code:`run_EEXE.py`, the class :class:`.EnsembleEXE` is instantiated with the
 the user needs to specify how the replicas should be set up or interact with each 
 other during the simulation ensemble. Below we decribe the details of these parameters.
 
-* Required parameters
+- **Section 1: Simulation inputs**
 
-  * :code:`gro`: The GRO file that contains the starting configuration for all replicas.
-  * :code:`top`: The TOP file that contains the system topology. 
-  * :code:`mdp`: The MDP template that has the whole range of :math:`λ` values.
-  * :code:`parallel`: Whether the replicas of EEXE should be run in parallel or not.
-  * :code:`n_sim`: The number of replica simulations.
-  * :code:`n_iter`: The number of iterations.
-  * :code:`s`: The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
+  - :code:`gro`: (Required)
+      The GRO file that contains the starting configuration for all replicas.
+  - :code:`top`: (Required)
+      The TOP file that contains the system topology. 
+  - :code:`mdp`: (Required)
+      The MDP template that has the whole range of :math:`λ` values.
+
+- **Section 2: EEXE parameters**
+
+  - :code:`parallel`: (Required)
+      Whether the replicas of EEXE should be run in parallel or not.
+  - :code:`n_sim`: (Required)
+      The number of replica simulations.
+  - :code:`n_iter`: (Required)
+      The number of iterations.
+  - :code:`s`: (Required)
+      The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
+  
   
 * Optional parameters
 
@@ -172,7 +183,6 @@ other during the simulation ensemble. Below we decribe the details of these para
   * :code:`w_scheme`: The method for combining weights. Choices include :code:`None` (unspecified), :code:`mean`, and :code:`geo-mean`/:code:`geo_mean`. For more details, please refer to :ref:`doc_w_schemes`. (Default: :code:`None`)
   * :code:`N_cutoff`: The histogram cutoff. -1 means that no histogram correction will be performed. (Default: 1000)
   * :code:`n_ex`: The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS. A recommended value is :math:`N^3`, where :math:`N` is the number of swappable pairs and can therefore be different in each iteration. If :code`n_ex` is unspecified or specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`. (Default: 0)
-  * :code:`output`: The output file for logging how replicas interact with each other. 
   * :code:`verbose`: Whether a verbse log is wanted. 
   * :code:`runtime_args`: Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. For example, one could have :code`{'-nt': 16}` to run the simulation using 16 threads.
   * :code:`maxwarn`: Maximum number of EEXE warnings to be ignored. 
