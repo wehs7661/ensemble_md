@@ -16,8 +16,9 @@ dependencies:
     - numpy
     - natsort
     - argparse
-    - alchemlyb
+    - alchemlyb==2.0.0
     - seaborn
     - matplotlib
     - pyemma
+    - pymbar=4.0.1
     # - mpi4py

@@ -92,7 +92,7 @@ def main():
     print(f'Command line: {" ".join(sys.argv)}')
 
     EEXE = EnsembleEXE(args.yaml)
-    EEXE.print_params()
+    EEXE.print_params(params_analysis=True)
 
     # Check if the folder for saving the outputs exist. If not, create the folder.
     if os.path.exists(args.dir) is False:
@@ -347,9 +347,9 @@ def main():
 
         state_ranges = [list(i) for i in EEXE.state_ranges]
         if EEXE.get_u_nk is True:
-            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(u_nk_list, state_ranges)
+            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method)
         else:
-            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(dHdl_list, state_ranges)
+            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method)
 
         for i in range(EEXE.n_sim):
             df_str = '0.000 +/- 0.000 kT'

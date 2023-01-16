@@ -124,7 +124,7 @@ Suggested workflow
 ==================
 In this section, we recommend a workflow of running an ensemble of expanded ensemble, which can be 
 implmented by using functions defined :class:`ensemble_EXE`. 
-A hands-on tutorial that implements this workflow (using `run_ensemble_EXE.py`) can be found in 
+A hands-on tutorial that implements this workflow (using :code:`run_ensemble_EXE.py`) can be found in 
 `Tutorial 1: Ensemble of expanded ensemble`_. 
 
 .. _`Tutorial 1: Ensemble of expanded ensemble`: examples/EEXE_tutorial.ipynb
@@ -132,7 +132,7 @@ A hands-on tutorial that implements this workflow (using `run_ensemble_EXE.py`) 
 
 Step 1: Set up parameters
 -------------------------
-To run an ensemble of expanded ensemble in GROMACS using :code:`ensemble_md`, one at 
+To run an ensemble of expanded ensemble in GROMACS using :code:`run_EEXE.py`, one at 
 least needs to following four files:
 
 * One GRO file of the system of interest
@@ -140,35 +140,46 @@ least needs to following four files:
 * One MDP template for customizing different MDP files for different replicas. 
 * One YAML file that specify the EEXE-relevant parameters.
 
-Notably, here we are assuming that all replicas start from the same configuration represented 
-by the single GRO file, but the user should also be able to use the methods defined in 
-:code:`ensemble_md` to initialize different replicas with different configurations (represented by
-multiple GRO files) in the first iteration. Also, the MDP template should contain parameters 
+Currently, we only allow all replicas to be initiated with the same configuration represented 
+by the single GRO file, but the user should also be able to initialize different replicas with different 
+configurations (represented by multiple GRO files) in the near future. Also, the MDP template should contain parameters 
 common across all replicas and define the coupling parmaeters for all possible intermediate states,
 so that we can cusotmize different MDP files by defining a subset of alchemical states in different 
-replicas. 
+replicas. Importantly, to extend an EEXE simulation, one needs to additionally provide the following
+two checkpoint files:
 
-Importantly, to instantiate the class :class:`.EnsembleEXE`, the input YAML file should be passed.
-In this YAML file, the user needs to specify how the replicas should be set up or interact with each 
+* One NPY file containing the replica-space trajectories of different configurations saved by the previous run of EEXE simulation with a default name as :code:`rep_trajs.npy`.
+* One NPY file containing the timeseries of the whole-range alchemical weights saved by the previous run of EEXE simulation with a default name as :code:`g_vecs.npy`.
+
+In :code:`run_EEXE.py`, the class :class:`.EnsembleEXE` is instantiated with the given YAML file, where
+the user needs to specify how the replicas should be set up or interact with each 
 other during the simulation ensemble. Below we decribe the details of these parameters.
 
 * Required parameters
 
+  * :code:`gro`: The GRO file that contains the starting configuration for all replicas.
+  * :code:`top`: The TOP file that contains the system topology. 
+  * :code:`mdp`: The MDP template that has the whole range of :math:`λ` values.
   * :code:`parallel`: Whether the replicas of EEXE should be run in parallel or not.
   * :code:`n_sim`: The number of replica simulations.
-  * :code:`n_iterations`: The number of iterations.
+  * :code:`n_iter`: The number of iterations.
   * :code:`s`: The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
-  * :code:`mdp`: The MDP template that has the whole range of :math:`λ` values.
-
+  
 * Optional parameters
 
   * :code:`nst_sim`: The number of simulation steps, i.e. exchange frequency. This option assumes replicas with homogeneous simulation lengths. If this option is not specified, the number of steps defined in the template MDP file will be used. 
   * :code:`mc_scheme`: The method for swapping simulations. Choices include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. For more details, please refer to :ref:`doc_mc_schemes`. (Default: :code:`metropolis`)
   * :code:`w_scheme`: The method for combining weights. Choices include :code:`None` (unspecified), :code:`mean`, and :code:`geo-mean`/:code:`geo_mean`. For more details, please refer to :ref:`doc_w_schemes`. (Default: :code:`None`)
   * :code:`N_cutoff`: The histogram cutoff. -1 means that no histogram correction will be performed. (Default: 1000)
-  * :code:`n_ex`: The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS. A recommended value is :math:`N^3`, where :math:`N` is the number of replicas. If `n_ex` is unspecified or specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`. (Default: 0)
-  * :code:`outfile`: The output file for logging how replicas interact with each other. 
+  * :code:`n_ex`: The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS. A recommended value is :math:`N^3`, where :math:`N` is the number of swappable pairs and can therefore be different in each iteration. If :code`n_ex` is unspecified or specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`. (Default: 0)
+  * :code:`output`: The output file for logging how replicas interact with each other. 
   * :code:`verbose`: Whether a verbse log is wanted. 
+  * :code:`runtime_args`: Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. For example, one could have :code`{'-nt': 16}` to run the simulation using 16 threads.
+  * :code:`maxwarn`: Maximum number of EEXE warnings to be ignored. 
+  * :code:`n_ckpt`: The frequency for checkpointing in the number of iterations.
+  * :code:`df_spacing`: The step to used in subsampling the DHDL data in free energy calculations.
+  * :code:`df_method`: The free energy estimator to use in free energy calcuulation. Available options include "TI", "BAR", and "MBAR".
+  * :code:`err_method`: The method for estimating the uncertainty of the free energy combined across multiple replicas. Available options include "propagate" and "bootstrap". The boostrapping method is more accurate but much more computationally expensive than simple error propagation.
 
 Step 2: Run the 1st iteration
 -----------------------------

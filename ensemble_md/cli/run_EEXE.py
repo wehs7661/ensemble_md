@@ -50,6 +50,10 @@ def main():
     # Step 1: Set up MPI rank and instantiate EnsembleEXE to set up EEXE parameters
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()  # Note that this is a GLOBAL variable
+
+    if rank == 0:
+        print(f'Command line: {" ".join(sys.argv)}')
+        
     EEXE = EnsembleEXE(args.yaml)
     sys.stdout = utils.Logger(logfile=EEXE.output)
     sys.stderr = utils.Logger(logfile=EEXE.output)

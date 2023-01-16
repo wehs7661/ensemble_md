@@ -63,6 +63,7 @@ jobs:
         export CXX=`which g++`
 
         pip install "cmake>=3.16"
+        cmake --version
         cd $HOME && mkdir pkgs 
         git clone https://gitlab.com/gromacs/gromacs.git
         cd gromacs && mkdir build && cd build

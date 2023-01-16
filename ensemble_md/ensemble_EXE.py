@@ -82,7 +82,8 @@ class EnsembleEXE:
             "maxwarn": 0,
             "n_ckpt": 100,
             "df_spacing": 1,
-            "df_method": "MBAR"
+            "df_method": "MBAR",
+            "err_method": "propagate"
         }
         for i in optional_args:
             if hasattr(self, i) is False:
@@ -92,17 +93,23 @@ class EnsembleEXE:
         if self.w_scheme not in [None, 'mean', 'geo-mean']:
             raise ParameterError("The specified weight combining scheme is not available. Options include None, 'mean', and 'geo-mean'/'geo_mean'.")  # noqa: E501
 
-        if self.mc_scheme not in ['same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
+        if self.mc_scheme not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'maxwarn', 'df_spacing']  # integer parameters
+        if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
+            raise ParameterError("The specified free energy estimator is not available. Options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
+
+        if self.err_method not in [None, 'propagate', 'bootstrap']:
+            raise ParameterError("The specified method for error estimation is not available. Options include 'propagate', and 'bootstrap'.")  # noqa: E501
+
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'maxwarn', 'df_spacing', 'n_ckpt']  # integer parameters
         if self.n_ex != 'N^3':
             params_int.append('n_ex')
         for i in params_int:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iter', 's', 'nst_sim']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 's', 'nst_sim', 'n_ckpt', 'df_spacing']  # positive parameters
         for i in params_pos:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
@@ -112,6 +119,9 @@ class EnsembleEXE:
 
         if self.N_cutoff < 0 and self.N_cutoff != -1:
             raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
+
+        if self.maxwarn < 0: 
+            raise ParameterError("The parameter 'maxwarn' should be non-negative.")
 
         params_str = ['gro', 'top', 'mdp', 'output']
         for i in params_str:
@@ -192,15 +202,21 @@ class EnsembleEXE:
                     f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them."  # noqa: E501, F541
                 )
 
-    def print_params(self):
+    def print_params(self, params_analysis=False):
         """
-        Prints out important parameters
+        Prints out important parameters.
+
+        Parameters
+        ----------
+        params_analysis : bol
+            Whether to print out parameters for data analysis.
         """
         if rank == 0:
             print("\nImportant parameters of EXEE")
             print("============================")
             print(f"gmxapi version: {gmx.__version__}")
             print(f"ensemble_md version: {ensemble_md.__version__}")
+            print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
             print(f"Output log file: {self.output}")
             print(f"Verbose log file: {self.verbose}")
             print(f"Whether the replicas run in parallel: {self.parallel}")
@@ -211,11 +227,21 @@ class EnsembleEXE:
             print(f"Number of iterations: {self.n_iter}")
             print(f"Number of exchanges in one attempt: {self.n_ex}")
             print(f"Length of each replica: {self.dt * self.nst_sim} ps")
+            print(f"Frequency for checkpointing: {self.n_ckpt} iterations")
             print(f"Total number of states: {self.n_tot}")
             print(f"Additional runtime arguments: {self.runtime_args}")
             print("Alchemical ranges of each replica in EEXE:")
             for i in range(self.n_sim):
                 print(f"  - Replica {i}: States {list(self.state_ranges[i])}")
+            for i in self.warnings:
+                print(f'\n{i}')
+
+            if params_analysis is True:
+                print()
+                print(f'The step to used in subsampling the DHDL data in free energy calculations: {self.df_spacing}')
+                print(f"The chosen free energy estimator: {self.df_method}")
+                print(f"The method for estimating the uncertainty of free energies: {self.err_method}")
+
 
     def map_lambda2state(self):
         """

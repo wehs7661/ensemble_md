@@ -65,6 +65,7 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
         
         print('Subsampling and decorrelating the concatenated u_nk data ...')
         t, statinef, Neff_max = detect_equilibration(u_nk_series.values)
+        
         print(f'  Adopted spacing: {spacing: .0f}')
         print(f' {t / len(u_nk_series) * 100: .1f}% of the u_nk data was in the equilibrium region and therfore discarded.')
         print(f'  Statistical inefficiency of u_nk: {statinef: .1f}')
@@ -88,9 +89,10 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
         print('Subsampling and decorrelating the concatenated dHdl data ...')
         t, statinef, Neff_max = detect_equilibration(dHdl_series.values)
         
-        print(f'  {t / len(dHdl_series) * 100: .1f}% of the dHdl data was in the equilibrium region and therfore discarded.')
+        print(f'  Adopted spacing: {spacing: .0f}')
+        print(f' {t / len(dHdl_series) * 100: .1f}% of the dHdl data was in the equilibrium region and therfore discarded.')
         print(f'  Statistical inefficiency of dHdl: {statinef: .1f}')
-        print(f'  Number of effective samples: {Neff_max}')
+        print(f'  Number of effective samples: {Neff_max: .0f}\n')
 
         dHdl_series_equil, dHdl_equil = dHdl_series[t:], dHdl[t:]
         indices = subsample_correlated_data(dHdl_series_equil, g=statinef)
@@ -101,7 +103,7 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
 
     return preprocessed_u_nk, preprocessed_dHdl
 
-def calculate_free_energy(data, state_ranges, method="MBAR"):
+def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='propagate'):
     """
     Caculate the averaged free energy profile with the chosen method given dHdl or u_nk data obtained from all replicas of the 
     EEXE simulation of interest. Available methods include TI, BAR, and MBAR. TI requires dHdl data while the other two require
@@ -114,8 +116,11 @@ def calculate_free_energy(data, state_ranges, method="MBAR"):
         Preferrably, the dHdl or u_nk data should be preprocessed by the function proprocess_data. 
     state_ranges : list
         A list of lists of intergers that represents the alchemical states that can be sampled by different replicas.
-    method : str
+    df_method : str
         The method used to calculate the free energy profile. Available choices include "TI", "BAR", and "MBAR".
+    err_method : str
+        The method used to estimate the uncertainty of the free energy combined across multiple replicas. Available options include "propagate" and "bootstrap". 
+        The bootstrapping method is more accurate but much more computationally expensive than simple error propagation.
 
     Returns
     -------
@@ -155,6 +160,10 @@ def calculate_free_energy(data, state_ranges, method="MBAR"):
         mean, error = utils.weighted_mean(df_list, err_list)
         df.append(mean)
         err.append(error)
+
+    if err_method == 'bootstrap':
+        # Recalculate err with bootstrapping. (df is still the same and has been calculated above.)
+        err = []
 
     return df, err, df_all, err_all
 
