@@ -27,7 +27,7 @@ from ensemble_md.utils import utils  # noqa: E402
 from ensemble_md.analysis import analyze_traj  # noqa: E402
 from ensemble_md.analysis import analyze_matrix  # noqa: E402
 from ensemble_md.analysis import msm_analysis  # noqa: E402
-from ensemble_md.analysis import calc_free_energy  # noqa: E402
+from ensemble_md.analysis import analyze_free_energy  # noqa: E402
 from ensemble_md.ensemble_EXE import EnsembleEXE  # noqa: E402
 
 
@@ -325,7 +325,7 @@ def main():
             for i in range(EEXE.n_sim):
                 print(f'Reading dhdl files of replica {i} ...')
                 files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
-                u_nk, dHdl = calc_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)
+                u_nk, dHdl = analyze_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)
                 u_nk_list.append(u_nk)
                 dHdl_list.append(dHdl)
 
@@ -337,23 +337,15 @@ def main():
 
         state_ranges = [list(i) for i in EEXE.state_ranges]
         if EEXE.get_u_nk is True:
-            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method)
+            f, f_err, estimators = analyze_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method)
         else:
-            df, err, df_all, err_all = calc_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method)
-
-        for i in range(EEXE.n_sim):
-            df_str = '0.000 +/- 0.000 kT'
-            print(f'Free energy profile of replica {i} (range: {EEXE.state_ranges[i]}): ')
-            for j in range(EEXE.n_sub - 1):
-                df_str += f', {df_all[i][j]: .3f} +/- {err_all[i][j]: .3f} kT'
-            print(f"  {df_str}")
-
+            f, f_err, estimators = analyze_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method)
+        
+        print(f'Plotting the full-range free energy profile ...')
+        analyze_free_energy.plot_free_energy(f, f_err, f'{args.dir}/free_energy_profile.png')
+        
         print('The full-range free energy profile averaged over all replicas:')
-        df_str = '0.000 +/- 0.000 kT'
-        for i in range(EEXE.n_tot - 1):
-            df_str += f', {df[i]: .3f} +/- {err[i]: .3f} kT'
-        print(f"  {df_str}")
-
-        print(f'The free energy difference between the coupled and decoupled states: {np.sum(df): .3f} +/- {np.sqrt(np.sum(np.power(err, 2))): .3f} kT')
+        print(f"  {', '.join(f'{f[i]: .3f} +/- {f_err[i]: .3f} kT' for i in range(EEXE.n_tot))}")
+        print(f'The free energy difference between the coupled and decoupled states: {f[-1]: .3f} +/- {f_err[-1]: .3f} kT')
 
     print(f'\nTime elpased: {utils.format_time(time.time() - t0)}')

@@ -15,6 +15,7 @@ import pickle
 import natsort
 import alchemlyb
 import numpy as np
+import matplotlib.pyplot as plt
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -122,11 +123,11 @@ def gen_estimators(data, df_method="MBAR"):
     n_sim = len(data)
     estimators = []  # A list of objects of the corresponding class in alchemlyb.estimators
     for i in range(n_sim):
-        if method == "TI": 
+        if df_method == "TI": 
             estimators.append(TI().fit(data[i]))
-        elif method == "BAR":
+        elif df_method == "BAR":
             estimators.append(BAR().fit(data[i]))
-        elif method == "MBAR":
+        elif df_method == "MBAR":
             estimators.append(MBAR().fit(data[i]))
         else:
             raise ParameterError('Specified estimator not available.')
@@ -157,47 +158,75 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
 
     Returns
     -------
-    estimators : list
-        A list of estimators fitting the input data for all replicas.
     f : list
         The full-range free energy profile.
     f_err : list
         The uncertainty corresponding to the values in :code:`f`.
-
-    
-    df : list
-        A full-range free energy profile with each entry averaged over replicas.
-    err : list
-        A list of uncertainties corresponding to the values in :code:`df`.
-    df_all : list
-        A list of lists of free energy profiles for each replica.
-    err_all : list
-        A list of lists of uncertainty corresponding to the values in :code:`df_all`.
+    estimators : list
+        A list of estimators fitting the input data for all replicas. With this, the user can access all the free energies and 
+        their associated uncertainties for all states and replicas.
     """
     n_sim = len(data)
     estimators = gen_estimators(data, df_method)
 
     n_tot = state_ranges[-1][-1] + 1
-    df_all = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
-    err_all = [list(np.array(estimators[i].d_delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
+
+    # df_adjacent is a list of free energy differences between adjacent states for all replicas.
+    # df_err_adjacent is a list of uncertainties corresponding to the values of df_adjacent.
+    df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
+    df_err_adjacent = [list(np.array(estimators[i].d_delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
     
-    df, err = [], []
+    # df is a list of free energy differences between adajcent states combined across replicas.
+    # df_err is a list of uncertainties corresponding to the values in df.
+    df, df_err = [], []
     for i in range(n_tot - 1):
-        df_list, err_list = [], []
+        # df_list is a list of free energy difference between sates i and i+1 in different replicas
+        # df_err_list contains the uncertainties corresponding to the values of df_list 
+        df_list, df_err_list = [], []
         for j in range(n_sim):
             if i in state_ranges[j] and i + 1 in state_ranges[j]:
                 idx = state_ranges[j].index(i)
-                df_list.append(df_all[j][idx])
-                err_list.append(err_all[j][idx])
-        mean, error = utils.weighted_mean(df_list, err_list)
+                df_list.append(df_adjacent[j][idx])
+                df_err_list.append(df_err_adjacent[j][idx])
+        
+        # Take the weighted averaged across multiple replicas and calculate the propagated error.
+        mean, error = utils.weighted_mean(df_list, df_err_list)
         df.append(mean)
-        err.append(error)
+        df_err.append(error)
 
     if err_method == 'bootstrap':
         # Recalculate err with bootstrapping. (df is still the same and has been calculated above.)
         err = []
 
-    return df, err, df_all, err_all
+    df.insert(0, 0)
+    df_err.insert(0, 0)
+    f = [sum(df[:(i + 1)]) for i in range(len(df))]
+    f_err = [np.sqrt(sum([x**2 for x in df_err[:(i+1)]])) for i in range(len(df_err))]
+
+    return f, f_err, estimators
+
+
+def plot_free_energy(f, f_err, fig_name):
+    """
+    Plot the free energy profile with error bars.
+
+    Parameters
+    ----------
+    f : list
+        The full-range free energy profile.
+    f_err : list
+        The uncertainty corresponding to the values in :code:`f`.
+    fig_name : str
+        The file name of the png file to be saved (with the extension).
+    """
+    plt.figure()
+    plt.plot(range(len(f)), f, 'o-', c='#1f77b4')
+    plt.errorbar(range(len(f)), f, yerr=f_err, fmt='o', capsize=2, c='#1f77b4')
+    plt.xlabel('State')
+    plt.ylabel('Free energy (kT)')
+    plt.grid()
+    plt.savefig(f'{fig_name}', dpi=600)
+
 
 def average_weights(g_vecs, frac):
     """
