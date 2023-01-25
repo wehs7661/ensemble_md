@@ -104,9 +104,10 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
 
     return preprocessed_u_nk, preprocessed_dHdl
 
-def gen_estimators(data, df_method="MBAR"):
+def _calculate_df_adjacent(data, df_method="MBAR"):
     """
-    Generate a list of estimators fitting the input data.
+    An Internal function that generates a list of estimators fitting the input data
+    and calculates at list of free energy between adjacent states for all replicas.
 
     Parameters
     ----------
@@ -116,9 +117,10 @@ def gen_estimators(data, df_method="MBAR"):
 
     Returns
     -------
-    estimators : list
-        A list of free energy estimators fitting the input data and with the free energy differences 
-        (and their uncertanties) available. 
+    df_adjacent : list
+        A list of free energy differences between adjacent states for all replicas.
+    df_err_adjacent : list
+        A list of uncertainties corresponding to the values of df_adjacent.
     """
     n_sim = len(data)
     estimators = []  # A list of objects of the corresponding class in alchemlyb.estimators
@@ -132,11 +134,64 @@ def gen_estimators(data, df_method="MBAR"):
         else:
             raise ParameterError('Specified estimator not available.')
     
-    return estimators
+    df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
+    df_err_adjacent = [list(np.array(estimators[i].d_delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
+    
+    return df_adjacent, df_err_adjacent
+
+def _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagated_err=True):
+    """
+    An internal function that calculates a list of free energy differences between states i and i + 1. For free energy differences 
+    obtained from multiple replicas, an average weighted over all involved replicas is reported.
+
+    Parameters
+    ----------
+    df_adjacent : list
+        A list of free energy differences between adjacent states for all replicas.
+    df_err_adjacent : list
+        A list of uncertainties corresponding to the values of df_adjacent.
+    state_ranges : list
+        A list of lists of intergers that represents the alchemical states that can be sampled by different replicas.
+    propagated_err : bool
+        Whether to calculate the propagated error when taking the weighted averages for the free energy 
+        differences that can be obtained from multiple replicas. If False is specified, :code:`df_err`
+        returned will be :code:`None`.
+
+    Returns
+    -------
+    df : list
+        A list of free energy differences between states i and i + 1. 
+    df_err : list
+        A list of uncertainties of the free energy differences.
+    overlap_bool : list
+        overlap_bool[i] = True means that the i-th free energy difference (i.e. df[i]) was available
+        in multiple replicas. 
+    """
+    n_tot = state_ranges[-1][-1] + 1
+    df, df_err, overlap_bool = [], [], []
+    for i in range(n_tot - 1):
+        # df_list is a list of free energy difference between sates i and i+1 in different replicas
+        # df_err_list contains the uncertainties corresponding to the values of df_list 
+        df_list, df_err_list = [], []
+        for j in range(len(state_ranges)):   # len(state_ranges) = n_sim
+            if i in state_ranges[j] and i + 1 in state_ranges[j]:  
+                idx = state_ranges[j].index(i)
+                df_list.append(df_adjacent[j][idx])
+                df_err_list.append(df_err_adjacent[j][idx])
+        overlap_bool.append(len(df_list) > 1)
+
+        mean, error = utils.weighted_mean(df_list, df_err_list)
+        df.append(mean)
+        df_err.append(error)
+    
+    if propagated_err is False:
+        df_err = None
+
+    return df, df_err, overlap_bool
 
 def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='propagate', n_bootstrap=None, seed=None):
     """
-    Caculate the averaged free energy profile with the chosen method given dHdl or u_nk data obtained from all replicas of the 
+    Caculates the averaged free energy profile with the chosen method given dHdl or u_nk data obtained from all replicas of the 
     EEXE simulation of interest. Available methods include TI, BAR, and MBAR. TI requires dHdl data while the other two require
     u_nk data.
 
@@ -170,32 +225,8 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     """
     n_sim = len(data)
     n_tot = state_ranges[-1][-1] + 1
-    estimators = gen_estimators(data, df_method)
-
-    # df_adjacent is a list of free energy differences between adjacent states for all replicas.
-    # df_err_adjacent is a list of uncertainties corresponding to the values of df_adjacent.
-    df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
-    df_err_adjacent = [list(np.array(estimators[i].d_delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
-    
-    # df is a list of free energy differences between adajcent states combined across replicas.
-    # df_err is a list of uncertainties corresponding to the values in df.
-    df, df_err = [], []
-    overlap_bool = []  # overlap_bool[i] = True means that the i-th in df is between overlapping states
-    for i in range(n_tot - 1):
-        # df_list is a list of free energy difference between sates i and i+1 in different replicas
-        # df_err_list contains the uncertainties corresponding to the values of df_list 
-        df_list, df_err_list = [], []
-        for j in range(n_sim):
-            if i in state_ranges[j] and i + 1 in state_ranges[j]:
-                idx = state_ranges[j].index(i)
-                df_list.append(df_adjacent[j][idx])
-                df_err_list.append(df_err_adjacent[j][idx])
-        overlap_bool.append(len(df_list) > 1)
-        
-        # Take the weighted averaged across multiple replicas and calculate the propagated error.
-        mean, error = utils.weighted_mean(df_list, df_err_list)
-        df.append(mean)
-        df_err.append(error)
+    df_adjacent, df_err_adjacent = _calculate_df_adjacent(data, df_method)
+    df, df_err, overlap_bool = _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagated_err=True)
 
     if err_method == 'bootstrap':
         if seed is not None:
@@ -206,21 +237,9 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
         sampled_data_all = [data[i].sample(n=len(data[i]) * n_bootstrap, replace=True, random_state=seed) for i in range(n_sim)]
         for b in range(n_bootstrap):
             sampled_data = [sampled_data_all[i].iloc[b * len(data[i]) : (b + 1) * len(data[i])] for i in range(n_sim)]
-            estimators = gen_estimators(sampled_data, df_method)
-            df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
-            df_err_adjacent = [list(np.array(estimators[i].d_delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
-            df = []
-            for i in range(n_tot - 1):
-                df_list, df_err_list = [], []
-                for j in range(n_sim):
-                    if i in state_ranges[j] and i + 1 in state_ranges[j]:
-                        idx = state_ranges[j].index(i)
-                        df_list.append(df_adjacent[j][idx])
-                        df_err_list.append(df_err_adjacent[j][idx])
-                mean, error = utils.weighted_mean(df_list, df_err_list)
-                df.append(mean)
-            df_bootstrap.append(df)
-        mean_bootstrap = np.mean(df_bootstrap, axis=0)
+            df_adjacent, df_err_adjacent = _calculate_df_adjacent(sampled_data, df_method)
+            df_sampled, _, overlap_bool = _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagated_err=False)
+            df_bootstrap.append(df_sampled)
         error_bootstrap = np.std(df_bootstrap, axis=0, ddof=1)
 
         # Replace the value in df_err with value in error_bootstrap if df_err corresponds to the df between overlapping states
@@ -234,7 +253,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     f = [sum(df[:(i + 1)]) for i in range(len(df))]
     f_err = [np.sqrt(sum([x**2 for x in df_err[:(i+1)]])) for i in range(len(df_err))]
 
-    return f, f_err, estimators
+    return f, f_err
 
 
 def plot_free_energy(f, f_err, fig_name):
