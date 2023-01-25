@@ -92,7 +92,8 @@ class EnsembleEXE:
             "free_energy": False,
             "df_spacing": 1,
             "df_method": "MBAR",
-            "err_method": "propagate"
+            "err_method": "propagate",
+            "n_bootstrap": 50,
         }
         for i in optional_args:
             if hasattr(self, i) is False:
@@ -117,14 +118,14 @@ class EnsembleEXE:
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt']  # integer parameters
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters
         if self.n_ex != 'N^3':
             params_int.append('n_ex')
         for i in params_int:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iter', 's', 'nst_sim', 'n_ckpt', 'df_spacing']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 's', 'nst_sim', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
         for i in params_pos:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")

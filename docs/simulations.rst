@@ -214,7 +214,7 @@ Output settings
 ---------------
   - :code:`verbose`: (Optional, Default: :code:`True`)
       Whether a verbse log is wanted. 
-  - :code:`n_ckpt`: (Optional, Default: :code: 100)
+  - :code:`n_ckpt`: (Optional, Default: 100)
       The frequency for checkpointing in the number of iterations.
   
 .. _doc_analysis_params:

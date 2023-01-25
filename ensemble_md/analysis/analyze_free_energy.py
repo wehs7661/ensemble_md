@@ -167,9 +167,8 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
         their associated uncertainties for all states and replicas.
     """
     n_sim = len(data)
-    estimators = gen_estimators(data, df_method)
-
     n_tot = state_ranges[-1][-1] + 1
+    estimators = gen_estimators(data, df_method)
 
     # df_adjacent is a list of free energy differences between adjacent states for all replicas.
     # df_err_adjacent is a list of uncertainties corresponding to the values of df_adjacent.
@@ -196,7 +195,13 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
 
     if err_method == 'bootstrap':
         # Recalculate err with bootstrapping. (df is still the same and has been calculated above.)
-        err = []
+        for i in range(n_bootstrap):
+            sampled_data = [data[i].sample(n=len(data[i]), replace=True) for i in range(n_sim)]
+            estimators = gen_estimators(sampled_data, df_method)
+
+            df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
+            df_err_adjacent = [list(np.array(estimators[i].d_delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
+
 
     df.insert(0, 0)
     df_err.insert(0, 0)
