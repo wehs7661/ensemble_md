@@ -134,7 +134,7 @@ def gen_estimators(data, df_method="MBAR"):
     
     return estimators
 
-def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='propagate', n_bootstrap=None):
+def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='propagate', n_bootstrap=None, seed=None):
     """
     Caculate the averaged free energy profile with the chosen method given dHdl or u_nk data obtained from all replicas of the 
     EEXE simulation of interest. Available methods include TI, BAR, and MBAR. TI requires dHdl data while the other two require
@@ -155,6 +155,8 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     n_bootstrap : int
         The number of bootstrap iterations. This parameter is used only when the boostrapping method is chosen to 
         estimate the uncertainties of the free energies.
+    seed : int
+        The random seed for bootstrapping.
 
     Returns
     -------
@@ -178,6 +180,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     # df is a list of free energy differences between adajcent states combined across replicas.
     # df_err is a list of uncertainties corresponding to the values in df.
     df, df_err = [], []
+    overlap_bool = []  # overlap_bool[i] = True means that the i-th in df is between overlapping states
     for i in range(n_tot - 1):
         # df_list is a list of free energy difference between sates i and i+1 in different replicas
         # df_err_list contains the uncertainties corresponding to the values of df_list 
@@ -187,6 +190,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
                 idx = state_ranges[j].index(i)
                 df_list.append(df_adjacent[j][idx])
                 df_err_list.append(df_err_adjacent[j][idx])
+        overlap_bool.append(len(df_list) > 1)
         
         # Take the weighted averaged across multiple replicas and calculate the propagated error.
         mean, error = utils.weighted_mean(df_list, df_err_list)
@@ -194,14 +198,36 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
         df_err.append(error)
 
     if err_method == 'bootstrap':
+        if seed is not None:
+            print(f'Setting the random seed for boostrapping: {seed}')
+        
         # Recalculate err with bootstrapping. (df is still the same and has been calculated above.)
-        for i in range(n_bootstrap):
-            sampled_data = [data[i].sample(n=len(data[i]), replace=True) for i in range(n_sim)]
+        df_bootstrap = []
+        sampled_data_all = [data[i].sample(n=len(data[i]) * n_bootstrap, replace=True, random_state=seed) for i in range(n_sim)]
+        for b in range(n_bootstrap):
+            sampled_data = [sampled_data_all[i].iloc[b * len(data[i]) : (b + 1) * len(data[i])] for i in range(n_sim)]
             estimators = gen_estimators(sampled_data, df_method)
-
             df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
             df_err_adjacent = [list(np.array(estimators[i].d_delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
+            df = []
+            for i in range(n_tot - 1):
+                df_list, df_err_list = [], []
+                for j in range(n_sim):
+                    if i in state_ranges[j] and i + 1 in state_ranges[j]:
+                        idx = state_ranges[j].index(i)
+                        df_list.append(df_adjacent[j][idx])
+                        df_err_list.append(df_err_adjacent[j][idx])
+                mean, error = utils.weighted_mean(df_list, df_err_list)
+                df.append(mean)
+            df_bootstrap.append(df)
+        mean_bootstrap = np.mean(df_bootstrap, axis=0)
+        error_bootstrap = np.std(df_bootstrap, axis=0, ddof=1)
 
+        # Replace the value in df_err with value in error_bootstrap if df_err corresponds to the df between overlapping states
+        for i in range(n_tot - 1):
+            if overlap_bool[i] is True:
+                print(f'Replaced the propagated error with the bootstrapped error for states {i} and {i + 1}: {df_err[i]:.5f} -> {error_bootstrap[i]:.5f}.')
+                df_err[i] = error_bootstrap[i]
 
     df.insert(0, 0)
     df_err.insert(0, 0)

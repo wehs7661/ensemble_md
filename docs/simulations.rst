@@ -234,4 +234,47 @@ Data analysis
       The method for estimating the uncertainty of the free energy combined across multiple replicas. 
       Available options include :code:`propagate` and :code:`bootstrap`. The boostrapping method is more accurate but much more 
       computationally expensive than simple error propagation.
+  - :code:`n_bootstrap`: (Optional, Default: 50)
+      The number of bootstrap iterations to perform when estimating the uncertainties of the free energy differences between 
+      overlapping states.
+  - :code:`seed`: (Optional, Default: None)
+      The random seed to use in bootstrapping.
+
+For convenience, here is a template of the input YAML file, with each optional parameter specified with the default and required 
+parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e. :code:`None`).
+
+::
+
+    # Section 1: Simulation inputs
+    gro:
+    top:
+    mdp:
+
+    # Section 2: EEXE parameters
+    parallel:
+    n_sim:
+    n_iter:
+    s:
+    nst_sim: null
+    mc_scheme: 'metropolis' 
+    w_scheme: null
+    N_cutoff: 1000
+    n_ex: 0
+    runtime_args: null
+
+    # Section 3: Output settings
+    verbose: True
+    n_ckpt: 100
+
+    # Section 4: Warnings
+    maxwarn: 0
+
+    # Section 5: Data analysis
+    msm: False
+    free_energy: False 
+    df_spacing: 1
+    df_method: "MBAR"
+    err_method: "propagate"
+    n_bootstrap: 50
+    seed : null
 

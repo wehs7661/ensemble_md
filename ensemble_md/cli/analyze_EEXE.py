@@ -337,9 +337,9 @@ def main():
 
         state_ranges = [list(i) for i in EEXE.state_ranges]
         if EEXE.get_u_nk is True:
-            f, f_err, estimators = analyze_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.bootstrap)
+            f, f_err, estimators = analyze_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)
         else:
-            f, f_err, estimators = analyze_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.bootstrap)
+            f, f_err, estimators = analyze_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)
         
         print(f'Pickling the estimators ...')
         with open(f'{args.dir}/estimators.pickle', 'wb') as handle:
