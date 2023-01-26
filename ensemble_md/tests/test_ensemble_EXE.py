@@ -30,17 +30,29 @@ class Test_EnsembleEXE:
     def test_init_1(self):
         k = 1.380649e-23
         NA = 6.0221408e23
-        assert EEXE.mc_scheme == "metropolis"
-        assert EEXE.w_scheme is None
-        assert EEXE.N_cutoff == 1000
-        assert EEXE.n_ex == 0
-        assert EEXE.output == "run_EEXE_log.txt"
+
+        # Check the parameters specified in the yaml file
         assert EEXE.mdp == "ensemble_md/tests/data/expanded.mdp"
         assert EEXE.gro == "ensemble_md/tests/data/sys.gro"
         assert EEXE.top == "ensemble_md/tests/data/sys.top"
         assert EEXE.nsteps == 500
+
+        # Check the default values
+        assert EEXE.mc_scheme == "metropolis"
+        assert EEXE.w_scheme is None
+        assert EEXE.N_cutoff == 1000
+        assert EEXE.n_ex == 0
+        assert EEXE.runtime_args is None
+        assert EEXE.verbose is True
+        assert EEXE.n_ckpt == 100
+        assert EEXE.msm is False
+        assert EEXE.free_energy is False
+
+        # Check the MDP parameters
         assert EEXE.dt == 0.002
         assert EEXE.temp == 298
+
+        # Check the derived parameters
         assert EEXE.kT == k * NA * 298 / 1000
         assert EEXE.n_tot == 9
         assert EEXE.n_sub == 6
@@ -154,13 +166,15 @@ class Test_EnsembleEXE:
         EEXE.print_params()
         out, err = capfd.readouterr()
         L = ""
-        L += "\nImportant parameters of EXEE\n============================\n"
+        L += "Important parameters of EXEE\n============================\n"
         L += f"gmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"
-        L += "Output log file: run_EEXE_log.txt\nVerbose log file: True\nWhether the replicas run in parallel: False\n"
+        L += "Simulation inputs: ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/expanded.mdp\n"  # noqa: E501
+        L += "Verbose log file: True\nWhether the replicas run in parallel: False\n"
         L += "MC scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of exchanges in one attempt: 0\n"
-        L += "Length of each replica: 1.0 ps\nTotal number of states: 9\n"
+        L += "Length of each replica: 1.0 ps\nFrequency for checkpointing: 100 iterations\n"
+        L += "Total number of states: 9\n"
         L += "Additional runtime arguments: None\n"
         L += "Alchemical ranges of each replica in EEXE:\n  - Replica 0: States [0, 1, 2, 3, 4, 5]\n"
         L += "  - Replica 1: States [1, 2, 3, 4, 5, 6]\n  - Replica 2: States [2, 3, 4, 5, 6, 7]\n"

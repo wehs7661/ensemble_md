@@ -1,10 +1,10 @@
 # User-defined parameters
-parallel: 3                  # Whether the replicas of EXEE should be run in parallel or not
-n_sim: 4                     # Number of replica simulations
-n_iter: 10                   # Number of iterations
-nst_sim: 500                 # Number of simulation steps for each homogeneous replica
-s: 1                         # Shift in λ ranges (e.g. s = 2 if λ_2 = (2, 3, 4) & λ_3 = (4, 5, 6))
-nst_sim: 500                 # Number of simulation steps for each homogeneous replica
+parallel: 3                  
+n_sim: 4                     
+n_iter: 10                  
+nst_sim: 500                
+s: 1                      
+nst_sim: 500                 
 gro: 'ensemble_md/tests/data/sys.gro'
 top: 'ensemble_md/tests/data/sys.top'
-mdp: 'ensemble_md/tests/data/expanded.mdp'          # The MDP template that has the whole range of λ values
+mdp: 'ensemble_md/tests/data/expanded.mdp'    
