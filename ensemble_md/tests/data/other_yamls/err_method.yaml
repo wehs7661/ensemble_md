@@ -1,0 +1,11 @@
+# User-defined parameters
+parallel: False              
+n_sim: 4                     
+n_iter: 10                
+nst_sim: 500                 
+s: 1                         
+nst_sim: 500                 
+gro: 'ensemble_md/tests/data/sys.gro'
+top: 'ensemble_md/tests/data/sys.top'
+mdp: 'ensemble_md/tests/data/expanded.mdp'      
+err_method: 'cool'

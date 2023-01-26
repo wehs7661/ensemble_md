@@ -108,16 +108,16 @@ class EnsembleEXE:
 
         # Step 3: Check if the parameters in the YAML file are well-defined
         if self.w_scheme not in [None, 'mean', 'geo-mean', 'g-diff']:
-            raise ParameterError("The specified weight combining scheme is not available. Options include None, 'mean', and 'geo-mean'/'geo_mean'.")  # noqa: E501
+            raise ParameterError("The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
 
         if self.mc_scheme not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
-            raise ParameterError("The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
+            raise ParameterError("The specified MC scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
-            raise ParameterError("The specified free energy estimator is not available. Options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
+            raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
 
         if self.err_method not in [None, 'propagate', 'bootstrap']:
-            raise ParameterError("The specified method for error estimation is not available. Options include 'propagate', and 'bootstrap'.")  # noqa: E501
+            raise ParameterError("The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
         params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.n_ex != 'N^3':
@@ -155,7 +155,7 @@ class EnsembleEXE:
         self.dt = self.template["dt"]  # ps
         self.temp = self.template["ref-t"]
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
-        if hasattr(self, 'wl-scale') is False and hasattr(self, 'wl_scale') is False:
+        if self.template['wl-scale'] == '' and self.template['wl-ratio'] == '':
             self.fixed_weights = True
         else:
             self.fixed_weights = False
@@ -241,9 +241,13 @@ class EnsembleEXE:
 
         if params_analysis is True:
             print()
-            print(f'The step to used in subsampling the DHDL data in free energy calculations: {self.df_spacing}')
-            print(f"The chosen free energy estimator: {self.df_method}")
-            print(f"The method for estimating the uncertainty of free energies: {self.err_method}")
+            print(f"Whether to build Markov state models and perform relevant analysis: {self.msm}")
+            print(f"Whether to perform free energy calculations: {self.free_energy}")
+            print(f"The step to used in subsampling the DHDL data in free energy calculations, if any: {self.df_spacing}")  # noqa: E501
+            print(f"The chosen free energy estimator for free energy calculations, if any: {self.df_method}")
+            print(f"The method for estimating the uncertainty of free energies in free energy calculations, if any: {self.err_method}")  # noqa: E501
+            print(f"The number of bootstrap iterations in the boostrapping method, if used: {self.n_bootstrap}")
+            print(f"The random seed to use in bootstrapping, if used: {self.seed}")
 
     def map_lambda2state(self):
         """
@@ -732,7 +736,7 @@ class EnsembleEXE:
             A list of Wang-Landau weights of ALL simulations
         method : str
             Method for combining probabilities and probability ratios.
-            Available options include "None", "mean", "geo-mean" and "g-diff".
+            Available options include "None", "mean", "geo-mean/geo_mean" and "g-diff/g_diff".
 
         Returns
         -------
@@ -757,7 +761,7 @@ class EnsembleEXE:
                 for i in range(len(w)):
                     print(f'    Rep {i}: {w[i]}')
 
-            if method == 'g-diff':
+            if method == 'g-diff' or method == 'g_diff':
                 # Method based on weight differences
                 dg_vec = []
                 dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
@@ -770,6 +774,7 @@ class EnsembleEXE:
                     dg_vec.append(np.mean(dg_list))
                 dg_vec.insert(0, 0)
                 g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
+                print(g_vec)
             else:
                 # Method based on probability ratios
                 # Step 1: Convert the weights into probabilities

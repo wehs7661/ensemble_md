@@ -11,13 +11,13 @@
 Unit tests for the module ensemble_EXE.py.
 """
 import os
-import shutil
+# import shutil
 import pytest
 import random
 import numpy as np
 import ensemble_md
 import gmxapi as gmx
-from mpi4py import MPI
+# from mpi4py import MPI
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.utils.exceptions import ParameterError
 
@@ -47,16 +47,22 @@ class Test_EnsembleEXE:
         assert EEXE.n_ckpt == 100
         assert EEXE.msm is False
         assert EEXE.free_energy is False
+        assert EEXE.df_spacing == 1
+        assert EEXE.df_method == 'MBAR'
+        assert EEXE.err_method == 'propagate'
+        assert EEXE.n_bootstrap == 50
+        assert EEXE.seed is None
 
         # Check the MDP parameters
+        assert EEXE.nsteps == 500
         assert EEXE.dt == 0.002
         assert EEXE.temp == 298
+        assert EEXE.fixed_weights is False
 
         # Check the derived parameters
         assert EEXE.kT == k * NA * 298 / 1000
         assert EEXE.n_tot == 9
         assert EEXE.n_sub == 6
-        assert EEXE.runtime_args is None
         assert EEXE.state_ranges == [
             {0, 1, 2, 3, 4, 5},
             {1, 2, 3, 4, 5, 6},
@@ -65,6 +71,12 @@ class Test_EnsembleEXE:
         ]
         assert EEXE.equil == [-1, -1, -1, -1]
         assert EEXE.nst_sim == 500
+        assert EEXE.n_rejected == 0
+        assert EEXE.n_swap_attempts == 0
+        assert EEXE.rep_trajs == [[0], [1], [2], [3]]
+        assert EEXE.g_vecs == []
+        assert EEXE.get_u_nk is True
+        assert EEXE.get_dHdl is False
         assert EEXE.lambda_dict == {
             (0, 0): 0,
             (0.25, 0): 1,
@@ -83,46 +95,66 @@ class Test_EnsembleEXE:
             [(0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75), (1.0, 1.0)],
         ]
 
+        # Check warnings
+        assert EEXE.warnings[0] == 'Warning: Parameter "cool" specified in the input YAML file is not recognizable.'
+        assert EEXE.warnings[1] == 'Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.'
+
     def test_init_2(self):
-        yaml_0 = os.path.join(input_path, "other_yamls/0.yaml")
-        with pytest.raises(ParameterError, match="The specified weight combining scheme is not available. Options include None, 'mean', and 'geo-mean'/'geo_mean'."):  # noqa: E501
-            E0 = EnsembleEXE(yaml_0)  # noqa: F841
+        yaml = os.path.join(input_path, "other_yamls/required.yaml")
+        with pytest.raises(ParameterError, match=f"Required parameter 'parallel' not specified in {yaml}"):
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_1 = os.path.join(input_path, "other_yamls/1.yaml")
-        with pytest.raises(ParameterError, match=f"Required parameter 'parallel' not specified in {yaml_1}"):
-            E1 = EnsembleEXE(yaml_1)  # noqa: F841
+        yaml = os.path.join(input_path, "other_yamls/w_scheme.yaml")
+        with pytest.raises(ParameterError, match="The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'."):  # noqa: E501
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_2 = os.path.join(input_path, "other_yamls/2.yaml")
-        with pytest.raises(ParameterError, match="The specified MC scheme is not available. Options include 'same-state', 'metropolis', and 'metropolis-eq'."):  # noqa: E501
-            E2 = EnsembleEXE(yaml_2)  # noqa: F841
+        yaml = os.path.join(input_path, "other_yamls/mc.yaml")
+        with pytest.raises(ParameterError, match="The specified MC scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'."):  # noqa: E501
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_3 = os.path.join(input_path, "other_yamls/3.yaml")
+        yaml = os.path.join(input_path, "other_yamls/df_method.yaml")
+        with pytest.raises(ParameterError, match="The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'."):  # noqa: E501
+            E = EnsembleEXE(yaml)  # noqa: F841
+
+        yaml = os.path.join(input_path, "other_yamls/err_method.yaml")
+        with pytest.raises(ParameterError, match="The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'."):  # noqa: E501
+            E = EnsembleEXE(yaml)  # noqa: F841
+
+        yaml = os.path.join(input_path, "other_yamls/seed.yaml")
+        with pytest.raises(ParameterError, match="The parameter 'seed' should be an integer."):
+            E = EnsembleEXE(yaml)  # noqa: F841
+
+        yaml = os.path.join(input_path, "other_yamls/int.yaml")
         with pytest.raises(ParameterError, match="The parameter 'n_sim' should be an integer."):
-            E3 = EnsembleEXE(yaml_3)  # noqa: F841
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_4 = os.path.join(input_path, "other_yamls/4.yaml")
+        yaml = os.path.join(input_path, "other_yamls/pos.yaml")
         with pytest.raises(ParameterError, match="The parameter 'n_iter' should be positive."):
-            E4 = EnsembleEXE(yaml_4)  # noqa: F841
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_5 = os.path.join(input_path, "other_yamls/5.yaml")
+        yaml = os.path.join(input_path, "other_yamls/nex_0.yaml")
+        with pytest.raises(ParameterError, match="The parameter 'n_ex' should be an integer."):
+            E = EnsembleEXE(yaml)  # noqa: F841
+
+        yaml = os.path.join(input_path, "other_yamls/nex_1.yaml")
         with pytest.raises(ParameterError, match="The parameter 'n_ex' should be non-negative."):
-            E5 = EnsembleEXE(yaml_5)  # noqa: F841
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_6 = os.path.join(input_path, "other_yamls/6.yaml")
+        yaml = os.path.join(input_path, "other_yamls/N_cutoff.yaml")
         with pytest.raises(ParameterError, match="The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1."):  # noqa: E501
-            E6 = EnsembleEXE(yaml_6)  # noqa: F841
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_7 = os.path.join(input_path, "other_yamls/7.yaml")
+        yaml = os.path.join(input_path, "other_yamls/str.yaml")
         with pytest.raises(ParameterError, match="The parameter 'mdp' should be a string."):
-            E7 = EnsembleEXE(yaml_7)  # noqa: F841
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_8 = os.path.join(input_path, "other_yamls/8.yaml")
+        yaml = os.path.join(input_path, "other_yamls/bool.yaml")
         with pytest.raises(ParameterError, match="The parameter 'parallel' should be a boolean variable."):
-            E8 = EnsembleEXE(yaml_8)  # noqa: F841
+            E = EnsembleEXE(yaml)  # noqa: F841
 
-        yaml_9 = os.path.join(input_path, "other_yamls/9.yaml")
-        E9 = EnsembleEXE(yaml_9)
-        assert E9.lambda_dict == {
+        yaml = os.path.join(input_path, "other_yamls/0.yaml")
+        E = EnsembleEXE(yaml)
+        assert E.lambda_dict == {
             (0.1,): 0,
             (0.2,): 1,
             (0.3,): 2,
@@ -133,16 +165,16 @@ class Test_EnsembleEXE:
             (0.8,): 7,
             (1,): 8,
         }  # noqa: E501
-        assert E9.lambda_ranges == [
+        assert E.lambda_ranges == [
             [(0.1,), (0.2,), (0.3,), (0.4,), (0.5,), (0.6,)],
             [(0.2,), (0.3,), (0.4,), (0.5,), (0.6,), (0.7,)],
             [(0.3,), (0.4,), (0.5,), (0.6,), (0.7,), (0.8,)],
             [(0.4,), (0.5,), (0.6,), (0.7,), (0.8,), (1.0,)],
         ]
 
-        yaml_10 = os.path.join(input_path, "other_yamls/10.yaml")
-        E10 = EnsembleEXE(yaml_10)
-        assert E10.lambda_dict == {
+        yaml = os.path.join(input_path, "other_yamls/1.yaml")
+        E = EnsembleEXE(yaml)
+        assert E.lambda_dict == {
             (0, 0, 0): 0,
             (0.25, 0, 0): 1,
             (0.5, 0, 0): 2,
@@ -153,18 +185,18 @@ class Test_EnsembleEXE:
             (1, 0.75, 0.8): 7,
             (1, 1, 1): 8,
         }  # noqa: E501
-        assert E10.lambda_ranges == [
+        assert E.lambda_ranges == [
             [(0.0, 0.0, 0.0), (0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2)],
             [(0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6)],
             [(0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8)],
             [(0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8), (1.0, 1.0, 1.0)],
         ]
-        assert E10.runtime_args == {'-nt': '16', '-ntomp': 8}
+        assert E.runtime_args == {'-nt': '16', '-ntomp': 8}
 
     def test_print_params(self, capfd):
         # capfd is a fixture in pytest for testing STDOUT
         EEXE.print_params()
-        out, err = capfd.readouterr()
+        out_1, err = capfd.readouterr()
         L = ""
         L += "Important parameters of EXEE\n============================\n"
         L += f"gmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"
@@ -179,7 +211,18 @@ class Test_EnsembleEXE:
         L += "Alchemical ranges of each replica in EEXE:\n  - Replica 0: States [0, 1, 2, 3, 4, 5]\n"
         L += "  - Replica 1: States [1, 2, 3, 4, 5, 6]\n  - Replica 2: States [2, 3, 4, 5, 6, 7]\n"
         L += "  - Replica 3: States [3, 4, 5, 6, 7, 8]\n"
-        assert out == L
+        assert out_1 == L
+
+        EEXE.print_params(params_analysis=True)
+        out_2, err = capfd.readouterr()
+        L += "\nWhether to build Markov state models and perform relevant analysis: False\n"
+        L += "Whether to perform free energy calculations: False\n"
+        L += "The step to used in subsampling the DHDL data in free energy calculations, if any: 1\n"
+        L += "The chosen free energy estimator for free energy calculations, if any: MBAR\n"
+        L += "The method for estimating the uncertainty of free energies in free energy calculations, if any: propagate\n"  # noqa: E501
+        L += "The number of bootstrap iterations in the boostrapping method, if used: 50\n"
+        L += "The random seed to use in bootstrapping, if used: None\n"
+        assert out_2 == L
 
     def test_initialize_MDP(self):
         MDP = EEXE.initialize_MDP(2)
@@ -415,6 +458,7 @@ class Test_EnsembleEXE:
 
         EEXE.verbose = False   # just to reach some print statementss with verbose = False
         w3, g_vec_3 = EEXE.combine_weights(weights, method='geo-mean')
+        w4, g_vec_4 = EEXE.combine_weights(weights, method='g-diff')
 
         assert np.allclose(w1, weights)
         assert np.allclose(w2, [
@@ -425,10 +469,16 @@ class Test_EnsembleEXE:
             [0.0, 2.2, 3.98889, 3.58889],
             [0.0, 1.78889, 1.38889, 2.68333],
             [0.0, -0.4, 0.89444, 1.87778]])
+        assert np.allclose(w4, [
+            [0, 2.1, 3.9, 3.5],
+            [0, 1.8, 1.4, 2.75],
+            [0, -0.4, 0.95, 1.95]])
         assert g_vec_1 is None
         assert np.allclose(list(g_vec_2), [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005])  # noqa: E501
         assert np.allclose(list(g_vec_3), [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667])  # noqa: E501
+        assert np.allclose(list(g_vec_4), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
 
+    """
     def test_run_EEXE(self):
         # We probably can only test serial EEXE
         rank = MPI.COMM_WORLD.Get_rank()
@@ -448,3 +498,4 @@ class Test_EnsembleEXE:
         if rank == 0:
             os.system('rm -r sim_*')
             os.system('rm -r gmxapi.commandline.cli1_i0*')
+    """

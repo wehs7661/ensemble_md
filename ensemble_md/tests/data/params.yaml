@@ -7,3 +7,4 @@ s: 1
 gro: 'ensemble_md/tests/data/sys.gro'
 top: 'ensemble_md/tests/data/sys.top'
 mdp: 'ensemble_md/tests/data/expanded.mdp'
+cool: 10
