@@ -357,6 +357,7 @@ alchemical weights of different replicas have different references. Although it 
 state for all replicas before weight combination could solve this issue, different choices of references could lead to 
 slightly different combined weights, hence probability ratios. As there is no real justification which state should be favored
 as the reference, instead of the method explained above, we implemented another method that exploits the average of "probability ratios"
+(:code:`method=mean`, or :code:`method=geo-mean` in :obj:`.combine_weights`) and "weight difference" (:code:`method=g-diff` in :obj:`.combine_weights`) 
 to circumvent the issue of reference selection. 
 
 Weight combinination based on probability ratios
@@ -554,6 +555,80 @@ have uncertainties :math:`\sigma_1` and :math:`\sigma_2`, we can have
 
 However, calculating the uncertainties of the :math:`p_1` and :math:`p_2` on-the-fly is generally difficult, so 
 this method has not been implemented. 
+
+Weight combinination based on weight differences
+------------------------------------------------
+Using the same set of replicas/weights, here we explain another simpler method that combines weights based on the weight
+differences between adjacent states. As a reminder, below are the set of weights we are considering:
+
+::
+
+    State       0         1         2         3         4         5      
+    Rep 1       0.0       2.1       4.0       3.7       X         X  
+    Rep 2       X         0.0       1.7       1.2       2.6       X    
+    Rep 3       X         X         0.0       -0.4      0.9       1.9
+
+
+Step 1: Calculate the weight difference between adjacent states
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+First, we calculate the weight differences, which can be regarded very rough estimates 
+of free energy differences, between the adjacent states. We therefore have:
+
+::
+
+    States      (0, 1)    (1, 2)    (2, 3)    (3, 4)    (4, 5)    
+    Rep 1       2.1       1.9       -0.3       X        X       
+    Rep 2       X         1.7       -0.5       1.4      X       
+    Rep 3       X         X         -0.4       1.3      1.0     
+
+Note that to calculate the difference between, say, states 1 and 2, from a certain replica, 
+both these states must be present in the alchemical range of the replica. Otherwise, a free 
+energy difference can't not be calculated and is denoted with :code:`X`.
+
+Step 2: Take the average of the weight differences across replicas
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Then, for the weight differences that are available in more than 1 replica, we take the simple 
+average of the weight differences. That is, we have:
+
+::
+
+    States      (0, 1)    (1, 2)    (2, 3)    (3, 4)    (4, 5)    
+    Final       2.1       1.8       -0.4      1.35      1.0
+
+Assigning the fist state as the reference, we have the following profile:
+
+::
+   
+    Final g     0.0       2.1       3.9       3.5       4.85      5.85 
+
+Notably, a weighted average is typically preferred as it is less sensitive to poor estimates. (See
+the section of free energy calculations, where we use basically the same method as the one used here
+except that weighte average are calculated.) However, a weighted average requires the uncertainties 
+of the involved weight differences and calculating the uncertainties of the weight difference (which
+basically are estimates of free energy differences) is to computationally expensive, so we only calculate
+simple averages when combining the weights.
+
+Step 3: Determine the vector of alchemical weights for each replica
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Finally, we need to determine the vector of alchemical weights for each replica. To do this,
+we just shift the weight of the first state of each replica back to 0. As a result, we have
+the following vectors:
+
+::
+
+    State       0           1            2            3            4            5      
+    Rep 1       0.0         2.1          3.9          3.5          X            X  
+    Rep 2       X           0.0          1.8          1.4          2.75         X    
+    Rep 3       X           X            0.0          -0.4         0.95         1.95
+
+Again, as a reference, here are the original weights:
+
+::
+
+    State       0           1            2            3            4            5
+    Rep 1       0.0         2.1          4.0          3.7          X            X
+    Rep 2       X           0.0          1.7          1.2          2.6          X
+    Rep 3       X           X            0.0          -0.4         0.9          1.9
 
 .. _doc_histogram: 
 

@@ -167,7 +167,7 @@ iterations (:code:`n_iterations`) is reached.
 
 Simulation parameters
 =====================
-In the current implementation of the algorithm, 20 parameters can be specified in the input YAML file.
+In the current implementation of the algorithm, 22 parameters can be specified in the input YAML file.
 Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
@@ -204,7 +204,7 @@ EEXE parameters
       The histogram cutoff. -1 means that no histogram correction will be performed.
   - :code:`n_ex`: (Optional, Default: 0)
       The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS replica exchange simulations. 
-      A recommended value is :math:`N^3`, where :math:`N` is the number of swappable pairs and can therefore be different in each iteration. If :code`n_ex` 
+      A recommended value is :math:`N^3`, where :math:`N` is the number of swappable pairs and can therefore be different in each iteration. If :code:`n_ex` 
       is specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`.
   - :code:`runtime_args`: (Optional, Default: :code:`None`)
       Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. 
@@ -266,10 +266,7 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     verbose: True
     n_ckpt: 100
 
-    # Section 4: Warnings
-    maxwarn: 0
-
-    # Section 5: Data analysis
+    # Section 4: Data analysis
     msm: False
     free_energy: False 
     df_spacing: 1

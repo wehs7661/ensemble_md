@@ -81,7 +81,7 @@ def main():
         
         if len(EEXE.warnings) > args.maxwarn:
             raise ParameterError(
-                    f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them.")  # noqa: E501, F541
+                f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them.")  # noqa: E501, F541
 
     # Step 2: If there is no checkpoint file found/provided, perform the 1st iteration (index 0)
     if os.path.isfile(args.ckpt) is False:

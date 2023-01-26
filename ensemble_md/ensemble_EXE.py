@@ -73,7 +73,7 @@ class EnsembleEXE:
             "s",
         ]
         for i in required_args:
-            if hasattr(self, i) is False:
+            if hasattr(self, i) is False or getattr(self, i) is None:
                 raise ParameterError(
                     f"Required parameter '{i}' not specified in {yml_file}."
                 )  # noqa: F405
@@ -107,7 +107,7 @@ class EnsembleEXE:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
         # Step 3: Check if the parameters in the YAML file are well-defined
-        if self.w_scheme not in [None, 'mean', 'geo-mean']:
+        if self.w_scheme not in [None, 'mean', 'geo-mean', 'g-diff']:
             raise ParameterError("The specified weight combining scheme is not available. Options include None, 'mean', and 'geo-mean'/'geo_mean'.")  # noqa: E501
 
         if self.mc_scheme not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
@@ -119,9 +119,11 @@ class EnsembleEXE:
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap', 'seed']  # integer parameters
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters
         if self.n_ex != 'N^3':
             params_int.append('n_ex')
+        if self.seed is not None:
+            params_int.append('seed')
         for i in params_int:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
@@ -730,12 +732,13 @@ class EnsembleEXE:
         weights : list
             A list of Wang-Landau weights of ALL simulations
         method : str
-            Method for combining probabilities and probability ratios. Choices include "None", "mean" and "geo-mean".
+            Method for combining probabilities and probability ratios. 
+            Available options include "None", "mean", "geo-mean" and "g-diff".
 
         Returns
         -------
         weights : list
-            A list of original (method==None) or modified Wang-Landau weights of ALL simulations.
+            A list of original (if method is None) or modified Wang-Landau weights of ALL simulations.
         g_vec : np.array
             An array of alchemical weights of the whole range of states.
         """
@@ -754,42 +757,57 @@ class EnsembleEXE:
                 print('  Original weights:')
                 for i in range(len(w)):
                     print(f'    Rep {i}: {w[i]}')
+            
+            if method == 'g-diff':
+                # Method based on weight differences
+                dg_vec = []
+                dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
+                for i in range(self.n_tot - 1):
+                    dg_list = []
+                    for j in range(len(self.state_ranges)):
+                        if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
+                            idx = list(self.state_ranges[j]).index(i)
+                            dg_list.append(dg_adjacent[j][idx])
+                    dg_vec.append(np.mean(dg_list))
+                dg_vec.insert(0, 0)
+                g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])            
+            else:
+                # Method based on probability ratios
+                # Step 1: Convert the weights into probabilities
+                weights = np.array(weights)
+                prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
 
-            # Step 1: Convert the weights into probabilities
-            weights = np.array(weights)
-            prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
+                # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)
+                overlapped = [self.state_ranges[i].intersection(self.state_ranges[i + 1]) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
+                prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
 
-            # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)
-            overlapped = [self.state_ranges[i].intersection(self.state_ranges[i + 1]) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
-            prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
-
-            # Step 3: Average the probability ratios
-            avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
-            if method == 'mean':
-                avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
-            elif method == 'geo-mean':
-                avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
-
-            # Step 4: Scale the probabilities for each replica
-            scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
-
-            # Step 5: Average and convert the probabilities
-            p_vec = []
-            for i in range(self.n_tot):   # global state index
-                p = []   # a list of probabilities to be averaged for each state
-                for j in range(len(self.state_ranges)):   # j can be regared as the replica index
-                    if i in self.state_ranges[j]:
-                        local_idx = i - j * self.s
-                        p.append(scaled_prob[j][local_idx])
+                # Step 3: Average the probability ratios
+                avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
                 if method == 'mean':
-                    p_vec.append(np.mean(p))
-                elif method == 'geo-mean' or method == 'geo_mean':
-                    p_vec.append(np.prod(p) ** (1 / len(p)))
+                    avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
+                elif method == 'geo-mean':
+                    avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
 
-            g_vec = -np.log(p_vec)
-            g_vec -= g_vec[0]
+                # Step 4: Scale the probabilities for each replica
+                scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
 
-            # Step 6: Determine the vector of alchemical weights for each replica
+                # Step 5: Average and convert the probabilities
+                p_vec = []
+                for i in range(self.n_tot):   # global state index
+                    p = []   # a list of probabilities to be averaged for each state
+                    for j in range(len(self.state_ranges)):   # j can be regared as the replica index
+                        if i in self.state_ranges[j]:
+                            local_idx = i - j * self.s
+                            p.append(scaled_prob[j][local_idx])
+                    if method == 'mean':
+                        p_vec.append(np.mean(p))
+                    elif method == 'geo-mean' or method == 'geo_mean':
+                        p_vec.append(np.prod(p) ** (1 / len(p)))
+
+                g_vec = -np.log(p_vec)
+                g_vec -= g_vec[0]
+
+            # Determine the vector of alchemical weights for each replica
             weights = [list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0]) for i in range(self.n_sim)]
             weights = np.round(weights, decimals=5).tolist()
 

@@ -29,6 +29,7 @@ from ensemble_md.analysis import analyze_matrix  # noqa: E402
 from ensemble_md.analysis import msm_analysis  # noqa: E402
 from ensemble_md.analysis import analyze_free_energy  # noqa: E402
 from ensemble_md.ensemble_EXE import EnsembleEXE  # noqa: E402
+from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 
 def initialize(args):
@@ -58,6 +59,11 @@ def initialize(args):
                         '--dir',
                         default='analysis',
                         help='The name of the folder for storing the analysis results.')
+    parser.add_argument('-m',
+                        '--maxwarn',
+                        type=int,
+                        default=0,
+                        help='The maximum number of warnings in parameter specification to be ignored.')
     args_parse = parser.parse_args(args)
 
     return args_parse
@@ -83,6 +89,15 @@ def main():
 
     EEXE = EnsembleEXE(args.yaml)
     EEXE.print_params(params_analysis=True)
+
+    for i in EEXE.warnings:
+        print()
+        print(f'{i}')
+        print()
+
+    if len(EEXE.warnings) > args.maxwarn:
+        raise ParameterError(
+            f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them.")  # noqa: E501, F541
 
     # Check if the folder for saving the outputs exist. If not, create the folder.
     if os.path.exists(args.dir) is False:
