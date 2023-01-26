@@ -261,10 +261,10 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
 
 def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     """
-    Caclulcates and plots the average transit times for each configuration, including the time 
+    Caclulcates and plots the average transit times for each configuration, including the time
     it takes from states 0 to k, from k to 0 and from 0 to k back to 0 (i.e. round-trip time).
     If there are more than 100 round-trips, 3 histograms corresponding to t_0k, t_k0 and t_roundtrip
-    will be generated. 
+    will be generated.
 
     Parameters
     ----------
@@ -311,7 +311,10 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
         last_visited = None   # last visited end
         k = N - 1
         t_0, t_k = [], []   # time frames visting states 0 and k (k is the other end)
-        t_0k, t_k0, t_roundtrip = [], [], []   # time spent from statkes 0 to k, k to 0 and the round-trip time (from 0 to k to 0)
+
+        # time spent from statkes 0 to k, k to 0 and the round-trip time (from 0 to k to 0)
+        t_0k, t_k0, t_roundtrip = [], [], []
+
         end_0_found, end_k_found = None, None
         for t in range(len(traj)):
             if traj[t] == 0:
@@ -328,9 +331,9 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                     if last_visited == 0:
                         t_0k.append(t - t_0[-1])
                 last_visited = k
-        
-        # Here we figure out the round-trip time from t_0k and t_k0. 
-        if len(t_0k) != len(t_k0):   # then it must be len(t_0k) = len(t_k0) + 1 or len(t_k0) = len(t_0k) + 1, so we drop the last element of the larger list
+
+        # Here we figure out the round-trip time from t_0k and t_k0.
+        if len(t_0k) != len(t_k0):   # then it must be len(t_0k) = len(t_k0) + 1 or len(t_k0) = len(t_0k) + 1, so we drop the last element of the larger list  # noqa: E501
             if len(t_0k) > len(t_k0):
                 t_0k.pop()
             else:
@@ -368,9 +371,9 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     # Now we plot! (If there are no events, the figures will just be blank)
     meta_list = [t_0k_list, t_k0_list, t_roundtrip_list]
     y_labels = [
-        f'Average transit time from states 0 to k ({units})', 
-        f'Average transit time from states k to 0 ({units})', 
-        f'Average round-trip time ({units})', 
+        f'Average transit time from states 0 to k ({units})',
+        f'Average transit time from states k to 0 ({units})',
+        f'Average round-trip time ({units})',
     ]
     fig_names = ['t_0k.png', 't_k0.png', 't_roundtrip.png']
     for t in range(len(meta_list)):

@@ -109,7 +109,7 @@ def decide_lagtimes(ts_list):
     # Workflow: first find the timescales larger than the corressponding lag times,
     # then perform change change detection.
     chosen_lags = []
-    print(f'     Suggested lag times (in trajectory frames) for each timescale curve of each configuration:')
+    print('     Suggested lag times (in trajectory frames) for each timescale curve of each configuration:')
     for i in range(len(ts_list)):   # for each configuration
         lag_list = []   # a list of lags chosen based on each timescale cure
         ts = ts_list[i]

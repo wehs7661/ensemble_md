@@ -34,7 +34,7 @@ from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 def initialize(args):
     parser = argparse.ArgumentParser(
-        description='This code analyzes an ensemble of expanded ensemble. Note that the template MDP file specified in the YAML file needs to be available in the working directory.')
+        description='This code analyzes an ensemble of expanded ensemble. Note that the template MDP file specified in the YAML file needs to be available in the working directory.')  # noqa: E501
     parser.add_argument('-y',
                         '--yaml',
                         type=str,
@@ -44,7 +44,7 @@ def initialize(args):
                         '--output',
                         type=str,
                         default='analyze_EEXE_log.txt',
-                        help='The output log file that contains the analysis results of EEXE. (Default: analyze_EEXE_log.txt)')
+                        help='The output log file that contains the analysis results of EEXE. (Default: analyze_EEXE_log.txt)')  # noqa: E501
     parser.add_argument('-rt',
                         '--rep_trajs',
                         type=str,
@@ -54,7 +54,7 @@ def initialize(args):
                         '--state_trajs',
                         type=str,
                         default='state_trajs.npy',
-                        help='The NPY file containing the stitched state-space trajectory. If the specified file is not found, the code will try to find all the trajectories and stitch them. (Default: state_trajs.npy)')
+                        help='The NPY file containing the stitched state-space trajectory. If the specified file is not found, the code will try to find all the trajectories and stitch them. (Default: state_trajs.npy)')  # noqa: E501
     parser.add_argument('-d',
                         '--dir',
                         default='analysis',
@@ -167,7 +167,7 @@ def main():
         print(f'   - Configuration {i}: {spectral_gaps[i]:.3f}')
     print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
 
-    # 2-4. For each configuration, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.
+    # 2-4. For each configuration, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
     print('\n2-4. Calculating the stationary distributions ...')
     pi_list = [analyze_matrix.calc_equil_prob(mtx) for mtx in mtx_list]
     for i in range(EEXE.n_sim):
@@ -177,19 +177,19 @@ def main():
 
     # 2-5. Calculate the state index correlation time for each configuration (this step is more time-consuming one)
     print('\n2-5. Calculating the state index correlation time ...')
-    tau_list = [(pymbar.timeseries.statistical_inefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(EEXE.n_sim)]
+    tau_list = [(pymbar.timeseries.statistical_inefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(EEXE.n_sim)]  # noqa: E501
     for i in range(EEXE.n_sim):
         print(f'   - Configuration {i}: {tau_list[i]:.1f} ps')
     print(f'   - Average of the above: {np.mean(tau_list):.1f} ps (std: {np.std(tau_list, ddof=1):.1f} ps)')
 
     # 2-6. Calculate transit times for each configuration
     print('\n2-6. Plotting the average transit times ...')
-    t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, dt=dt_traj, folder=args.dir)
+    t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, dt=dt_traj, folder=args.dir)  # noqa: E501
     meta_list = [t_0k_list, t_k0_list, t_roundtrip_list]
     t_names = [
-        f'\n   - Average transit time from states 0 to k', 
-        f'\n   - Average transit time from states k to 0', 
-        f'\n   - Average round-trip time', 
+        '\n   - Average transit time from states 0 to k',
+        '\n   - Average transit time from states k to 0',
+        '\n   - Average round-trip time',
     ]
     for i in range(len(meta_list)):
         t_list = meta_list[i]
@@ -199,7 +199,7 @@ def main():
                 print(f'     - Configuration {j}: Skipped')
             else:
                 print(f'     - Configuration {j} ({len(t_list[j])} events): {np.mean(t_list[j]):.1f} {units}')
-        print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.1f} {units} (std: {np.std([np.mean(i) for i in t_list], ddof=1):.1f} {units})')
+        print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.1f} {units} (std: {np.std([np.mean(i) for i in t_list], ddof=1):.1f} {units})')  # noqa: E501
 
     if EEXE.msm is True:
         section_idx += 1
@@ -211,7 +211,7 @@ def main():
         print('\n3-1. Plotting the implied timescale as a function of lag time for all configurations ...')
         lags = np.arange(EEXE.lag_spacing, EEXE.lag_max + EEXE.lag_spacing, EEXE.lag_spacing)
         # lags could also be None and decided automatically. Could consider using that.
-        ts_list = msm_analysis.plot_its(state_trajs, lags, fig_name=f'{args.dir}/implied_timescales.png', dt=dt_traj, units='ps')
+        ts_list = msm_analysis.plot_its(state_trajs, lags, fig_name=f'{args.dir}/implied_timescales.png', dt=dt_traj, units='ps')  # noqa: E501
 
         # 3-2. Decide a lag time for building MSM
         print('\n3-2. Calculating recommended lag times for building MSMs ...')
@@ -230,11 +230,12 @@ def main():
             mlags = 5  # this maps to 5 (mlags: multiples of lag times for testing the model)
             nsets = models[i].nstates  # number of metastable states.
             # Note that nstates is the number of unique states in the input trajectores counted with the effective mode
-            # (see the documentation) Therefore, if a system barely sampled some of the states, those states will not be
-            # counted as involved in the transition matrix (i.e. not in the active set). To check the active states,
-            # use models[i].active_set. If the system sampled all states frequently, models[i].active_set should be equal
-            # to np.unique(state_trajs[i]) and both lengths should be EEXE.n_tot.
-            # I'm not sure why the attribute nstates_full is not always EEXE.n_tot but is less relevant here.
+            # (see the documentation) Therefore, if a system barely sampled some of the states, those states will
+            # not be counted as involved in the transition matrix (i.e. not in the active set). To check the
+            # active states, use models[i].active_set. If the system sampled all states frequently,
+            # models[i].active_set should be equal to np.unique(state_trajs[i]) and both lengths should be
+            # EEXE.n_tot. I'm not sure why the attribute nstates_full is not always EEXE.n_tot but is less
+            # relevant here.
             cktest = models[i].cktest(nsets=nsets, mlags=mlags, show_progress=False)
             pyemma.plots.plot_cktest(cktest, dt=dt_traj, units='ps')
             plt.tight_layout(rect=[0, 0.03, 1, 0.98])
@@ -250,10 +251,11 @@ def main():
         mtx_list = [m.transition_matrix for m in models]
         mtx_list_modified = []  # just for plotting (if all trajs sampled the fulle range frequently, this will be the same as mtx_list)  # noqa: E501
         for i in range(len(mtx_list)):
-            # check if each mtx in mtx_list spans the full alchemical range. (If the system did not visit certain states,
-            # the dimension will be less than EEXE.n_tot * EEXE.n_tot. In this case, we add rows and columns of 0.
-            # Note that the modified matrix will not be a transition matrix, so this is only for plotting. For later
-            # analysis such as spectral gap calculation, we will just use the unmodified matrices.
+            # check if each mtx in mtx_list spans the full alchemical range. (If the system did not visit
+            # certain states, the dimension will be less than EEXE.n_tot * EEXE.n_tot. In this case, we
+            # add rows and columns of 0. Note that the modified matrix will not be a transition matrix,
+            # so this is only for plotting. For later analysis such as spectral gap calculation, we
+            # will just use the unmodified matrices.
             if mtx_list[i].shape != (EEXE.n_tot, EEXE.n_tot):  # add rows and columns of 0
                 sampled = models[i].active_set
                 missing = list(set(range(EEXE.n_tot)) - set(sampled))  # states not visited
@@ -323,44 +325,44 @@ def main():
     if EEXE.free_energy is True:
         section_idx += 1
         print(f'\n[ Section {section_idx}. Free energy calculations ]')
-        
+
         u_nk_list, dHdl_list = [], []
 
         if os.path.isfile(f'{args.dir}/u_nk_data.pickle') is True:
             print('Loading the preprocessed data u_nk ...')
             with open(f'{args.dir}/u_nk_data.pickle', 'rb') as handle:
                 u_nk_list = pickle.load(handle)
-        
+
         if os.path.isfile(f'{args.dir}/dHdl_data.pickle') is True:
             print('Loading the preprocessed data dHdl ...')
             with open(f'{args.dir}/dHdl_data.pickle', 'rb') as handle:
                 dHdl_list = pickle.load(handle)
 
-        if u_nk_list == [] and dHdl_list == []:        
+        if u_nk_list == [] and dHdl_list == []:
             for i in range(EEXE.n_sim):
                 print(f'Reading dhdl files of replica {i} ...')
                 files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
-                u_nk, dHdl = analyze_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)
+                u_nk, dHdl = analyze_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)  # noqa: E501
                 u_nk_list.append(u_nk)
                 dHdl_list.append(dHdl)
 
             with open(f'{args.dir}/u_nk_data.pickle', 'wb') as handle:
                 pickle.dump(u_nk_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            
+
             with open(f'{args.dir}/dHdl_data.pickle', 'wb') as handle:
                 pickle.dump(dHdl_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         state_ranges = [list(i) for i in EEXE.state_ranges]
         if EEXE.get_u_nk is True:
-            f, f_err = analyze_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)
+            f, f_err = analyze_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
         else:
-            f, f_err = analyze_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)
+            f, f_err = analyze_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
 
-        print(f'Plotting the full-range free energy profile ...')
+        print('Plotting the full-range free energy profile ...')
         analyze_free_energy.plot_free_energy(f, f_err, f'{args.dir}/free_energy_profile.png')
-        
+
         print('The full-range free energy profile averaged over all replicas:')
         print(f"  {', '.join(f'{f[i]: .3f} +/- {f_err[i]: .3f} kT' for i in range(EEXE.n_tot))}")
-        print(f'The free energy difference between the coupled and decoupled states: {f[-1]: .3f} +/- {f_err[-1]: .3f} kT')
+        print(f'The free energy difference between the coupled and decoupled states: {f[-1]: .3f} +/- {f_err[-1]: .3f} kT')  # noqa: E501
 
     print(f'\nTime elpased: {utils.format_time(time.time() - t0)}')

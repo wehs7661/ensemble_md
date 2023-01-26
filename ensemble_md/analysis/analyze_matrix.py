@@ -82,14 +82,14 @@ def parse_transmtx(log_file, expanded_ensemble=True):
 
 def calc_equil_prob(trans_mtx):
     """
-    (**TODO**: Consider using PyEMMA instead.) Calculates the equilibrium probability of each state from the state transition matrix.
-    The input state transition matrix can be either left or right stochastic, although the
-    left stochastic ones are not common in GROMACS. Generally, transition matrices in GROMACS
-    are either doubly stochastic (replica exchange), or right stochastic (expanded ensemble).
-    For the latter case, the staionary distribution vector is the left eigenvector corresponding
-    to the eigenvalue 1 of the transition matrix. (For the former case, it's either left or
-    right eigenvector corresponding to the eigenvalue 1 - as the left and right eigenvectors
-    are the same for a doubly stochasti matrix.)
+    (**TODO**: Consider using PyEMMA instead.) Calculates the equilibrium probability of each
+    state from the state transition matrix. The input state transition matrix can be either
+    left or right stochastic, although the left stochastic ones are not common in GROMACS.
+    Generally, transition matrices in GROMACS are either doubly stochastic (replica exchange),
+    or right stochastic (expanded ensemble). For the latter case, the staionary distribution
+    vector is the left eigenvector corresponding to the eigenvalue 1 of the transition matrix.
+    (For the former case, it's either left or right eigenvector corresponding to the eigenvalue
+    1 - as the left and right eigenvectors are the same for a doubly stochasti matrix.)
 
     Parameters
     ----------

@@ -33,17 +33,17 @@ def initialize(args):
                         '--ckpt',
                         type=str,
                         default='rep_trajs.npy',
-                        help='The NPY file containing the replica-space trajectories. This file is a necessary checkpoint file for extending the simulaiton. (Default: rep_trajs.npy)')
+                        help='The NPY file containing the replica-space trajectories. This file is a necessary checkpoint file for extending the simulaiton. (Default: rep_trajs.npy)')  # noqa: E501
     parser.add_argument('-g',
                         '--g_vecs',
                         type=str,
                         default='g_vecs.npy',
-                        help='The NPY file containing the timeseries of the whole-range alchemical weights. This file is a necessary input if ones wants to update the file when extending the simulation. (Default: g_vecs.npy)')
+                        help='The NPY file containing the timeseries of the whole-range alchemical weights. This file is a necessary input if ones wants to update the file when extending the simulation. (Default: g_vecs.npy)')  # noqa: E501
     parser.add_argument('-o',
                         '--output',
                         type=str,
                         default='run_EEXE_log.txt',
-                        help='The output file for logging how replicas interact with each other. (Default: run_EEXE_log.txt)')
+                        help='The output file for logging how replicas interact with each other. (Default: run_EEXE_log.txt)')  # noqa: E501
     parser.add_argument('-m',
                         '--maxwarn',
                         type=int,
@@ -63,22 +63,22 @@ def main():
     # Step 1: Set up MPI rank and instantiate EnsembleEXE to set up EEXE parameters
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()  # Note that this is a GLOBAL variable
-    
+
     if rank == 0:
         print(f'Command line: {" ".join(sys.argv)}\n')
 
     EEXE = EnsembleEXE(args.yaml)
-    
+
     if rank == 0:
         # Print out simulation parameters
         EEXE.print_params()
 
         # Print out warnings and fail if needed
-        for i in EEXE.warnings: 
+        for i in EEXE.warnings:
             print()
             print(f'{i}')
             print()
-        
+
         if len(EEXE.warnings) > args.maxwarn:
             raise ParameterError(
                 f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them.")  # noqa: E501, F541
@@ -116,24 +116,24 @@ def main():
             print(f'\nGetting prepared to extend the EEXE simulation from iteration {start_idx} ...')
 
             print('Deleting data generated after the checkpoint ...')
-            corrupted = glob.glob('gmxapi.commandline.cli*') # corrupted iteration
+            corrupted = glob.glob('gmxapi.commandline.cli*')  # corrupted iteration
             corrupted.extend(glob.glob('mdrun*'))
             for i in corrupted:
                 shutil.rmtree(i)
 
             for i in range(EEXE.n_sim):
-                n_finished = len(next(os.walk(f'sim_{i}'))[1]) # number of finished iterations
+                n_finished = len(next(os.walk(f'sim_{i}'))[1])  # number of finished iterations
                 for j in range(start_idx, n_finished):
                     print(f'  Deleting the folder sim_{i}/iteration_{j}')
                     shutil.rmtree(f'sim_{i}/iteration_{j}')
-            
+
             # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
             EEXE.rep_trajs = [list(i) for i in ckpt_data]
             if os.path.isfile(args.g_vecs) is True:
                 EEXE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
         else:
             start_idx = None
-    
+
         start_idx = comm.bcast(start_idx, root=0)  # so that all the ranks are aware of start_idx
 
     for i in range(start_idx, EEXE.n_iter):

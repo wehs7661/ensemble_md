@@ -64,12 +64,12 @@ class EnsembleEXE:
 
         # Step 2: Handle the YAML parameters
         required_args = [
-            "gro", 
+            "gro",
             "top",
-            "mdp", 
-            "parallel", 
-            "n_sim", 
-            "n_iter", 
+            "mdp",
+            "parallel",
+            "n_sim",
+            "n_iter",
             "s",
         ]
         for i in required_args:
@@ -119,7 +119,7 @@ class EnsembleEXE:
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters
+        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.n_ex != 'N^3':
             params_int.append('n_ex')
         if self.seed is not None:
@@ -245,7 +245,6 @@ class EnsembleEXE:
             print(f"The chosen free energy estimator: {self.df_method}")
             print(f"The method for estimating the uncertainty of free energies: {self.err_method}")
 
-
     def map_lambda2state(self):
         """
         Returns a dictionary whose keys are vectors of coupling
@@ -308,7 +307,7 @@ class EnsembleEXE:
         if "init-lambda-weights" in self.template:
             init_w = self.template["init-lambda-weights"]
             start_idx = [i * self.s for i in range(self.n_sim)]
-            MDP["init-lambda-weights"] = init_w[start_idx[idx] : start_idx[idx] + self.n_sub]
+            MDP["init-lambda-weights"] = init_w[start_idx[idx]:start_idx[idx] + self.n_sub]
 
         return MDP
 
@@ -732,7 +731,7 @@ class EnsembleEXE:
         weights : list
             A list of Wang-Landau weights of ALL simulations
         method : str
-            Method for combining probabilities and probability ratios. 
+            Method for combining probabilities and probability ratios.
             Available options include "None", "mean", "geo-mean" and "g-diff".
 
         Returns
@@ -757,7 +756,7 @@ class EnsembleEXE:
                 print('  Original weights:')
                 for i in range(len(w)):
                     print(f'    Rep {i}: {w[i]}')
-            
+
             if method == 'g-diff':
                 # Method based on weight differences
                 dg_vec = []
@@ -770,14 +769,14 @@ class EnsembleEXE:
                             dg_list.append(dg_adjacent[j][idx])
                     dg_vec.append(np.mean(dg_list))
                 dg_vec.insert(0, 0)
-                g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])            
+                g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
             else:
                 # Method based on probability ratios
                 # Step 1: Convert the weights into probabilities
                 weights = np.array(weights)
                 prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
 
-                # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)
+                # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)  # noqa: E501
                 overlapped = [self.state_ranges[i].intersection(self.state_ranges[i + 1]) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
                 prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
 

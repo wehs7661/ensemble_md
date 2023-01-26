@@ -102,14 +102,14 @@ def format_time(t):
     ----------
     t : float
         The time in seconds.
-    
+
     Returns
     -------
     t_str : sttr
         A string in the format of "XX day XX hour(s) XX minute(s) XX second(s)".
     """
     hh_mm_ss = str(datetime.timedelta(seconds=t)).split(":")
-    
+
     if "day" in hh_mm_ss[0]:
         # hh_mm_ss[0] will contain "day" and cannot be converted to float
         hh, mm, ss = hh_mm_ss[0], float(hh_mm_ss[1]), float(hh_mm_ss[2])
@@ -180,7 +180,7 @@ def weighted_mean(vals, errs):
     Parameters
     ----------
     vals : list
-        A list of values to be averaged. 
+        A list of values to be averaged.
     errs : list
         A list of errors corresponding to the given values
 
@@ -189,11 +189,11 @@ def weighted_mean(vals, errs):
     mean : float
         The inverse-variance-weighted mean.
     err : float
-        The propgated error of the mean. 
+        The propgated error of the mean.
     """
     w = [1 / (i ** 2) for i in errs]
     wx = [w[i] * vals[i] for i in range(len(vals))]
     mean = np.sum(wx) / np.sum(w)
     err = np.sqrt(1 / np.sum(w))
-    
+
     return mean, err
