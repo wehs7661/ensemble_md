@@ -11,13 +11,14 @@
 Unit tests for the module ensemble_EXE.py.
 """
 import os
-# import shutil
+import sys
+import shutil
 import pytest
 import random
 import numpy as np
 import ensemble_md
 import gmxapi as gmx
-# from mpi4py import MPI
+from mpi4py import MPI
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.utils.exceptions import ParameterError
 
@@ -199,7 +200,7 @@ class Test_EnsembleEXE:
         out_1, err = capfd.readouterr()
         L = ""
         L += "Important parameters of EXEE\n============================\n"
-        L += f"gmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"
+        L += f"Python version: {sys.version}\ngmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"  # noqa: E501
         L += "Simulation inputs: ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/expanded.mdp\n"  # noqa: E501
         L += "Verbose log file: True\nWhether the replicas run in parallel: False\n"
         L += "MC scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
@@ -478,7 +479,6 @@ class Test_EnsembleEXE:
         assert np.allclose(list(g_vec_3), [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667])  # noqa: E501
         assert np.allclose(list(g_vec_4), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
 
-    """
     def test_run_EEXE(self):
         # We probably can only test serial EEXE
         rank = MPI.COMM_WORLD.Get_rank()
@@ -498,4 +498,3 @@ class Test_EnsembleEXE:
         if rank == 0:
             os.system('rm -r sim_*')
             os.system('rm -r gmxapi.commandline.cli1_i0*')
-    """

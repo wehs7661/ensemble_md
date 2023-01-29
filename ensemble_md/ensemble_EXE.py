@@ -11,6 +11,7 @@
 The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
 """
 import os
+import sys
 import copy
 import yaml
 import random
@@ -220,6 +221,7 @@ class EnsembleEXE:
         """
         print("Important parameters of EXEE")
         print("============================")
+        print(f"Python version: {sys.version}")
         print(f"gmxapi version: {gmx.__version__}")
         print(f"ensemble_md version: {ensemble_md.__version__}")
         print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
@@ -774,7 +776,6 @@ class EnsembleEXE:
                     dg_vec.append(np.mean(dg_list))
                 dg_vec.insert(0, 0)
                 g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
-                print(g_vec)
             else:
                 # Method based on probability ratios
                 # Step 1: Convert the weights into probabilities

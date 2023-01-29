@@ -189,7 +189,9 @@ EEXE parameters
   - :code:`n_sim`: (Required)
       The number of replica simulations.
   - :code:`n_iter`: (Required)
-      The number of iterations. In an EEXE simulation, one iteration means one exchange attempt.
+      The number of iterations. In an EEXE simulation, one iteration means one exchange attempt. Notably, this can be used to extend the EEXE simulation.
+      For example, if one finishes an EEXE simulation with 10 iterations (with :code:`n_iter=10`) and wants to continue the simulation from iteration 11 to 30,
+      setting :code:`n_iter` in the next execution of :code:`run_EEXE` should suffice.
   - :code:`s`: (Required)
       The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
   - :code:`nst_sim`: (Optional, Default: :code:`nsteps` in the template MDP file)

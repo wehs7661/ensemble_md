@@ -62,20 +62,20 @@ jobs:
         export CC=`which gcc`
         export CXX=`which g++`
 
-        pip install "cmake>=3.16"
-        cmake --version
+        ccache -s
         cd $HOME && mkdir pkgs 
         git clone https://gitlab.com/gromacs/gromacs.git
         cd gromacs && mkdir build && cd build
-        cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/pkgs
+        cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/pkgs -DGMX_ENABLE_CCACHE=ON
         make install 
         source $HOME/pkgs/bin/GMXRC
         gmx --version
+        ccache -s
         
         source $HOME/pkgs/bin/GMXRC
         python -m ensurepip --default-pip
         pip install --upgrade pip wheel
-        pip install "pybind11>=2.6" "setuptools>=42.0"
+        pip install "pybind11>=2.6" "setuptools>=42.0" "cmake>=3.16"
         python -m pip install --upgrade pip setuptools
         pip install --upgrade mpi4py
         # cd ../python_packaging/gmxapi
