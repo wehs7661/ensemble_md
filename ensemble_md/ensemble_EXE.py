@@ -98,7 +98,7 @@ class EnsembleEXE:
             "seed": None,
         }
         for i in optional_args:
-            if hasattr(self, i) is False:
+            if hasattr(self, i) is False or getattr(self, i) is None:
                 setattr(self, i, optional_args[i])
 
         # all_args: Arguments that can be specified in the YAML file.
@@ -156,10 +156,14 @@ class EnsembleEXE:
         self.dt = self.template["dt"]  # ps
         self.temp = self.template["ref-t"]
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
-        if self.template['wl-scale'] == '' and self.template['wl-ratio'] == '':
-            self.fixed_weights = True
+        
+        if 'wl-scale' in self.template.keys():
+            if self.template['wl-scale'] != '':
+                self.fixed_weights = False
+            else:
+                self.fixed_weights = True
         else:
-            self.fixed_weights = False
+            self.fixed_weights = True
 
         if self.template['symmetrized-transition-matrix'] == 'yes':
             self.warnings.append('Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.')

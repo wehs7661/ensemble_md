@@ -105,7 +105,8 @@ def main():
                 if EEXE.verbose is True:
                     print(f'  Moving files from {work_dir[i].split("/")[-1]}/ to sim_{i}/iteration_0/ ...')
                     print(f'  Removing the empty folder {work_dir[i].split("/")[-1]} ...')
-                os.system(f'mv {work_dir[i]}/* sim_{i}/iteration_0/.')
+                for f in glob.glob(f'{work_dir[i]}/*'):
+                    shutil.move(f, f'sim_{i}/iteration_0/')
                 os.rmdir(work_dir[i])
         start_idx = 1
     else:
@@ -187,7 +188,8 @@ def main():
                 if EEXE.verbose is True:
                     print(f'  Moving files from {work_dir[j].split("/")[-1]}/ to sim_{j}/iteration_{i}/ ...')
                     print(f'  Removing the empty folder {work_dir[j].split("/")[-1]} ...')
-                os.system(f'mv {work_dir[j]}/* sim_{j}/iteration_{i}/.')
+                for f in glob.glob(f'{work_dir[j]}/*'):
+                    shutil.move(f, f'sim_{j}/iteration_{i}/')
                 os.rmdir(work_dir[j])
 
             # 4-3. Checkpoint as needed
