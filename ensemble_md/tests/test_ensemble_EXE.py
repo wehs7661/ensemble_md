@@ -481,10 +481,68 @@ class Test_EnsembleEXE:
 
     def test_MPI(self):
         rank = MPI.COMM_WORLD.Get_rank()
+        EEXE = EnsembleEXE('ensemble_md/tests/data/params.yaml')
         if rank == 0:
             assert 1 + 1 == 2
 
-    """
+    def test_MPI_1(self):
+        # We probably can only test serial EEXE
+        rank = MPI.COMM_WORLD.Get_rank()
+        EEXE = EnsembleEXE('ensemble_md/tests/data/params.yaml')
+        if rank == 0:
+            for i in range(EEXE.n_sim):
+                os.mkdir(f'sim_{i}')
+                os.mkdir(f'sim_{i}/iteration_0')
+                MDP = EEXE.initialize_MDP(i)
+                MDP.write(f'sim_{i}/iteration_0/expanded.mdp', skipempty=True)
+                shutil.copy('ensemble_md/tests/data/sys.gro', f'sim_{i}/iteration_0/sys.gro')
+                shutil.copy('ensemble_md/tests/data/sys.top', f'sim_{i}/iteration_0/sys.top')
+
+    def test_grompp(self):
+        # We probably can only test serial EEXE
+        rank = MPI.COMM_WORLD.Get_rank()
+        EEXE = EnsembleEXE('ensemble_md/tests/data/params.yaml')
+        if rank == 0:
+            for i in range(EEXE.n_sim):
+                os.mkdir(f'sim_{i}')
+                os.mkdir(f'sim_{i}/iteration_0')
+                MDP = EEXE.initialize_MDP(i)
+                MDP.write(f'sim_{i}/iteration_0/expanded.mdp', skipempty=True)
+                shutil.copy('ensemble_md/tests/data/sys.gro', f'sim_{i}/iteration_0/sys.gro')
+                shutil.copy('ensemble_md/tests/data/sys.top', f'sim_{i}/iteration_0/sys.top')
+        n = 0
+        if rank == 0:
+            iter_str = f'\nIteration {n}: {EEXE.dt * EEXE.nst_sim * n: .1f} - {EEXE.dt * EEXE.nst_sim * (n + 1): .1f} ps'  # noqa: E501
+            print(iter_str + '\n' + '=' * (len(iter_str) - 1))
+
+        if rank == 0:
+            dir_before = [
+                i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))]
+            print("Preparing the tpr files for the simulation ensemble ...", end="")
+
+        grompp = gmx.commandline_operation(
+            "gmx",
+            arguments=["grompp"],  # noqa: E127
+            input_files=[  # noqa: E127
+                {
+                    "-f": f"../sim_{i}/iteration_{n}/{EEXE.mdp.split('/')[-1]}",
+                    "-c": f"../sim_{i}/iteration_{n}/{EEXE.gro.split('/')[-1]}",
+                    "-p": f"../sim_{i}/iteration_{n}/{EEXE.top.split('/')[-1]}",
+                }
+                for i in range(EEXE.n_sim)
+            ],
+            output_files=[  # noqa: E127
+                {  # noqa: E127
+                    "-o": f"../sim_{i}/iteration_{n}/sys_EE.tpr",
+                    "-po": f"../sim_{i}/iteration_{n}/mdout.mdp",
+                }
+                for i in range(EEXE.n_sim)
+            ],
+        )
+        grompp.run()
+        if rank == 0:  # just print the messages once
+            utils.gmx_output(grompp, EEXE.verbose)
+
     def test_run_EEXE(self):
         # We probably can only test serial EEXE
         rank = MPI.COMM_WORLD.Get_rank()
@@ -504,4 +562,3 @@ class Test_EnsembleEXE:
         if rank == 0:
             os.system('rm -r sim_*')
             os.system('rm -r gmxapi.commandline.cli1_i0*')
-    """

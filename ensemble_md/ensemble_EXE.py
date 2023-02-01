@@ -14,10 +14,12 @@ import os
 import sys
 import copy
 import yaml
+import shutil
 import random
 import numpy as np
 from mpi4py import MPI
 from itertools import combinations
+from collections import OrderedDict
 from alchemlyb.parsing.gmx import extract_dHdl
 from alchemlyb.parsing.gmx import _get_headers as get_headers
 from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
@@ -35,10 +37,6 @@ rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
 class EnsembleEXE:
     """
     This class helps set up input files of an ensemble of expanded ensemble.
-    Note that for easier parsing of the mdp template file when initializing the class, please make
-    sure that at least the following GROMACS mdp parameters specified using dashes instead of underscores:
-    :code:`ref-t`, :code:`vdw-lambdas`, :code:`coul-lambdas`, :code:`restraint-lambdas`, and
-    :code:`init-lambda-weights`.
     """
 
     def __init__(self, yml_file):
@@ -150,63 +148,66 @@ class EnsembleEXE:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
-        # Step 4: Read in parameters from the MDP template
+        # Step 4: Reformat the input MDP file to replace all hypens with underscores.
+        self.reformat_MDP()
+
+        # Step 5: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
         self.nsteps = self.template["nsteps"]  # will be overwritten by self.nst_sim if nst_sim is specified.
         self.dt = self.template["dt"]  # ps
-        self.temp = self.template["ref-t"]
+        self.temp = self.template["ref_t"]
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
         
-        if 'wl-scale' in self.template.keys():
-            if self.template['wl-scale'] != '':
+        if 'wl_scale' in self.template.keys():
+            if self.template['wl_scale'] != '':
                 self.fixed_weights = False
             else:
                 self.fixed_weights = True
         else:
             self.fixed_weights = True
 
-        if self.template['symmetrized-transition-matrix'] == 'yes':
+        if self.template['symmetrized_transition_matrix'] == 'yes':
             self.warnings.append('Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.')
 
         if self.template['nstlog'] > self.nst_sim:
             raise ParameterError(
                 'The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.')  # noqa: E501
 
-        # Step 5: Set up derived parameters
-        # 5-1. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
-        self.n_tot = len(self.template["vdw-lambdas"])
+        # Step 6: Set up derived parameters
+        # 6-1. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
+        self.n_tot = len(self.template["vdw_lambdas"])
 
-        # 5-2. Number of states of each replica (assuming the same for all rep)
+        # 6-2. Number of states of each replica (assuming the same for all rep)
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
 
-        # 5-3. A list of sets of state indices
+        # 6-3. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
         self.state_ranges = [set(np.arange(i, i + self.n_sub)) for i in start_idx]
 
-        # 5-4. A list of simulation statuses to be updated
+        # 6-4. A list of simulation statuses to be updated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
 
-        # 5-5. Numbe of steps per iteration
+        # 6-5. Numbe of steps per iteration
         if self.nst_sim is None:
             self.nst_sim = self.nsteps
 
-        # 5-6. Map the lamda vectors to state indices
+        # 6-6. Map the lamda vectors to state indices
         self.map_lambda2state()
 
-        # 5-7. For counting the number swap attempts and the rejected ones
+        # 6-7. For counting the number swap attempts and the rejected ones
         self.n_rejected = 0
         self.n_swap_attempts = 0
 
-        # 5-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
+        # 6-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
         # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
 
-        # 5-9. The time series of the (processed) whole-range alchemical weights
+        # 6-9. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
         self.g_vecs = []
 
-        # 5-10. Data analysis
+        # 6-10. Data analysis
         if self.df_method == 'MBAR':
             self.get_u_nk = True
             self.get_dHdl = False
@@ -220,7 +221,7 @@ class EnsembleEXE:
 
         Parameters
         ----------
-        params_analysis : bol
+        params_analysis : bool
             Whether to print out parameters for data analysis.
         """
         print("Important parameters of EXEE")
@@ -255,6 +256,27 @@ class EnsembleEXE:
             print(f"The number of bootstrap iterations in the boostrapping method, if used: {self.n_bootstrap}")
             print(f"The random seed to use in bootstrapping, if used: {self.seed}")
 
+        if self.reformatted_mdp is True:
+            print('Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.')
+
+    def reformat_MDP(self):
+        """
+        Reformats an MDP file so that all hyphens in the parameter names are replaced by underscores. This makes parsing and modifying 
+        an MDP file later in the workflow a little easier.
+        """
+        params = gmx_parser.MDP(self.mdp)
+
+        odict = OrderedDict([(k.replace('-', '_'), v) for k, v in params.items()])
+        params_new = gmx_parser.MDP(None, **odict)
+
+        if params_new.keys() == params.keys():
+            self.reformatted_mdp = False  # no need to reformat the file
+        else:
+            self.reformatted_mdp = True
+            new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
+            shutil.move(self.mdp, new_name)
+            params_new.write(self.mdp)
+
     def map_lambda2state(self):
         """
         Returns a dictionary whose keys are vectors of coupling
@@ -262,33 +284,26 @@ class EnsembleEXE:
 
         Attributes
         ----------
+        lambda_types : list
+            A list of lambda types specified in the MDP file.
         lambda_dict : dict
             A dictionary whose keys are tuples of coupling parameters and
             values are the corresponding GLOBAL state indices (starting from 0).
         lambda_ranges : list
             A list of lambda vectors of the state range of each replica.
         """
+        # A list of all possible lambda types in the order read by GROMACS, which is likely also the order when being printed to the log file.
+        # See https://gitlab.com/gromacs/gromacs/-/blob/main/src/gromacs/gmxpreprocess/readir.cpp#L2543
+        lambdas_types_all = ['fep_lambdas', 'mass_lambdas', 'coul_lambdas', 'vdw_lambdas', 'bonded_lambdas', 'restraint_lambdas', 'temperature_lambdas']
+        self.lambda_types = []  # lambdas specified in the MDP file
+        for i in lambdas_types_all:
+            if i in self.template.keys():  # there shouldn't be parameters like "fep-lambdas" after reformatting the MDP file
+                self.lambda_types.append(i)
+
         self.lambda_dict = {}  # key: vector of coupling parameters, value: state index
         for i in range(self.n_tot):
-            # Note the order of the lambda values in the vector is the same as the dataframe generated by extract_dhdl
-            if "coul-lambdas" in self.template:
-                if "restraint-lambdas" in self.template:
-                    self.lambda_dict[
-                        (
-                            self.template["coul-lambdas"][i],
-                            self.template["vdw-lambdas"][i],
-                            self.template["restraint-lambdas"][i],
-                        )
-                    ] = i
-                else:
-                    self.lambda_dict[
-                        (
-                            self.template["coul-lambdas"][i],
-                            self.template["vdw-lambdas"][i],
-                        )
-                    ] = i
-            else:
-                self.lambda_dict[(self.template["vdw-lambdas"][i],)] = i
+            key = tuple([self.template[j][i] for j in self.lambda_types])
+            self.lambda_dict[key] = i
         self.lambda_ranges = [[list(self.lambda_dict.keys())[j] for j in self.state_ranges[i]]for i in range(len(self.state_ranges))]  # noqa: E501
 
     def initialize_MDP(self, idx):
@@ -310,14 +325,13 @@ class EnsembleEXE:
         """
         MDP = copy.deepcopy(self.template)
         MDP["nsteps"] = self.nst_sim
-        MDP["vdw-lambdas"] = self.template["vdw-lambdas"][idx * self.s:idx * self.s + self.n_sub]
-        if "coul-lambdas" in self.template:
-            coul = self.template["coul-lambdas"]
-            MDP["coul-lambdas"] = coul[idx * self.s: idx * self.s + self.n_sub]
-        if "init-lambda-weights" in self.template:
-            init_w = self.template["init-lambda-weights"]
-            start_idx = [i * self.s for i in range(self.n_sim)]
-            MDP["init-lambda-weights"] = init_w[start_idx[idx]:start_idx[idx] + self.n_sub]
+
+        start_idx = idx * self.s
+        for i in self.lambda_types:
+            MDP[i] = self.template[i][start_idx:start_idx + self.n_sub]
+
+        if "init_lambda_weights" in self.template:
+            MDP["init_lambda_weights"] = self.template["init_lambda_weights"][start_idx:start_idx + self.n_sub]
 
         return MDP
 
@@ -351,19 +365,19 @@ class EnsembleEXE:
         MDP = copy.deepcopy(new_template)
         MDP["tinit"] = self.nst_sim * self.dt * iter_idx
         MDP["nsteps"] = self.nst_sim
-        MDP["init-lambda-state"] = (states[sim_idx] - sim_idx * self.s)  # 2nd term is for shifting from the global to local index.  # noqa: E501
-        MDP["init-lambda-weights"] = weights[sim_idx]
-        MDP["init-wl-delta"] = wl_delta[sim_idx]
+        MDP["init_lambda_state"] = (states[sim_idx] - sim_idx * self.s)  # 2nd term is for shifting from the global to local index.  # noqa: E501
+        MDP["init_lambda_weights"] = weights[sim_idx]
+        MDP["init_wl_delta"] = wl_delta[sim_idx]
 
         if self.equil[sim_idx] == -1:   # the weights haven't been equilibrated
-            MDP["init-wl-delta"] = wl_delta[sim_idx]
+            MDP["init_wl_delta"] = wl_delta[sim_idx]
         else:
-            MDP["lmc-stats"] = "no"
-            MDP["wl-scale"] = ""
-            MDP["wl-ratio"] = ""
-            MDP["init-wl-delta"] = ""
-            MDP["lmc-weights-equil"] = ""
-            MDP["weight-equil-wl-delta"] = ""
+            MDP["lmc_stats"] = "no"
+            MDP["wl_scale"] = ""
+            MDP["wl_ratio"] = ""
+            MDP["init_wl_delta"] = ""
+            MDP["lmc_weights_equil"] = ""
+            MDP["weight_equil_wl_delta"] = ""
 
         return MDP
 
