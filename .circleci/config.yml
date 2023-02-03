@@ -48,16 +48,17 @@ jobs:
       - run:
           name: Install gmxapi
           command: |
+            python --version
             python -m ensurepip --default-pip
             pip3 install --upgrade pip wheel
             pip3 install "pybind11>=2.6" "setuptools>=42.0"
             python3 -m pip install --upgrade pip setuptools
             pip3 install --upgrade mpi4py
-            GROMACS_DIR=$HOME/pkgs
-            CMAKE_ARGS="-Dgmxapi_ROOT=$GROMACS_DIR -C $GROMACS_DIR/share/cmake/gromacs/gromacs-hints.cmake"
+            #GROMACS_DIR=$HOME/pkgs
+            #CMAKE_ARGS="-Dgmxapi_ROOT=$GROMACS_DIR -C $GROMACS_DIR/share/cmake/gromacs/gromacs-hints.cmake"
             # cd ../python_packaging/gmxapi
             # pip3 install .
-            pip3 install gmxapi==0.4.0rc2
+            gmxapi_ROOT=$HOME/pkgs pip3 install gmxapi==0.4.0rc2
             python -c "import gmxapi; print(gmxapi.__version__)"
 
       - run:
