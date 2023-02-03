@@ -2,11 +2,8 @@ version: 2.1
 
 jobs:
   test:
-    machine:
-      # Note that ubuntu with versions later than 2022 triggers an interative prompt that gets CI stuck
-      image: ubuntu-2004:202107-02
-    environment:
-      PYTHON_VERSION: "3.8"
+    docker:
+      - image: cimg/python:3.8
     steps:
       - checkout
 
@@ -26,7 +23,9 @@ jobs:
             wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
             sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main'
             sudo apt install cmake && cmake --version
-            bash Miniconda3-latest-Linux-x86_64.sh
+            python --version
+            conda install pip
+            which pip
 
       - run:
           name: Install the latest GROMACS 
@@ -50,8 +49,9 @@ jobs:
           name: Install the latest GROMACS and gmxpi
           command: |
             source $HOME/pkgs/bin/GMXRC
-            conda install pip
             python --version
+            conda install pip
+            which pip
             python -m ensurepip --default-pip
             pip install --upgrade pip wheel
             pip install "pybind11>=2.6" "setuptools>=42.0"
