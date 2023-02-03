@@ -48,8 +48,8 @@ jobs:
       - run:
           name: Install gmxapi
           command: |
-            python --version
-            python -m ensurepip --default-pip
+            python3 --version
+            python3 -m ensurepip --default-pip
             pip3 install --upgrade pip wheel
             pip3 install "pybind11>=2.6" "setuptools>=42.0"
             python3 -m pip install --upgrade pip setuptools
@@ -59,7 +59,7 @@ jobs:
             # cd ../python_packaging/gmxapi
             # pip3 install .
             gmxapi_ROOT=$HOME/pkgs pip3 install gmxapi==0.4.0rc2
-            python -c "import gmxapi; print(gmxapi.__version__)"
+            python3 -c "import gmxapi; print(gmxapi.__version__)"
 
       - run:
           name: Install the ensemble_md package
