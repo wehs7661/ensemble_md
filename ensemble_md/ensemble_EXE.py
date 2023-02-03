@@ -157,7 +157,7 @@ class EnsembleEXE:
         self.dt = self.template["dt"]  # ps
         self.temp = self.template["ref_t"]
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
-        
+
         if 'wl_scale' in self.template.keys():
             if self.template['wl_scale'] != '':
                 self.fixed_weights = False
@@ -179,6 +179,9 @@ class EnsembleEXE:
 
         # 6-2. Number of states of each replica (assuming the same for all rep)
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
+        if self.n_sub < 1:
+            raise ParameterError(
+                f"There must be at least two states for each replica (current value: {self.n_sub}). The current specified configuration (n_tot={self.n_tot}, n_sim={self.n_sim}, s={self.s}) does not work for EEXE.")  # noqa: E501
 
         # 6-3. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
@@ -257,11 +260,11 @@ class EnsembleEXE:
             print(f"The random seed to use in bootstrapping, if used: {self.seed}")
 
         if self.reformatted_mdp is True:
-            print('Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.')
+            print('Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.')  # noqa: E501
 
     def reformat_MDP(self):
         """
-        Reformats an MDP file so that all hyphens in the parameter names are replaced by underscores. This makes parsing and modifying 
+        Reformats an MDP file so that all hyphens in the parameter names are replaced by underscores. This makes parsing and modifying  # noqa: E501
         an MDP file later in the workflow a little easier.
         """
         params = gmx_parser.MDP(self.mdp)
@@ -292,12 +295,12 @@ class EnsembleEXE:
         lambda_ranges : list
             A list of lambda vectors of the state range of each replica.
         """
-        # A list of all possible lambda types in the order read by GROMACS, which is likely also the order when being printed to the log file.
+        # A list of all possible lambda types in the order read by GROMACS, which is likely also the order when being printed to the log file.  # noqa: E501
         # See https://gitlab.com/gromacs/gromacs/-/blob/main/src/gromacs/gmxpreprocess/readir.cpp#L2543
-        lambdas_types_all = ['fep_lambdas', 'mass_lambdas', 'coul_lambdas', 'vdw_lambdas', 'bonded_lambdas', 'restraint_lambdas', 'temperature_lambdas']
+        lambdas_types_all = ['fep_lambdas', 'mass_lambdas', 'coul_lambdas', 'vdw_lambdas', 'bonded_lambdas', 'restraint_lambdas', 'temperature_lambdas']  # noqa: E501
         self.lambda_types = []  # lambdas specified in the MDP file
         for i in lambdas_types_all:
-            if i in self.template.keys():  # there shouldn't be parameters like "fep-lambdas" after reformatting the MDP file
+            if i in self.template.keys():  # there shouldn't be parameters like "fep-lambdas" after reformatting the MDP file  # noqa: E501
                 self.lambda_types.append(i)
 
         self.lambda_dict = {}  # key: vector of coupling parameters, value: state index

@@ -19,6 +19,7 @@ import numpy as np
 import ensemble_md
 import gmxapi as gmx
 from mpi4py import MPI
+from ensemble_md.utils import utils
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.utils.exceptions import ParameterError
 
@@ -232,7 +233,7 @@ class Test_EnsembleEXE:
             [
                 a == b
                 for a, b in zip(
-                    MDP["vdw-lambdas"], [0.00, 0.00, 0.00, 0.25, 0.50, 0.75]
+                    MDP["vdw_lambdas"], [0.00, 0.00, 0.00, 0.25, 0.50, 0.75]
                 )
             ]
         )
@@ -240,12 +241,12 @@ class Test_EnsembleEXE:
             [
                 a == b
                 for a, b in zip(
-                    MDP["coul-lambdas"], [0.50, 0.75, 1.00, 1.00, 1.00, 1.00]
+                    MDP["coul_lambdas"], [0.50, 0.75, 1.00, 1.00, 1.00, 1.00]
                 )
             ]
         )
         assert all(
-            [a == b for a, b in zip(MDP["init-lambda-weights"], [0, 0, 0, 0, 0, 0])]
+            [a == b for a, b in zip(MDP["init_lambda_weights"], [0, 0, 0, 0, 0, 0])]
         )
 
     def test_update_MDP(self):
@@ -267,20 +268,20 @@ class Test_EnsembleEXE:
 
         assert MDP_1["tinit"] == MDP_2["tinit"] == 3
         assert MDP_1["nsteps"] == MDP_2["nsteps"] == 500
-        assert MDP_1["init-lambda-state"] == 5
-        assert MDP_2["init-lambda-state"] == 1
+        assert MDP_1["init_lambda_state"] == 5
+        assert MDP_2["init_lambda_state"] == 1
         assert (
-            MDP_1["init-wl-delta"] == MDP_1["wl-scale"] == MDP_1["wl-ratio"] == ""
+            MDP_1["init_wl_delta"] == MDP_1["wl_scale"] == MDP_1["wl_ratio"] == ""
         )  # because equil_bools is True
         assert (
-            MDP_1["lmc-weights-equil"] == MDP_1["weight-equil-wl-delta"] == ""
+            MDP_1["lmc_weights_equil"] == MDP_1["weight_equil_wl_delta"] == ""
         )  # because equil_bools is True
-        assert MDP_2["init-wl-delta"] == 0.32
+        assert MDP_2["init_wl_delta"] == 0.32
         assert all(
             [
                 a == b
                 for a, b in zip(
-                    MDP_1["init-lambda-weights"], [3.48, 2.78, 3.21, 4.56, 8.79, 0.48]
+                    MDP_1["init_lambda_weights"], [3.48, 2.78, 3.21, 4.56, 8.79, 0.48]
                 )
             ]
         )
@@ -288,7 +289,7 @@ class Test_EnsembleEXE:
             [
                 a == b
                 for a, b in zip(
-                    MDP_2["init-lambda-weights"], [8.45, 0.52, 3.69, 2.43, 4.56, 6.73]
+                    MDP_2["init_lambda_weights"], [8.45, 0.52, 3.69, 2.43, 4.56, 6.73]
                 )
             ]
         )
@@ -479,26 +480,7 @@ class Test_EnsembleEXE:
         assert np.allclose(list(g_vec_3), [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667])  # noqa: E501
         assert np.allclose(list(g_vec_4), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
 
-    def test_MPI(self):
-        rank = MPI.COMM_WORLD.Get_rank()
-        EEXE = EnsembleEXE('ensemble_md/tests/data/params.yaml')
-        if rank == 0:
-            assert 1 + 1 == 2
-
     def test_MPI_1(self):
-        # We probably can only test serial EEXE
-        rank = MPI.COMM_WORLD.Get_rank()
-        EEXE = EnsembleEXE('ensemble_md/tests/data/params.yaml')
-        if rank == 0:
-            for i in range(EEXE.n_sim):
-                os.mkdir(f'sim_{i}')
-                os.mkdir(f'sim_{i}/iteration_0')
-                MDP = EEXE.initialize_MDP(i)
-                MDP.write(f'sim_{i}/iteration_0/expanded.mdp', skipempty=True)
-                shutil.copy('ensemble_md/tests/data/sys.gro', f'sim_{i}/iteration_0/sys.gro')
-                shutil.copy('ensemble_md/tests/data/sys.top', f'sim_{i}/iteration_0/sys.top')
-
-    def test_grompp(self):
         # We probably can only test serial EEXE
         rank = MPI.COMM_WORLD.Get_rank()
         EEXE = EnsembleEXE('ensemble_md/tests/data/params.yaml')
@@ -514,11 +496,6 @@ class Test_EnsembleEXE:
         if rank == 0:
             iter_str = f'\nIteration {n}: {EEXE.dt * EEXE.nst_sim * n: .1f} - {EEXE.dt * EEXE.nst_sim * (n + 1): .1f} ps'  # noqa: E501
             print(iter_str + '\n' + '=' * (len(iter_str) - 1))
-
-        if rank == 0:
-            dir_before = [
-                i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))]
-            print("Preparing the tpr files for the simulation ensemble ...", end="")
 
         grompp = gmx.commandline_operation(
             "gmx",
@@ -543,6 +520,12 @@ class Test_EnsembleEXE:
         if rank == 0:  # just print the messages once
             utils.gmx_output(grompp, EEXE.verbose)
 
+        assert 1 + 1 == 2
+
+        if rank == 0:
+            os.system('rm -r sim_*')
+            os.system('rm -r gmxapi.commandline.cli*_i0*')
+
     def test_run_EEXE(self):
         # We probably can only test serial EEXE
         rank = MPI.COMM_WORLD.Get_rank()
@@ -561,4 +544,4 @@ class Test_EnsembleEXE:
 
         if rank == 0:
             os.system('rm -r sim_*')
-            os.system('rm -r gmxapi.commandline.cli1_i0*')
+            os.system('rm -r gmxapi.commandline.cli*_i0*')
