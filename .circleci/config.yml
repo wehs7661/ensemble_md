@@ -26,7 +26,6 @@ jobs:
             ~/miniconda3/bin/conda init bash
             ~/miniconda3/bin/conda init zsh
             python --version
-            conda install pip
             which pip
 
       - run:
