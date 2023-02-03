@@ -70,3 +70,8 @@ jobs:
           name: CodeCov
           command: |
             bash <(curl -s https://codecov.io/bash)
+
+workflows:
+  continuous-integration-workflow:
+    jobs:
+      - test
