@@ -19,7 +19,6 @@ import numpy as np
 import ensemble_md
 import gmxapi as gmx
 from mpi4py import MPI
-from ensemble_md.utils import utils
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.utils.exceptions import ParameterError
 
@@ -479,52 +478,6 @@ class Test_EnsembleEXE:
         assert np.allclose(list(g_vec_2), [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005])  # noqa: E501
         assert np.allclose(list(g_vec_3), [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667])  # noqa: E501
         assert np.allclose(list(g_vec_4), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
-
-    def test_MPI_1(self):
-        # We probably can only test serial EEXE
-        rank = MPI.COMM_WORLD.Get_rank()
-        EEXE = EnsembleEXE('ensemble_md/tests/data/params.yaml')
-        if rank == 0:
-            for i in range(EEXE.n_sim):
-                os.mkdir(f'sim_{i}')
-                os.mkdir(f'sim_{i}/iteration_0')
-                MDP = EEXE.initialize_MDP(i)
-                MDP.write(f'sim_{i}/iteration_0/expanded.mdp', skipempty=True)
-                shutil.copy('ensemble_md/tests/data/sys.gro', f'sim_{i}/iteration_0/sys.gro')
-                shutil.copy('ensemble_md/tests/data/sys.top', f'sim_{i}/iteration_0/sys.top')
-        n = 0
-        if rank == 0:
-            iter_str = f'\nIteration {n}: {EEXE.dt * EEXE.nst_sim * n: .1f} - {EEXE.dt * EEXE.nst_sim * (n + 1): .1f} ps'  # noqa: E501
-            print(iter_str + '\n' + '=' * (len(iter_str) - 1))
-
-        grompp = gmx.commandline_operation(
-            "gmx",
-            arguments=["grompp"],  # noqa: E127
-            input_files=[  # noqa: E127
-                {
-                    "-f": f"../sim_{i}/iteration_{n}/{EEXE.mdp.split('/')[-1]}",
-                    "-c": f"../sim_{i}/iteration_{n}/{EEXE.gro.split('/')[-1]}",
-                    "-p": f"../sim_{i}/iteration_{n}/{EEXE.top.split('/')[-1]}",
-                }
-                for i in range(EEXE.n_sim)
-            ],
-            output_files=[  # noqa: E127
-                {  # noqa: E127
-                    "-o": f"../sim_{i}/iteration_{n}/sys_EE.tpr",
-                    "-po": f"../sim_{i}/iteration_{n}/mdout.mdp",
-                }
-                for i in range(EEXE.n_sim)
-            ],
-        )
-        grompp.run()
-        if rank == 0:  # just print the messages once
-            utils.gmx_output(grompp, EEXE.verbose)
-
-        assert 1 + 1 == 2
-
-        if rank == 0:
-            os.system('rm -r sim_*')
-            os.system('rm -r gmxapi.commandline.cli*_i0*')
 
     def test_run_EEXE(self):
         # We probably can only test serial EEXE

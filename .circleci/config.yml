@@ -1,0 +1,90 @@
+version: 2.1
+
+jobs:
+  test:
+    machine:
+      # Note that ubuntu with versions later than 2022 triggers an interative prompt that gets CI stuck
+      image: ubuntu-2004:202107-02
+    environment:
+      PYTHON_VERSION: "3.8"
+    steps:
+      - checkout
+
+      - run:
+          name: Show the system information and resource limits
+          command: |
+            uname -a
+            df -h
+            ulimit -a
+
+      - run:
+          name: Installing dependencies for GROMACS
+          command: |
+            sudo apt-get update
+            sudo apt install build-essential
+            sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
+            wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+            sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' -y
+            sudo apt install cmake && cmake --version
+
+      - run:
+          name: Install the latest version of GROMACS
+          command: |
+            gcc --version
+            g++ --version 
+            export CC=`which gcc`
+            export CXX=`which g++`
+
+            ccache -s
+            cd $HOME && mkdir pkgs 
+            git clone https://gitlab.com/gromacs/gromacs.git
+            cd gromacs && mkdir build && cd build
+            cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/pkgs -DGMX_ENABLE_CCACHE=ON
+            make install 
+            source $HOME/pkgs/bin/GMXRC
+            gmx --version
+            ccache -s
+
+      - run:
+          name: Install gmxapi
+          command: |
+            python3 --version
+            python3 -m ensurepip --default-pip
+            pip3 install --upgrade pip wheel
+            pip3 install "pybind11>=2.6" "setuptools>=42.0"
+            python3 -m pip install --upgrade pip setuptools
+            pip3 install --upgrade mpi4py
+            #GROMACS_DIR=$HOME/pkgs
+            #CMAKE_ARGS="-Dgmxapi_ROOT=$GROMACS_DIR -C $GROMACS_DIR/share/cmake/gromacs/gromacs-hints.cmake"
+            # cd ../python_packaging/gmxapi
+            # pip3 install .
+            gmxapi_ROOT=$HOME/pkgs pip3 install gmxapi==0.4.0rc2
+            python3 -c "import gmxapi; print(gmxapi.__version__)"
+
+      - run:
+          name: Install the ensemble_md package
+          command: |
+            python3 -m pip install . --no-deps
+            if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
+
+      - run:
+          name: Run unit tests
+          command: |
+            pip3 install pytest 
+            pip3 install pytest-cov
+            pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
+
+      - run:
+          name: CodeCov
+          command: |
+            bash <(curl -s https://codecov.io/bash)
+
+orbs:
+  codecov: codecov/codecov@3.2.3
+
+workflows:
+  continuous-integration:
+    jobs:
+      - test
+
+
