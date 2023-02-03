@@ -11,7 +11,7 @@ jobs:
       - checkout
 
       - run:
-          name: Additional info about the build
+          name: Show the system information and resource limits
           command: |
             uname -a
             df -h
@@ -29,7 +29,7 @@ jobs:
             source ~/.bashrc
 
       - run:
-          name: Install required dependencies for GROMACS
+          name: Installing dependencies for GROMACS
           command: |
             sudo apt-get update
             sudo apt install build-essential
@@ -39,7 +39,7 @@ jobs:
             sudo apt install cmake && cmake --version
 
       - run:
-          name: Install the latest GROMACS 
+          name: Install the latest version of GROMACS 
           command: |
             gcc --version
             g++ --version 
@@ -57,7 +57,7 @@ jobs:
             ccache -s
 
       - run:
-          name: Install the latest GROMACS and gmxpi
+          name: Install gmxapi
           command: |
             source $HOME/pkgs/bin/GMXRC
             python -m ensurepip --default-pip
@@ -69,14 +69,14 @@ jobs:
             python -c "import gmxapi; print(gmxapi.__version__)"
 
       - run:
-          name: Install ensemble_md dependencies
+          name: Install the ensemble_md package
           command: |
             python -m pip install . --no-deps
             if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
             conda list
 
       - run:
-          name: Run tests
+          name: Run unit tests
           command: |
             pip install pytest 
             pip install pytest-cov
@@ -87,7 +87,15 @@ jobs:
           command: |
             bash <(curl -s https://codecov.io/bash)
 
+orbs:
+  codecov: codecov/codecov@3.2.3
+
 workflows:
-  continuous-integration-workflow:
+  continuous-integration:
     jobs:
       - test
+  upload-to-codecov:
+    jobs:
+      - checkout
+      - codecov/upload
+
