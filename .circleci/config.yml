@@ -18,17 +18,6 @@ jobs:
             ulimit -a
 
       - run:
-          name: Set up Miniconda
-          command: |
-            MINICONDA_INSTALLER_SCRIPT=Miniconda3-latest-Linux-x86_64.sh
-            MINICONDA_PREFIX=$HOME/miniconda
-            curl -LJO https://repo.continuum.io/miniconda/$MINICONDA_INSTALLER_SCRIPT
-            bash $MINICONDA_INSTALLER_SCRIPT -b -p $MINICONDA_PREFIX
-            source $MINICONDA_PREFIX/bin/activate
-            conda init
-            source ~/.bashrc
-
-      - run:
           name: Installing dependencies for GROMACS
           command: |
             sudo apt-get update
@@ -39,7 +28,7 @@ jobs:
             sudo apt install cmake && cmake --version
 
       - run:
-          name: Install GROMACS and gmxapi
+          name: Install the latest version of GROMACS
           command: |
             gcc --version
             g++ --version 
@@ -56,28 +45,29 @@ jobs:
             gmx --version
             ccache -s
 
+      - run:
+          name: Install gmxapi
             python -m ensurepip --default-pip
-            pip install --upgrade pip wheel
-            pip install "pybind11>=2.6" "setuptools>=42.0"
-            python -m pip install --upgrade pip setuptools
-            conda install -c conda-forge mpi4py
-            cd ../python_packaging/gmxapi
-            pip install .
-            # pip install gmxapi==0.4.0rc2
+            pip3 install --upgrade pip wheel
+            pip3 install "pybind11>=2.6" "setuptools>=42.0"
+            python3 -m pip install --upgrade pip setuptools
+            pip3 install --upgrade mpi4py
+            # cd ../python_packaging/gmxapi
+            # pip3 install .
+            pip3 install gmxapi==0.4.0rc2
             python -c "import gmxapi; print(gmxapi.__version__)"
 
       - run:
           name: Install the ensemble_md package
           command: |
-            python -m pip install . --no-deps
-            if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-            conda list
+            python3 -m pip install . --no-deps
+            if [ -f requirements.txt ]; then pip3 install -r requirements.txt; fi
 
       - run:
           name: Run unit tests
           command: |
-            pip install pytest 
-            pip install pytest-cov
+            pip3 install pytest 
+            pip3 install pytest-cov
             pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
 
       - run:
