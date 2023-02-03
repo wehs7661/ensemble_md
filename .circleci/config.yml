@@ -2,8 +2,11 @@ version: 2.1
 
 jobs:
   test:
-    docker:
-      - image: cimg/python:3.8
+    machine:
+      # Note that ubuntu with versions later than 2022 triggers an interative prompt that gets CI stuck
+      image: ubuntu-2004:202107-02
+    environment:
+      PYTHON_VERSION: "3.8"
     steps:
       - checkout
 
@@ -25,6 +28,7 @@ jobs:
             rm -rf ~/miniconda3/miniconda.sh
             ~/miniconda3/bin/conda init bash
             ~/miniconda3/bin/conda init zsh
+            conda --version
             python --version
             which pip
 
