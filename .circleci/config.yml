@@ -47,27 +47,25 @@ jobs:
             
             source $HOME/pkgs/bin/GMXRC
             python -m ensurepip --default-pip
-            pip install --upgrade pip wheel
-            pip install "pybind11>=2.6" "setuptools>=42.0" "cmake>=3.16"
-            python -m pip install --upgrade pip setuptools
-            pip install --upgrade mpi4py
-            # cd ../python_packaging/gmxapi
-            # pip install .
-            pip install gmxapi==0.4.0rc2
-            python -c "import gmxapi; print(gmxapi.__version__)"
+            pip3.8 install --upgrade pip wheel
+            pip3.8 install "pybind11>=2.6" "setuptools>=42.0"
+            python3.8 -m pip install --upgrade pip setuptools
+            pip3.8 install --upgrade mpi4py
+            pip3.8 install gmxapi==0.4.0rc2
+            python3.8 -c "import gmxapi; print(gmxapi.__version__)"
 
       - run:
           name: Install ensemble_md dependencies
           command: |
-            python -m pip install . --no-deps
+            python3.8 -m pip install . --no-deps
             if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
             conda list
 
       - run:
           name: Run tests
           command: |
-            pip install pytest 
-            pip install pytest-cov
+            pip3.8 install pytest 
+            pip3.8 install pytest-cov
             pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
 
       - run:
