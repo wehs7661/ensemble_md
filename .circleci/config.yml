@@ -47,6 +47,7 @@ jobs:
 
       - run:
           name: Install gmxapi
+          command: |
             python -m ensurepip --default-pip
             pip3 install --upgrade pip wheel
             pip3 install "pybind11>=2.6" "setuptools>=42.0"
