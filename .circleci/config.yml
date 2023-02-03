@@ -106,7 +106,6 @@ workflows:
       - test
   upload-to-codecov:
     jobs:
-      - checkout
       - run-tests:
           requires:
             - checkout
