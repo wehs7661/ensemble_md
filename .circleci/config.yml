@@ -23,7 +23,9 @@ jobs:
             sudo apt-get update
             sudo apt install build-essential
             sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
-            sudo apt install cmake
+            wget http://www.cmake.org/files/v3.18/cmake-3.18.4.tar.gz
+            tar xf cmake-3.18.4.tar.gz
+            cd cmake-3.18.4 && ./configure && make && sudo make install
 
       - run:
           name: Install the latest GROMACS and gmxpi
