@@ -97,19 +97,4 @@ jobs:
           command: |
             bash <(curl -s https://codecov.io/bash)
 
-orbs:
-  codecov: codecov/codecov@3.2.3
-
-workflows:
-  continuous-integration:
-    jobs:
-      - test
-  upload-to-codecov:
-    jobs:
-      - run-tests:
-          requires:
-            - checkout
-      - codecov/upload:
-          requires:
-            - run-tests
 
