@@ -33,7 +33,7 @@ jobs:
           command: |
             sudo apt-get update
             sudo apt install build-essential
-            sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build libopenmpi-dev openmpi-bin
+            sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
             wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
             sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' -y
             sudo apt install cmake && cmake --version
@@ -45,7 +45,7 @@ jobs:
             pip install --upgrade pip wheel
             pip install "pybind11>=2.6" "setuptools>=42.0"
             python -m pip install --upgrade pip setuptools
-            pip install --upgrade mpi4py
+            conda install -c conda-forge mpi4py
 
       - run:
           name: Install the latest version of GROMACS 
