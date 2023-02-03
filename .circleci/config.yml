@@ -20,21 +20,19 @@ jobs:
       - run:
           name: Set up Miniconda
           command: |
-            sudo apt-get update
-            sudo apt install build-essential
-            mkdir -p ~/miniconda3
-            wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
-            bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
-            rm -rf ~/miniconda3/miniconda.sh
-            ~/miniconda3/bin/conda init bash
-            ~/miniconda3/bin/conda init zsh
-            conda --version
-            python --version
-            which pip
+            MINICONDA_INSTALLER_SCRIPT=Miniconda3-latest-Linux-x86_64.sh
+            MINICONDA_PREFIX=$HOME/miniconda
+            curl -LJO https://repo.continuum.io/miniconda/$MINICONDA_INSTALLER_SCRIPT
+            bash $MINICONDA_INSTALLER_SCRIPT -b -p $MINICONDA_PREFIX
+            source $MINICONDA_PREFIX/bin/activate
+            conda init
+            source ~/.bashrc
 
       - run:
           name: Install required dependencies for GROMACS
           command: |
+            sudo apt-get update
+            sudo apt install build-essential
             sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
             wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
             sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' -y
