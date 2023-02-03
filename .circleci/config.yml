@@ -59,6 +59,7 @@ jobs:
       - run:
           name: Install gmxapi
           command: |
+            export PATH="$HOME/miniconda/bin:$PATH"
             source $HOME/pkgs/bin/GMXRC
             python -m ensurepip --default-pip
             pip install --upgrade pip wheel
