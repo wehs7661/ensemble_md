@@ -39,15 +39,6 @@ jobs:
             sudo apt install cmake && cmake --version
 
       - run:
-          name: Install gmxapi (test)
-          command: |
-            python -m ensurepip --default-pip
-            pip install --upgrade pip wheel
-            pip install "pybind11>=2.6" "setuptools>=42.0"
-            python -m pip install --upgrade pip setuptools
-            conda install -c conda-forge mpi4py
-
-      - run:
           name: Install the latest version of GROMACS 
           command: |
             gcc --version
@@ -73,7 +64,7 @@ jobs:
             pip install --upgrade pip wheel
             pip install "pybind11>=2.6" "setuptools>=42.0"
             python -m pip install --upgrade pip setuptools
-            pip install --upgrade mpi4py
+            conda install -c conda-forge mpi4py
             pip install gmxapi==0.4.0rc2
             python -c "import gmxapi; print(gmxapi.__version__)"
 
