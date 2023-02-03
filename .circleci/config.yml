@@ -66,7 +66,9 @@ jobs:
             pip install "pybind11>=2.6" "setuptools>=42.0"
             python -m pip install --upgrade pip setuptools
             conda install -c conda-forge mpi4py
-            pip install gmxapi==0.4.0rc2
+            cd gromacs/python_packaging/gmxapi
+            pip install .
+            # pip install gmxapi==0.4.0rc2
             python -c "import gmxapi; print(gmxapi.__version__)"
 
       - run:
