@@ -28,7 +28,7 @@ jobs:
             sudo apt install cmake && cmake --version
 
       - run:
-          name: Install the latest GROMACS and gmxpi
+          name: Install the latest GROMACS 
           command: |
             gcc --version
             g++ --version 
@@ -44,28 +44,33 @@ jobs:
             source $HOME/pkgs/bin/GMXRC
             gmx --version
             ccache -s
-            
+
+      - run:
+          name: Install the latest GROMACS and gmxpi
+          command: |
             source $HOME/pkgs/bin/GMXRC
+            conda install pip
+            python --version
             python -m ensurepip --default-pip
-            pip3.8 install --upgrade pip wheel
-            pip3.8 install "pybind11>=2.6" "setuptools>=42.0"
-            python3.8 -m pip install --upgrade pip setuptools
-            pip3.8 install --upgrade mpi4py
-            pip3.8 install gmxapi==0.4.0rc2
-            python3.8 -c "import gmxapi; print(gmxapi.__version__)"
+            pip install --upgrade pip wheel
+            pip install "pybind11>=2.6" "setuptools>=42.0"
+            python -m pip install --upgrade pip setuptools
+            pip install --upgrade mpi4py
+            pip install gmxapi==0.4.0rc2
+            python -c "import gmxapi; print(gmxapi.__version__)"
 
       - run:
           name: Install ensemble_md dependencies
           command: |
-            python3.8 -m pip install . --no-deps
+            python -m pip install . --no-deps
             if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
             conda list
 
       - run:
           name: Run tests
           command: |
-            pip3.8 install pytest 
-            pip3.8 install pytest-cov
+            pip install pytest 
+            pip install pytest-cov
             pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
 
       - run:
