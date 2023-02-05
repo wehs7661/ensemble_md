@@ -1,7 +1,7 @@
 Ensemble Molecular Dynamics
 ==============================
 [//]: # (Badges)
-[![GitHub Actions Build Status](https://github.com/wehs7661/ensemble_md/workflows/CI/badge.svg)](https://github.com/wehs7661/ensemble_md/actions?query=workflow%3ACI)
+[![wehs7661](https://circleci.com/gh/wehs7661/ensemble_md.svg?style=svg)](https://app.circleci.com/pipelines/github/wehs7661/ensemble_md?branch=master)
 [![codecov](https://codecov.io/gh/wehs7661/ensemble_md/branch/master/graph/badge.svg)](https://codecov.io/gh/wehs7661/ensemble_md/branch/master)
 [![Documentation Status](https://readthedocs.org/projects/ensemble-md/badge/?version=latest)](https://ensemble_md.readthedocs.io/en/latest/?badge=latest)
 [![GitHub Actions Lint Status](https://github.com/wehs7661/ensemble_md/actions/workflows/lint.yaml/badge.svg)](https://github.com/wehs7661/ensemble_md/actions/workflows/lint.yaml)

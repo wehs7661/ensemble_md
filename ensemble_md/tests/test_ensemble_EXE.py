@@ -65,10 +65,10 @@ class Test_EnsembleEXE:
         assert EEXE.n_tot == 9
         assert EEXE.n_sub == 6
         assert EEXE.state_ranges == [
-            {0, 1, 2, 3, 4, 5},
-            {1, 2, 3, 4, 5, 6},
-            {2, 3, 4, 5, 6, 7},
-            {3, 4, 5, 6, 7, 8},
+            [0, 1, 2, 3, 4, 5],
+            [1, 2, 3, 4, 5, 6],
+            [2, 3, 4, 5, 6, 7],
+            [3, 4, 5, 6, 7, 8],
         ]
         assert EEXE.equil == [-1, -1, -1, -1]
         assert EEXE.nst_sim == 500
@@ -325,7 +325,7 @@ class Test_EnsembleEXE:
     def test_propose_swaps(self):
         random.seed(0)
         EEXE.n_sim = 4
-        EEXE.state_ranges = [set(range(i, i + 5)) for i in range(EEXE.n_sim)]  # 5 states per replica
+        EEXE.state_ranges = [list(range(i, i + 5)) for i in range(EEXE.n_sim)]  # 5 states per replica
         states = [5, 2, 2, 7]   # This would lead to the swappables: [(0, 1), (0, 2), (1, 2)]
 
         # Case 1: Neighboring swapping (n_ex = 0 --> swappables = [(0, 1), (1, 2)])
@@ -345,10 +345,10 @@ class Test_EnsembleEXE:
 
     def test_gest_swapped_configus(self):
         EEXE.state_ranges = [
-            {0, 1, 2, 3, 4, 5},
-            {1, 2, 3, 4, 5, 6},
-            {2, 3, 4, 5, 6, 7},
-            {3, 4, 5, 6, 7, 8}]
+            [0, 1, 2, 3, 4, 5],
+            [1, 2, 3, 4, 5, 6],
+            [2, 3, 4, 5, 6, 7],
+            [3, 4, 5, 6, 7, 8]]
         states = [5, 2, 2, 8]
         lambda_vecs = [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
         weights = [
@@ -372,10 +372,10 @@ class Test_EnsembleEXE:
 
     def test_calc_prob_acc(self):
         EEXE.state_ranges = [
-            {0, 1, 2, 3, 4, 5},
-            {1, 2, 3, 4, 5, 6},
-            {2, 3, 4, 5, 6, 7},
-            {3, 4, 5, 6, 7, 8}]
+            [0, 1, 2, 3, 4, 5],
+            [1, 2, 3, 4, 5, 6],
+            [2, 3, 4, 5, 6, 7],
+            [3, 4, 5, 6, 7, 8]]
         states = [5, 2, 2, 8]
         lambda_vecs = [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
         weights = [
@@ -451,7 +451,7 @@ class Test_EnsembleEXE:
         EEXE.n_sub = 4
         EEXE.s = 1
         EEXE.n_sim = 3
-        EEXE.state_ranges = [{0, 1, 2, 3}, {1, 2, 3, 4}, {2, 3, 4, 5}]
+        EEXE.state_ranges = [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5]]
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
 
         w1, g_vec_1 = EEXE.combine_weights(weights, method=None)

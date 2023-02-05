@@ -79,8 +79,8 @@ jobs:
           command: |
             bash <(curl -s https://codecov.io/bash)
 
-orbs:
-  codecov: codecov/codecov@3.2.3
+      - store_test_results:
+          path: test-results
 
 workflows:
   continuous-integration:

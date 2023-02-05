@@ -33,17 +33,21 @@ def initialize(args):
                         '--ckpt',
                         type=str,
                         default='rep_trajs.npy',
-                        help='The NPY file containing the replica-space trajectories. This file is a necessary checkpoint file for extending the simulaiton. (Default: rep_trajs.npy)')  # noqa: E501
+                        help='The NPY file containing the replica-space trajectories. This file is a \
+                            necessary checkpoint file for extending the simulaiton. (Default: rep_trajs.npy)')
     parser.add_argument('-g',
                         '--g_vecs',
                         type=str,
                         default='g_vecs.npy',
-                        help='The NPY file containing the timeseries of the whole-range alchemical weights. This file is a necessary input if ones wants to update the file when extending the simulation. (Default: g_vecs.npy)')  # noqa: E501
+                        help='The NPY file containing the timeseries of the whole-range alchemical weights. \
+                            This file is a necessary input if ones wants to update the file when extending \
+                            the simulation. (Default: g_vecs.npy)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
                         default='run_EEXE_log.txt',
-                        help='The output file for logging how replicas interact with each other. (Default: run_EEXE_log.txt)')  # noqa: E501
+                        help='The output file for logging how replicas interact with each other. \
+                            (Default: run_EEXE_log.txt)')
     parser.add_argument('-m',
                         '--maxwarn',
                         type=int,

@@ -185,7 +185,7 @@ class EnsembleEXE:
 
         # 6-3. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
-        self.state_ranges = [set(np.arange(i, i + self.n_sub)) for i in start_idx]
+        self.state_ranges = [list(np.arange(i, i + self.n_sub)) for i in start_idx]
 
         # 6-4. A list of simulation statuses to be updated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
@@ -247,7 +247,7 @@ class EnsembleEXE:
         print(f"Additional runtime arguments: {self.runtime_args}")
         print("Alchemical ranges of each replica in EEXE:")
         for i in range(self.n_sim):
-            print(f"  - Replica {i}: States {list(self.state_ranges[i])}")
+            print(f"  - Replica {i}: States {self.state_ranges[i]}")
 
         if params_analysis is True:
             print()
@@ -483,7 +483,7 @@ class EnsembleEXE:
         all_pairs = list(combinations(sim_idx, 2))
 
         # First, we identify pairs of replicas with overlapping ranges
-        swappables = [i for i in all_pairs if self.state_ranges[i[0]].intersection(self.state_ranges[i[1]]) != set()]  # noqa: E501
+        swappables = [i for i in all_pairs if set(self.state_ranges[i[0]]).intersection(set(self.state_ranges[i[1]])) != set()]  # noqa: E501
         print(f"\nReplicas with overlapping λ ranges: {swappables}")
 
         # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
@@ -792,7 +792,7 @@ class EnsembleEXE:
                     dg_list = []
                     for j in range(len(self.state_ranges)):
                         if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
-                            idx = list(self.state_ranges[j]).index(i)
+                            idx = self.state_ranges[j].index(i)
                             dg_list.append(dg_adjacent[j][idx])
                     dg_vec.append(np.mean(dg_list))
                 dg_vec.insert(0, 0)
@@ -804,7 +804,7 @@ class EnsembleEXE:
                 prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
 
                 # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)  # noqa: E501
-                overlapped = [self.state_ranges[i].intersection(self.state_ranges[i + 1]) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
+                overlapped = [set(self.state_ranges[i]).intersection(set(self.state_ranges[i + 1])) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
                 prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
 
                 # Step 3: Average the probability ratios

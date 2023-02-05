@@ -34,7 +34,8 @@ from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 def initialize(args):
     parser = argparse.ArgumentParser(
-        description='This code analyzes an ensemble of expanded ensemble. Note that the template MDP file specified in the YAML file needs to be available in the working directory.')  # noqa: E501
+        description='This code analyzes an ensemble of expanded ensemble. Note that the template MDP\
+                file specified in the YAML file needs to be available in the working directory.')
     parser.add_argument('-y',
                         '--yaml',
                         type=str,
@@ -44,7 +45,8 @@ def initialize(args):
                         '--output',
                         type=str,
                         default='analyze_EEXE_log.txt',
-                        help='The output log file that contains the analysis results of EEXE. (Default: analyze_EEXE_log.txt)')  # noqa: E501
+                        help='The output log file that contains the analysis results of EEXE. \
+                            (Default: analyze_EEXE_log.txt)')
     parser.add_argument('-rt',
                         '--rep_trajs',
                         type=str,
@@ -54,7 +56,9 @@ def initialize(args):
                         '--state_trajs',
                         type=str,
                         default='state_trajs.npy',
-                        help='The NPY file containing the stitched state-space trajectory. If the specified file is not found, the code will try to find all the trajectories and stitch them. (Default: state_trajs.npy)')  # noqa: E501
+                        help='The NPY file containing the stitched state-space trajectory. \
+                            If the specified file is not found, the code will try to find all the trajectories and \
+                            stitch them. (Default: state_trajs.npy)')
     parser.add_argument('-d',
                         '--dir',
                         default='analysis',
