@@ -49,6 +49,7 @@ setup(
         'console_scripts':[
             'run_EEXE = ensemble_md.cli.run_EEXE:main',
             'analyze_EEXE = ensemble_md.cli.analyze_EEXE:main',
+            'explore_EEXE = ensemble_md.cli.explore_EEXE:main',
         ],
     },
 
