@@ -35,20 +35,32 @@ def initialize(args):
                         '--s',
                         type=int,
                         help='The state shift between adjacent replicas.')
+    parser.add_argument('-c',
+                        '--cnst',
+                        default=False,
+                        action='store_true',
+                        help='Whether the apply the constraint such that the number of overlapping states \
+                            does notexceed 50% of the number of states in both overlapping replicas.')
     args_parse = parser.parse_args(args)
 
     return args_parse
 
 
-def solv_EEXE_diophantine(N):
+def solv_EEXE_diophantine(N, constraint=False):
     """
     Solves the general nonlinear Diophantine equation associated with the homogeneous EEXE
-    parameters.
+    parameters. Specifically, given the total number of states :math:`N` and the number of replicas
+    r, the states for each replica n and the state shift s can be expressed as:
+    n = N + (r-1)(t-1), and s = 1 - t, with the range of t being either the following:
+    - Without the additional constraint, (r-N+1)/r <= t <= 0
+    - With the additional constraint, (r-N+1)/r <= t <= (r-N+1)/(r+1)
 
     Parameters
     ----------
     N : int
         The total number of states of the homogeneous EEXE of interesst.
+    constraint : bool
+        Whether to apply additional constraints such that n-s <= 1/2n.
 
     Returns
     -------
@@ -58,7 +70,16 @@ def solv_EEXE_diophantine(N):
     soln_all = []   # [N, r, n, s]
     r_list = range(2, N)
     for r in r_list:
-        t = np.arange(int((r - N + 1) / r), 1)
+        if constraint is False:
+            # To include the upper bound 0, we set `stop=1` instead of 0.
+            t = np.arange(int((r - N + 1) / r), 1).astype(int)
+        else:
+            if (r - N + 1) / (r + 1) == int((r - N + 1) / (r + 1)):
+                # If the upper bound is a negative integer, we need to shift `stop` by 1.
+                t = np.arange(int((r - N + 1) / r), int((r - N + 1) / (r + 1)) + 1).astype(int)
+            else:
+                # If the upper bound is a negative floating number, there is no need to shift.
+                t = np.arange(int((r - N + 1) / r), int((r - N + 1) / (r + 1))).astype(int)
         n = N + (r - 1) * (t - 1)
         s = 1 - t
         soln_all.extend([{'N': N, 'r': r, 'n': n[i], 's': s[i]} for i in range(len(t))])  # [N, r, n, s]
@@ -79,7 +100,7 @@ def main():
     print('- s: The state shift between adjacent replicas')
 
     # Enuerate all possible combinations of (N, r, n, s) even if any of r, n, s is given - it's easy/fast anyway.
-    soln_all = solv_EEXE_diophantine(args.N)
+    soln_all = solv_EEXE_diophantine(args.N, constraint=args.cnst)
 
     # Now filter the solutions
     if args.r is not None:
