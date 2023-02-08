@@ -378,43 +378,47 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     fig_names = ['t_0k.png', 't_k0.png', 't_roundtrip.png']
     for t in range(len(meta_list)):
         t_list = meta_list[t]
-        len_list = [len(i) for i in t_list]
-        if np.max(len_list) <= 10:
-            marker = 'o'
+        if all(not x for x in t_list):
+            # If the nested list is empty, no plots will be generated.
+            pass
         else:
-            marker = ''
-
-        plt.figure()
-        for i in range(len(t_list)):    # t_list[i] is the list for configuration i
-            plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)
-        if np.array(t_list).shape != (1, 0):  # at least one configuration has at least one event
-            if np.max(np.max((t_list))) >= 10000:
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-        plt.xlabel('Event index')
-        plt.ylabel(f'{y_labels[t]}')
-        plt.grid()
-        plt.legend()
-        if fig_prefix is None:
-            plt.savefig(f'{folder}/{fig_names[t]}')
-        else:
-            plt.savefig(f'{folder}/{fig_prefix}_{fig_names[t]}', dpi=600)
-
-        lens = [len(t_list[i]) for i in range(len(t_list))]
-        if np.min(lens) >= 100:  # plot a histogram
-            counts, bins = np.histogram(t_list[i])
+            len_list = [len(i) for i in t_list]
+            if np.max(len_list) <= 10:
+                marker = 'o'
+            else:
+                marker = ''
 
             plt.figure()
-            for i in range(len(t_list)):
-                plt.hist(t_list[i], bins=int(len(t_list[i]) / 20), label=f'Configuration {i}')
-                if max(counts) >= 10000:
+            for i in range(len(t_list)):    # t_list[i] is the list for configuration i
+                plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)
+            if np.array(t_list).shape != (1, 0):  # at least one configuration has at least one event
+                if np.max(np.max((t_list))) >= 10000:
                     plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
-            plt.xlabel(f'{y_labels[t]}')
-            plt.ylabel('Event count')
+            plt.xlabel('Event index')
+            plt.ylabel(f'{y_labels[t]}')
             plt.grid()
             plt.legend()
             if fig_prefix is None:
-                plt.savefig(f'{folder}/hist_{fig_names[t]}', dpi=600)
+                plt.savefig(f'{folder}/{fig_names[t]}')
             else:
-                plt.savefig(f'{folder}/{fig_prefix}_hist_{fig_names[t]}', dpi=600)
+                plt.savefig(f'{folder}/{fig_prefix}_{fig_names[t]}', dpi=600)
+
+            lens = [len(t_list[i]) for i in range(len(t_list))]
+            if np.min(lens) >= 100:  # plot a histogram
+                counts, bins = np.histogram(t_list[i])
+
+                plt.figure()
+                for i in range(len(t_list)):
+                    plt.hist(t_list[i], bins=int(len(t_list[i]) / 20), label=f'Configuration {i}')
+                    if max(counts) >= 10000:
+                        plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+                plt.xlabel(f'{y_labels[t]}')
+                plt.ylabel('Event count')
+                plt.grid()
+                plt.legend()
+                if fig_prefix is None:
+                    plt.savefig(f'{folder}/hist_{fig_names[t]}', dpi=600)
+                else:
+                    plt.savefig(f'{folder}/{fig_prefix}_hist_{fig_names[t]}', dpi=600)
 
     return t_0k_list, t_k0_list, t_roundtrip_list, units

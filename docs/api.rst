@@ -7,13 +7,13 @@ ensemble\_md.ensemble_EXE
 ensemble\_md.analysis
 =====================
 
-.. automodule:: ensemble_md.analysis.analyze_trajs
+.. automodule:: ensemble_md.analysis.analyze_traj
    :members:
 
 .. automodule:: ensemble_md.analysis.analyze_matrix
    :members:
 
-.. automodule:: ensemble_md.analysis.calc_free_energy
+.. automodule:: ensemble_md.analysis.analyze_free_energy
    :members:
 
 ensemble\_md.utils

@@ -167,17 +167,21 @@ def main():
     # 2-3. For each configurration, calculate the spectral gap of the overall transition matrix obtained in step 2-2.
     print('\n2-3. Calculating the spectral gap of the state transition matrices ...')
     spectral_gaps = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
-    for i in range(EEXE.n_sim):
-        print(f'   - Configuration {i}: {spectral_gaps[i]:.3f}')
-    print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
+    if None not in spectral_gaps:
+        for i in range(EEXE.n_sim):
+            print(f'   - Configuration {i}: {spectral_gaps[i]:.3f}')
+        print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
 
     # 2-4. For each configuration, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
     print('\n2-4. Calculating the stationary distributions ...')
     pi_list = [analyze_matrix.calc_equil_prob(mtx) for mtx in mtx_list]
-    for i in range(EEXE.n_sim):
-        print(f'   - Configuration {i}: {", ".join([f"{j:.3f}" for j in pi_list[i].reshape(-1)])}')
-    if len({len(i) for i in pi_list}) == 1:  # all lists in pi_list have the same length
-        print(f'   - Average of the above: {", ".join([f"{i:.3f}" for i in np.mean(pi_list, axis=0).reshape(-1)])}')
+    if any([x is None for x in pi_list]):
+        pass  # None is in the list
+    else:
+        for i in range(EEXE.n_sim):
+            print(f'   - Configuration {i}: {", ".join([f"{j:.3f}" for j in pi_list[i].reshape(-1)])}')
+        if len({len(i) for i in pi_list}) == 1:  # all lists in pi_list have the same length
+            print(f'   - Average of the above: {", ".join([f"{i:.3f}" for i in np.mean(pi_list, axis=0).reshape(-1)])}')  # noqa: E501
 
     # 2-5. Calculate the state index correlation time for each configuration (this step is more time-consuming one)
     print('\n2-5. Calculating the state index correlation time ...')
