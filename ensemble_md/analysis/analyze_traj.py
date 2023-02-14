@@ -178,7 +178,7 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
+def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1):
     """
     Plots the time series of states visited by each configuration in a subplot.
 
@@ -187,13 +187,13 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
     trajs : list
         A list of arrays that represent the state space trajectories of all configurations.
     state_ranges : list
-        A list of sets of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
+        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
     fig_name : str
         The file name of the png file to be saved (with the extension).
     dt : str or float
         One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
     stride : int
-        The stride for plotting the time series. The default is 100 if the length of
+        The stride for plotting the time series. The default is 10 if the length of
         any trajectory has more than 100,000 frames. Otherwise, it will be 1. Typically
         plotting more than 10 million frames can take a lot of memory.
     """
@@ -213,7 +213,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
 
     if stride is None:
         if len(trajs[0]) > 100000:
-            stride = 100
+            stride = 10
         else:
             stride = 1
 
@@ -235,8 +235,14 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
                 bounds[1] += 0.5
             plt.fill_between(x_range, y1=bounds[1], y2=bounds[0], color=colors[j], alpha=0.1)
 
-        # Then plot the trajectories
-        plt.plot(x[::stride], trajs[i][::stride], color=colors[i])
+        if len(trajs[0]) > 100000:
+            linewidth = 0.01
+        else:
+            linewidth = 1  # this is the default
+
+        # Finally, plot the trajectories
+        linewidth = 1  # this is the default
+        plt.plot(x[::stride], trajs[i][::stride], color=colors[i], linewidth=linewidth)
         if dt is None:
             plt.xlabel('MC moves')
         else:
@@ -256,6 +262,49 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None):
         ax.flat[-1 * (i + 1)].set_visible(False)
 
     plt.tight_layout()
+    plt.savefig(f'{fig_name}', dpi=600)
+
+
+def plot_state_hist(trajs, state_ranges, fig_name):
+    """
+    Plots the histograms of the state index for each configuration.
+
+    Parameters
+    ----------
+    trajs : list
+         A list of arrays that represent the state space trajectories of all configurations.
+    state_ranges : list
+        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
+    fig_name : str
+        The file name of the png file to be saved (with the extension).
+    """
+    n_configs = len(trajs)
+    cmap = plt.cm.ocean  # other good options are CMRmap, gnuplot, terrain, turbo, brg, etc.
+    colors = [cmap(i) for i in np.arange(n_configs) / n_configs]
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    lower_bound = min(trajs[0]) - 0.5
+    upper_bound = max(trajs[-1]) + 0.5
+    for i in range(len(trajs)):
+        plt.hist(trajs[i], np.arange(lower_bound, upper_bound + 1, 1), label=f'Configuration {i}', alpha=0.5, edgecolor='black', color=colors[i])  # noqa: E501
+    plt.xticks(range(max(state_ranges[-1]) + 1))
+
+    # Here we color the different regions to show alchemical ranges
+    y_min, y_max = ax.get_ylim()
+    for i in range(n_configs):
+        bounds = [list(state_ranges[i])[0], list(state_ranges[i])[-1]]
+        if i == 0:
+            bounds[0] -= 0.5
+        if i == n_configs - 1:
+            bounds[1] += 0.5
+        plt.fill_betweenx([y_min, y_max], x1=bounds[1] + 0.5, x2=bounds[0] - 0.5, color=colors[i], alpha=0.1, zorder=0)
+    plt.xlim([lower_bound, upper_bound])
+    plt.ylim([y_min, y_max])
+    plt.xlabel('State index')
+    plt.ylabel('Count')
+    plt.grid()
+    plt.legend()
     plt.savefig(f'{fig_name}', dpi=600)
 
 

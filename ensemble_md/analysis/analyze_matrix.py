@@ -153,7 +153,7 @@ def calc_spectral_gap(trans_mtx):
     if np.isclose(eig_vals[0], 1, atol=1e-4) is False:
         raise ParameterError(f'The largest eigenvalue of the input transition matrix {eig_vals[0]} is not close to 1.')
 
-    spectral_gap = eig_vals[0] - eig_vals[1]
+    spectral_gap = np.abs(eig_vals[0]) - np.abs(eig_vals[1])
 
     return spectral_gap
 

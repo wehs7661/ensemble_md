@@ -20,6 +20,7 @@ import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
+from datetime import datetime
 from deeptime.markov.tools.analysis import is_transition_matrix
 warnings.simplefilter(action='ignore', category=UserWarning)
 
@@ -89,6 +90,7 @@ def main():
     rc('mathtext', **{'default': 'regular'})
     plt.rc('font', family='serif')
 
+    print(f'Current time: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}')
     print(f'Command line: {" ".join(sys.argv)}')
 
     EEXE = EnsembleEXE(args.yaml)
@@ -156,24 +158,28 @@ def main():
     dt_traj = EEXE.dt * EEXE.template['nstdhdl']  # in ps
     analyze_traj.plot_state_trajs(state_trajs, EEXE.state_ranges, f'{args.dir}/state_trajs.png', dt_traj)
 
-    # 2-2. Plot the overall state transition matrices calculated from the state-space trajectories
-    print('\n2-2. Plotting the overall state transition matrices ...')
+    # 2-2. Plot the histograms for the states
+    print('\n2-2. Plotting the histograms of the state index ...')
+    analyze_traj.plot_state_hist(state_trajs, EEXE.state_ranges, f'{args.dir}/state_hist.png')
+
+    # 2-3. Plot the overall state transition matrices calculated from the state-space trajectories
+    print('\n2-3. Plotting the overall state transition matrices ...')
     mtx_list = []
     for i in range(EEXE.n_sim):
         mtx = analyze_traj.traj2transmtx(state_trajs[i], EEXE.n_tot)
         mtx_list.append(mtx)
         analyze_matrix.plot_matrix(mtx, f'{args.dir}/config_{i}_state_transmtx.png')
 
-    # 2-3. For each configurration, calculate the spectral gap of the overall transition matrix obtained in step 2-2.
-    print('\n2-3. Calculating the spectral gap of the state transition matrices ...')
+    # 2-4. For each configurration, calculate the spectral gap of the overall transition matrix obtained in step 2-2.
+    print('\n2-4. Calculating the spectral gap of the state transition matrices ...')
     spectral_gaps = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
     if None not in spectral_gaps:
         for i in range(EEXE.n_sim):
             print(f'   - Configuration {i}: {spectral_gaps[i]:.3f}')
         print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
 
-    # 2-4. For each configuration, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
-    print('\n2-4. Calculating the stationary distributions ...')
+    # 2-5. For each configuration, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
+    print('\n2-5. Calculating the stationary distributions ...')
     pi_list = [analyze_matrix.calc_equil_prob(mtx) for mtx in mtx_list]
     if any([x is None for x in pi_list]):
         pass  # None is in the list
@@ -183,15 +189,15 @@ def main():
         if len({len(i) for i in pi_list}) == 1:  # all lists in pi_list have the same length
             print(f'   - Average of the above: {", ".join([f"{i:.3f}" for i in np.mean(pi_list, axis=0).reshape(-1)])}')  # noqa: E501
 
-    # 2-5. Calculate the state index correlation time for each configuration (this step is more time-consuming one)
-    print('\n2-5. Calculating the state index correlation time ...')
+    # 2-6. Calculate the state index correlation time for each configuration (this step is more time-consuming one)
+    print('\n2-6. Calculating the state index correlation time ...')
     tau_list = [(pymbar.timeseries.statistical_inefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(EEXE.n_sim)]  # noqa: E501
     for i in range(EEXE.n_sim):
         print(f'   - Configuration {i}: {tau_list[i]:.1f} ps')
     print(f'   - Average of the above: {np.mean(tau_list):.1f} ps (std: {np.std(tau_list, ddof=1):.1f} ps)')
 
-    # 2-6. Calculate transit times for each configuration
-    print('\n2-6. Plotting the average transit times ...')
+    # 2-7. Calculate transit times for each configuration
+    print('\n2-7. Plotting the average transit times ...')
     t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, dt=dt_traj, folder=args.dir)  # noqa: E501
     meta_list = [t_0k_list, t_k0_list, t_roundtrip_list]
     t_names = [

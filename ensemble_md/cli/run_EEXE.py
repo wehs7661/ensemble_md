@@ -15,6 +15,7 @@ import shutil
 import argparse
 import numpy as np
 from mpi4py import MPI
+from datetime import datetime
 
 from ensemble_md.utils import utils
 from ensemble_md.ensemble_EXE import EnsembleEXE
@@ -69,6 +70,7 @@ def main():
     rank = comm.Get_rank()  # Note that this is a GLOBAL variable
 
     if rank == 0:
+        print(f'Current time: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}')
         print(f'Command line: {" ".join(sys.argv)}\n')
 
     EEXE = EnsembleEXE(args.yaml)
