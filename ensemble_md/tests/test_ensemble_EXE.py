@@ -341,7 +341,7 @@ class Test_EnsembleEXE:
         # Case 3: Empty swappable list
         states = [10, 10, 10, 10]
         swap_list = EEXE.propose_swaps(states)
-        assert swap_list is None
+        assert swap_list == []
 
     def test_gest_swapped_configus(self):
         EEXE.state_ranges = [

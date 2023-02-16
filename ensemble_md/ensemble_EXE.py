@@ -166,7 +166,13 @@ class EnsembleEXE:
         else:
             self.fixed_weights = True
 
-        if self.template['symmetrized_transition_matrix'] == 'yes':
+        if 'lmc_seed' in self.template and self.template['lmc_seed'] != -1:
+            self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
+
+        if 'gen_seed' in self.template and self.template['gen_seed'] != -1:
+            self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
+
+        if 'symmetrized_transition_matrix' in self.template and self.template['symmetrized_transition_matrix'] == 'yes':  # noqa: E501
             self.warnings.append('Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.')
 
         if self.template['nstlog'] > self.nst_sim:
@@ -364,7 +370,7 @@ class EnsembleEXE:
         MDP : gmx_parser.MDP obj
             An updated object of gmx_parser.MDP that can be used to write MDP files.
         """
-        new_template = gmx_parser.MDP(new_template)  # turn into a  gmx_parser.MDP object
+        new_template = gmx_parser.MDP(new_template)  # turn into a gmx_parser.MDP object
         MDP = copy.deepcopy(new_template)
         MDP["tinit"] = self.nst_sim * self.dt * iter_idx
         MDP["nsteps"] = self.nst_sim
@@ -506,7 +512,7 @@ class EnsembleEXE:
             swap_list = random.choices(swappables, k=n_ex)
         except IndexError:
             # In the case that swappables is an empty list, i.e. no swappable pairs.
-            swap_list = None
+            swap_list = []
 
         return swap_list
 
@@ -540,7 +546,7 @@ class EnsembleEXE:
             A list that represents how the replicas should be swapped.
         """
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of dhdl files/configurations
-        if swap_list is None:
+        if swap_list is []:
             print('No swap is proposed because there is no swappable pair at all.')
         else:
             for i in range(len(swap_list)):

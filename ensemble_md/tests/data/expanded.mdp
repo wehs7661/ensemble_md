@@ -61,7 +61,7 @@ pcoupl = no
 
 gen_vel = yes
 gen_temp = 298
-gen_seed = 6722267
+gen_seed = -1
 
 ; options for bonds
 constraints = h-bonds
@@ -88,7 +88,7 @@ nstdhdl = 10
 dhdl_print_energy = total
 
 ; Seed for Monte Carlo in lambda space
-lmc_seed = 1000
+lmc_seed = -1
 lmc_gibbsdelta = -1
 lmc_forced_nstart = 0
 symmetrized_transition_matrix = yes

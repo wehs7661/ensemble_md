@@ -82,7 +82,7 @@ def parse_transmtx(log_file, expanded_ensemble=True):
 
 def calc_equil_prob(trans_mtx):
     """
-    (**TODO**: Consider using PyEMMA instead.) Calculates the equilibrium probability of each
+    Calculates the equilibrium probability of each
     state from the state transition matrix. The input state transition matrix can be either
     left or right stochastic, although the left stochastic ones are not common in GROMACS.
     Generally, transition matrices in GROMACS are either doubly stochastic (replica exchange),

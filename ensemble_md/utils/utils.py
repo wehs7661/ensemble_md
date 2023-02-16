@@ -20,20 +20,50 @@ import numpy as np
 class Logger:
     """
     Redirects the STDOUT to a specified output file while preserving STDOUT on screen.
+
+    Parameters
+    ----------
+    logfile : str
+        Name of the output file to write the logged messages.
+
+    Attributes
+    ----------
+    terminal : file object
+        The file object that represents the original STDOUT (i.e., the screen).
+    log : file object
+        The file object that represents the logfile where messages will be written.
     """
 
     def __init__(self, logfile):
+        """
+        Initializes a Logger instance.
+
+        Parameters
+        ----------
+        logfile : str
+            Name of the output file to write the logged messages.
+        """
         self.terminal = sys.stdout
         self.log = open(logfile, "a")
 
     def write(self, message):
+        """
+        Writes the given message to both the STDOUT and the logfile.
+
+        Parameters
+        ----------
+        message : str
+            The message to be written to STDOUT and logfile.
+        """
         self.terminal.write(message)
         self.log.write(message)
 
     def flush(self):
-        # this flush method is needed for python 3 compatibility.
-        # this handles the flush command by doing nothing.
-        # you might want to specify some extra behavior here.
+        """
+        This method is needed for Python 3 compatibility.
+        This handles the flush command by doing nothing.
+        You might want to specify some extra behavior here.
+        """
         # self.terminal.log()
         pass
 
@@ -113,7 +143,7 @@ def format_time(t):
     if "day" in hh_mm_ss[0]:
         # hh_mm_ss[0] will contain "day" and cannot be converted to float
         hh, mm, ss = hh_mm_ss[0], float(hh_mm_ss[1]), float(hh_mm_ss[2])
-        t_str = f"{hh_mm_ss[0]} {hh} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)"
+        t_str = f"{hh} hour(s) {mm:.0f} minute(s) {ss:.0f} second(s)"
     else:
         hh, mm, ss = float(hh_mm_ss[0]), float(hh_mm_ss[1]), float(hh_mm_ss[2])
         if hh == 0:
@@ -133,8 +163,24 @@ def autoconvert(s):
     Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
 
-      - A non-string object is returned as it is
-      - Try conversion to int, float, str.
+    Parameters
+    ----------
+    s : str or any
+        The input value to be converted to a numerical type if possible. If :code:`s` is not a string,
+        it is returned as is.
+
+    Returns
+    -------
+    numerical : int, float, numpy.ndarray, or any
+        The converted numerical value. If :code:`s` can be converted to a single numerical value,
+        that value is returned as an :code:`int` or :code:`float`. If :code:`s` can be converted to
+        multiple numerical values, a :code:`numpy.ndarray` containing those values is returned.
+        If :code:`s` cannot be converted to a numerical value, :code:`s` is returned as is.
+
+    Raises
+    ------
+    ValueError
+        If :code:`s` cannot be converted to a numerical value.
     """
     if type(s) is not str:
         return s
@@ -152,7 +198,8 @@ def autoconvert(s):
 
 def get_subplot_dimension(n_panels):
     """
-    Gets the numbers of rows and columns in a subplot.
+    Gets the numbers of rows and columns in a subplot such that
+    the arrangement of the .
 
     Parameters
     ----------
