@@ -1,18 +1,17 @@
 name: docs
 channels:
+build:
+  apt_packages:
+    - libclang
+    - cmake
+    - mpich
+    - libmpich-dev
 dependencies:
   - python
   - pandoc
   - ipykernel
   - pip
  
-  # System package dependencies
-  - apt:
-    - libclang
-    - cmake
-    - mpich
-    - libmpich-dev
-
   # Pip-only installs
   - pip:
     - sphinx  # 4.2.0

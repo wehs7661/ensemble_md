@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :code:`analysis_trajs` module provides methods for analyzing trajectories in EEXE.
+The :obj:`.analyze_traj` module provides methods for analyzing trajectories in EEXE.
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,12 +21,12 @@ from ensemble_md.utils import utils
 
 def extract_state_traj(dhdl):
     """
-    Extracts the state-space trajectory from a dhdl file.
+    Extracts the state-space trajectory from a GROMACS DHDL file.
 
     Parameters
     ----------
     dhdl : str
-        The filename of the dhdl file to be parsed.
+        The filename of the GROMACS DHDL file to be parsed.
 
     Returns
     -------
@@ -40,27 +40,26 @@ def extract_state_traj(dhdl):
 
 def stitch_trajs(dhdl_files, rep_trajs, shifts):
     """
-    Stitches the state-space trajectories for each configuration from dhdl files of different iterations.
+    Stitches the state-space trajectories for each configuration from DHDL files generated at different iterations.
 
     Parameters
     ----------
     dhdl_files : list
-        A list of list of dhdl file names. Specifically, dhdl_files[i] should be a list containing
-        the filenames of the dhdl files from all iterations in replica i.
+        A list of lists of DHDL file names. Specifically, :code:`dhdl_files[i]` should be a list containing
+        the filenames of the DHDL files from all iterations in replica :code:`i`.
     rep_trajs : list
-        A list of list that represents the replica space trajectories for each configuration. For example,
-        rep_trajs[0] = [0, 2, 3, 0, 1, ...] means that configuration 0 transitioned to replica 2, then
+        A list of lists that represents the replica space trajectories for each configuration. For example,
+        :code:`rep_trajs[0] = [0, 2, 3, 0, 1, ...]` means that configuration 0 transitioned to replica 2, then
         3, 0, 1, in iterations 1, 2, 3, 4, ..., respectively.
     shifts : list
         A list of values for shifting the state indices for each replica. The length of the list
         should be equal to the number of replicas.
 
-
     Returns
     -------
     state_trajs : list
         A list that contains lists of state-space trajectory for each configuration. For example,
-        state_trajs[i] is the state-space trajectory of configuration i.
+        :code:`state_trajs[i]` is the state-space trajectory of configuration :code:`i`.
     """
     n_configs = len(dhdl_files)
     n_iter = len(dhdl_files[0])
@@ -108,7 +107,7 @@ def traj2transmtx(traj, N, normalize=True):
 
     Returns
     -------
-    transmtx : np.array
+    transmtx : numpy.ndarray
         The transition matrix computed from the trajectory
     """
     transmtx = np.zeros([N, N])
@@ -131,9 +130,9 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
         A list of arrays that represent the replica space trajectories of all configurations.
     fig_name : str
         The file name of the png file to be saved (with the extension).
-    dt : str or float
+    dt : float or None, optional
         One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
-    stride : int
+    stride : int, optional
         The stride for plotting the time series. The default is 100 if the length of
         any trajectory has more than one million frames. Otherwise, it will be 1. Typically
         plotting more than 10 million frames can take a lot of memory.
@@ -190,9 +189,11 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1):
         A list of lists of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
     fig_name : str
         The file name of the png file to be saved (with the extension).
-    dt : str or float
-        One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
-    stride : int
+    dt : float or None, optional
+        The time interval between consecutive frames of the trajectories. If None, it is assumed
+        that the trajectories are in terms of Monte Carlo (MC) moves instead of timeframes, and
+        the x-axis label is set to 'MC moves'. Default is None.
+    stride : int, optional
         The stride for plotting the time series. The default is 10 if the length of
         any trajectory has more than 100,000 frames. Otherwise, it will be 1. Typically
         plotting more than 10 million frames can take a lot of memory.
@@ -274,7 +275,7 @@ def plot_state_hist(trajs, state_ranges, fig_name):
     trajs : list
          A list of arrays that represent the state space trajectories of all configurations.
     state_ranges : list
-        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
+        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.EnsembleEXE`.)
     fig_name : str
         The file name of the png file to be saved (with the extension).
     """
@@ -323,9 +324,9 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
         The total number of states in the whole alchemical range.
     fig_prefix : str
         A prefix to use for all generated figures.
-    dt : str or float
+    dt : float or None, optional
         One trajectory timestep in ps. If None, it assumes there are no timeframes but MC steps.
-    folder : str
+    folder : str, optional
         The directory for saving the figures
 
     Returns

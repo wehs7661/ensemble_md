@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :code:`analysis_trajs` module provides methods for analyzing trajectories in EEXE.
+The :obj:`.analyze_matrix` module provides methods for analyzing matrices obtained from EEXE.
 """
 import numpy as np
 import seaborn as sns
@@ -33,11 +33,11 @@ def parse_transmtx(log_file, expanded_ensemble=True):
 
     Returns
     -------
-    empirical : np.array
+    empirical : numpy.ndarray
         The final empirical state transition matrix.
-    theoretical : None or np.array
+    theoretical : None or numpy.ndarray
         The final theoretical state transition matrix.
-    diff_matrix : None or np.array
+    diff_matrix : None or numpy.ndarray
         The difference between the theortial and empirical state transition matrix (empirical - theoretical).
     """
     f = open(log_file, "r")
@@ -82,24 +82,24 @@ def parse_transmtx(log_file, expanded_ensemble=True):
 
 def calc_equil_prob(trans_mtx):
     """
-    Calculates the equilibrium probability of each state from the state transition matrix. 
-    The input state transition matrix can be either left or right stochastic, although the left 
-    stochastic ones are not common in GROMACS. Generally, transition matrices in GROMACS are either 
-    doubly stochastic (replica exchange), or right stochastic (expanded ensemble). For the latter case, 
+    Calculates the equilibrium probability of each state from the state transition matrix.
+    The input state transition matrix can be either left or right stochastic, although the left
+    stochastic ones are not common in GROMACS. Generally, transition matrices in GROMACS are either
+    doubly stochastic (replica exchange), or right stochastic (expanded ensemble). For the latter case,
     the staionary distribution vector is the left eigenvector corresponding to the eigenvalue 1
-    of the transition matrix. (For the former case, it's either left or right eigenvector corresponding 
+    of the transition matrix. (For the former case, it's either left or right eigenvector corresponding
     to the eigenvalue 1 - as the left and right eigenvectors are the same for a doubly stochasti matrix.)
     Note that as long as the resulting eigenvector is real, the equilibrium probabilities/transition
-    matrix must have obeyed the detailed balance condition: :math:`P(X)P(X → X')=P(X')P(X' → X)`. 
+    matrix must have obeyed the detailed balance condition: :math:`P(X)P(X → X')=P(X')P(X' → X)`.
 
     Parameters
     ----------
-    trans_mtx : np.array
+    trans_mtx : numpy.ndarray
         The input state transition matrix
 
     Returns
     -------
-    equil_prob : np.array
+    equil_prob : numpy.ndarray
     """
     if np.isclose(np.sum(trans_mtx[0]), 1):  # note that this also include doubly stochastic matrices
         # Right or doubly stachstic matrices - calculate the left eigenvector
@@ -132,7 +132,7 @@ def calc_spectral_gap(trans_mtx):
 
     Parameters
     ----------
-    trans_mtx : np.array
+    trans_mtx : numpy.ndarray
         The input state transition matrix
 
     Returns
@@ -169,7 +169,7 @@ def split_transmtx(trans_mtx, n_sim, n_sub):
 
     Parameters
     ----------
-    trans_mtx : np.array
+    trans_mtx : numpy.ndarray
         The input state transition matrix to split
     n_sim : int
         The number of replicas in EEXE.
@@ -178,7 +178,7 @@ def split_transmtx(trans_mtx, n_sim, n_sub):
 
     Returns
     -------
-    sub_mtx: A list of np.array
+    sub_mtx: list
         Blocks of transition matrices split from the input.
     """
     sub_mtx = []
@@ -199,7 +199,7 @@ def plot_matrix(matrix, png_name, title=None, start_idx=0):
 
     Parameters
     ----------
-    matrix : np.array
+    matrix : numpy.ndarray
         The matrix to be visualized
     png_name : str
         The file name of the output PNG file (including the extension).
@@ -259,4 +259,4 @@ def plot_matrix(matrix, png_name, title=None, start_idx=0):
     plt.tight_layout(pad=1.0)
 
     plt.savefig(png_name, dpi=600)
-    plt.close(fig)
+    plt.close()

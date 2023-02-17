@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The `utils` module provides useful utility functions.
+The :obj:`.utils` module provides useful utility functions.
 """
 import os
 import sys

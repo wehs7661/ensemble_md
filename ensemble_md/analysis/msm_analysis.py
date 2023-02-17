@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :code:`msm_analysis` module provides analysis methods based on Markov state models.
+The :obj:`.msm_analysis` module provides analysis methods based on Markov state models.
 """
 import pyemma
 import ruptures as rpt
