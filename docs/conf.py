@@ -173,3 +173,6 @@ texinfo_documents = [
 
 
 # -- Extension configuration -------------------------------------------------
+# autoclass_content = 'both'
+autodoc_member_order = 'bysource'
+napoleon_attr_annotations = True

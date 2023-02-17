@@ -19,7 +19,7 @@ import numpy as np
 
 class Logger:
     """
-    Redirects the STDOUT to a specified output file while preserving STDOUT on screen.
+    Redirects the STDOUT and STDERR to a specified output file while preserving them on screen.
 
     Parameters
     ----------
@@ -60,8 +60,7 @@ class Logger:
 
     def flush(self):
         """
-        This method is needed for Python 3 compatibility.
-        This handles the flush command by doing nothing.
+        This method is needed for Python 3 compatibility. This handles the flush command by doing nothing.
         You might want to specify some extra behavior here.
         """
         # self.terminal.log()

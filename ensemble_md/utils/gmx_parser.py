@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
+The :code:`gmx_parser` module provides functions for parsing GROMACS files.
 """
 import os
 import re

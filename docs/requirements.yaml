@@ -15,7 +15,7 @@ dependencies:
 
   # Pip-only installs
   - pip:
-    - sphinx
+    - sphinx  # 4.2.0
     - nbsphinx
     - sphinx_rtd_theme
     - docutils==0.17.1

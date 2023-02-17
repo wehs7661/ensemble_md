@@ -38,13 +38,13 @@ the future.
    :caption: Tutorials:
 
 .. toctree::
-   api
+   api/api_ensemble_EXE
+   api/api_analysis
+   api/api_utils
    :maxdepth: 2
    :caption: API documentation:
 
-Indices and tables
-==================
+Others
+======
 
 * :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

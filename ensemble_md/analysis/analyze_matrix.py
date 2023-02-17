@@ -82,14 +82,15 @@ def parse_transmtx(log_file, expanded_ensemble=True):
 
 def calc_equil_prob(trans_mtx):
     """
-    Calculates the equilibrium probability of each
-    state from the state transition matrix. The input state transition matrix can be either
-    left or right stochastic, although the left stochastic ones are not common in GROMACS.
-    Generally, transition matrices in GROMACS are either doubly stochastic (replica exchange),
-    or right stochastic (expanded ensemble). For the latter case, the staionary distribution
-    vector is the left eigenvector corresponding to the eigenvalue 1 of the transition matrix.
-    (For the former case, it's either left or right eigenvector corresponding to the eigenvalue
-    1 - as the left and right eigenvectors are the same for a doubly stochasti matrix.)
+    Calculates the equilibrium probability of each state from the state transition matrix. 
+    The input state transition matrix can be either left or right stochastic, although the left 
+    stochastic ones are not common in GROMACS. Generally, transition matrices in GROMACS are either 
+    doubly stochastic (replica exchange), or right stochastic (expanded ensemble). For the latter case, 
+    the staionary distribution vector is the left eigenvector corresponding to the eigenvalue 1
+    of the transition matrix. (For the former case, it's either left or right eigenvector corresponding 
+    to the eigenvalue 1 - as the left and right eigenvectors are the same for a doubly stochasti matrix.)
+    Note that as long as the resulting eigenvector is real, the equilibrium probabilities/transition
+    matrix must have obeyed the detailed balance condition: :math:`P(X)P(X → X')=P(X')P(X' → X)`. 
 
     Parameters
     ----------
@@ -258,5 +259,4 @@ def plot_matrix(matrix, png_name, title=None, start_idx=0):
     plt.tight_layout(pad=1.0)
 
     plt.savefig(png_name, dpi=600)
-    # plt.show()
-    plt.close()
+    plt.close(fig)

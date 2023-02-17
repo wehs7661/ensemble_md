@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :code:`ensemble_EXE` module helps set up ensembles of expanded ensemble.
+The :code:`ensemble_EXE` module provides functions for setting up and ensemble of expanded ensemble.
 """
 import os
 import sys
@@ -36,17 +36,46 @@ rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
 
 class EnsembleEXE:
     """
-    This class helps set up input files of an ensemble of expanded ensemble.
+    This class provides a variety of functions useful for setting up and running
+    an ensemble of expanded ensemble.
     """
 
-    def __init__(self, yml_file):
+    def __init__(self, yaml_file):
+        self.yaml = yaml_file
+        self.set_params()
+        
+    def set_params(self):
         """
-        Sets up or reads in the user-defined parameters from the yaml file and the mdp template.
+        Sets up or reads in the user-defined parameters from a yaml file and an MDP template.
+        This function is called to instantiate the class in the :code:`__init__` function of 
+        class. Specifically, it does the following:
+          
+          1. Sets up constants.
+          2. Reads in parameters from a YAML file.
+          3. Handles YAML parameters.
+          4. Checks if the parameters in the YAML file are well-defined.
+          5. Reformats the input MDP file to replace all hyphens with underscores.
+          6. Reads in parameters from the MDP template.
 
-        Parameters
-        ----------
-        yml_file : str
-            The file name of the YAML file for specifying the parameters for EEXE.
+        After instantiation, the class instance will have attributes corresponding to
+        each of the parameters specified in the YAML file. For a full list of the parameters that
+        can be specified in the YAML file, please refer to :ref:`doc_parameters`.
+
+        :param yaml_file: The file name of the YAML file for specifying the parameters for EEXE.
+        :type yaml_file: str
+
+        :raises ParameterError:
+
+              - If a required parameter is not specified in the YAML file.
+              - If a specified parameter is not recognizable.
+              - If a specified weight combining scheme is not available.
+              - If a specified MC scheme is not available.
+              - If a specified free energy estimator is not available.
+              - If a specified method for error estimation is not available.
+              - If an integer parameter is not an integer.
+              - If a positive parameter is not positive.
+              - If a non-negative parameter is negative.
+              - If an invalid MDP file is detected.
         """
         self.warnings = []  # Store warnings, if any.
 
@@ -55,7 +84,7 @@ class EnsembleEXE:
         NA = 6.0221408e23
 
         # Step 1: Read in parameters from the YAML file.
-        with open(yml_file) as f:
+        with open(self.yaml) as f:
             params = yaml.load(f, Loader=yaml.FullLoader)
 
         for attr in params:
@@ -74,7 +103,7 @@ class EnsembleEXE:
         for i in required_args:
             if hasattr(self, i) is False or getattr(self, i) is None:
                 raise ParameterError(
-                    f"Required parameter '{i}' not specified in {yml_file}."
+                    f"Required parameter '{i}' not specified in {self.yaml}."
                 )  # noqa: F405
 
         # Key: Optional argument; Value: Default value
@@ -226,12 +255,12 @@ class EnsembleEXE:
 
     def print_params(self, params_analysis=False):
         """
-        Prints out important parameters.
+        Prints important parameters related to the EXEE simulation.
 
         Parameters
         ----------
-        params_analysis : bool
-            Whether to print out parameters for data analysis.
+        params_analysis : bool, optional
+            If True, additional parameters related to data analysis will be printed. Default is False.
         """
         print("Important parameters of EXEE")
         print("============================")
@@ -270,8 +299,12 @@ class EnsembleEXE:
 
     def reformat_MDP(self):
         """
-        Reformats an MDP file so that all hyphens in the parameter names are replaced by underscores. This makes parsing and modifying  # noqa: E501
-        an MDP file later in the workflow a little easier.
+        Reformats an MDP file so that all hyphens in the parameter names are replaced by underscores.
+        If the input MDP file contains hyphens in its parameter names, the class attribue :code:`self.reformatted`
+        will be set to :code:`True`. In this case, the new MDP object with reformatted parameter names will be
+        written to the original file paththe file, while the original file will be renamed with a 
+        :code:`_backup` suffix. If the input MDP file contains underscores in its parameter names, the function sets
+        the class attribute :code:`self.reformatted_mdp` to :code:`False`.
         """
         params = gmx_parser.MDP(self.mdp)
 
@@ -318,19 +351,19 @@ class EnsembleEXE:
     def initialize_MDP(self, idx):
         """
         Initializes the MDP object for generating MDP files for a replica based on the MDP template.
-        Note that this is only for generating MDP files for the FIRST iteration and it has nothing
-        to do with whether the weights are fixed or equilibrating. The user needs to make sure that
-        the MDP template has all the common parameters of all replicas.
+        This function should be called only for generating MDP files for the FIRST iteration 
+        and it has nothing to do with whether the weights are fixed or equilibrating. 
+        It is assumed that the MDP template has all the common parameters of all replicas.
 
         Parameters
         ----------
         idx : int
-            The index of the simulation whose MDP parameters need to be initialized.
+            Index of the simulation whose MDP parameters need to be initialized.
 
         Returns
         -------
-        MDP : gmx_parser.MDP obj
-            An updated object of gmx_parser.MDP that can be used to write MDP files.
+        MDP : :obj:`.gmx_parser.MDP` obj
+            An updated object of :obj:`.gmx_parser.MDP` that can be used to write MDP files.
         """
         MDP = copy.deepcopy(self.template)
         MDP["nsteps"] = self.nst_sim
@@ -347,8 +380,8 @@ class EnsembleEXE:
     def update_MDP(self, new_template, sim_idx, iter_idx, states, wl_delta, weights):
         """
         Updates the MDP file for a new iteration based on the new MDP template coming from the previous iteration.
-        Note that if the weights got equilibrated in the previous iteration, then we need to fix the weights in
-        later iterations.
+        Note that if the weights got equilibrated in the previous iteration, then the weights will be fixed
+        at these equilibrated values for all the following iterations.
 
         Parameters
         ----------
@@ -367,8 +400,8 @@ class EnsembleEXE:
 
         Return
         ------
-        MDP : gmx_parser.MDP obj
-            An updated object of gmx_parser.MDP that can be used to write MDP files.
+        MDP : :obj:`.gmx_parser.MDP` obj
+            An updated object of :obj:`.gmx_parser.MDP` that can be used to write MDP files.
         """
         new_template = gmx_parser.MDP(new_template)  # turn into a gmx_parser.MDP object
         MDP = copy.deepcopy(new_template)
@@ -392,7 +425,7 @@ class EnsembleEXE:
 
     def extract_final_dhdl_info(self, dhdl_files):
         """
-        For all the replica simulations, this function finds the last sampled state
+        For all the replica simulations, finds the last sampled state
         and the corresponding lambda values from a dhdl file.
 
         Parameters
@@ -423,7 +456,7 @@ class EnsembleEXE:
 
     def extract_final_log_info(self, log_files):
         """
-        For all the replica simulations, this function finds the following information from a log file.
+        Extracts the following information for each replica simulation from a given list of GROMACS log files:
 
           - The final Wang-Landau incrementors.
           - The final lists of weights.
@@ -433,7 +466,7 @@ class EnsembleEXE:
         Parameters
         ----------
         log_files : list
-            A list of log file names
+            A list of file paths to GROMACS log files.
 
         Returns
         -------
@@ -467,15 +500,16 @@ class EnsembleEXE:
 
     def propose_swaps(self, states):
         """
-        Proposes swaps of coordinates between replicas by drawing samples from the swappable pairs,
-        which are defined as pairs of simulations whose last sampled states are in the alchemical ranges
-        of both simulations. This is required, or ΔH and Δg will be unknown. Note that this automatically
-        assume the simulations to be swapped should have overlapping lambda ranges.
+        Proposes swaps of coordinates between replicas by drawing samples from the swappable pairs.
+        A pair of simulations is considered swappable if their last sampled states are in the alchemical 
+        ranges of both simulations. This is required, as otherwise the values of ΔH and Δg will be unknown. 
+        Note that this assumes that the simulations to be swapped have overlapping lambda ranges.
 
         Parameters
         ----------
         states : list
-            A list of last sampled states of ALL simulaitons. Typically generated by extract_final_dhdl_info.
+            A list of the global indices of the last sampled states of all simulations. This is typically 
+            generated by the :obj:`.extract_final_dhdl_info` method.
 
         Returns
         -------
@@ -519,9 +553,9 @@ class EnsembleEXE:
     def get_swapping_pattern(self, swap_list, dhdl_files, states, lambda_vecs, weights):
         """
         Returns a list that represents how the replicas should be swapped. The list is always
-        intiliazed with `[0, 1, 2, ...]` and gets updated with swap acceptance/rejection.
-        For example, if the list returned is `[0, 2, 1, 3]`, it means the configurations of
-        replicas 1 and 2 are swapped. If it's `[2, 0, 1, 3]`, then 3 replicas (indices 0, 1, 2)
+        intiliazed with :code:`[0, 1, 2, ...]` and gets updated with swap acceptance/rejection.
+        For example, if the list returned is :code:`[0, 2, 1, 3]`, it means the configurations of
+        replicas 1 and 2 are swapped. If it's :code:`[2, 0, 1, 3]`, then 3 replicas (indices 0, 1, 2)
         need to swap its configuration in the next iteration.
 
         Parameters
@@ -533,17 +567,21 @@ class EnsembleEXE:
             with ascending simulation/replica indices, i.e. the n-th filename in the list should be
             the dhdl file of the n-th simulation.
         states : list
-            A list of last sampled states of ALL simulaitons. Typically generated by extract_final_dhdl_info.
+            A list of last sampled states of ALL simulaitons. Typically generated by :obj:`.extract_final_dhdl_info`.
         lambda_vecs : list
             A list of lambda vectors corresponding to the last sampled states of ALL simulations.
-            Typically generated by extract_final_dhdl_info.
+            Typically generated by :obj:`.extract_final_dhdl_info`.
         weights : list
-            A list of lists of final weights of ALL simulations. Typiecally generated by extract_final_log_info.
+            A list of lists of final weights of ALL simulations. Typically generated by :obj:`.extract_final_log_info`.
 
         Returns
         -------
         swap_pattern : list
-            A list that represents how the replicas should be swapped.
+            A list that represents how the replicas should be swapped. The indices of the list correspond to the
+            simulation/replica indices, and the values represent the configuration index of the corresponding
+            simulation/replica. For example, if the swapping pattern is :code:`[0, 2, 1, 3]`, it means that after
+            swapping, simulations/replicas with indices 0, 1, 2, and 3 should be in configurations 0, 1, 3,
+            respectively.
         """
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of dhdl files/configurations
         if swap_list is []:
@@ -585,7 +623,7 @@ class EnsembleEXE:
 
     def calc_prob_acc(self, swap, dhdl_files, states, lambda_vecs, weights):
         """
-        Calculates the acceptance ratio given the MC scheme for swapping the simulations.
+        Calculates the acceptance ratio given the Monte Carlo scheme for swapping the simulations.
 
         Parameters
         ----------
@@ -596,17 +634,17 @@ class EnsembleEXE:
             with ascending simulation/replica indices, i.e. the n-th filename in the list should be
             the dhdl file of the n-th simulation.
         states : list
-            A list of last sampled states of ALL simulaitons. Typically generated by extract_final_dhdl_info.
+            A list of last sampled states of ALL simulaitons. Typically generated by :obj:`.extract_final_dhdl_info`.
         lambda_vecs : list
             A list of lambda vectors corresponding to the last sampled states of ALL simulations.
-            Typically generated by extract_final_dhdl_info.
+            Typically generated by :obj:`.extract_final_dhdl_info`.
         weights : list
-            A list of lists of final weights of ALL simulations. Typiecally generated by extract_final_log_info.
+            A list of lists of final weights of ALL simulations. Typiecally generated by :obj:`.extract_final_log_info`.
 
         Returns
         -------
         prob_acc : float
-            The acceptance ratio
+            The acceptance ratio.
         """
         if self.mc_scheme == "same_state" or self.mc_scheme == "same-state":
             if states[swap[0]] == states[swap[1]]:  # same state, swap!
@@ -710,7 +748,7 @@ class EnsembleEXE:
     def histogram_correction(self, weights, counts):
         """
         Corrects the lambda weights based on the histogram counts. Namely,
-        :math:`g_k' = g_k + ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
+        :math:`g_k' = g_k + \ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
         are the lambda weight after and before the correction, respectively.
         Notably, in any of the following situations, we don't do any correction.
 
@@ -757,20 +795,25 @@ class EnsembleEXE:
 
     def combine_weights(self, weights, method):
         """
-        Combine alchemical weights across multiple replicas using probability ratios.
+        Combine alchemical weights across multiple replicas using probability ratios
+        or weight differences. (See :ref:`doc_w_schemes` for mor details.)
 
         Parameters
         ----------
         weights : list
             A list of Wang-Landau weights of ALL simulations
         method : str
-            Method for combining probabilities and probability ratios.
-            Available options include "None", "mean", "geo-mean/geo_mean" and "g-diff/g_diff".
+            Method for combining weights. Must be one of the following:
+
+              * :code:`None`: No weight combination is performed, and the original weights are returned.
+              * :code:`mean`: The arithmetic mean of the probability ratios is used to scale the weights.
+              * :code:`geo-mean` or :code:`geo_mean`: The geometric mean of the probability ratios is used to scale the weights.
+              * :code:`g-diff` or :code:`g_diff`: The difference between neighboring weights is used to determine the alchemical weights.
 
         Returns
         -------
         weights : list
-            A list of original (if method is None) or modified Wang-Landau weights of ALL simulations.
+            A list of original (if method is :code:`None`) or modified Wang-Landau weights of ALL simulations.
         g_vec : np.array
             An array of alchemical weights of the whole range of states.
         """
@@ -859,13 +902,29 @@ class EnsembleEXE:
 
     def run_EEXE(self, n):
         """
-        Makes tpr files and run an ensemble of expanded ensemble simulations
-        using :code:`gmxapi.mdrun`.
+        Makes TPR files and runs an ensemble of expanded ensemble simulations
+        using GROMACS.
 
         Parameters
         ----------
         n : int
             The iteration index (starting from 0).
+
+        Returns
+        -------
+        md : :code:`gmxapi.commandline.CommandlineOperation` obj
+            The :code:`gmxapi.commandline.CommandlineOperation` object returned by :code:`gmxapi.mdrun`
+            which contains STDOUT and STDERR of the simulation.
+
+        Notes
+        -----
+        This function performs the following steps:
+
+          1. Prepares TPR files for the simulation ensemble using :code:`grompp`.
+          2. Runs all the simulations simultaneously using :code:`mdrun`.
+          3. Removes any empty directories created by the function.
+
+        The function assumes that the GROMACS executable is available. 
         """
         if rank == 0:
             iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
