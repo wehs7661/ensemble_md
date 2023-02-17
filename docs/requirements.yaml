@@ -6,6 +6,7 @@ build:
     - cmake
     - mpich
     - libmpich-dev
+    - libopenmpi-dev
 dependencies:
   - python
   - pandoc
@@ -27,5 +28,3 @@ dependencies:
     - matplotlib
     - pyemma
     - pymbar==4.0.1
-    - mpi4py
-    - gmxapi==0.4.0

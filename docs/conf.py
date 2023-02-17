@@ -176,3 +176,4 @@ texinfo_documents = [
 # autoclass_content = 'both'
 autodoc_member_order = 'bysource'
 napoleon_attr_annotations = True
+autodoc_mock_imports = ["mpi4py", "gmxapi"]
