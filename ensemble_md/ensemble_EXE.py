@@ -739,7 +739,7 @@ class EnsembleEXE:
                 swap_bool = True
                 # Below we flush the buffer so the next STDOUT ("Swapping pattern: ...") will be appended
                 if self.verbose is True:
-                    print("  Swap accepeted! ", end="", flush=True)
+                    print("  Swap accepted! ", end="", flush=True)
             else:
                 swap_bool = False
                 self.n_rejected += 1

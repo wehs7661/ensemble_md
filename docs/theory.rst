@@ -179,7 +179,7 @@ standard Metropolis swapping scheme reduces to the following:
 Notably, this scheme does not consider the difference in the alchemical weights, which can 
 be non-zero frequently, so this swapping scheme does not strictly obey the detailed balance condition.
 
-Calculation of :math:`\Delta` in Metropolis-based methods
+Calculation of Δ in Metropolis-based methods
 ---------------------------------------------------------
 The calculation of :math:`\Delta` is important because the acceptance ratio :math:`w(X\rightarrow X')=\min(1, \exp(-\Delta))` is 
 directly related to :math:`\Delta`. To better understand how :math:`\Delta` is calculated in the Metropolise-based methods, 

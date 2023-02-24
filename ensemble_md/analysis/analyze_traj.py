@@ -38,54 +38,74 @@ def extract_state_traj(dhdl):
     return traj
 
 
-def stitch_trajs(dhdl_files, rep_trajs, shifts):
+def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1):
     """
-    Stitches the state-space trajectories for each configuration from DHDL files generated at different iterations.
+    Stitches the state-space/CV-space trajectories for each configuration from DHDL files 
+    or PLUMED output files generated at different iterations.
 
     Parameters
     ----------
-    dhdl_files : list
-        A list of lists of DHDL file names. Specifically, :code:`dhdl_files[i]` should be a list containing
-        the filenames of the DHDL files from all iterations in replica :code:`i`.
+    files : list
+        A list of lists of file names of GROMACS DHDL files or general GROMACS XVG files or PLUMED ouptput files.
+        Specifically, :code:`files[i]` should be a list containing the files of interest from all iterations in
+        replica :code:`i`.
     rep_trajs : list
         A list of lists that represents the replica space trajectories for each configuration. For example,
         :code:`rep_trajs[0] = [0, 2, 3, 0, 1, ...]` means that configuration 0 transitioned to replica 2, then
         3, 0, 1, in iterations 1, 2, 3, 4, ..., respectively.
     shifts : list
         A list of values for shifting the state indices for each replica. The length of the list
-        should be equal to the number of replicas.
+        should be equal to the number of replicas. This is only needed when :code:`dhdl=True`.
+    dhdl : bool
+        Whether the input files are GROMACS dhdl files, in which case trajectories of global alchemical indices
+        will be generated. If :code:`dhdl=False`, the input files must be readable by `numpy.loadtxt` assuming that
+        the start of a comment is indicated by either the :code:`#` or :code:`@` characters.
+        Such files include any GROMACS XVG files or PLUMED output files (output by plumed driver, for instance).
+        In this case, trajectories of the configurational collective variable of interest are generated.
+        The default is :code:`True`.
+    col_idx : int
+        The index of the column to be extracted from the input files. This is only needed when :code:`dhdl=False`,
+        By default, we extract the last column.
 
     Returns
     -------
-    state_trajs : list
-        A list that contains lists of state-space trajectory for each configuration. For example,
-        :code:`state_trajs[i]` is the state-space trajectory of configuration :code:`i`.
+    trajs : list
+        A list that contains lists of state-space/CV-space trajectory for each configuration. For example,
+        :code:`trajs[i]` is the state-space/CV-space trajectory of configuration :code:`i`.
     """
-    n_configs = len(dhdl_files)
-    n_iter = len(dhdl_files[0])
+    n_configs = len(files)  # number of starting configurations
+    n_iter = len(files[0])  # number of iterations per replica
 
-    # First figure out which dhdl files each configuration corresponds to
-    # dhdl_sorted[i] contains the dhdl files for configuration i sorted based on iteration indices
-    dhdl_sorted = [[] for i in range(n_configs)]
+    # First figure out which dhdl/plumed output files each configuration corresponds to
+    # files_sorted[i] contains the dhdl/plumed output files for configuration i sorted based on iteration indices
+    files_sorted = [[] for i in range(n_configs)]
     for i in range(n_configs):
         for j in range(n_iter):
-            dhdl_sorted[i].append(dhdl_files[rep_trajs[i][j]][j])
+            files_sorted[i].append(files[rep_trajs[i][j]][j])
 
     # Then, stitch the trajectories for each configuration
-    state_trajs = [[] for i in range(n_configs)]  # for each configuration
+    trajs = [[] for i in range(n_configs)]  # for each configuration
     for i in range(n_configs):
         for j in range(n_iter):
             if j == 0:
-                traj = extract_state_traj(dhdl_sorted[i][j])
+                if dhdl:
+                    traj = extract_state_traj(files_sorted[i][j])
+                else:
+                    traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, -1]
             else:
                 # Get rid of the first time frame starting from the 2nd iteration because the first
                 # frame of iteration n+1 the is the same as the last frame of iteration n
-                traj = extract_state_traj(dhdl_sorted[i][j])[1:]
-            shift_idx = rep_trajs[i][j]
-            traj = list(np.array(traj) + shifts[shift_idx])
-            state_trajs[i].extend(traj)
+                if dhdl:
+                    traj = extract_state_traj(files_sorted[i][j])[1:]
+                else:
+                    traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, -1][1:]
 
-    return state_trajs
+            if dhdl:  # Trajectories of global alchemical indices will be generated.
+                shift_idx = rep_trajs[i][j]
+                traj = list(np.array(traj) + shifts[shift_idx])
+            trajs[i].extend(traj)
+
+    return trajs
 
 
 def traj2transmtx(traj, N, normalize=True):

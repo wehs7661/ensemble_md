@@ -149,7 +149,7 @@ def main():
         print('2-0. Stitching trajectories for each configuration from dhdl files ...')
         dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
         shifts = np.arange(EEXE.n_sim) * EEXE.s
-        state_trajs = analyze_traj.stitch_trajs(dhdl_files, rep_trajs, shifts)  # length: the number of replicas
+        state_trajs = analyze_traj.stitch_trajs(dhdl_files, rep_trajs, shifts=shifts)  # length: the number of replicas
         print('     Saving state_trajs.npy ...')
         np.save('state_trajs.npy', state_trajs)   # save the stithced trajectories
 
@@ -212,8 +212,8 @@ def main():
             if t_list[j] is None:
                 print(f'     - Configuration {j}: Skipped')
             else:
-                print(f'     - Configuration {j} ({len(t_list[j])} events): {np.mean(t_list[j]):.1f} {units}')
-        print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.1f} {units} (std: {np.std([np.mean(i) for i in t_list], ddof=1):.1f} {units})')  # noqa: E501
+                print(f'     - Configuration {j} ({len(t_list[j])} events): {np.mean(t_list[j]):.2f} {units}')
+        print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.2f} {units} (std: {np.std([np.mean(i) for i in t_list], ddof=1):.2f} {units})')  # noqa: E501
 
     if EEXE.msm is True:
         section_idx += 1
