@@ -55,7 +55,19 @@ setup(
 
     # Additional entries you may want simply uncomment the lines you want and fill in the data
     # url='http://www.my_package.com',  # Website
-    # install_requires=[],              # Required packages, pulls from pip if needed; do not use for Conda deployment
+
+    # Required packages, pulls from pip if needed; do not use for Conda deployment
+    install_requires=[
+        'nummpy',
+        'natsort',
+        'argparse',
+        'pymbar>=4.0.1',
+        'alchemlyb>=2.0.0',
+        'pyyaml',
+        'seaborn',
+        'matplotlib',
+        'pyemma',
+    ],
     # platforms=['Linux',
     #            'Mac OS-X',
     #            'Unix',

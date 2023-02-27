@@ -40,7 +40,7 @@ def extract_state_traj(dhdl):
 
 def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1):
     """
-    Stitches the state-space/CV-space trajectories for each configuration from DHDL files 
+    Stitches the state-space/CV-space trajectories for each configuration from DHDL files
     or PLUMED output files generated at different iterations.
 
     Parameters
