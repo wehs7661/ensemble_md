@@ -7,7 +7,7 @@ Ensemble Molecular Dynamics
 [![GitHub Actions Lint Status](https://github.com/wehs7661/ensemble_md/actions/workflows/lint.yaml/badge.svg)](https://github.com/wehs7661/ensemble_md/actions/workflows/lint.yaml)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-license.org/)
 
-In this repository, we develop methods for running simulation ensembles, including ensemble of expanded ensemble and ensemble of alchemical metadynamics. The former is our main focus in our current phase, while the latter will be under development in the future. 
+**ensemble_md** is a Python package that provides methods for setting up, running, and analyzing molecular dynamics ensembles in GROMACS. The current implementation is mainly for synchronous ensemble of expanded ensemble (EXEE), but we will potentially develop methods like asynchronous EEXE, or ensemble of alchemical metadynamics. For installation instructions, theory overview, tutorials, and API references, please visit the [documentation](https://ensemble_md.readthedocs.io/).
 
 ### Copyright
 

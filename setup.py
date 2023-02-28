@@ -6,7 +6,7 @@ import sys
 from setuptools import setup, find_packages
 import versioneer
 
-short_description = "A repository for developing ensemble simulation methods".split("\n")[0]
+short_description = "A package for setting up, performing, and analyzing molecular dynamics ensembles using GROMACS".split("\n")[0]
 
 # from https://github.com/pytest-dev/pytest-runner#conditional-requirement
 needs_pytest = {'pytest', 'test', 'ptr'}.intersection(sys.argv)
@@ -30,6 +30,32 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     license='MIT',
+    project_urls={
+        "Documentation": "https://ensemble-md.readthedocs.io/",
+        "Source Code": "https://github.com/wehs7661/ensemble_md",
+    },
+    keywords="molecular mechanics, free energy calculations, advanced sampling",
+
+    # Describes the project using a list of classifiers (https://pypi.org/classifiers/)
+    # This makes the project more searchable.
+    classifiers=[
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: POSIX",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: Microsoft :: Windows ",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Topic :: Scientific/Engineering",
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+        "Topic :: Scientific/Engineering :: Chemistry",
+        "Topic :: Scientific/Engineering :: Physics",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
 
     # Which Python importable modules should be included when your package is installed
     # Handled automatically by setuptools. Use 'exclude' to prevent some specific
@@ -54,11 +80,11 @@ setup(
     },
 
     # Additional entries you may want simply uncomment the lines you want and fill in the data
-    # url='http://www.my_package.com',  # Website
+    # url='https://github.com/wehs7661/ensemble_md',  # Website
 
     # Required packages, pulls from pip if needed; do not use for Conda deployment
     install_requires=[
-        'nummpy',
+        'numpy',
         'natsort',
         'argparse',
         'pymbar>=4.0.1',
@@ -68,11 +94,27 @@ setup(
         'matplotlib',
         'pyemma',
     ],
-    # platforms=['Linux',
-    #            'Mac OS-X',
-    #            'Unix',
-    #            'Windows'],            # Valid platforms your code works on, adjust to your flavor
-    # python_requires=">=3.5",          # Python version restrictions
+
+    # The following extra_require directive provides optional dependencies by, in our case, pip install ensemble[gmxapi].
+    # ensemble_md requires GROMACS and gmxapi to be installed before use. 
+    # If a working version of GROMACS is available, the user can choose to install ensemble_md along with gmxapi 
+    # using the following command: `pip install ensemble_md[gmxapi]`. Otherwise, follow installation 
+    # instructions of GROMACS and gmxapi to install each package separately. 
+    extras_require={
+        'gmxapi': [
+            'pybind11>=2.6',
+            'setuptools>=42.0',
+            'mpi4py',
+            'gmxapi>=0.4.0rc2'
+        ],
+    },
+
+    platforms=['Linux',
+               'Mac OS-X',
+               'Unix',
+               'Windows'],            # Valid platforms your code works on, adjust to your flavor
+    
+    python_requires=">=3.8",          # Python version restrictions
 
     # Manual control if final package is compressible or not, set False to prevent the .egg from being made
     # zip_safe=False,
