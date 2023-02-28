@@ -93,6 +93,7 @@ setup(
         'seaborn',
         'matplotlib',
         'pyemma',
+        'gmxapi>=0.4.0'
     ],
 
     # The following extra_require directive provides optional dependencies by, in our case, pip install ensemble[gmxapi].
