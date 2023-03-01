@@ -650,3 +650,6 @@ Notably, this correction method can possibly overcorrect the weights when the hi
 To deal with this, the user can choose to specify :code:`N_cutoff` in the input YAML file, so that the the histogram
 correction will performed only when :math:`\text{argmin}(N_k, N_{k-1})` is larger than the cutoff. Also, this histogram correction 
 should always be carried out before weight combination. This method is implemented in :obj:`.histogram_correction`.
+
+Parameter space of EEXE
+=======================

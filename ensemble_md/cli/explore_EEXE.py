@@ -40,7 +40,7 @@ def initialize(args):
                         default=False,
                         action='store_true',
                         help='Whether the apply the constraint such that the number of overlapping states \
-                            does notexceed 50% of the number of states in both overlapping replicas.')
+                            does notexceed 50%% of the number of states in both overlapping replicas.')
     args_parse = parser.parse_args(args)
 
     return args_parse

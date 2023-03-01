@@ -19,7 +19,7 @@ Requirements
 ------------
 Before installing :code:`ensemble_md`, one should have working versions of `GROMACS`_
 and `gmxapi`_. Please refer to the linked documentations for full installation instructions.
-Other pip-installable dependencies of :code:`ensemble_md` (specified in :code:`setup.py` of the package)
+All the other pip-installable dependencies of :code:`ensemble_md` (specified in :code:`setup.py` of the package)
 will be automatically installed during the installation of the package.
 
 .. _`GROMACS`: https://manual.gromacs.org/current/install-guide/index.html

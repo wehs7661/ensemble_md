@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-Unit tests for the module analysis.py.
+Unit tests for the module analyze_matrix.py.
 """
 import os
 import pytest
@@ -52,19 +52,30 @@ def test_parse_transmtx():
         A2, B2, C2 = analyze_matrix.parse_transmtx(log)
 
 
+def test_calc_equil_prob():
+    pass
+
+
+def test_calc_spectral_gap():
+    pass
+
+
+def test_split_transmtx():
+    pass
+
+
 def test_plot_matrix():
     """
     We can only check if the figures are generated. Not really able to check how they look like.
     """
-    A1, B1, C1 = analyze_matrix.parse_transmtx(os.path.join(input_path, 'EXE.log'))
-    analyze_matrix.plot_matrix(A1, 'test_1.png')
-    analyze_matrix.plot_matrix(B1, 'test_2.png')
-    analyze_matrix.plot_matrix(C1, 'test_3.png')
+    mtx = np.array([
+        [0.1, 0.2, 0.3],
+        [0.4, 0.5, 0.6],
+        [0.7, 0.8, 0.9]])
 
-    assert os.path.exists('test_1.png') is True
-    assert os.path.exists('test_2.png') is True
-    assert os.path.exists('test_3.png') is True
+    png_name = 'test.png'
+    analyze_matrix.plot_matrix(mtx, png_name)
 
-    os.remove('test_1.png')
-    os.remove('test_2.png')
-    os.remove('test_3.png')
+    # Check that the file was created
+    assert os.path.isfile(png_name)
+    os.remove(png_name)

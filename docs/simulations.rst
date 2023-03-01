@@ -2,8 +2,30 @@
 
 Command-line interface (CLI)
 ============================
-:code:`ensemble_md` provides two command-line interfaces (CLI), including :code:`run_EEXE` and :code:`analyze_EEXE`,
-which can be used to perform and analyze EEXE simulations, respectively. Here is the help message of :code:`run_EEXE`:
+:code:`ensemble_md` provides three command-line interfaces (CLI), including :code:`explore_EEXE`, :code:`run_EEXE` and :code:`analyze_EEXE`.
+:code:`explore_EEXE` helps the user to figure out possible combinations of EEXE parameters, while :code:`run_EEXE` and :code:`analyze_EEXE`
+can be used to perform and analyze EEXE simulations, respectively. Here is the help message of :code:`explore_EEXE`:
+
+::
+
+    usage: explore_EEXE [-h] -N N [-r R] [-n N] [-s S] [-c]
+
+    This code explores the parameter space of homogenous EEXE to help you figure out all
+    possible combinations of the number of replicas, the number of states in each replica,
+    and the number of overlapping states, and the total number states.
+
+    optional arguments:
+    -h, --help   show this help message and exit
+    -N N, --N N  The total number of states of the EEXE simulation.
+    -r R, --r R  The number of replicas that compose the EEXE simulation.
+    -n N, --n N  The number of states for each replica.
+    -s S, --s S  The state shift between adjacent replicas.
+    -c, --cnst   Whether the apply the constraint such that the number of overlapping
+                states does notexceed 50% of the number of states in both overlapping
+                replicas.
+
+
+And here is the help message of :code:`run_EEXE`:
 
 ::
 
@@ -30,11 +52,12 @@ which can be used to perform and analyze EEXE simulations, respectively. Here is
                             The maximum number of warnings in parameter specification to be
                             ignored.
 
-And here is the help message of :code:`analyze_EEXE`:
+Finally, here is the help message of :code:`analyze_EEXE`:
 
 ::
 
-    usage: analyze_EEXE [-h] [-y YAML] [-o OUTPUT] [-rt REP_TRAJS] [-st STATE_TRAJS] [-d DIR]
+    usage: analyze_EEXE [-h] [-y YAML] [-o OUTPUT] [-rt REP_TRAJS] [-st STATE_TRAJS]
+                        [-d DIR] [-m MAXWARN]
 
     This code analyzes an ensemble of expanded ensemble. Note that the template MDP file
     specified in the YAML file needs to be available in the working directory.
@@ -54,6 +77,9 @@ And here is the help message of :code:`analyze_EEXE`:
                             the specified file is not found, the code will try to find all
                             the trajectories and stitch them. (Default: state_trajs.npy)
     -d DIR, --dir DIR     The name of the folder for storing the analysis results.
+    -m MAXWARN, --maxwarn MAXWARN
+                            The maximum number of warnings in parameter specification to be
+                            ignored.
 
 Recommended workflow
 ====================
