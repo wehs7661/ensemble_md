@@ -18,7 +18,7 @@ input_path = os.path.join(current_path, "data")
 
 
 def test_extract_state_traj():
-    traj = analyze_traj.extract_state_traj(os.path.join(input_path, 'dhdl_0.xvg'))
+    traj = analyze_traj.extract_state_traj(os.path.join(input_path, 'dhdl/dhdl_0.xvg'))
     state_list = [
         0, 0, 3, 1, 4, 4, 5, 4, 5, 5,
         4, 4, 5, 4, 2, 4, 5, 2, 1, 2,

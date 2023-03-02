@@ -61,7 +61,7 @@ pcoupl = no
 
 gen_vel = yes
 gen_temp = 298
-gen_seed = 6722267
+gen_seed = -1
 
 ; options for bonds
 constraints = h-bonds
@@ -88,10 +88,10 @@ nstdhdl = 10
 dhdl_print_energy = total
 
 ; Seed for Monte Carlo in lambda space
-lmc_seed = 1000
+lmc_seed = -1
 lmc_gibbsdelta = -1
 lmc_forced_nstart = 0
-symmetrized_transition_matrix = no
+symmetrized_transition_matrix = yes
 nst_transition_matrix = 100000
 wl_scale = 0.8
 wl_ratio = 0.8
@@ -105,4 +105,5 @@ lmc_weights_equil = wl-delta
 weight_equil_wl_delta = 0.001
 
 ; lambda-states          = 1      2      3      4      5      6      7      8      9
-vdw_lambdas = 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 1.0
+init_lambda_weights = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+fep_lambdas = 0.2 0.4 0.6 0.8 1.0

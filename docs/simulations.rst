@@ -221,7 +221,8 @@ EEXE parameters
   - :code:`s`: (Required)
       The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
   - :code:`nst_sim`: (Optional, Default: :code:`nsteps` in the template MDP file)
-      The number of simulation steps to carry out before one exchange attempt, i.e. exchange frequency. This option assumes replicas with homogeneous simulation lengths. 
+      The number of simulation steps to carry out for one iteration, i.e. stpes between exchanges proposed between replicas. The value specified here will
+      overwrite the :code:`nsteps` parameter in the MDP file of each iteration. This option also assumes replicas with homogeneous simulation lengths.
   - :code:`mc_scheme`: (Optional, Default: :code:`metropolis`)
       The method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
       For more details, please refer to :ref:`doc_mc_schemes`.

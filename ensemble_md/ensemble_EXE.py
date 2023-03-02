@@ -37,7 +37,11 @@ rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
 class EnsembleEXE:
     """
     This class provides a variety of functions useful for setting up and running
-    an ensemble of expanded ensemble.
+    an ensemble of expanded ensemble. Below is a list of attributes of the class:
+
+    :ivar attribute1: Description of attribute1.
+    :ivar attribute2: Description of attribute2.
+    :ivar attribute3: Description of attribute3.
     """
 
     def __init__(self, yaml_file):
@@ -147,7 +151,9 @@ class EnsembleEXE:
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
-        params_int = ['n_sim', 'n_iter', 's', 'nst_sim', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
+        params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
+        if self.nst_sim is not None:
+            params_int.append('nst_sim')
         if self.n_ex != 'N^3':
             params_int.append('n_ex')
         if self.seed is not None:
@@ -156,7 +162,9 @@ class EnsembleEXE:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iter', 's', 'nst_sim', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 's', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
+        if self.nst_sim is not None:
+            params_pos.append('nst_sim')
         for i in params_pos:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
@@ -172,7 +180,7 @@ class EnsembleEXE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['parallel', 'verbose', 'msm', 'free_energy']
+        params_bool = ['parallel', 'verbose', 'msm']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
@@ -185,13 +193,17 @@ class EnsembleEXE:
         self.nsteps = self.template["nsteps"]  # will be overwritten by self.nst_sim if nst_sim is specified.
         self.dt = self.template["dt"]  # ps
         self.temp = self.template["ref_t"]
-        self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
+
+        if self.nst_sim is None:
+            self.nst_sim = self.nsteps
 
         if 'wl_scale' in self.template.keys():
-            if self.template['wl_scale'] != '':
-                self.fixed_weights = False
-            else:
+            if isinstance(self.template['wl_scale'], np.ndarray):
+                # If wl_scale in the MDP file is a blank (i.e. fixed weights), mdp['wl_scale'] will be an empty array.
+                # This is the only case where mdp['wl_scale'] is a numpy array.
                 self.fixed_weights = True
+            else:
+                self.fixed_weights = False
         else:
             self.fixed_weights = True
 
@@ -209,43 +221,51 @@ class EnsembleEXE:
                 'The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.')  # noqa: E501
 
         # Step 6: Set up derived parameters
-        # 6-1. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
-        self.n_tot = len(self.template["vdw_lambdas"])
+        # 6-1. kT in kJ/mol
+        self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
 
-        # 6-2. Number of states of each replica (assuming the same for all rep)
+        # 6-2. Figure out what types of lambda variables are involved
+        # Here is we possible lambda types in the order read by GROMACS, which is likely also the order when being printed to the log file.  # noqa: E501
+        # See https://gitlab.com/gromacs/gromacs/-/blob/main/src/gromacs/gmxpreprocess/readir.cpp#L2543
+        lambdas_types_all = ['fep_lambdas', 'mass_lambdas', 'coul_lambdas', 'vdw_lambdas', 'bonded_lambdas', 'restraint_lambdas', 'temperature_lambdas']  # noqa: E501
+        self.lambda_types = []  # lambdas specified in the MDP file
+        for i in lambdas_types_all:
+            if i in self.template.keys():  # there shouldn't be parameters like "fep-lambdas" after reformatting the MDP file  # noqa: E501
+                self.lambda_types.append(i)
+
+        # 6-3. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
+        self.n_tot = len(self.template[self.lambda_types[0]])
+
+        # 6-4. Number of states of each replica (assuming the same for all rep)
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
         if self.n_sub < 1:
             raise ParameterError(
                 f"There must be at least two states for each replica (current value: {self.n_sub}). The current specified configuration (n_tot={self.n_tot}, n_sim={self.n_sim}, s={self.s}) does not work for EEXE.")  # noqa: E501
 
-        # 6-3. A list of sets of state indices
+        # 6-5. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
         self.state_ranges = [list(np.arange(i, i + self.n_sub)) for i in start_idx]
 
-        # 6-4. A list of simulation statuses to be updated
+        # 6-6. A list of time it took to get the weights equilibrated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
 
-        # 6-5. Numbe of steps per iteration
-        if self.nst_sim is None:
-            self.nst_sim = self.nsteps
-
-        # 6-6. Map the lamda vectors to state indices
+        # 6-7. Map the lamda vectors to state indices
         self.map_lambda2state()
 
-        # 6-7. For counting the number swap attempts and the rejected ones
+        # 6-8. For counting the number swap attempts and the rejected ones
         self.n_rejected = 0
         self.n_swap_attempts = 0
 
-        # 6-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
+        # 6-9. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
         # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
 
-        # 6-9. The time series of the (processed) whole-range alchemical weights
+        # 6-10. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
         self.g_vecs = []
 
-        # 6-10. Data analysis
+        # 6-11. Data analysis
         if self.df_method == 'MBAR':
             self.get_u_nk = True
             self.get_dHdl = False
@@ -321,27 +341,16 @@ class EnsembleEXE:
 
     def map_lambda2state(self):
         """
-        Returns a dictionary whose keys are vectors of coupling
-        parameters and values are the corresponding state indices (starting from 0).
+        Define attrbitues that map vectors of coupling parameters to state indices.
 
         Attributes
         ----------
-        lambda_types : list
-            A list of lambda types specified in the MDP file.
         lambda_dict : dict
             A dictionary whose keys are tuples of coupling parameters and
             values are the corresponding GLOBAL state indices (starting from 0).
         lambda_ranges : list
             A list of lambda vectors of the state range of each replica.
         """
-        # A list of all possible lambda types in the order read by GROMACS, which is likely also the order when being printed to the log file.  # noqa: E501
-        # See https://gitlab.com/gromacs/gromacs/-/blob/main/src/gromacs/gmxpreprocess/readir.cpp#L2543
-        lambdas_types_all = ['fep_lambdas', 'mass_lambdas', 'coul_lambdas', 'vdw_lambdas', 'bonded_lambdas', 'restraint_lambdas', 'temperature_lambdas']  # noqa: E501
-        self.lambda_types = []  # lambdas specified in the MDP file
-        for i in lambdas_types_all:
-            if i in self.template.keys():  # there shouldn't be parameters like "fep-lambdas" after reformatting the MDP file  # noqa: E501
-                self.lambda_types.append(i)
-
         self.lambda_dict = {}  # key: vector of coupling parameters, value: state index
         for i in range(self.n_tot):
             key = tuple([self.template[j][i] for j in self.lambda_types])
@@ -488,13 +497,16 @@ class EnsembleEXE:
             weights.append(result[1])
             counts.append(result[2])
 
-            # In Case 3, result[3] will be 0 but it will never be passed to self.equil[j]
+            # In Case 3 described in the docstring of parse_log (fixed-weights),
+            # result[3] will be 0 but it will never be passed to self.equil[j]
             # because once self.equil[j] is not -1, we stop updating. This way, we can keep
             # the time when the weights get equilibrated all the way.
             if self.equil[j] == -1:
+                # At this point self.equil is the equilibration status BEFORE the last iteration
+                # while result[3] is the equilibration status AFTER finishing the last iteraiton.
+                # For any replicas where weights are still equilibrating (i.e. self.equil[j] == -1)
+                # we update its equilibration status.
                 self.equil[j] = result[3]
-            else:
-                pass
 
         return wl_delta, weights, counts
 

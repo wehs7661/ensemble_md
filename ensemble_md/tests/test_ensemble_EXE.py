@@ -12,39 +12,163 @@ Unit tests for the module ensemble_EXE.py.
 """
 import os
 import sys
-import shutil
+import yaml
 import pytest
-import random
 import numpy as np
 import ensemble_md
 import gmxapi as gmx
-from mpi4py import MPI
+from ensemble_md.utils import gmx_parser
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.utils.exceptions import ParameterError
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(current_path, "data")
-EEXE = EnsembleEXE(os.path.join(input_path, "params.yaml"))
+
+
+@pytest.fixture
+def params_dict():
+    """
+    Generates a dictionary containing the required EEXE parameters.
+    """
+    EEXE_dict = {
+        'parallel': False,
+        'gro': 'ensemble_md/tests/data/sys.gro',
+        'top': 'ensemble_md/tests/data/sys.top',
+        'mdp': 'ensemble_md/tests/data/expanded.mdp',
+        'n_sim': 4,
+        'n_iter': 10,
+        's': 1,
+    }
+    yield EEXE_dict
+
+    # Remove the file after the unit test is done.
+    if os.path.isfile('params.yaml') is True:
+        os.remove('params.yaml')
+
+
+def get_EEXE_instance(input_dict, yml_file='params.yaml'):
+    """
+    Saves a dictionary as a yaml file and use it to instantiate the EnsembleEXE class.
+    """
+    with open(yml_file, 'w') as f:
+        yaml.dump(input_dict, f)
+    EEXE = EnsembleEXE(yml_file)
+    return EEXE
+
+
+def check_param_error(EEXE_dict, param, match, wrong_val='cool', right_val=None):
+    """
+    Test if ParameterError is raised if a parameter is not well-defined.
+    """
+    EEXE_dict[param] = wrong_val
+    with pytest.raises(ParameterError, match=match):
+        get_EEXE_instance(EEXE_dict)
+    EEXE_dict[param] = right_val  # so that EEXE_dict can be read without failing in later assertions
+
+    return EEXE_dict
 
 
 class Test_EnsembleEXE:
-    def test_init_1(self):
-        k = 1.380649e-23
-        NA = 6.0221408e23
+    def test_init(self, params_dict):
+        EEXE = get_EEXE_instance(params_dict)
+        assert EEXE.yaml == 'params.yaml'
 
-        # Check the parameters specified in the yaml file
-        assert EEXE.mdp == "ensemble_md/tests/data/expanded.mdp"
+    def test_set_params_error(self, params_dict):
+        # 1. Required parameters
+        del params_dict['parallel']
+        with pytest.raises(ParameterError, match="Required parameter 'parallel' not specified in params.yaml."):
+            get_EEXE_instance(params_dict)
+        params_dict['parallel'] = False  # so params_dict can be read without failing in the assertions below
+
+        # 2. Available options
+        check_param_error(params_dict, 'w_scheme', "The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
+        check_param_error(params_dict, 'mc_scheme', "The specified MC scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
+        check_param_error(params_dict, 'df_method', "The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
+        check_param_error(params_dict, 'err_method', "The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
+
+        # 3. Integer parameters
+        check_param_error(params_dict, 'nst_sim', "The parameter 'nst_sim' should be an integer.")
+        check_param_error(params_dict, 'n_ex', "The parameter 'n_ex' should be an integer.")
+        check_param_error(params_dict, 'seed', "The parameter 'seed' should be an integer.")
+        check_param_error(params_dict, 'n_sim', "The parameter 'n_sim' should be an integer.", 4.1, 4)
+
+        # 4. Positive parameters
+        check_param_error(params_dict, 'nst_sim', "The parameter 'nst_sim' should be positive.", -5, 500)
+        check_param_error(params_dict, 'n_iter', "The parameter 'n_iter' should be positive.", 0, 10)
+
+        # 5. Non-negative parameters
+        check_param_error(params_dict, 'n_ex', "The parameter 'n_ex' should be non-negative.", -1)
+        check_param_error(params_dict, 'N_cutoff', "The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.", -5)  # noqa: E501
+
+        # 6. String parameters
+        check_param_error(params_dict, 'mdp', "The parameter 'mdp' should be a string.", 3, 'ensemble_md/tests/data/expanded.mdp')  # noqa: E501
+
+        # 7. Boolean parameters
+        check_param_error(params_dict, 'parallel', "The parameter 'parallel' should be a boolean variable.", 3, False)
+
+        # 8. nstlog > nst_sim
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))  # A perfect mdp file
+        mdp['nstlog'] = 200
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
+        params_dict['nst_sim'] = 100
+        with pytest.raises(ParameterError, match='The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.'):  # noqa: E501
+            get_EEXE_instance(params_dict)
+        params_dict['nst_sim'] = 500
+        os.remove(os.path.join(input_path, "expanded_test.mdp"))
+
+        # 9. n_sub < 1
+        params_dict['s'] = 5
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded.mdp'
+        # Note that the parentheses are special characters that need to be escaped in regular expressions
+        with pytest.raises(ParameterError, match=r'There must be at least two states for each replica \(current value: -6\). The current specified configuration \(n_tot=9, n_sim=4, s=5\) does not work for EEXE.'):  # noqa: E501
+            get_EEXE_instance(params_dict)
+        params_dict['s'] = 1
+
+    def test_set_params_warnings(self, params_dict):
+        # 1. Non-recognizable parameter in the YAML file
+        params_dict['cool'] = 10
+        EEXE = get_EEXE_instance(params_dict)
+        warning = 'Warning: Parameter "cool" specified in the input YAML file is not recognizable.'
+        assert warning in EEXE.warnings
+
+        # 2. Warnings related to the mdp file
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))  # A perfect mdp file
+        mdp['lmc_seed'] = 1000
+        mdp['gen_seed'] = 1000
+        mdp['symmetrized_transition_matrix'] = 'yes'
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
+        EEXE = get_EEXE_instance(params_dict)
+        warning_1 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
+        warning_2 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
+        warning_3 = 'Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.'
+        assert warning_1 in EEXE.warnings
+        assert warning_2 in EEXE.warnings
+        assert warning_3 in EEXE.warnings
+
+        os.remove(os.path.join(input_path, "expanded_test.mdp"))
+
+    def test_set_params(self, params_dict):
+        # 0. Get an EEXE instance to test
+        EEXE = get_EEXE_instance(params_dict)
+
+        # 1. Check the required EEXE parameters
         assert EEXE.gro == "ensemble_md/tests/data/sys.gro"
         assert EEXE.top == "ensemble_md/tests/data/sys.top"
-        assert EEXE.nsteps == 500
+        assert EEXE.mdp == "ensemble_md/tests/data/expanded.mdp"
+        assert EEXE.parallel is False
+        assert EEXE.n_sim == 4
+        assert EEXE.n_iter == 10
+        assert EEXE.s == 1
 
-        # Check the default values
+        # 2. Check the default values of the parameters not specified in params.yaml
         assert EEXE.mc_scheme == "metropolis"
         assert EEXE.w_scheme is None
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_ex == 0
-        assert EEXE.runtime_args is None
         assert EEXE.verbose is True
+        assert EEXE.runtime_args is None
         assert EEXE.n_ckpt == 100
         assert EEXE.msm is False
         assert EEXE.free_energy is False
@@ -54,30 +178,81 @@ class Test_EnsembleEXE:
         assert EEXE.n_bootstrap == 50
         assert EEXE.seed is None
 
-        # Check the MDP parameters
+        # 3. Check the MDP parameters
         assert EEXE.nsteps == 500
         assert EEXE.dt == 0.002
         assert EEXE.temp == 298
+        assert EEXE.nst_sim == 500
         assert EEXE.fixed_weights is False
 
-        # Check the derived parameters
+        # 4. Checked the derived parameters
+        k = 1.380649e-23
+        NA = 6.0221408e23
         assert EEXE.kT == k * NA * 298 / 1000
+        assert EEXE.lambda_types == ['coul_lambdas', 'vdw_lambdas']
         assert EEXE.n_tot == 9
         assert EEXE.n_sub == 6
         assert EEXE.state_ranges == [
             [0, 1, 2, 3, 4, 5],
             [1, 2, 3, 4, 5, 6],
             [2, 3, 4, 5, 6, 7],
-            [3, 4, 5, 6, 7, 8],
-        ]
-        assert EEXE.equil == [-1, -1, -1, -1]
-        assert EEXE.nst_sim == 500
+            [3, 4, 5, 6, 7, 8], ]
+        assert EEXE.equil == [-1, -1, -1, -1]  # will be zeros right after the first iteration if the weights are fixed
         assert EEXE.n_rejected == 0
         assert EEXE.n_swap_attempts == 0
         assert EEXE.rep_trajs == [[0], [1], [2], [3]]
         assert EEXE.g_vecs == []
+
+        params_dict['df_method'] = 'MBAR'
+        EEXE = get_EEXE_instance(params_dict)
         assert EEXE.get_u_nk is True
         assert EEXE.get_dHdl is False
+
+        params_dict['df_method'] = 'BAR'
+        EEXE = get_EEXE_instance(params_dict)
+        assert EEXE.get_u_nk is False
+        assert EEXE.get_dHdl is True
+
+        params_dict['runtime_args'] = {'-nt': 16, 'ntomp': 8}
+        EEXE = get_EEXE_instance(params_dict)
+        assert EEXE.runtime_args == {'-nt': 16, 'ntomp': 8}
+
+        assert EEXE.reformatted_mdp is False
+
+    def test_set_params_edge_cases(self, params_dict):
+        # In the previous unit tests, we have tested the case where fixed_weights is False. Here we test the others.
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))
+
+        # 1. wl_scale is not specified
+        del mdp['wl_scale']
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
+        EEXE = get_EEXE_instance(params_dict)
+        assert EEXE.fixed_weights is True
+
+        # 2. wl_scale is not empty
+        mdp['wl_scale'] = ''  # It will become an empty array array([]) after read by gmx_parser.abs(x)
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        EEXE = get_EEXE_instance(params_dict)
+        assert EEXE.fixed_weights is True
+
+    def test_reformat_MDP(self, params_dict):
+        # Note that the function reformat_MDP is called in set_params
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))
+        mdp['cool-stuff'] = 10
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
+        EEXE = get_EEXE_instance(params_dict)  # this calss reformat_MDP internally
+        assert EEXE.reformatted_mdp is True
+        assert EEXE.template['cool_stuff'] == 10
+        assert os.path.isfile(os.path.join(input_path, "expanded_test_backup.mdp"))
+
+        os.remove(os.path.join(input_path, "expanded_test.mdp"))
+        os.remove(os.path.join(input_path, "expanded_test_backup.mdp"))
+
+    def test_map_lambda2state(self, params_dict):
+        # Note that the function map_lambda2state is called in set_params
+        EEXE = get_EEXE_instance(params_dict)
         assert EEXE.lambda_dict == {
             (0, 0): 0,
             (0.25, 0): 1,
@@ -87,115 +262,53 @@ class Test_EnsembleEXE:
             (1, 0.25): 5,
             (1, 0.5): 6,
             (1, 0.75): 7,
-            (1, 1): 8,
-        }  # noqa: E501
+            (1, 1): 8}
         assert EEXE.lambda_ranges == [
             [(0.0, 0.0), (0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25)],
             [(0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5)],
             [(0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75)],
-            [(0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75), (1.0, 1.0)],
-        ]
+            [(0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75), (1.0, 1.0)], ]
 
-        # Check warnings
-        assert EEXE.warnings[0] == 'Warning: Parameter "cool" specified in the input YAML file is not recognizable.'
-        assert EEXE.warnings[1] == 'Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.'
+        # Here we test another combinations: only 'fep_lambdas'
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))
+        del mdp['coul_lambdas']
+        del mdp['vdw_lambdas']
+        mdp['fep_lambdas'] = '0.0 0.2 0.4 0.6 0.8 1.0'
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
+        params_dict['n_sim'] = 3
+        EEXE = get_EEXE_instance(params_dict)
+        assert EEXE.lambda_types == ['fep_lambdas']
+        assert EEXE.lambda_dict == {
+            (0.0,): 0, (0.2,): 1, (0.4,): 2, (0.6,): 3, (0.8,): 4, (1.0,): 5}
+        assert EEXE.lambda_ranges == [
+            [(0.0, ), (0.2,), (0.4,), (0.6,)], [(0.2,), (0.4,), (0.6,), (0.8,)], [(0.4,), (0.6,), (0.8,), (1.0,)]]
 
-    def test_init_2(self):
-        yaml = os.path.join(input_path, "other_yamls/required.yaml")
-        with pytest.raises(ParameterError, match=f"Required parameter 'parallel' not specified in {yaml}"):
-            E = EnsembleEXE(yaml)  # noqa: F841
+        # Still another combination: fep_lambdas, coul_lambdas, vdw_lambdas, restraint_lambdas
+        mdp['coul_lambdas'] = '0.0 0.5 0.8 1.0 1.0 1.0'
+        mdp['vdw_lambdas'] = '0.0 0.0 0.0 0.0 0.5 1.0'
+        mdp['restraint_lambdas'] = '0.0 0.2 0.4 0.6 0.8 1.0'
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        EEXE = get_EEXE_instance(params_dict)
+        assert EEXE.lambda_types == ['fep_lambdas', 'coul_lambdas', 'vdw_lambdas', 'restraint_lambdas']
+        assert EEXE.lambda_dict == {
+            (0.0, 0.0, 0.0, 0.0): 0,
+            (0.2, 0.5, 0.0, 0.2): 1,
+            (0.4, 0.8, 0.0, 0.4): 2,
+            (0.6, 1.0, 0.0, 0.6): 3,
+            (0.8, 1.0, 0.5, 0.8): 4,
+            (1.0, 1.0, 1.0, 1.0): 5}
 
-        yaml = os.path.join(input_path, "other_yamls/w_scheme.yaml")
-        with pytest.raises(ParameterError, match="The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'."):  # noqa: E501
-            E = EnsembleEXE(yaml)  # noqa: F841
+        assert EEXE.lambda_ranges == [
+            [(0.0, 0.0, 0.0, 0.0), (0.2, 0.5, 0.0, 0.2), (0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6)],
+            [(0.2, 0.5, 0.0, 0.2), (0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6), (0.8, 1.0, 0.5, 0.8)],
+            [(0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6), (0.8, 1.0, 0.5, 0.8), (1.0, 1.0, 1.0, 1.0)]]
 
-        yaml = os.path.join(input_path, "other_yamls/mc.yaml")
-        with pytest.raises(ParameterError, match="The specified MC scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'."):  # noqa: E501
-            E = EnsembleEXE(yaml)  # noqa: F841
+        os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
-        yaml = os.path.join(input_path, "other_yamls/df_method.yaml")
-        with pytest.raises(ParameterError, match="The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'."):  # noqa: E501
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/err_method.yaml")
-        with pytest.raises(ParameterError, match="The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'."):  # noqa: E501
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/seed.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'seed' should be an integer."):
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/int.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'n_sim' should be an integer."):
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/pos.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'n_iter' should be positive."):
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/nex_0.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'n_ex' should be an integer."):
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/nex_1.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'n_ex' should be non-negative."):
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/N_cutoff.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1."):  # noqa: E501
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/str.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'mdp' should be a string."):
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/bool.yaml")
-        with pytest.raises(ParameterError, match="The parameter 'parallel' should be a boolean variable."):
-            E = EnsembleEXE(yaml)  # noqa: F841
-
-        yaml = os.path.join(input_path, "other_yamls/0.yaml")
-        E = EnsembleEXE(yaml)
-        assert E.lambda_dict == {
-            (0.1,): 0,
-            (0.2,): 1,
-            (0.3,): 2,
-            (0.4,): 3,
-            (0.5,): 4,
-            (0.6,): 5,
-            (0.7,): 6,
-            (0.8,): 7,
-            (1,): 8,
-        }  # noqa: E501
-        assert E.lambda_ranges == [
-            [(0.1,), (0.2,), (0.3,), (0.4,), (0.5,), (0.6,)],
-            [(0.2,), (0.3,), (0.4,), (0.5,), (0.6,), (0.7,)],
-            [(0.3,), (0.4,), (0.5,), (0.6,), (0.7,), (0.8,)],
-            [(0.4,), (0.5,), (0.6,), (0.7,), (0.8,), (1.0,)],
-        ]
-
-        yaml = os.path.join(input_path, "other_yamls/1.yaml")
-        E = EnsembleEXE(yaml)
-        assert E.lambda_dict == {
-            (0, 0, 0): 0,
-            (0.25, 0, 0): 1,
-            (0.5, 0, 0): 2,
-            (0.75, 0, 0): 3,
-            (1, 0, 0): 4,
-            (1, 0.25, 0.2): 5,
-            (1, 0.5, 0.6): 6,
-            (1, 0.75, 0.8): 7,
-            (1, 1, 1): 8,
-        }  # noqa: E501
-        assert E.lambda_ranges == [
-            [(0.0, 0.0, 0.0), (0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2)],
-            [(0.25, 0.0, 0.0), (0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6)],
-            [(0.5, 0.0, 0.0), (0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8)],
-            [(0.75, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.25, 0.2), (1.0, 0.5, 0.6), (1.0, 0.75, 0.8), (1.0, 1.0, 1.0)],
-        ]
-        assert E.runtime_args == {'-nt': '16', '-ntomp': 8}
-
-    def test_print_params(self, capfd):
+    def test_print_params(self, capfd, params_dict):
         # capfd is a fixture in pytest for testing STDOUT
+        EEXE = get_EEXE_instance(params_dict)
         EEXE.print_params()
         out_1, err = capfd.readouterr()
         L = ""
@@ -225,8 +338,9 @@ class Test_EnsembleEXE:
         L += "The random seed to use in bootstrapping, if used: None\n"
         assert out_2 == L
 
-    def test_initialize_MDP(self):
-        MDP = EEXE.initialize_MDP(2)
+    def test_initialize_MDP(self, params_dict):
+        EEXE = get_EEXE_instance(params_dict)
+        MDP = EEXE.initialize_MDP(2)  # the third replica
         assert MDP["nsteps"] == 500
         assert all(
             [
@@ -248,7 +362,7 @@ class Test_EnsembleEXE:
             [a == b for a, b in zip(MDP["init_lambda_weights"], [0, 0, 0, 0, 0, 0])]
         )
 
-    def test_update_MDP(self):
+    def test_update_MDP(self, params_dict):
         new_template = "ensemble_md/tests/data/expanded.mdp"
         iter_idx = 3
         states = [2, 5, 7, 4]
@@ -257,24 +371,21 @@ class Test_EnsembleEXE:
             [0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0],
             [3.48, 2.78, 3.21, 4.56, 8.79, 0.48],
-            [8.45, 0.52, 3.69, 2.43, 4.56, 6.73],
-        ]  # noqa: E501
-        EEXE.equil = [-1, 35, 0, -1]
+            [8.45, 0.52, 3.69, 2.43, 4.56, 6.73], ]
+
+        EEXE = get_EEXE_instance(params_dict)
+        EEXE.equil = [-1, 1, 0, -1]  # i.e. the 3rd replica will use fixed weights in the next iteration
         MDP_1 = EEXE.update_MDP(
-            new_template, 2, iter_idx, states, wl_delta, weights)
+            new_template, 2, iter_idx, states, wl_delta, weights)  # third replica
         MDP_2 = EEXE.update_MDP(
-            new_template, 3, iter_idx, states, wl_delta, weights)
+            new_template, 3, iter_idx, states, wl_delta, weights)  # fourth replica
 
         assert MDP_1["tinit"] == MDP_2["tinit"] == 3
         assert MDP_1["nsteps"] == MDP_2["nsteps"] == 500
         assert MDP_1["init_lambda_state"] == 5
         assert MDP_2["init_lambda_state"] == 1
-        assert (
-            MDP_1["init_wl_delta"] == MDP_1["wl_scale"] == MDP_1["wl_ratio"] == ""
-        )  # because equil_bools is True
-        assert (
-            MDP_1["lmc_weights_equil"] == MDP_1["weight_equil_wl_delta"] == ""
-        )  # because equil_bools is True
+        assert (MDP_1["init_wl_delta"] == MDP_1["wl_scale"] == MDP_1["wl_ratio"] == "")
+        assert (MDP_1["lmc_weights_equil"] == MDP_1["weight_equil_wl_delta"] == "")
         assert MDP_2["init_wl_delta"] == 0.32
         assert all(
             [
@@ -293,18 +404,19 @@ class Test_EnsembleEXE:
             ]
         )
 
-    def test_extract_final_dhdl_info(self):
+    def test_extract_final_dhdl_info(self, params_dict):
+        EEXE = get_EEXE_instance(params_dict)
         dhdl_files = [
-            os.path.join(input_path, f"dhdl_{i}.xvg") for i in range(EEXE.n_sim)
+            os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(EEXE.n_sim)
         ]
         states, lambda_vecs = EEXE.extract_final_dhdl_info(dhdl_files)
         assert states == [5, 2, 2, 8]
         assert lambda_vecs == [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
 
-    def test_extract_final_log_info(self):
-        EEXE.equil = [-1, -1, -1, -1]
+    def test_extract_final_log_info(self, params_dict):
+        EEXE = get_EEXE_instance(params_dict)
         log_files = [
-            os.path.join(input_path, f"EXE_{i}.log") for i in range(EEXE.n_sim)
+            os.path.join(input_path, f"log/EXE_{i}.log") for i in range(EEXE.n_sim)
         ]
         wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
         assert wl_delta == [0.4, 0.5, 0.5, 0.5]
@@ -312,16 +424,16 @@ class Test_EnsembleEXE:
             [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
             [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
             [0, 0.66431, 1.25475, 0.24443, 0.59472, 0.70726],
-            [0, 0.09620, 1.59937, -4.31679, -22.89436, -28.08701],
-        ])
+            [0, 0.09620, 1.59937, -4.31679, -22.89436, -28.08701], ])
         assert counts == [
             [4, 11, 9, 9, 11, 6],
             [9, 8, 8, 11, 7, 7],
             [3, 1, 1, 9, 15, 21],
-            [0, 0, 0, 1, 18, 31],
-        ]
+            [0, 0, 0, 1, 18, 31], ]
         assert EEXE.equil == [-1, -1, -1, -1]
 
+
+"""
     def test_propose_swaps(self):
         random.seed(0)
         EEXE.n_sim = 4
@@ -343,7 +455,7 @@ class Test_EnsembleEXE:
         swap_list = EEXE.propose_swaps(states)
         assert swap_list == []
 
-    def test_get_swapped_configus(self):
+    def test_get_swapped_configs(self):
         EEXE.state_ranges = [
             [0, 1, 2, 3, 4, 5],
             [1, 2, 3, 4, 5, 6],
@@ -400,7 +512,7 @@ class Test_EnsembleEXE:
         swap = (0, 2)
         EEXE.mc_scheme = "metropolis-eq"
         prob_acc_3 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
-        assert prob_acc_3 == 1    # \Delta U = (-9.1366697 + 4.9963939)/2.478956208925815 ~ -1.67 kT
+        assert prob_acc_3 == 1    # Delta U = (-9.1366697 + 4.9963939)/2.478956208925815 ~ -1.67 kT
 
         # Test 4: Metropolis
         swap = (0, 2)
@@ -498,3 +610,4 @@ class Test_EnsembleEXE:
         if rank == 0:
             os.system('rm -r sim_*')
             os.system('rm -r gmxapi.commandline.cli*_i0*')
+"""

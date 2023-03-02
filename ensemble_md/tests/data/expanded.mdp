@@ -93,7 +93,7 @@ lmc_gibbsdelta = -1
 lmc_forced_nstart = 0
 symmetrized_transition_matrix = yes
 nst_transition_matrix = 100000
-wl_scale = 0.8
+wl_scale = 0.8  
 wl_ratio = 0.8
 init_wl_delta = 0.5
 

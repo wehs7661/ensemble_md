@@ -21,7 +21,7 @@ input_path = os.path.join(current_path, "data")
 
 
 def test_parse_transmtx():
-    A1, B1, C1 = analyze_matrix.parse_transmtx(os.path.join(input_path, 'EXE.log'))
+    A1, B1, C1 = analyze_matrix.parse_transmtx(os.path.join(input_path, 'log/EXE.log'))
     A1_expected = np.array([[0.5, 0.34782609, 0.15000001, 0, 0, 0],
        [0.34782609, 0.18181819, 0.15789473, 0.17647059, 0.10526316, 0.125     ],   # noqa: E128, E202, E203
        [0.15000001, 0.15789473, 0.        , 0.14285715, 0.4375    , 0.07692308],   # noqa: E202, E203
@@ -47,7 +47,7 @@ def test_parse_transmtx():
     np.testing.assert_array_almost_equal(B1, B1_expected)
     np.testing.assert_array_almost_equal(C1, C1_expected)
 
-    log = os.path.join(input_path, 'EXE_0.log')
+    log = os.path.join(input_path, 'log/EXE_0.log')
     with pytest.raises(ParseError, match=f'No transition matrices found in {log}.'):
         A2, B2, C2 = analyze_matrix.parse_transmtx(log)
 
