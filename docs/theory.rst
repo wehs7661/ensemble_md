@@ -388,7 +388,7 @@ Below we elaborate the details of each step carried out by our method.
 
 Step 1: Convert the weights into probabilities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-For weight :math:`g_ij` that corresponds to state :math:`j` in replica :math:`i`, we can calculate its 
+For weight :math:`g_{ij}` that corresponds to state :math:`j` in replica :math:`i`, we can calculate its 
 corresopnding probability as follows:
 
 .. math::

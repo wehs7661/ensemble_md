@@ -37,11 +37,38 @@ rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
 class EnsembleEXE:
     """
     This class provides a variety of functions useful for setting up and running
-    an ensemble of expanded ensemble. Below is a list of attributes of the class:
+    an ensemble of expanded ensemble. Upon instantiation, all parameters in the YAML
+    file will be assigned to an attribute in the class. In addition to these variables,
+    below is a list of attributes of the class. (All the the attributes are assigned by
+    :obj:`set_params` unless otherwise noted.)
 
-    :ivar attribute1: Description of attribute1.
-    :ivar attribute2: Description of attribute2.
-    :ivar attribute3: Description of attribute3.
+    :ivar yaml: The input YAML file used to instantiate the class. Assigned by the :code:`__init__` function.
+    :ivar warnings: Warnings about parameter specification in either YAML or MDP files.
+    :ivar reformatted_mdp: Whether the templated MDP file has been reformatted by replacing hyphens
+        with underscores or not.
+    :ivar template: The instance of the :obj:`MDP` class based on the template MDP file.
+    :ivar nsteps: The number of steps per iteration.
+    :ivar dt: The simulation timestep in ps.
+    :ivar temp: The simulation temperature in Kelvin.
+    :ivar fixed_weights: Whether the weights will be fixed during the simulation (according to the template MDP file).
+    :ivar kT: 1 kT in kJ/mol at the simulation temperature.
+    :ivar lambda_types: The types of lambda variables involved in expanded ensemble simulations, e.g.
+        :code:`fep_lambdas`, :code:`mass_lambdas`, :code:`coul_lambdas`, etc.
+    :ivar n_tot: The total number of states for all replicas.
+    :ivar n_sub: The numbmer of states for each replica. The current implementation assumes homogenous replicas.
+    :ivar state_ranges: A list of list of state indices for each replica.
+    :ivar equil: A list of times it took to equilibrated the weights for different replicas.
+    :ivar lambda_dict: A dictionary with keys being the tuples of coupling parameters used in each replicas and
+        values being the corresponding global index (starting from 0). Assigned by :obj:`map_lambda2state`.
+    :ivar lambda_ranges: A list of lambda vectors of state range of each replica. Assigned by :obj:`map_lambda2state`.
+    :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`accept_or_reject`.
+    :ivar n_swap_attempts: The number of swaps attempted so far. This does not include the cases
+        where there is no swappable pair. Updated by :obj:`get_swapping_pattern`.
+    :ivar rep_trajs: The replica-space trajectories of all replicas.
+    :ivar get_u_nk: Whether to get the :math:`u_{nk}` dataset from the DHDL files. Only meaningful during
+        data analysis and if :code:`df_method` is specified.
+    :ivar get_dHdl: Whether to get the :math:`dH/dλ` dataset from the DHDL files. Only meaningful
+        during data analysis and if :code:`df_method` is specified.
     """
 
     def __init__(self, yaml_file):
@@ -263,7 +290,7 @@ class EnsembleEXE:
 
         # 6-10. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
-        self.g_vecs = []
+        # self.g_vecs = []
 
         # 6-11. Data analysis
         if self.df_method == 'MBAR':
@@ -550,8 +577,6 @@ class EnsembleEXE:
             n_ex = len(swappables) ** 3
         else:
             n_ex = self.n_ex
-
-        self.n_swap_attempts += n_ex
         print(f"Swappable pairs: {swappables}")
 
         try:
@@ -596,6 +621,7 @@ class EnsembleEXE:
             swapping, simulations/replicas with indices 0, 1, 2, and 3 should be in configurations 0, 1, 3,
             respectively.
         """
+        self.n_swap_attempts += len(swap_list)
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         if swap_list is []:
             print('No swap is proposed because there is no swappable pair at all.')
