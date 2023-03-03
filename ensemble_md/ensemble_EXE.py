@@ -342,7 +342,7 @@ class EnsembleEXE:
             print(f"The random seed to use in bootstrapping, if used: {self.seed}")
 
         if self.reformatted_mdp is True:
-            print('Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.')  # noqa: E501
+            print("Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.")  # noqa: E501
 
     def reformat_MDP(self):
         """
@@ -623,7 +623,7 @@ class EnsembleEXE:
         """
         self.n_swap_attempts += len(swap_list)
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
-        if swap_list is []:
+        if swap_list == []:
             print('No swap is proposed because there is no swappable pair at all.')
         else:
             for i in range(len(swap_list)):
@@ -998,7 +998,7 @@ class EnsembleEXE:
         )
         grompp.run()
         if rank == 0:  # just print the messages once
-            utils.gmx_output(grompp, self.verbose)
+            utils.gmx_output(grompp)
 
         # Run all the simulations simultaneously using gmxapi
         if rank == 0:
@@ -1039,7 +1039,7 @@ class EnsembleEXE:
             )
             md.run()
             if rank == 0:  # just print the messages once
-                utils.gmx_output(md, self.verbose)
+                utils.gmx_output(md)
 
         if rank == 0:
             dir_after = [

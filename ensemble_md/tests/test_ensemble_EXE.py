@@ -330,6 +330,7 @@ class Test_EnsembleEXE:
         L += "  - Replica 3: States [3, 4, 5, 6, 7, 8]\n"
         assert out_1 == L
 
+        EEXE.reformatted_mdp = True  # Just to test the case where EEXE.reformatted_mdp is True
         EEXE.print_params(params_analysis=True)
         out_2, err = capfd.readouterr()
         L += "\nWhether to build Markov state models and perform relevant analysis: False\n"
@@ -339,6 +340,7 @@ class Test_EnsembleEXE:
         L += "The method for estimating the uncertainty of free energies in free energy calculations, if any: propagate\n"  # noqa: E501
         L += "The number of bootstrap iterations in the boostrapping method, if used: 50\n"
         L += "The random seed to use in bootstrapping, if used: None\n"
+        L += "Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.\n"  # noqa: E501
         assert out_2 == L
 
     def test_initialize_MDP(self, params_dict):
@@ -451,7 +453,12 @@ class Test_EnsembleEXE:
         swap_list = EEXE.propose_swaps(states)
         assert swap_list == [(1, 2), (0, 2), (0, 1), (0, 2), (0, 2)]
 
-        # Case 3: Empty swappable list
+        # Case 3: Multiple swaps (n_ex = N^3, which is 27 in this case)
+        EEXE.n_ex = 'N^3'
+        swap_list = EEXE.propose_swaps(states)
+        assert len(swap_list) == 27
+
+        # Case 4: Empty swappable list
         states = [10, 10, 10, 10]
         swap_list = EEXE.propose_swaps(states)
         assert swap_list == []
@@ -482,6 +489,7 @@ class Test_EnsembleEXE:
         assert configs_1 == [0, 1, 2, 3]
 
         # Case 2: Multiple swaps
+        EEXE.verbose = False   # just to increase the code coverage
         swap_list = [(0, 2) for i in range(5)]   # prob_acc should be around 0.516
         random.seed(0)  # r1 = 0.844, r2 = 0.758, r3=0.421, r4=0.259 r5=0.511 --> 3 accepted moves --> [2, 1, 0, 3]
         configs_2 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, lambda_vecs, weights)
@@ -554,6 +562,7 @@ class Test_EnsembleEXE:
 
         # Case 2: Perform histogram correction (N_cutoff reached)
         EEXE.N_cutoff = 5000
+        EEXE.verbose = False  # just to increase code coverage
         weights_1 = EEXE.histogram_correction(weights_1, counts_1)
         assert np.allclose(weights_1, [
             [
@@ -585,6 +594,7 @@ class Test_EnsembleEXE:
         assert g_vec_1 is None
 
         # Method: mean
+        EEXE.verbose = False  # just to increase code coverage
         w2, g_vec_2 = EEXE.combine_weights(weights, method='mean')
         assert np.allclose(w2, [
             [0.0, 2.20097, 3.99803, 3.59516],
@@ -611,6 +621,7 @@ class Test_EnsembleEXE:
     def test_run_EEXE(self, params_dict):
         # We probably can only test serial EEXE
         rank = MPI.COMM_WORLD.Get_rank()
+        params_dict['runtime_args'] = {'-nt': 1}
         EEXE = get_EEXE_instance(params_dict)
         if rank == 0:
             for i in range(EEXE.n_sim):
