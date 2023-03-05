@@ -414,9 +414,8 @@ class Test_EnsembleEXE:
         dhdl_files = [
             os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(EEXE.n_sim)
         ]
-        states, lambda_vecs = EEXE.extract_final_dhdl_info(dhdl_files)
+        states = EEXE.extract_final_dhdl_info(dhdl_files)
         assert states == [5, 2, 2, 8]
-        assert lambda_vecs == [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
 
     def test_extract_final_log_info(self, params_dict):
         EEXE = get_EEXE_instance(params_dict)
@@ -471,7 +470,6 @@ class Test_EnsembleEXE:
             [2, 3, 4, 5, 6, 7],
             [3, 4, 5, 6, 7, 8]]
         states = [5, 2, 2, 8]
-        lambda_vecs = [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
         weights = [
             [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
             [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
@@ -482,30 +480,45 @@ class Test_EnsembleEXE:
 
         # Case 1: Empty swap list
         swap_list = []
-        configs_1 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, lambda_vecs, weights)
+        configs_1 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
         # When counting n_swap_attempts and n_rejected, we do not consider cases where swap_list is empty.
         assert EEXE.n_swap_attempts == 0
         assert EEXE.n_rejected == 0
         assert configs_1 == [0, 1, 2, 3]
 
-        # Case 2: Multiple swaps
-        EEXE.verbose = False   # just to increase the code coverage
+        # Case 2-1: Multiple swaps (verbose is True)
         swap_list = [(0, 2) for i in range(5)]   # prob_acc should be around 0.516
         random.seed(0)  # r1 = 0.844, r2 = 0.758, r3=0.421, r4=0.259 r5=0.511 --> 3 accepted moves --> [2, 1, 0, 3]
-        configs_2 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, lambda_vecs, weights)
+        configs_2 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
         assert EEXE.n_swap_attempts == 5
         assert EEXE.n_rejected == 2
         assert configs_2 == [2, 1, 0, 3]
 
-    def test_calc_prob_acc(self, params_dict):
+        """
+        # Case 2-2: Multiple swaps (verbose is False)
+        EEXE.verbose = False
         EEXE = get_EEXE_instance(params_dict)
         EEXE.state_ranges = [
             [0, 1, 2, 3, 4, 5],
             [1, 2, 3, 4, 5, 6],
             [2, 3, 4, 5, 6, 7],
             [3, 4, 5, 6, 7, 8]]
+
+        # dhdl_files = [os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(4)]
+        # print(dhdl_files)
+        EEXE.mc_scheme = "metropolis"
+        swap_list = [(0, 2) for i in range(5)]   # prob_acc should be around 0.516
+        random.seed(0)  # r1 = 0.844, r2 = 0.758, r3=0.421, r4=0.259 r5=0.511 --> 3 accepted moves --> [2, 1, 0, 3]
+        configs_3 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
+        assert EEXE.n_swap_attempts == 5
+        assert EEXE.n_rejected == 2
+        assert configs_3 == [2, 1, 0, 3]
+        """
+
+    def test_calc_prob_acc(self, params_dict):
+        EEXE = get_EEXE_instance(params_dict)
+        # EEXE.state_ranges = [[0, 1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6], ..., [3, 4, 5, 6, 7, 8]]
         states = [5, 2, 2, 8]
-        lambda_vecs = [(1, 0.25), (0.5, 0), (0.5, 0), (1, 1)]
         weights = [
             [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
             [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
@@ -516,24 +529,24 @@ class Test_EnsembleEXE:
         # Test 1: Same-state swapping (True)
         swap = (1, 2)
         EEXE.mc_scheme = "same_state"
-        prob_acc_1 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        prob_acc_1 = EEXE.calc_prob_acc(swap, dhdl_files, states, weights)
         assert prob_acc_1 == 1
 
         # Test 2: Same-state swapping (False)
         swap = (0, 2)
-        prob_acc_2 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        prob_acc_2 = EEXE.calc_prob_acc(swap, dhdl_files, states, weights)
         assert prob_acc_2 == 0
 
         # Test 3: Metropolis-eq
         swap = (0, 2)
         EEXE.mc_scheme = "metropolis-eq"
-        prob_acc_3 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        prob_acc_3 = EEXE.calc_prob_acc(swap, dhdl_files, states, weights)
         assert prob_acc_3 == 1    # Delta U = (-9.1366697 + 4.9963939)/2.478956208925815 ~ -1.67 kT
 
         # Test 4: Metropolis
         swap = (0, 2)
         EEXE.mc_scheme = "metropolis"
-        prob_acc_4 = EEXE.calc_prob_acc(swap, dhdl_files, states, lambda_vecs, weights)
+        prob_acc_4 = EEXE.calc_prob_acc(swap, dhdl_files, states, weights)
         # dH ~-1.67 kT as calculated above, dg = (2.55736 - 6.13408) + (0.24443 - 0) ~ -3.33229 kT
         # dU - dg ~ 1.66212 kT, so p_acc ~ 0.189 ...
         assert prob_acc_4 == pytest.approx(0.18989559074633955)   # check this number again

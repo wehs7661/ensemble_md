@@ -158,12 +158,12 @@ def main():
             #   (2) Find the final Wang-Landau incrementors and weights from the LOG files.
             dhdl_files = [f'sim_{j}/iteration_{i - 1}/dhdl.xvg' for j in range(EEXE.n_sim)]
             log_files = [f'sim_{j}/iteration_{i - 1}/md.log' for j in range(EEXE.n_sim)]
-            states, lambda_vecs = EEXE.extract_final_dhdl_info(dhdl_files)
+            states = EEXE.extract_final_dhdl_info(dhdl_files)
             wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
 
             # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
             swap_list = EEXE.propose_swaps(states)
-            swap_pattern = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, lambda_vecs, weights)
+            swap_pattern = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
 
             # 3-3. Perform histogram correction for the weights as needed
             weights = EEXE.histogram_correction(weights, counts)
