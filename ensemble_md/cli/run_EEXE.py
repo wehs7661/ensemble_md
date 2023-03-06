@@ -162,6 +162,9 @@ def main():
             wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
 
             # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
+            # Note that after get_swapping_pattern, dhdl_files won't necessarily be the same as when it was input.
+            # This doesn't matter though, since in the next iteration, dhdl_files is re-created by the
+            # list comprehensivion above.
             swap_list = EEXE.propose_swaps(states)
             swap_pattern = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
 

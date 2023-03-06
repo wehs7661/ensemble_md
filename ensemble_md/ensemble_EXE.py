@@ -65,6 +65,9 @@ class EnsembleEXE:
     :ivar n_swap_attempts: The number of swaps attempted so far. This does not include the cases
         where there is no swappable pair. Updated by :obj:`get_swapping_pattern`.
     :ivar rep_trajs: The replica-space trajectories of all replicas.
+    :ivar configs: A list that thows the current configuration index that each replica is sampling.
+    :ivar g_vecs: The time series of the (processed) whole-range alchemical weights. If no weight combination is
+        applied, this list will just be a list of :code:`None`'s.
     :ivar get_u_nk: Whether to get the :math:`u_{nk}` dataset from the DHDL files. Only meaningful during
         data analysis and if :code:`df_method` is specified.
     :ivar get_dHdl: Whether to get the :math:`dH/dλ` dataset from the DHDL files. Only meaningful
@@ -288,11 +291,16 @@ class EnsembleEXE:
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
 
-        # 6-10. The time series of the (processed) whole-range alchemical weights
+        # 6-10. configs shows the current configuration that each replica is sampling.
+        # For example, self.configs = [0, 2, 1, 3] means that configurations 0, 2, 1, and 3 are
+        # in replicas, 0, 1, 2, 3, respectively. This list will be constantly updated during the simulation.
+        self.configs = list(range(self.n_sim))
+
+        # 6-11. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
         self.g_vecs = []
 
-        # 6-11. Data analysis
+        # 6-12. Data analysis
         if self.df_method == 'MBAR':
             self.get_u_nk = True
             self.get_dHdl = False
@@ -565,7 +573,7 @@ class EnsembleEXE:
         # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
         # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the probability cannot be calculated.
         swappables = [i for i in swappables if states[i[0]] in self.state_ranges[i[1]] and states[i[1]] in self.state_ranges[i[0]]]  # noqa: E501
-        
+
         if self.n_ex == 0:
             n_ex = 1    # One swap will be carried out.
             print('Note: At most only 1 swap will be carried out, which is between neighboring replicas.')
@@ -586,11 +594,18 @@ class EnsembleEXE:
 
     def get_swapping_pattern(self, swap_list, dhdl_files, states, weights):
         """
-        Returns a list that represents how the replicas should be swapped. The list is always
-        intiliazed with :code:`[0, 1, 2, ...]` and gets updated with swap acceptance/rejection.
-        For example, if the list returned is :code:`[0, 2, 1, 3]`, it means the configurations of
-        replicas 1 and 2 are swapped. If it's :code:`[2, 0, 1, 3]`, then 3 replicas (indices 0, 1, 2)
-        need to swap its configuration in the next iteration.
+        A list (:code:`swap_pattern`) that represents how the replicas should be swapped in the next iteration.
+        The indices of the list correspond to the simulation/replica indices, and the values represent the
+        configuration index of the corresponding simulation/replica. For example, if the swapping pattern is
+        :code:`[0, 2, 1, 3]`, it means that in the next iteration, replicas 0, 1, 2, 3 should sample
+        configurations 0, 2, 1, 3, respectively, where configurations 0, 1, 2, 3 here are defined as whatever
+        configurations are in replicas 0, 1, 2, 3 in the CURRENT iteration (not iteration 0), respectively.
+
+        In an EEXE simulation, where each iteration requires one call of this function, :code:`swap_pattern` is always
+        initialized as :code:`[0, 1, 2, 3, ...]` and gets updated once every attempted swap. On the other hand, the
+        attribute :code:`configs`, which is only initialized once at the very beginning of the EEXE simulation
+        (iteration 0), gets updated once every iteration (which could include multiple attempted swaps when
+        :code:`n_ex` is larger than 1.)
 
         Parameters
         ----------
@@ -598,23 +613,24 @@ class EnsembleEXE:
             A list of tuples of simulation indices to be swapped. The list could be empty, which means
             there is no any swappable pair.
         dhdl_files : list
-            A list of DHDL files of ALL simulations. Note that the filename should be ordered
-            with ascending simulation/replica indices, i.e. the n-th filename in the list should be
-            the DHDL file of the n-th simulation.
+            A list of DHDL files of ALL simulations. :code:`dhdl_files[i]` corresponds to the dhdl file
+            of whatever configuration in replica :code:`i`. For example, when the list of configurations
+            :code:`swap_pattern` is :code:`[2, 1, 0, 3]`, then elements in :code:`dhdl_files` with indices
+            0, 1, 2, 3, should be the DHDL files of configurations 2, 1, 0, 3, respectively. As the list
+            :code:`swap_pattern` is always initialized as :code:`[0, 1, 2, 3, ..., N]`, the indicies in the filenames
+            should also be in an ascending order, e.g. :code:`[dhdl_0.xvg, dhdl_1.xvg, ..., dhdl_N.xvg]`.
         states : list
-            A list of last sampled states (in global indices) of ALL simulaitons.
-            Typically generated by :obj:`.extract_final_dhdl_info`.
+            A list of last sampled states (in global indices) of ALL simulaitons. :code:`states[i]=j` means that
+            the configuration in replica :code:`i` is at state :code:`j`. This list can be generated
+            :obj:`.extract_final_dhdl_info`.
         weights : list
-            A list of lists of final weights of ALL simulations. Typically generated by :obj:`.extract_final_log_info`.
+            A list of lists of final weights of ALL simulations. :code:`weights[i]` corresponds to the list of weights
+            used in replica :code:`i`. The list can be generated by :obj:`.extract_final_log_info`.
 
         Returns
         -------
         swap_pattern : list
-            A list that represents how the replicas should be swapped. The indices of the list correspond to the
-            simulation/replica indices, and the values represent the configuration index of the corresponding
-            simulation/replica. For example, if the swapping pattern is :code:`[0, 2, 1, 3]`, it means that after
-            swapping, simulations/replicas with indices 0, 1, 2, and 3 should be in configurations 0, 1, 3,
-            respectively.
+            A list that represents how the replicas should be swapped.
         """
         self.n_swap_attempts += len(swap_list)
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
@@ -622,7 +638,6 @@ class EnsembleEXE:
             print('No swap is proposed because there is no swappable pair at all.')
         else:
             for i in range(len(swap_list)):
-                print(dhdl_files)
                 swap = swap_list[i]
                 if self.verbose is True:
                     print(f'\nA swap ({i + 1}/{len(swap_list)}) is proposed between Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
@@ -631,30 +646,31 @@ class EnsembleEXE:
                 prob_acc = self.calc_prob_acc(swap, dhdl_files, states, weights)
                 swap_bool = self.accept_or_reject(prob_acc)
 
-                # Each DHDL file corresponds to one configuration, so if the swap is accepted,
-                # we switch the order of the two corresponding DHDL file names in the DHDL files.
-                # Also, the indices in swap_pattern need to be update correspondingly.
+                # Whenever swap_pattern is updated, dhdl_files should be updated as well, but
+                # states and weights should stay the same.
                 if swap_bool is True:
                     # The assignments need to be done at the same time in just one line.
                     dhdl_files[swap[0]], dhdl_files[swap[1]] = dhdl_files[swap[1]], dhdl_files[swap[0]]
-                    # weights[swap[0]], weights[swap[1]] = weights[swap[1]], weights[swap[0]]
-                    # states[swap[0]], states[swap[1]] = states[swap[1]], states[swap[0]]
                     swap_pattern[swap[0]], swap_pattern[swap[1]] = swap_pattern[swap[1]], swap_pattern[swap[0]]
+                    self.configs[swap[0]], self.configs[swap[1]] = self.configs[swap[1]], self.configs[swap[0]]
                 else:
                     pass
 
                 if self.verbose is True:
-                    print(f'Swapping pattern: {swap_pattern})')
+                    print(f'(Swapping pattern: {swap_pattern})')
+                    print(f'  Current list of configurations: {self.configs}')
                 else:
                     if i == len(swap_list) - 1:
                         print(f'\n{len(swap_list)} swaps have been proposed.')
-                        print(f'Swapping pattern: {swap_pattern}')
+                        print(f'(Swapping pattern: {swap_pattern})')
+                        print(f'Current list of configurations: {self.configs}')
 
-        # Update the replica trajectories
-        last_states = [i[-1] for i in self.rep_trajs]
-        current_states = [last_states[swap_pattern[i]] for i in range(self.n_sim)]
-        for i in range(self.n_sim):   # note that self.n_sim = len(swap_pattern)
-            self.rep_trajs[i].append(current_states[i])
+        print(f'\nThe finally adopted swap pattern: {swap_pattern}')
+        print(f'The list of configurations sampled in each replica in the next iteration: {self.configs}')
+
+        # Update the replica-space trajectories
+        for i in range(self.n_sim):
+            self.rep_trajs[i].append(self.configs.index(i))
 
         return swap_pattern
 
@@ -705,16 +721,17 @@ class EnsembleEXE:
             dhdl_1 = data_1[-self.n_sub:]
 
             # Old local index, which will only be used in "metropolis"
-            old_state_0 = int(data_0[1])
-            old_state_1 = int(data_1[1])
+            old_state_0 = states[swap[0]] - self.s * swap[0]
+            old_state_1 = states[swap[1]] - self.s * swap[1]
 
-            A = states[swap[0]] - self.s * swap[0]
-            B = states[swap[1]] - self.s * swap[1]
-
-            # New local index. Note that states are global indices, so we shift them back to the local ones 
+            # New local index. Note that states are global indices, so we shift them back to the local ones
             new_state_0 = states[swap[1]] - self.s * swap[0]  # new state index (local index in simulation swap[0])
             new_state_1 = states[swap[0]] - self.s * swap[1]  # new state index (local index in simulation swap[1])
 
+            # print(old_state_0, '->', new_state_0)
+            # print(old_state_1, '->', new_state_1)
+            # print(f0)
+            # print(new_state_0, old_state_0)
             dU_0 = (dhdl_0[new_state_0] - dhdl_0[old_state_0]) / self.kT  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state  # noqa: E501
             dU_1 = (dhdl_1[new_state_1] - dhdl_1[old_state_1]) / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state  # noqa: E501
             dU = dU_0 + dU_1
