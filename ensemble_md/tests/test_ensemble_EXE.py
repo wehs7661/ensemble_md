@@ -480,42 +480,35 @@ class Test_EnsembleEXE:
 
         # Case 1: Empty swap list
         swap_list = []
-        configs_1 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
+        pattern_1 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
         # When counting n_swap_attempts and n_rejected, we do not consider cases where swap_list is empty.
         assert EEXE.n_swap_attempts == 0
         assert EEXE.n_rejected == 0
-        assert configs_1 == [0, 1, 2, 3]
+        assert pattern_1 == [0, 1, 2, 3]
 
         # Case 2-1: Multiple swaps (verbose is True)
         swap_list = [(0, 2) for i in range(5)]   # prob_acc should be around 0.516
         random.seed(0)  # r1 = 0.844, r2 = 0.758, r3=0.421, r4=0.259 r5=0.511 --> 3 accepted moves --> [2, 1, 0, 3]
-        configs_2 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
+        pattern_2 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
         assert EEXE.n_swap_attempts == 5
         assert EEXE.n_rejected == 2
-        assert configs_2 == [2, 1, 0, 3]
+        assert pattern_2 == [2, 1, 0, 3]
+        assert EEXE.rep_trajs == [
+            [0, 0, 2],
+            [1, 1, 1],
+            [2, 2, 0],
+            [3, 3, 3]]
 
-        """
         # Case 2-2: Multiple swaps (verbose is False)
         EEXE.verbose = False
-        EEXE = get_EEXE_instance(params_dict)
-        EEXE.state_ranges = [
-            [0, 1, 2, 3, 4, 5],
-            [1, 2, 3, 4, 5, 6],
-            [2, 3, 4, 5, 6, 7],
-            [3, 4, 5, 6, 7, 8]]
-
-        # dhdl_files = [os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(4)]
-        # print(dhdl_files)
-        EEXE.mc_scheme = "metropolis"
-        swap_list = [(0, 2) for i in range(5)]   # prob_acc should be around 0.516
+        states = [5, 2, 2, 8]
         random.seed(0)  # r1 = 0.844, r2 = 0.758, r3=0.421, r4=0.259 r5=0.511 --> 3 accepted moves --> [2, 1, 0, 3]
-        configs_3 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
-        assert EEXE.n_swap_attempts == 5
-        assert EEXE.n_rejected == 2
-        assert configs_3 == [2, 1, 0, 3]
-        """
+        pattern_3 = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
+        assert EEXE.n_swap_attempts == 10
+        assert EEXE.n_rejected == 4
+        assert pattern_3 == [2, 1, 0, 3]
 
-    def test_calc_prob_acc(self, params_dict):
+    def test_calc_prob_acc(self, capfd, params_dict):
         EEXE = get_EEXE_instance(params_dict)
         # EEXE.state_ranges = [[0, 1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6], ..., [3, 4, 5, 6, 7, 8]]
         states = [5, 2, 2, 8]
@@ -547,9 +540,23 @@ class Test_EnsembleEXE:
         swap = (0, 2)
         EEXE.mc_scheme = "metropolis"
         prob_acc_4 = EEXE.calc_prob_acc(swap, dhdl_files, states, weights)
+        out, err = capfd.readouterr()
         # dH ~-1.67 kT as calculated above, dg = (2.55736 - 6.13408) + (0.24443 - 0) ~ -3.33229 kT
         # dU - dg ~ 1.66212 kT, so p_acc ~ 0.189 ...
         assert prob_acc_4 == pytest.approx(0.18989559074633955)   # check this number again
+        assert 'U^i_n - U^i_m = -3.69 kT, U^j_m - U^j_n = 2.02 kT, Total dU: -1.67 kT' in out
+        assert 'g^i_n - g^i_m = -3.58 kT, g^j_m - g^j_n = 0.24 kT, Total dg: -3.33 kT' in out
+
+        # Test 5: Additional test: the case where one swap of (0, 2) has been accepted already.
+        # Given another same swap of (0, 2), dU and dg in this case should be equal opposites of the oens in Case 4.
+        # And the acceptance ratio should be 1.
+        swap = (0, 2)
+        states = [2, 2, 5, 8]
+        prob_acc_5 = EEXE.calc_prob_acc(swap, dhdl_files, states, weights)
+        out, err = capfd.readouterr()
+        assert prob_acc_5 == 1
+        assert 'U^i_n - U^i_m = 3.69 kT, U^j_m - U^j_n = -2.02 kT, Total dU: 1.67 kT' in out
+        assert 'g^i_n - g^i_m = 3.58 kT, g^j_m - g^j_n = -0.24 kT, Total dg: 3.33 kT' in out
 
     def test_accept_or_reject(self, params_dict):
         EEXE = get_EEXE_instance(params_dict)
@@ -587,6 +594,7 @@ class Test_EnsembleEXE:
         ])  # noqa: E501
 
         # Case 3: Perform histogram correction (N_cutoff not reached by both N_k and N_{k-1})
+        EEXE.verbose = True
         weights_2 = [[0, 10.304, 20.073, 29.364]]
         counts_2 = [[3141, 4570, 5545, 5955]]
         weights_2 = EEXE.histogram_correction(weights_2, counts_2)
@@ -616,6 +624,7 @@ class Test_EnsembleEXE:
         assert np.allclose(list(g_vec_2), [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005])  # noqa: E501
 
         # Method: geo-mean
+        EEXE.verbose = True
         w3, g_vec_3 = EEXE.combine_weights(weights, method='geo-mean')
         assert np.allclose(w3, [
             [0.0, 2.2, 3.98889, 3.58889],

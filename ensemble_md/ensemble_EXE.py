@@ -594,7 +594,7 @@ class EnsembleEXE:
 
     def get_swapping_pattern(self, swap_list, dhdl_files, states, weights):
         """
-        A list (:code:`swap_pattern`) that represents how the replicas should be swapped in the next iteration.
+        A list (:code:`swap_pattern`) that represents how the configurations should be swapped in the next iteration.
         The indices of the list correspond to the simulation/replica indices, and the values represent the
         configuration index of the corresponding simulation/replica. For example, if the swapping pattern is
         :code:`[0, 2, 1, 3]`, it means that in the next iteration, replicas 0, 1, 2, 3 should sample
@@ -640,29 +640,32 @@ class EnsembleEXE:
             for i in range(len(swap_list)):
                 swap = swap_list[i]
                 if self.verbose is True:
-                    print(f'\nA swap ({i + 1}/{len(swap_list)}) is proposed between Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
+                    print(f'\nA swap ({i + 1}/{len(swap_list)}) is proposed between the configurations of Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
 
                 # For each swap, calculate the acceptance ratio and decide whether to accept the swap.
                 prob_acc = self.calc_prob_acc(swap, dhdl_files, states, weights)
                 swap_bool = self.accept_or_reject(prob_acc)
 
-                # Whenever swap_pattern is updated, dhdl_files should be updated as well, but
-                # states and weights should stay the same.
+                # Note that in an EEXE simulation, we could either choose to swap configurations (via
+                # swapping GRO files) or replicas (via swapping MDP files) and we choose the former.
+                # Specifically, in the CLI `run_EEXE`, `swap_pattern` is used to swap the GRO files.
+                # In this function, however, we choose to only update `state` instead of updating `dhdl_files` and
+                # `weights`, which is because in `calc_prob_acc`, the configuration indices of both `dhdl_files`
+                # and `weights` are assumed to be ascending, i.e. swapping dhdl_files and weights below with the
+                # current implementation of `calc_prob_acc`` would lead to incorrect results.
                 if swap_bool is True:
                     # The assignments need to be done at the same time in just one line.
-                    dhdl_files[swap[0]], dhdl_files[swap[1]] = dhdl_files[swap[1]], dhdl_files[swap[0]]
+                    states[swap[0]], states[swap[1]] = states[swap[1]], states[swap[0]]
                     swap_pattern[swap[0]], swap_pattern[swap[1]] = swap_pattern[swap[1]], swap_pattern[swap[0]]
                     self.configs[swap[0]], self.configs[swap[1]] = self.configs[swap[1]], self.configs[swap[0]]
                 else:
                     pass
 
                 if self.verbose is True:
-                    print(f'(Swapping pattern: {swap_pattern})')
-                    print(f'  Current list of configurations: {self.configs}')
+                    print(f'Current list of configurations: {self.configs}')
                 else:
                     if i == len(swap_list) - 1:
                         print(f'\n{len(swap_list)} swaps have been proposed.')
-                        print(f'(Swapping pattern: {swap_pattern})')
                         print(f'Current list of configurations: {self.configs}')
 
         print(f'\nThe finally adopted swap pattern: {swap_pattern}')
@@ -728,10 +731,6 @@ class EnsembleEXE:
             new_state_0 = states[swap[1]] - self.s * swap[0]  # new state index (local index in simulation swap[0])
             new_state_1 = states[swap[0]] - self.s * swap[1]  # new state index (local index in simulation swap[1])
 
-            # print(old_state_0, '->', new_state_0)
-            # print(old_state_1, '->', new_state_1)
-            # print(f0)
-            # print(new_state_0, old_state_0)
             dU_0 = (dhdl_0[new_state_0] - dhdl_0[old_state_0]) / self.kT  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state  # noqa: E501
             dU_1 = (dhdl_1[new_state_1] - dhdl_1[old_state_1]) / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state  # noqa: E501
             dU = dU_0 + dU_1

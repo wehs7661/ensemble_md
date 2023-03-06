@@ -11,6 +11,7 @@ import os
 import sys
 import glob
 import time
+import copy
 import shutil
 import argparse
 import numpy as np
@@ -162,9 +163,11 @@ def main():
             wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
 
             # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
-            # Note that after get_swapping_pattern, dhdl_files won't necessarily be the same as when it was input.
-            # This doesn't matter though, since in the next iteration, dhdl_files is re-created by the
-            # list comprehensivion above.
+            # Note after `get_swapping_pattern`, `states` won't be necessarily since it is updated by
+            # `get_swapping_pattern`. (Even if the function does not explicitly returns `states`, `states`
+            # can still be different after the use of the function.) Therefore, here we create copy of states
+            # before the use of `get_swapping_pattern`, so we can use the copy in `update_MDP`.
+            states_copy = copy.deepcopy(states)
             swap_list = EEXE.propose_swaps(states)
             swap_pattern = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
 
@@ -177,9 +180,10 @@ def main():
 
             # 3-5. Modify the MDP files and swap out the GRO files (if needed)
             # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
+            # Note we use states_copy instead of states in update_MDP.
             for j in list(range(EEXE.n_sim)):
                 os.mkdir(f'sim_{j}/iteration_{i}')
-                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights)   # modify with a new template  # noqa: E501
+                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states_copy, wl_delta, weights)   # modify with a new template  # noqa: E501
                 MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
                 shutil.copy(f'{EEXE.top}', f"sim_{j}/iteration_{i}/{EEXE.top.split('/')[-1]}")
 
