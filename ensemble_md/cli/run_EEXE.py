@@ -161,6 +161,7 @@ def main():
             log_files = [f'sim_{j}/iteration_{i - 1}/md.log' for j in range(EEXE.n_sim)]
             states = EEXE.extract_final_dhdl_info(dhdl_files)
             wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
+            print()
 
             # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
             # Note after `get_swapping_pattern`, `states` won't be necessarily since it is updated by
@@ -168,8 +169,7 @@ def main():
             # can still be different after the use of the function.) Therefore, here we create copy of states
             # before the use of `get_swapping_pattern`, so we can use the copy in `update_MDP`.
             states_copy = copy.deepcopy(states)
-            swap_list = EEXE.propose_swaps(states)
-            swap_pattern = EEXE.get_swapping_pattern(swap_list, dhdl_files, states, weights)
+            swap_pattern = EEXE.get_swapping_pattern(dhdl_files, states, weights)
 
             # 3-3. Perform histogram correction for the weights as needed
             weights = EEXE.histogram_correction(weights, counts)
