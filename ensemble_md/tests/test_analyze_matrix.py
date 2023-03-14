@@ -21,6 +21,7 @@ input_path = os.path.join(current_path, "data")
 
 
 def test_parse_transmtx():
+    # Case 1: Expanded ensemble where there is a transition matrix
     A1, B1, C1 = analyze_matrix.parse_transmtx(os.path.join(input_path, 'log/EXE.log'))
     A1_expected = np.array([[0.5, 0.34782609, 0.15000001, 0, 0, 0],
        [0.34782609, 0.18181819, 0.15789473, 0.17647059, 0.10526316, 0.125     ],   # noqa: E128, E202, E203
@@ -47,27 +48,80 @@ def test_parse_transmtx():
     np.testing.assert_array_almost_equal(B1, B1_expected)
     np.testing.assert_array_almost_equal(C1, C1_expected)
 
+    # Case 2: Expanded ensemble where there is no transition matrix
     log = os.path.join(input_path, 'log/EXE_0.log')
     with pytest.raises(ParseError, match=f'No transition matrices found in {log}.'):
         A2, B2, C2 = analyze_matrix.parse_transmtx(log)
 
+    ## Case 3: Hamiltonian replica exchange
+    # Note that the transition matrices shown in the log file of different replicas should all be the same.
+    # Here we use log/HREX.log, which is a part of the log file from anthracene HREX. 
+    A3, B3, C3 = analyze_matrix.parse_transmtx(os.path.join(input_path, 'log/HREX.log'), expanded_ensemble=False)
+    A3_expected = np.array([[0.7869, 0.2041, 0.0087, 0.0003, 0.0000, 0.0000, 0.0000, 0.0000],
+        [0.2041, 0.7189, 0.0728, 0.0041, 0.0001, 0.0000, 0.0000, 0.0000],
+        [0.0087, 0.0728, 0.7862, 0.1251, 0.0071, 0.0001, 0.0000, 0.0000],
+        [0.0003, 0.0041, 0.1251, 0.7492, 0.1162, 0.0051, 0.0000, 0.0000],
+        [0.0000, 0.0001, 0.0071, 0.1162, 0.7666, 0.1087, 0.0013, 0.0000],
+        [0.0000, 0.0000, 0.0001, 0.0051, 0.1087, 0.8100, 0.0689, 0.0073],
+        [0.0000, 0.0000, 0.0000, 0.0000, 0.0013, 0.0689, 0.6797, 0.2501],
+        [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0073, 0.2501, 0.7426]])
+    
+    np.testing.assert_array_almost_equal(A3, A3_expected)
+    assert B3 is None
+    assert C3 is None
 
-def test_calc_equil_prob():
-    pass
+def test_calc_equil_prob(capfd):
+    # Case 1: Right stochastic
+    mtx = np.array([[0.1, 0.3, 0.6], [0.6, 0.2, 0.2], [0.1, 0.3, 0.6]])
+    np.testing.assert_array_almost_equal(analyze_matrix.calc_equil_prob(mtx), np.array([[13/55], [3/11], [27/55]]))
 
+    # Case 2: Left stochastic
+    np.testing.assert_array_almost_equal(analyze_matrix.calc_equil_prob(mtx.T), np.array([[13/55], [3/11], [27/55]]))  # analytical
 
-def test_calc_spectral_gap():
-    pass
+    # Case 3: Neither left or right stochastic
+    mtx = np.random.rand(3, 3)
+    prob = analyze_matrix.calc_equil_prob(mtx)
+    out, err = capfd.readouterr()
+    assert prob is None
+    assert 'The input transition matrix is neither right nor left stochastic' in out
 
+def test_calc_spectral_gap(capfd):
+    # Case 1 (sanity check): doublly stochastic
+    mtx = np.array([[0.5, 0.5], [0.5, 0.5]])
+    s = analyze_matrix.calc_spectral_gap(mtx)
+    assert np.isclose(s, 1)
+
+    # Case 2: Right stochastic
+    mtx = np.array([[0.8, 0.2], [0.3, 0.7]])
+    s = analyze_matrix.calc_spectral_gap(mtx)
+    assert s == 0.5
+
+    # Case 3: Left stochastic
+    s = analyze_matrix.calc_spectral_gap(mtx.T)
+    assert s == 0.5
+
+    # Case 4: Neither left or right stochastic
+    mtx = np.random.rand(3, 3)
+    s = analyze_matrix.calc_spectral_gap(mtx)
+    out, err = capfd.readouterr()
+    assert s is None
+    assert 'The input transition matrix is neither right nor left stochastic' in out
 
 def test_split_transmtx():
-    pass
+    mtx = np.array([[0.6, 0.3, 0.1], [0.1, 0.7, 0.2], [0.2, 0.1, 0.7]])
+    sub_mtx = analyze_matrix.split_transmtx(mtx, 2, 2)
+    result = [
+        np.array([[2/3, 1/3], [1/8, 7/8]]),
+        np.array([[7/9, 2/9], [1/8, 7/8]])]
+    np.testing.assert_array_almost_equal(sub_mtx[0], result[0])
+    np.testing.assert_array_almost_equal(sub_mtx[1], result[1])
 
 
 def test_plot_matrix():
     """
     We can only check if the figures are generated. Not really able to check how they look like.
     """
+    # Case 1: All elements matrix[i][j] are larger than 0.005 and title is not specified
     mtx = np.array([
         [0.1, 0.2, 0.3],
         [0.4, 0.5, 0.6],
@@ -75,7 +129,16 @@ def test_plot_matrix():
 
     png_name = 'test.png'
     analyze_matrix.plot_matrix(mtx, png_name)
+    assert os.path.isfile(png_name)
+    os.remove(png_name)
 
-    # Check that the file was created
+    # Case 2: At least one of the elements matrix[i][j] is smaller than 0.005 and title is specified
+    mtx = np.array([
+        [0, 0.2, 0.3],
+        [0.4, 0.5, 0.6],
+        [0.7, 0.8, 0.9]])
+
+    png_name = 'test.png'
+    analyze_matrix.plot_matrix(mtx, png_name, title='cool')
     assert os.path.isfile(png_name)
     os.remove(png_name)

@@ -89,8 +89,6 @@ def calc_equil_prob(trans_mtx):
     the staionary distribution vector is the left eigenvector corresponding to the eigenvalue 1
     of the transition matrix. (For the former case, it's either left or right eigenvector corresponding
     to the eigenvalue 1 - as the left and right eigenvectors are the same for a doubly stochasti matrix.)
-    Note that as long as the resulting eigenvector is real, the equilibrium probabilities/transition
-    matrix must have obeyed the detailed balance condition: :math:`P(X)P(X → X')=P(X')P(X' → X)`.
 
     Parameters
     ----------
@@ -101,10 +99,13 @@ def calc_equil_prob(trans_mtx):
     -------
     equil_prob : numpy.ndarray
     """
-    if np.isclose(np.sum(trans_mtx[0]), 1):  # note that this also include doubly stochastic matrices
+    check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1) for i in range(len(trans_mtx))])
+    check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1) for i in range(len(trans_mtx))])
+
+    if check_row == len(trans_mtx):  # note that this also include doubly stochastic matrices
         # Right or doubly stachstic matrices - calculate the left eigenvector
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx.T)
-    elif np.isclose(np.sum(trans_mtx[:, 0]), 1):
+    elif check_col == len(trans_mtx):
         # Left stochastic matrix - calcualte the right eigenvector
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx)
     else:
@@ -113,13 +114,8 @@ def calc_equil_prob(trans_mtx):
         print(result_str)
         return None
 
-    close_to_1_idx = np.isclose(eig_vals, 1, atol=1e-4)
-
-    if np.sum(close_to_1_idx) == 0:
-        print(f'Eigenvalues of the input transition matrix include: {eig_vals}')
-        raise ParameterError('None of the eigenvalues are close to 1. Please check the input transition matrix.')
-
     # The eigenvector corresponding to the eigenvalue eig_vals[i] is eig_vecs[:, i]
+    close_to_1_idx = np.isclose(eig_vals, 1, atol=1e-4)
     equil_prob = eig_vecs[:, close_to_1_idx]  # note that this is normalized
     equil_prob /= np.sum(equil_prob)   # So the sum of all components is 1
 
@@ -140,12 +136,15 @@ def calc_spectral_gap(trans_mtx):
     spectral_gap : float
         The spectral gap of the input transition matrix
     """
-    if np.isclose(np.sum(trans_mtx[0]), 1, atol=1e-3):
+    check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1) for i in range(len(trans_mtx))])
+    check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1) for i in range(len(trans_mtx))])
+
+    if check_row == len(trans_mtx):
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx.T)
-    elif np.isclose(np.sum(trans_mtx[:, 0]), 1, atol=1e-3):
+    elif check_col == len(trans_mtx):
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx)
     else:
-        result_str = "The state transition matrix is neither right nor left stochastic, so the spectral gap cannot be calculated."  # noqa: E501
+        result_str = "The input transition matrix is neither right nor left stochastic, so the spectral gap cannot be calculated."  # noqa: E501
         result_str += "This might be a result of poor sampling. Check your state-space trajectory to troubleshoot."
         print(result_str)
         return None
@@ -154,6 +153,7 @@ def calc_spectral_gap(trans_mtx):
     if np.isclose(eig_vals[0], 1, atol=1e-4) is False:
         raise ParameterError(f'The largest eigenvalue of the input transition matrix {eig_vals[0]} is not close to 1.')
 
+    print(f'The two largest eigenvalues are {eig_vals[0]:.5f} and {eig_vals[1]:.5f}.')
     spectral_gap = np.abs(eig_vals[0]) - np.abs(eig_vals[1])
 
     return spectral_gap

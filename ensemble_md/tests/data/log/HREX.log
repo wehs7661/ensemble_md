@@ -1,0 +1,151 @@
+DD  step 12499999  vol min/aver 0.810  load imb.: force 95.0%
+           Step           Time
+       12500000    25000.00000
+
+Writing checkpoint, step 12500000 at Mon Dec  5 07:54:06 2022
+
+
+   Energies (kJ/mol)
+           Bond          Angle  Improper Dih.          LJ-14     Coulomb-14
+    4.29701e+01    1.40082e+01    6.84277e+00    1.16136e+02    0.00000e+00
+        LJ (SR)  Disper. corr.   Coulomb (SR)   Coul. recip.      Potential
+    7.01418e+03   -3.08898e+02   -5.10237e+04    1.39111e+03   -4.27474e+04
+    Kinetic En.   Total Energy  Conserved En.    Temperature Pres. DC (bar)
+    8.12530e+03   -3.46221e+04   -8.40558e+04    3.01760e+02   -1.56253e+02
+ Pressure (bar)       dVvdw/dl
+    6.12927e+02    8.98664e+01
+
+
+Cannot report drift of the conserved energy quantity because simulations share state
+
+
+        <======  ###############  ==>
+        <====  A V E R A G E S  ====>
+        <==  ###############  ======>
+
+        Statistics over 12500001 steps using 12500001 frames
+
+   Energies (kJ/mol)
+           Bond          Angle  Improper Dih.          LJ-14     Coulomb-14
+    3.25806e+01    1.24823e+01    1.34318e+01    1.20547e+02    0.00000e+00
+        LJ (SR)  Disper. corr.   Coulomb (SR)   Coul. recip.      Potential
+    6.61662e+03   -3.08898e+02   -5.05593e+04    1.32972e+03   -4.27428e+04
+    Kinetic En.   Total Energy  Conserved En.    Temperature Pres. DC (bar)
+    8.07642e+03   -3.46664e+04   -5.96355e+04    2.99944e+02   -1.56253e+02
+ Pressure (bar)       dVvdw/dl
+    8.43854e+01    6.13658e+01
+
+   Total Virial (kJ/mol)
+    2.60864e+03    2.02759e-01   -4.06292e-01
+    2.03275e-01    2.60865e+03    6.67949e-01
+   -4.06033e-01    6.68814e-01    2.60893e+03
+
+   Pressure (bar)
+    8.45022e+01   -1.17257e-01    5.26831e-01
+   -1.17778e-01    8.44256e+01   -6.24164e-01
+    5.26569e-01   -6.25039e-01    8.42284e+01
+
+
+Replica exchange statistics
+
+Repl                                Empirical Transition Matrix
+Repl       1       2       3       4       5       6       7       8
+Repl  0.7869  0.2041  0.0087  0.0003  0.0000  0.0000  0.0000  0.0000  0
+Repl  0.2041  0.7189  0.0728  0.0041  0.0001  0.0000  0.0000  0.0000  1
+Repl  0.0087  0.0728  0.7862  0.1251  0.0071  0.0001  0.0000  0.0000  2
+Repl  0.0003  0.0041  0.1251  0.7492  0.1162  0.0051  0.0000  0.0000  3
+Repl  0.0000  0.0001  0.0071  0.1162  0.7666  0.1087  0.0013  0.0000  4
+Repl  0.0000  0.0000  0.0001  0.0051  0.1087  0.8100  0.0689  0.0073  5
+Repl  0.0000  0.0000  0.0000  0.0000  0.0013  0.0689  0.6797  0.2501  6
+Repl  0.0000  0.0000  0.0000  0.0000  0.0000  0.0073  0.2501  0.7426  7
+
+        M E G A - F L O P S   A C C O U N T I N G
+
+ NB=Group-cutoff nonbonded kernels    NxN=N-by-N cluster Verlet kernels
+ RF=Reaction-Field  VdW=Van der Waals  QSTab=quadratic-spline table
+ W3=SPC/TIP3p  W4=TIP4p (single or pairs)
+ V&F=Potential and force  V=Potential only  F=Force only
+
+ Computing:                               M-Number         M-Flops  % Flops
+-----------------------------------------------------------------------------
+ NB Free energy kernel            245302279.436100   245302279.436     9.9
+ Pair Search distance check          227817.487018     2050357.383     0.1
+ NxN Ewald Elec. + LJ [V&F]        10391524.858304  1319723657.005    53.2
+ NxN Ewald Elec. [V&F]              9611735.509760   807385782.820    32.6
+ 1,4 nonbonded interactions             662.500053       59625.005     0.0
+ Calc Weights                        121237.509699     4364550.349     0.2
+ Spread Q Bspline                   2586400.206912     5172800.414     0.2
+ Gather F Bspline                   2586400.206912    15518401.241     0.6
+ 3D-FFT                             7914825.633186    63318605.065     2.6
+ Solve PME                            39200.003136     2508800.201     0.1
+ Reset In Box                           591.289836        1773.870     0.0
+ CG-CoM                                 677.423422        2032.270     0.0
+ Bonds                                  200.000016       11800.001     0.0
+ Angles                                 275.000022       46200.004     0.0
+ Impropers                              275.000022       57200.005     0.0
+ Virial                               49412.503953      889425.071     0.0
+ Stop-CM                              40412.506466      404125.065     0.0
+ Calc-Ekin                            40498.633586     1093463.107     0.0
+ Constraint-V                         40237.503219      362137.529     0.0
+ Constraint-Vir                       40237.503219      965700.077     0.0
+ Settle                               26825.004292     9925251.588     0.4
+-----------------------------------------------------------------------------
+ Total                                              2479163967.505   100.0
+-----------------------------------------------------------------------------
+
+
+    D O M A I N   D E C O M P O S I T I O N   S T A T I S T I C S
+
+ av. #atoms communicated per step for force:  2 x 13176.6
+
+Dynamic load balancing report:
+ DLB was turned on during the run due to measured imbalance.
+ Average load imbalance: 101.0%.
+ The balanceable part of the MD step is 35%, load imbalance is computed from this.
+ Part of the total run time spent waiting due to load imbalance: 34.9%.
+ Steps where the load balancing was limited by -rdd, -rcon and/or -dds: X 0 % Y 0 %
+
+NOTE: 34.9 % of the available CPU time was lost due to load imbalance
+      in the domain decomposition.
+      You can consider manually changing the decomposition (option -dd);
+      e.g. by using fewer domains along the box dimension in which there is
+      considerable inhomogeneity in the simulated system.
+
+     R E A L   C Y C L E   A N D   T I M E   A C C O U N T I N G
+
+On 16 MPI ranks
+
+ Computing:          Num   Num      Call    Wall time         Giga-Cycles
+                     Ranks Threads  Count      (s)         total sum    %
+-----------------------------------------------------------------------------
+ Domain decomp.        16    1     209533      47.699       1713.944   0.3
+ DD comm. load         16    1     182891       0.294         10.555   0.0
+ DD comm. bounds       16    1     209531       1.708         61.388   0.0
+ Neighbor search       16    1     182892      71.232       2559.535   0.4
+ Comm. coord.          16    1   12317109     160.875       5780.606   1.0
+ Force                 16    1   12500001    4735.356     170151.889  28.6
+ Wait + Comm. F        16    1   12500001     177.857       6390.782   1.1
+ PME mesh              16    1   12500001    6941.055     249407.561  42.0
+ NB X/F buffer ops.    16    1   37134219      63.228       2271.910   0.4
+ Write traj.           16    1      12519       4.322        155.294   0.0
+ Update                16    1   50000004      91.022       3270.618   0.6
+ Constraints           16    1   25000004      71.644       2574.331   0.4
+ Comm. energies        16    1   25026643     342.472      12305.797   2.1
+ Rest                                        3836.345     137848.392  23.2
+-----------------------------------------------------------------------------
+ Breakdown of PME mesh computation
+-----------------------------------------------------------------------------
+ PME redist. X/F       16    1   25000002    5898.269     211937.907  35.6
+ PME spread            16    1   12500001     235.560       8464.210   1.4
+ PME gather            16    1   12500001     184.544       6631.084   1.1
+ PME 3D-FFT            16    1   25000002     223.789       8041.235   1.4
+ PME 3D-FFT Comm.      16    1   50000004     311.521      11193.626   1.9
+ PME solve Elec        16    1   12500001      80.382       2888.292   0.5
+-----------------------------------------------------------------------------
+
+               Core t (s)   Wall t (s)        (%)
+       Time:   264721.533    16545.110     1600.0
+                         4h35:45
+                 (ns/day)    (hour/ns)
+Performance:      130.552        0.184
+Finished mdrun on rank 0 Mon Dec  5 07:54:06 2022
