@@ -53,22 +53,23 @@ def test_parse_transmtx():
     with pytest.raises(ParseError, match=f'No transition matrices found in {log}.'):
         A2, B2, C2 = analyze_matrix.parse_transmtx(log)
 
-    ## Case 3: Hamiltonian replica exchange
+    # Case 3: Hamiltonian replica exchange
     # Note that the transition matrices shown in the log file of different replicas should all be the same.
-    # Here we use log/HREX.log, which is a part of the log file from anthracene HREX. 
+    # Here we use log/HREX.log, which is a part of the log file from anthracene HREX.
     A3, B3, C3 = analyze_matrix.parse_transmtx(os.path.join(input_path, 'log/HREX.log'), expanded_ensemble=False)
-    A3_expected = np.array([[0.7869, 0.2041, 0.0087, 0.0003, 0.0000, 0.0000, 0.0000, 0.0000],
-        [0.2041, 0.7189, 0.0728, 0.0041, 0.0001, 0.0000, 0.0000, 0.0000],
-        [0.0087, 0.0728, 0.7862, 0.1251, 0.0071, 0.0001, 0.0000, 0.0000],
-        [0.0003, 0.0041, 0.1251, 0.7492, 0.1162, 0.0051, 0.0000, 0.0000],
-        [0.0000, 0.0001, 0.0071, 0.1162, 0.7666, 0.1087, 0.0013, 0.0000],
-        [0.0000, 0.0000, 0.0001, 0.0051, 0.1087, 0.8100, 0.0689, 0.0073],
-        [0.0000, 0.0000, 0.0000, 0.0000, 0.0013, 0.0689, 0.6797, 0.2501],
-        [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0073, 0.2501, 0.7426]])
-    
+    A3_expected = np.array([[0.7869, 0.2041, 0.0087, 0.0003, 0.0000, 0.0000, 0.0000, 0.0000],  # noqa: E128, E202, E203, E501
+       [0.2041, 0.7189, 0.0728, 0.0041, 0.0001, 0.0000, 0.0000, 0.0000],   # noqa: E128, E202, E203
+       [0.0087, 0.0728, 0.7862, 0.1251, 0.0071, 0.0001, 0.0000, 0.0000],   # noqa: E202, E203
+       [0.0003, 0.0041, 0.1251, 0.7492, 0.1162, 0.0051, 0.0000, 0.0000],   # noqa: E202, E203
+       [0.0000, 0.0001, 0.0071, 0.1162, 0.7666, 0.1087, 0.0013, 0.0000],   # noqa: E202, E203
+       [0.0000, 0.0000, 0.0001, 0.0051, 0.1087, 0.8100, 0.0689, 0.0073],   # noqa: E202, E203
+       [0.0000, 0.0000, 0.0000, 0.0000, 0.0013, 0.0689, 0.6797, 0.2501],   # noqa: E202, E203
+       [0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0073, 0.2501, 0.7426]])  # noqa: E202, E203
+
     np.testing.assert_array_almost_equal(A3, A3_expected)
     assert B3 is None
     assert C3 is None
+
 
 def test_calc_equil_prob(capfd):
     # Case 1: Right stochastic
@@ -76,7 +77,7 @@ def test_calc_equil_prob(capfd):
     np.testing.assert_array_almost_equal(analyze_matrix.calc_equil_prob(mtx), np.array([[13/55], [3/11], [27/55]]))
 
     # Case 2: Left stochastic
-    np.testing.assert_array_almost_equal(analyze_matrix.calc_equil_prob(mtx.T), np.array([[13/55], [3/11], [27/55]]))  # analytical
+    np.testing.assert_array_almost_equal(analyze_matrix.calc_equil_prob(mtx.T), np.array([[13/55], [3/11], [27/55]]))  # noqa: E501
 
     # Case 3: Neither left or right stochastic
     mtx = np.random.rand(3, 3)
@@ -84,6 +85,7 @@ def test_calc_equil_prob(capfd):
     out, err = capfd.readouterr()
     assert prob is None
     assert 'The input transition matrix is neither right nor left stochastic' in out
+
 
 def test_calc_spectral_gap(capfd):
     # Case 1 (sanity check): doublly stochastic
@@ -106,6 +108,7 @@ def test_calc_spectral_gap(capfd):
     out, err = capfd.readouterr()
     assert s is None
     assert 'The input transition matrix is neither right nor left stochastic' in out
+
 
 def test_split_transmtx():
     mtx = np.array([[0.6, 0.3, 0.1], [0.1, 0.7, 0.2], [0.2, 0.1, 0.7]])

@@ -22,6 +22,7 @@ from ensemble_md.utils import utils
 def extract_state_traj(dhdl):
     """
     Extracts the state-space trajectory from a GROMACS DHDL file.
+    Note that the state indices here are local indices.
 
     Parameters
     ----------
@@ -70,8 +71,8 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1):
     Returns
     -------
     trajs : list
-        A list that contains lists of state-space/CV-space trajectory for each configuration. For example,
-        :code:`trajs[i]` is the state-space/CV-space trajectory of configuration :code:`i`.
+        A list that contains lists of state-space/CV-space trajectory (in global indices) for each configuration.
+        For example, :code:`trajs[i]` is the state-space/CV-space trajectory of configuration :code:`i`.
     """
     n_configs = len(files)  # number of starting configurations
     n_iter = len(files[0])  # number of iterations per replica
@@ -93,7 +94,7 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1):
                 else:
                     traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, -1]
             else:
-                # Get rid of the first time frame starting from the 2nd iteration because the first
+                # Starting from the 2nd iteration, we get rid of the first time frame the first
                 # frame of iteration n+1 the is the same as the last frame of iteration n
                 if dhdl:
                     traj = extract_state_traj(files_sorted[i][j])[1:]
