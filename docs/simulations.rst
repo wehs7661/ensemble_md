@@ -1,7 +1,7 @@
 .. _doc_cli:
 
-Command-line interface (CLI)
-============================
+1. Command-line interface (CLI)
+===============================
 :code:`ensemble_md` provides three command-line interfaces (CLI), including :code:`explore_EEXE`, :code:`run_EEXE` and :code:`analyze_EEXE`.
 :code:`explore_EEXE` helps the user to figure out possible combinations of EEXE parameters, while :code:`run_EEXE` and :code:`analyze_EEXE`
 can be used to perform and analyze EEXE simulations, respectively. Here is the help message of :code:`explore_EEXE`:
@@ -81,8 +81,8 @@ Finally, here is the help message of :code:`analyze_EEXE`:
                             The maximum number of warnings in parameter specification to be
                             ignored.
 
-Recommended workflow
-====================
+2. Recommended workflow
+=======================
 In this section, we introduce the workflow adopted by the CLI :code:`run_EEXE` that can be used to 
 launch EEXE simulations. While this workflow is made as flexible as possible, interested users
 can use functions defined :class:`ensemble_EXE` to develop their own workflow, or consider contributing
@@ -151,11 +151,8 @@ not present in both alchemical ranges, information like :math:`\Delta U^i=U^i_n-
 in either DHDL files and terms like :math:`\Delta g^i=g^i_n-g^i_m` cannot be calculated from the LOG files as well, which 
 makes the calculation of the acceptance ratio technicaly impossible. (For more details about the acceptance ratio is calculated
 in different schemes for swapping, check the section :ref:`doc_acceptance`.) After the swappable pairs are identified, 
-the user can propose swap(s) using :obj:`propose_swaps`. Note that having multiple swaps proposed in one attempt is possible 
-with :code:`n_ex` specified larger than 1 in the YAML file. In that case, :code:`n_ex` swaps will be drawn from the list of 
-swappable pairs with replacement, so there is no upper limit for :code:`n_ex` and a recommended value is :math:`N^3`, where
-:math:`N` is the number of replicas. If :code:`n_ex` is unspecified or specified as 0, then only 1 swap will be proposed and 
-it will be between a pair of adjacent simulations (i.e. neighboring swapping). 
+the user can propose swap(s) using :obj:`propose_swaps`. Swap(s) will be proposed given the specified proposal scheme (see
+more details about available proposal schemes in :ref:`doc_proposal`). 
 
 Step 3-3: Decide whether to reject/accept the swap(s)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -191,14 +188,14 @@ iterations (:code:`n_iterations`) is reached.
 
 .. _doc_parameters:
 
-Simulation parameters
-=====================
+3. Simulation parameters
+========================
 In the current implementation of the algorithm, 22 parameters can be specified in the input YAML file.
 Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
-Simulation inputs
------------------
+3.1. Simulation inputs
+----------------------
 
   - :code:`gro`: (Required)
       The GRO file that contains the starting configuration for all replicas.
@@ -207,8 +204,8 @@ Simulation inputs
   - :code:`mdp`: (Required)
       The MDP template that has the whole range of :math:`λ` values.
 
-EEXE parameters
----------------
+3.2. EEXE parameters
+--------------------
 
   - :code:`parallel`: (Required)
       Whether the replicas of EEXE should be run in parallel or not.
@@ -234,16 +231,15 @@ EEXE parameters
       For more details, please refer to :ref:`doc_w_schemes`.
   - :code:`N_cutoff`: (Optional, Default: 1000)
       The histogram cutoff. -1 means that no histogram correction will be performed.
-  - :code:`n_ex`: (Optional, Default: 0)
-      The number of swaps to be proposed in one attempt. This works basically the same as :code:`-nex` flag in GROMACS replica exchange simulations. 
-      A recommended value is :math:`N^3`, where :math:`N` is the number of swappable pairs and can therefore be different in each iteration. If :code:`n_ex` 
-      is specified as 0, neighboring swapping will be carried out. For more details, please refer to :ref:`doc_swap_basics`.
+  - :code:`n_ex`: (Optional, Default: 1)
+      The number of attempts swap during an exchange interval. This option is only relevant if the option :code:`proposal` is :code:`multiple`.
+      Otherwise, this option is ignored. For more details, please refer to :ref:`doc_swap_basics`.
   - :code:`runtime_args`: (Optional, Default: :code:`None`)
       Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. 
       For example, one could have :code:`{'-nt': 16}` to run the simulation using 16 threads.
 
-Output settings
----------------
+3.3. Output settings
+--------------------
   - :code:`verbose`: (Optional, Default: :code:`True`)
       Whether a verbse log is wanted. 
   - :code:`n_ckpt`: (Optional, Default: 100)
@@ -251,8 +247,8 @@ Output settings
   
 .. _doc_analysis_params:
 
-Data analysis
--------------
+3.4. Data analysis
+------------------
   - :code:`msm`: (Optional, Default: :code:`False`)
       Whether to build Markov state models (MSMs) for the EEXE simulation and perform relevant analysis.
   - :code:`free_energy`: (Optional, Default: :code:`False`)
@@ -272,6 +268,8 @@ Data analysis
   - :code:`seed`: (Optional, Default: None)
       The random seed to use in bootstrapping.
 
+3.5. A template input YAML file
+-------------------------------
 For convenience, here is a template of the input YAML file, with each optional parameter specified with the default and required 
 parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e. :code:`None`).
 
@@ -292,7 +290,7 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     acceptance: 'metropolis' 
     w_scheme: null
     N_cutoff: 1000
-    n_ex: 0
+    n_ex: 1
     runtime_args: null
 
     # Section 3: Output settings

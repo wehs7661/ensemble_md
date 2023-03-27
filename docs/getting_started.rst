@@ -1,5 +1,5 @@
-Introduction
-============
+1. Introduction
+===============
 :code:`ensemble_md` is a Python package that provides methods for setting up, 
 running, and analyzing GROMACS simulation ensembles. The current implementation is
 mainly for synchronous ensemble of expanded ensemble (EEXE), but we will develop
@@ -13,10 +13,10 @@ in the future when possible.
 .. _`SCALE-MS`: https://scale-ms.readthedocs.io/en/latest/
 
 
-Installation
-============
-Requirements
-------------
+2. Installation
+===============
+2.1. Requirements
+-----------------
 Before installing :code:`ensemble_md`, one should have working versions of `GROMACS`_
 and `gmxapi`_. Please refer to the linked documentations for full installation instructions.
 All the other pip-installable dependencies of :code:`ensemble_md` (specified in :code:`setup.py` of the package)
@@ -24,8 +24,8 @@ will be automatically installed during the installation of the package.
 
 .. _`GROMACS`: https://manual.gromacs.org/current/install-guide/index.html
 
-Installation via pip
---------------------
+2.2. Installation via pip
+-------------------------
 :code:`ensemble_md` can be installed via :code:`pip` using the following command:
 ::
 
@@ -39,8 +39,8 @@ following the full installation instruction of :code:`gmxapi`, or install
 
     pip install ensemble-md[gmxapi]
 
-Installation from source
-------------------------
+2.3. Installation from source
+-----------------------------
 One can also install :code:`ensemble_md` from the source code, which is available in our
 `github repository`_. Specifically, execute the following commands:
 ::
@@ -57,8 +57,8 @@ so that changes you make in the source code will take effects without re-install
 
 .. _`github repository`: https://github.com/wehs7661/ensemble_md.git
 
-Testing
-=======
+3. Testing
+==========
 To perform unit tests for this package, execute the following command in the home directory of the project:
 ::
 
