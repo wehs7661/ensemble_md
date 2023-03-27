@@ -233,7 +233,7 @@ include parameters for data analysis here.
       The histogram cutoff. -1 means that no histogram correction will be performed.
   - :code:`n_ex`: (Optional, Default: 1)
       The number of attempts swap during an exchange interval. This option is only relevant if the option :code:`proposal` is :code:`multiple`.
-      Otherwise, this option is ignored. For more details, please refer to :ref:`doc_swap_basics`.
+      Otherwise, this option is ignored. For more details, please refer to :ref:`doc_multiple_swaps`.
   - :code:`runtime_args`: (Optional, Default: :code:`None`)
       Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. 
       For example, one could have :code:`{'-nt': 16}` to run the simulation using 16 threads.

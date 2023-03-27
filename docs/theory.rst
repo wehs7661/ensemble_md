@@ -154,11 +154,18 @@ For each proposed swap, we calculate the acceptance ratio to decide whether the 
 In greater detail, this scheme can be decomposed into the following steps:
     
   - **Step 1**: Identify the list of swappable pairs. 
-  - **Step 2**: Randomly draw a pair from the swappable. 
+  - **Step 2**: Randomly draw a pair from the list of swappable pairs. 
   - **Step 3**: Update the list of swappable pairs by removing pair(s) involving replicas drawn in Step 2.
   - **Step 4**: Repeat Step 2 and 3 until the list of swappable pairs is empty.
   - **Step 5**: For each of the pairs drawn in Step 2, calculate the accpetance ratio (using the specified acceptance scheme) to decide whether the coordinates
-    of the pair of replicas should be swapped. That is 
+    of the pair of replicas should be swapped.
+  
+Note that in this method,
+
+  - No replicas should be involved in more than one proposed swap. 
+  - Given :math:`N` alchemical intermediate states in total, one can at most perform :math:`\lfloor N \rfloor` swaps.
+
+.. _doc_multiple_swaps:
 
 2.1.4. Multiple swaps
 ~~~~~~~~~~~~~~~~~~~~~
@@ -172,8 +179,15 @@ swappable pairs will be updated by re-identifying swappable pairs based on the u
 next attempted swap is dependent on whether the current swap is accepted.) If the swap is rejected, the execution will
 end and there won't be a new pair drawn. In greater detail, this scheme can be decomposed into the following steps:
 
-  - **Step 1**
-  - **Step 2**
+  - **Step 1**: Identify the list of swappable pairs.
+  - **Step 2**: Randomly draw a pair from the list of swappable pairs.
+  - **Step 3**: Calculate the acceptance ratio to decide whether the swap drawn in Step 2 should be accepted. 
+  - **Step 4**: If the attempted swap is accepted, update the permutation of the state ranges and update the list of swappable
+    pairs accordingly. Otherwise, the list of swappable pairs stay the same. 
+  - **Step 5**: Perform Steps 2 and 3 for the desired number of times (specified by :code:`n_ex`).
+
+.. note:: Except for the method of multiple swaps, all methods introduced above obey the detailed balance condition.
+  We set the default of the paramter :code:`proposal` as :code:`exhaustive` as it allows higher sampling efficiency.
 
 .. _doc_acceptance:
 
@@ -325,7 +339,7 @@ Now let's say the table above comes from the DHDL file of replica 0. If at :math
 Similarly, :math:`U^B_a - U^B_b` can be looked up in the DHDL file of replica 1, so :math:`\Delta` can be calculated. 
 (Note that we need to convert the units of :math:`\Delta U` from kJ/mol to kT, which is more convenient for the calculation of the acceptance ratio.
 
-In the case that mutiple swaps are desired, say :code:`n_ex` is 2, if the first swap between replicas 0 and 1 shown above is accepted and now 
+In the case that mutiple swaps are desired (i.e. :code:`proposal` is :code:`multiple`), say :code:`n_ex` is 2, if the first swap between replicas 0 and 1 shown above is accepted and now 
 we are swapping replicas 1 and 2 in the second swap, then we must be aware that the configurations now corresponding to replicas 0 and 1 is not A and B, 
 but B and A, repsecitvely:
 ::
