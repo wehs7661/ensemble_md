@@ -124,13 +124,29 @@ state (namely, :math:`m=n`) right before the exchange occurs, :math:`\Delta` wil
 Replica swapping
 ================
 
-.. _doc_mc_schemes:
+.. _doc_proposal:
 
-MC schemes for swapping replicas
---------------------------------
-In ensemble of expanded ensemble, we need to periodically exchange coordinates between 
-replicas. Currently, we have implemented 3 Monte Carlo schemes for swapping replicas that can be specified 
-in the input YAML file (e.g. :code:`params.yaml`) via the parameter :code:`mc_scheme`, including :code:`same-state`/:code:`same_state`, 
+Proposal schemes
+----------------
+In the current implementation, the following proposal schemes are available and can be
+specified via the option :code:`proposal` in the input YAML file (e.g. :code`params.yaml`).
+
+  - :code:`single`: Within an exchange interval, a single swap will be randomly drawn from the list of swappable pairs.
+  - :code:`neighboring`: Within an exhcnage interval, a single swap invovling neighboring replicas will be randomly drawn from the list of swappable pairs.
+  - :code:`exhaustive`: Within an exchange interval, repeatedly draw a pair from the swappable list and remove pair(s) involving previously drawn replicas
+    until the list is empty. For each proposed swap, calculate the acceptance ratio to decide whether the swap should be accepted or not. (Note that no replicas
+    should appear in more than propose swap.)
+  - :code:`multiple`: Within an exchange interval, :math:`N^3` swaps will be attempted (where :math:`N` is the number of alchemical states), with one pair
+    drawn from the list of swappable pairs (with replacement) for each swap. Between attempted swaps, the acceptance ratio is calculated to decide whether
+    the swap should be accepted and if the swap is accepted, the list of swappable pairs will be updated by re-identifying swappable pairs based on the
+    updated permutation.
+
+.. _doc_acceptance:
+
+Acceptance schemes
+------------------
+In the current implementation, 3 acceptance schemes are available to be specified 
+in the input YAML file (e.g. :code:`params.yaml`) via the option :code:`acceptance`, including :code:`same-state`/:code:`same_state`, 
 :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. In our implementation, 
 relevant methods include :obj:`.propose_swaps`, :obj:`.calc_prob_acc`, and :obj:`.accept_or_reject`.
 Below we elaborate the details of each of the swapping schemes.
@@ -179,7 +195,7 @@ standard Metropolis swapping scheme reduces to the following:
 Notably, this scheme does not consider the difference in the alchemical weights, which can 
 be non-zero frequently, so this swapping scheme does not strictly obey the detailed balance condition.
 
-Calculation of Δ in Metropolis-based methods
+Calculation of Δ in Metropolis-based acceptance schemes
 ---------------------------------------------------------
 The calculation of :math:`\Delta` is important because the acceptance ratio :math:`w(X\rightarrow X')=\min(1, \exp(-\Delta))` is 
 directly related to :math:`\Delta`. To better understand how :math:`\Delta` is calculated in the Metropolise-based methods, 

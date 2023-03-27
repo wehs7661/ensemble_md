@@ -85,7 +85,7 @@ class Test_EnsembleEXE:
 
         # 2. Available options
         check_param_error(params_dict, 'w_scheme', "The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
-        check_param_error(params_dict, 'mc_scheme', "The specified MC scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
+        check_param_error(params_dict, 'acceptance', "The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
         check_param_error(params_dict, 'df_method', "The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
         check_param_error(params_dict, 'err_method', "The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
@@ -166,7 +166,7 @@ class Test_EnsembleEXE:
         assert EEXE.s == 1
 
         # 2. Check the default values of the parameters not specified in params.yaml
-        assert EEXE.mc_scheme == "metropolis"
+        assert EEXE.acceptance == "metropolis"
         assert EEXE.w_scheme is None
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_ex == 0
@@ -319,7 +319,7 @@ class Test_EnsembleEXE:
         L += f"Python version: {sys.version}\ngmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"  # noqa: E501
         L += "Simulation inputs: ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/expanded.mdp\n"  # noqa: E501
         L += "Verbose log file: True\nWhether the replicas run in parallel: False\n"
-        L += "MC scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
+        L += "Acceptance scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of exchanges in one attempt: 0\n"
         L += "Length of each replica: 1.0 ps\nFrequency for checkpointing: 100 iterations\n"
@@ -520,7 +520,7 @@ class Test_EnsembleEXE:
 
         # Test 1: Same-state swapping (True)
         swap = (1, 2)
-        EEXE.mc_scheme = "same_state"
+        EEXE.acceptance = "same_state"
         prob_acc_1 = EEXE.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
         assert prob_acc_1 == 1
 
@@ -531,13 +531,13 @@ class Test_EnsembleEXE:
 
         # Test 3: Metropolis-eq
         swap = (0, 2)
-        EEXE.mc_scheme = "metropolis-eq"
+        EEXE.acceptance = "metropolis-eq"
         prob_acc_3 = EEXE.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
         assert prob_acc_3 == 1    # Delta U = (-9.1366697 + 4.9963939)/2.478956208925815 ~ -1.67 kT
 
         # Test 4: Metropolis
         swap = (0, 2)
-        EEXE.mc_scheme = "metropolis"
+        EEXE.acceptance = "metropolis"
         prob_acc_4 = EEXE.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
         out, err = capfd.readouterr()
         # dH ~-1.67 kT as calculated above, dg = (2.55736 - 6.13408) + (0.24443 - 0) ~ -3.33229 kT

@@ -150,7 +150,7 @@ the replicas to be swapped should have overlapping alchemical ranges. Practicall
 not present in both alchemical ranges, information like :math:`\Delta U^i=U^i_n-U^j_m` will not be available 
 in either DHDL files and terms like :math:`\Delta g^i=g^i_n-g^i_m` cannot be calculated from the LOG files as well, which 
 makes the calculation of the acceptance ratio technicaly impossible. (For more details about the acceptance ratio is calculated
-in different schemes for swapping, check the section :ref:`doc_mc_schemes`.) After the swappable pairs are identified, 
+in different schemes for swapping, check the section :ref:`doc_acceptance`.) After the swappable pairs are identified, 
 the user can propose swap(s) using :obj:`propose_swaps`. Note that having multiple swaps proposed in one attempt is possible 
 with :code:`n_ex` specified larger than 1 in the YAML file. In that case, :code:`n_ex` swaps will be drawn from the list of 
 swappable pairs with replacement, so there is no upper limit for :code:`n_ex` and a recommended value is :math:`N^3`, where
@@ -223,9 +223,12 @@ EEXE parameters
   - :code:`nst_sim`: (Optional, Default: :code:`nsteps` in the template MDP file)
       The number of simulation steps to carry out for one iteration, i.e. stpes between exchanges proposed between replicas. The value specified here will
       overwrite the :code:`nsteps` parameter in the MDP file of each iteration. This option also assumes replicas with homogeneous simulation lengths.
-  - :code:`mc_scheme`: (Optional, Default: :code:`metropolis`)
-      The method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
-      For more details, please refer to :ref:`doc_mc_schemes`.
+  - :code:`proposal`: (Optional, Default: :code:`exhaustive`)
+      The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`exhaustive`, :code:`neighboring`, and :code:`multiple`.
+      For more details, please refer to :ref:`doc_proposal`.
+  - :code:`acceptance`: (Optional, Default: :code:`metropolis`)
+      The Monte Carlo method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
+      For more details, please refer to :ref:`doc_acceptance`.
   - :code:`w_scheme`: (Optional, Default: :code:`None`)
       The method for combining weights. Available options include :code:`None` (unspecified), :code:`mean`, and :code:`geo-mean`/:code:`geo_mean`. 
       For more details, please refer to :ref:`doc_w_schemes`.
@@ -285,7 +288,8 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     n_iter:
     s:
     nst_sim: null
-    mc_scheme: 'metropolis' 
+    proposal: 'exhaustive'
+    acceptance: 'metropolis' 
     w_scheme: null
     N_cutoff: 1000
     n_ex: 0

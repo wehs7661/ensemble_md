@@ -103,7 +103,7 @@ class EnsembleEXE:
               - If a required parameter is not specified in the YAML file.
               - If a specified parameter is not recognizable.
               - If a specified weight combining scheme is not available.
-              - If a specified MC scheme is not available.
+              - If a specified acceptance scheme is not available.
               - If a specified free energy estimator is not available.
               - If a specified method for error estimation is not available.
               - If an integer parameter is not an integer.
@@ -143,7 +143,7 @@ class EnsembleEXE:
         # Key: Optional argument; Value: Default value
         optional_args = {
             "nst_sim": None,
-            "mc_scheme": "metropolis",
+            "acceptance": "metropolis",
             "w_scheme": None,
             "N_cutoff": 1000,
             "n_ex": 0,       # neighbor swaps
@@ -172,8 +172,8 @@ class EnsembleEXE:
         if self.w_scheme not in [None, 'mean', 'geo-mean', 'g-diff']:
             raise ParameterError("The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
 
-        if self.mc_scheme not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
-            raise ParameterError("The specified MC scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
+        if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
+            raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
@@ -325,7 +325,7 @@ class EnsembleEXE:
         print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
         print(f"Verbose log file: {self.verbose}")
         print(f"Whether the replicas run in parallel: {self.parallel}")
-        print(f"MC scheme for swapping simulations: {self.mc_scheme}")
+        print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
         print(f"Scheme for combining weights: {self.w_scheme}")
         print(f"Histogram cutoff: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
@@ -750,7 +750,7 @@ class EnsembleEXE:
         prob_acc : float
             The acceptance ratio.
         """
-        if self.mc_scheme == "same_state" or self.mc_scheme == "same-state":
+        if self.acceptance == "same_state" or self.acceptance == "same-state":
             if states[swap[0]] == states[swap[1]]:  # same state, swap!
                 prob_acc = 1  # This must lead to an output of swap_bool = True from the function accept_or_reject
             else:
@@ -788,7 +788,7 @@ class EnsembleEXE:
                     f"  U^i_n - U^i_m = {dU_0:.2f} kT, U^j_m - U^j_n = {dU_1:.2f} kT, Total dU: {dU:.2f} kT"
                 )
 
-            if self.mc_scheme == "metropolis_eq" or self.mc_scheme == "metropolis-eq":
+            if self.acceptance == "metropolis_eq" or self.acceptance == "metropolis-eq":
                 prob_acc = min(1, np.exp(-dU))
             else:  # must be 'metropolis', which consider lambda weights as well
                 g0 = weights[swap[0]]
