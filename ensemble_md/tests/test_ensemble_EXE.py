@@ -84,8 +84,9 @@ class Test_EnsembleEXE:
         params_dict['parallel'] = False  # so params_dict can be read without failing in the assertions below
 
         # 2. Available options
-        check_param_error(params_dict, 'w_scheme', "The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
+        check_param_error(params_dict, 'proposal', "The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.", 'cool', 'multiple')  # set as multiple for later tests for n_ex # noqa: E501
         check_param_error(params_dict, 'acceptance', "The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
+        check_param_error(params_dict, 'w_scheme', "The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
         check_param_error(params_dict, 'df_method', "The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
         check_param_error(params_dict, 'err_method', "The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
@@ -166,10 +167,11 @@ class Test_EnsembleEXE:
         assert EEXE.s == 1
 
         # 2. Check the default values of the parameters not specified in params.yaml
+        assert EEXE.proposal == "exhaustive"
         assert EEXE.acceptance == "metropolis"
         assert EEXE.w_scheme is None
         assert EEXE.N_cutoff == 1000
-        assert EEXE.n_ex == 0
+        assert EEXE.n_ex == 'N^3'
         assert EEXE.verbose is True
         assert EEXE.runtime_args is None
         assert EEXE.n_ckpt == 100
@@ -321,7 +323,7 @@ class Test_EnsembleEXE:
         L += "Verbose log file: True\nWhether the replicas run in parallel: False\n"
         L += "Acceptance scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
-        L += "Number of exchanges in one attempt: 0\n"
+        L += "Number of attempted swaps in one exchange interval: N^3\n"
         L += "Length of each replica: 1.0 ps\nFrequency for checkpointing: 100 iterations\n"
         L += "Total number of states: 9\n"
         L += "Additional runtime arguments: None\n"
@@ -441,13 +443,12 @@ class Test_EnsembleEXE:
         EEXE.state_ranges = [list(range(i, i + 5)) for i in range(EEXE.n_sim)]  # 5 states per replica
         states = [4, 2, 2, 7]   # This would lead to the swappables: [(0, 1), (0, 2), (1, 2)] in the standard case
 
-        # Case 1: Standard case
-        EEXE.n_ex = 10      # All values except for n_ex = 0 should lead to the same result
+        # Case 1: Any case that is not neighboring swap has the same definition for the swappable pairs
         swappables_1 = EEXE.identify_swappable_pairs(states, EEXE.state_ranges)
         assert swappables_1 == [(0, 1), (0, 2), (1, 2)]
 
         # Case 2: Neighboring exchange
-        EEXE.n_ex = 0
+        EEXE.proposal = 'neighboring'
         swappables_2 = EEXE.identify_swappable_pairs(states, EEXE.state_ranges)
         assert swappables_2 == [(0, 1), (1, 2)]
 
@@ -478,33 +479,48 @@ class Test_EnsembleEXE:
         assert EEXE.n_rejected == 0
         assert pattern_1 == [0, 1, 2, 3]
 
-        # Case 2: Single swap (n_ex = 1)
+        # Case 2: Single swap (proposal = 'single')
         random.seed(0)
         EEXE.verbose = True
-        EEXE.n_ex = 1
+        EEXE.proposal = 'single'  # n_ex will be set to 1 automatically.
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
         pattern_2 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
         assert EEXE.n_swap_attempts == 2
         assert EEXE.n_rejected == 0
         assert pattern_2 == [0, 2, 1, 3]
 
-        # Case 3: Neighboring swap (n_ex = 0)
+        # Case 3: Neighboring swap
         random.seed(0)
-        EEXE.n_ex = 0
+        EEXE.proposal = 'neighboring'  # n_ex will be set to 1 automatically.
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (1, 2)], swap = (1, 2), accept
         pattern_3 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
         assert EEXE.n_swap_attempts == 3
         assert EEXE.n_rejected == 0
-        assert pattern_2 == [0, 2, 1, 3]
+        assert pattern_3 == [0, 2, 1, 3]
 
-        # Case 4: Multiple swaps (n_ex = 5)
+        # Case 4: Exhaustive swap
+        random.seed(0)
+        EEXE.proposal = 'exhaustive'  # n_ex will be set to 1 automatically.
+        # To be added. :)
+
+        # Case 5-1: Multiple swaps (proposal = 'multiple', n_ex = 5)
         random.seed(0)
         EEXE.n_ex = 5
+        EEXE.proposal = 'multiple'
         states = [3, 1, 4, 6]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], first swap = (1, 2), accept
-        pattern_3 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
+        pattern_5_1 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
         assert EEXE.n_swap_attempts == 8
         assert EEXE.n_rejected == 4
-        assert pattern_3 == [2, 1, 0, 3]
+        assert pattern_5_1 == [2, 1, 0, 3]
+
+        # Case 5-2: Multiple swaps but only one swappable pair (proposal = 'multiple')
+        # This is specifically for testing n_swap_attempts in the case where n_ex reduces to 1.
+        random.seed(0)
+        states = [0, 2, 3, 8]  # The only swappable pair is [(1, 2)] --> accept
+        pattern_5_2 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
+        assert EEXE.n_swap_attempts == 9
+        assert EEXE.n_rejected == 4
+        assert pattern_5_2 == [0, 2, 1, 3]
 
     def test_calc_prob_acc(self, capfd, params_dict):
         EEXE = get_EEXE_instance(params_dict)

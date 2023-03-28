@@ -143,10 +143,11 @@ class EnsembleEXE:
         # Key: Optional argument; Value: Default value
         optional_args = {
             "nst_sim": None,
+            "proposal": 'exhaustive',
             "acceptance": "metropolis",
             "w_scheme": None,
             "N_cutoff": 1000,
-            "n_ex": 0,       # neighbor swaps
+            "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
             "runtime_args": None,
             "n_ckpt": 100,
@@ -169,11 +170,14 @@ class EnsembleEXE:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
         # Step 3: Check if the parameters in the YAML file are well-defined
-        if self.w_scheme not in [None, 'mean', 'geo-mean', 'g-diff']:
-            raise ParameterError("The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
+        if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'multiple']:
+            raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.")  # noqa: E501
 
         if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
+
+        if self.w_scheme not in [None, 'mean', 'geo-mean', 'g-diff']:
+            raise ParameterError("The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
@@ -184,7 +188,7 @@ class EnsembleEXE:
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.nst_sim is not None:
             params_int.append('nst_sim')
-        if self.n_ex != 'N^3':
+        if self.n_ex != 'N^3':  # no need to add "and self.proposal == 'multiple' since if multiple swaps are not used, n_ex=1"  # noqa: E501
             params_int.append('n_ex')
         if self.seed is not None:
             params_int.append('seed')
@@ -330,7 +334,7 @@ class EnsembleEXE:
         print(f"Histogram cutoff: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
         print(f"Number of iterations: {self.n_iter}")
-        print(f"Number of exchanges in one attempt: {self.n_ex}")
+        print(f"Number of attempted swaps in one exchange interval: {self.n_ex}")
         print(f"Length of each replica: {self.dt * self.nst_sim} ps")
         print(f"Frequency for checkpointing: {self.n_ckpt} iterations")
         print(f"Total number of states: {self.n_tot}")
@@ -576,8 +580,8 @@ class EnsembleEXE:
         # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the acceptance cannot be calculated.
         swappables = [i for i in swappables if states[i[0]] in state_ranges[i[1]] and states[i[1]] in state_ranges[i[0]]]  # noqa: E501
 
-        if self.n_ex == 0:
-            print('Note: At most only 1 swap will be carried out, which is between neighboring replicas.')
+        if self.proposal == 'neighboring':
+            print('Note: One neighboring swap will be proposed.')
             swappables = [i for i in swappables if np.abs(i[0] - i[1]) == 1]
 
         return swappables
@@ -617,7 +621,7 @@ class EnsembleEXE:
         initialized as :code:`[0, 1, 2, 3, ...]` and gets updated once every attempted swap. On the other hand, the
         attribute :code:`configs`, which is only initialized once at the very beginning of the EEXE simulation
         (iteration 0), gets updated once every iteration (which could include multiple attempted swaps when
-        the parameter :code:`n_ex` is larger than 1.)
+        the parameter :code:`n_ex` is larger than 1 (and :code:`proposal` is :code:`multiple`).)
 
         Parameters
         ----------
@@ -637,14 +641,14 @@ class EnsembleEXE:
         swap_pattern : list
             A list that represents how the replicas should be swapped.
         """
-        if self.n_ex == 0:  # neighbor exchange
-            n_ex = 1
-        elif self.n_ex == 'N^3':
-            n_ex = self.n_sim ** 3
-        else:
-            n_ex = self.n_ex
 
-        self.n_swap_attempts += n_ex
+        if self.proposal != 'multiple':
+            n_ex = 1
+        else:  # multiple swaps
+            if self.n_ex == 'N^3':
+                n_ex = self.n_tot ** 3
+            else:
+                n_ex = self.n_ex
 
         shifts = list(self.s * np.arange(self.n_sim))
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
@@ -659,6 +663,8 @@ class EnsembleEXE:
             if n_ex > 1:
                 print('n_ex is set back to 1 since there is only 1 swappable pair.')
                 n_ex = 1
+
+        self.n_swap_attempts += n_ex
 
         print(f"Swappable pairs: {swappables}")
         for i in range(n_ex):
@@ -694,7 +700,7 @@ class EnsembleEXE:
                     state_ranges[swap[0]], state_ranges[swap[1]] = state_ranges[swap[1]], state_ranges[swap[0]]
                     self.configs[swap[0]], self.configs[swap[1]] = self.configs[swap[1]], self.configs[swap[0]]
 
-                    if n_ex > 1:
+                    if n_ex > 1:  # must be multiple swaps
                         # After state_ranges have been updated, we re-identify the swappable pairs.
                         # Notably, states_copy (instead of states) should be used. (They could be different.)
                         swappables = self.identify_swappable_pairs(states_copy, state_ranges)
@@ -706,7 +712,7 @@ class EnsembleEXE:
             print(f'  Current list of configurations: {self.configs}')
 
         if self.verbose is False:
-            print(f'\n{n_ex} swaps have been proposed.')
+            print(f'\n{n_ex} swap(s) have been proposed.')
         print(f'\nThe finally adopted swap pattern: {swap_pattern}')
         print(f'The list of configurations sampled in each replica in the next iteration: {self.configs}')
 
