@@ -329,6 +329,7 @@ class EnsembleEXE:
         print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
         print(f"Verbose log file: {self.verbose}")
         print(f"Whether the replicas run in parallel: {self.parallel}")
+        print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
         print(f"Scheme for combining weights: {self.w_scheme}")
         print(f"Histogram cutoff: {self.N_cutoff}")
@@ -610,18 +611,18 @@ class EnsembleEXE:
 
     def get_swapping_pattern(self, dhdl_files, states, weights):
         """
-        A list (:code:`swap_pattern`) that represents how the configurations should be swapped in the next iteration.
-        The indices of the output list correspond to the simulation/replica indices, and the values represent the
-        configuration indices in the corresponding simulation/replica. For example, if the swapping pattern is
-        :code:`[0, 2, 1, 3]`, it means that in the next iteration, replicas 0, 1, 2, 3 should sample
-        configurations 0, 2, 1, 3, respectively, where configurations 0, 1, 2, 3 here are defined as whatever
+        Generates a list (:code:`swap_pattern`) that represents how the configurations should be swapped in the
+        next iteration. The indices of the output list correspond to the simulation/replica indices, and the
+        values represent the configuration indices in the corresponding simulation/replica. For example, if the
+        swapping pattern is :code:`[0, 2, 1, 3]`, it means that in the next iteration, replicas 0, 1, 2, 3 should
+        sample configurations 0, 2, 1, 3, respectively, where configurations 0, 1, 2, 3 here are defined as whatever
         configurations are in replicas 0, 1, 2, 3 in the CURRENT iteration (not iteration 0), respectively.
 
-        In an EEXE simulation, where each iteration requires one call of this function, :code:`swap_pattern` is always
-        initialized as :code:`[0, 1, 2, 3, ...]` and gets updated once every attempted swap. On the other hand, the
-        attribute :code:`configs`, which is only initialized once at the very beginning of the EEXE simulation
-        (iteration 0), gets updated once every iteration (which could include multiple attempted swaps when
-        the parameter :code:`n_ex` is larger than 1 (and :code:`proposal` is :code:`multiple`).)
+        Notably, when this function is called (e.g. once every iteration in an EEXE simulation), the output
+        list :code:`swap_pattern` is always initialized as :code:`[0, 1, 2, 3, ...]` and gets updated once every
+        attempted swap. This is different from the attribute :code:`configs`, which is only initialized at the
+        very beginning of the entire EEXE simulation (iteration 0), though :code:`configs` also gets updated with
+        :code:`swap_pattern` once every attempted swap in this function.
 
         Parameters
         ----------
@@ -641,10 +642,14 @@ class EnsembleEXE:
         swap_pattern : list
             A list that represents how the replicas should be swapped.
         """
-
         if self.proposal != 'multiple':
-            n_ex = 1
-        else:  # multiple swaps
+            if self.proposal == 'exhaustive':
+                n_ex = int(np.floor(self.n_sim / 2))  # This is the maximum, not necessarily the number that will always be reached.  # noqa
+                n_ex_exhaustive = 0    # The actual number of swaps atttempted.
+            else:
+                n_ex = 1  # single swap or neighboring swap
+        else:
+            # multiple swaps
             if self.n_ex == 'N^3':
                 n_ex = self.n_tot ** 3
             else:
@@ -664,52 +669,69 @@ class EnsembleEXE:
                 print('n_ex is set back to 1 since there is only 1 swappable pair.')
                 n_ex = 1
 
-        self.n_swap_attempts += n_ex
-
         print(f"Swappable pairs: {swappables}")
         for i in range(n_ex):
-            swap = self.propose_swap(swappables)
-            print(f'\nProposed swap: {swap}')
-            if swap == []:
-                print('No swap is proposed because there is no swappable pair at all.')
-                break  # no need to re-identify swappable pairs and draw new samples
+            # Update the list of swappable pairs starting from the 2nd attempted swap for the exhaustive swap method.
+            if self.proposal == 'exhaustive' and i >= 1:
+                # Note that this should be done regardless of the acceptance/rejection of the previously drawn pairs.
+                # Also note that at this point, swap is still the last attempted swap.
+                swappables = [i for i in swappables if set(i).intersection(set(swap)) == set()]  # noqa: F821
+                print(f'\nRemaining swappable pairs: {swappables}')
+
+            if len(swappables) == 0 and self.proposal == 'exhaustive':
+                # This should only happen when the method of exhaustive swaps is used.
+                print(f'{n_ex_exhaustive} swap(s) have been attempted to exhaustively explore all possible swaps.')
+                if i == 0:
+                    self.n_swap_attempts += 1
+                    self.n_rejected += 1
+                break
             else:
-                if self.verbose is True:
-                    print(f'A swap ({i + 1}/{n_ex}) is proposed between the configurations of Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
+                self.n_swap_attempts += 1
+                if self.proposal == 'exhaustive':
+                    n_ex_exhaustive += 1
 
-                # Calculate the acceptance ratio and decide whether to accept the swap.
-                prob_acc = self.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
-                swap_bool = self.accept_or_reject(prob_acc)
-
-                # Theoretically, in an EEXE simulation, we could either choose to swap configurations (via
-                # swapping GRO files) or replicas (via swapping MDP files). In ensemble_md package, we chose the
-                # former when implementing the EEXE algorithm. Specifically, in the CLI `run_EEXE`, `swap_pattern`
-                # is used to swap the GRO files. Therefore, when an attempted swap is accetped and `swap_pattern`
-                # is updated, we also need to update the variables `shifts`, `weights`, `dhdl_files`, `state_ranges`,
-                # `self.configs` but not anything else. Otherwise, incorrect results will be produced. To better
-                # understand this, one can refer to our unit test for get_swapping_pattern and calc_prob_acc, set
-                # checkpoints and examine why the variables should/should not be updated.
-
-                if swap_bool is True:
-                    # The assignments need to be done at the same time in just one line.
-                    # states[swap[0]], states[swap[1]] = states[swap[1]], states[swap[0]]
-                    shifts[swap[0]], shifts[swap[1]] = shifts[swap[1]], shifts[swap[0]]
-                    weights[swap[0]], weights[swap[1]] = weights[swap[1]], weights[swap[0]]
-                    dhdl_files[swap[0]], dhdl_files[swap[1]] = dhdl_files[swap[1]], dhdl_files[swap[0]]
-                    swap_pattern[swap[0]], swap_pattern[swap[1]] = swap_pattern[swap[1]], swap_pattern[swap[0]]
-                    state_ranges[swap[0]], state_ranges[swap[1]] = state_ranges[swap[1]], state_ranges[swap[0]]
-                    self.configs[swap[0]], self.configs[swap[1]] = self.configs[swap[1]], self.configs[swap[0]]
-
-                    if n_ex > 1:  # must be multiple swaps
-                        # After state_ranges have been updated, we re-identify the swappable pairs.
-                        # Notably, states_copy (instead of states) should be used. (They could be different.)
-                        swappables = self.identify_swappable_pairs(states_copy, state_ranges)
-                        print(f"  New swappable pairs: {swappables}")
+                swap = self.propose_swap(swappables)
+                print(f'\nProposed swap: {swap}')
+                if swap == []:
+                    print('No swap is proposed because there is no swappable pair at all.')
+                    break  # no need to re-identify swappable pairs and draw new samples
                 else:
-                    # In this case, there is no need to update the swappables
-                    pass
+                    if self.verbose is True and self.proposal != 'exhaustive':
+                        print(f'A swap ({i + 1}/{n_ex}) is proposed between the configurations of Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
 
-            print(f'  Current list of configurations: {self.configs}')
+                    # Calculate the acceptance ratio and decide whether to accept the swap.
+                    prob_acc = self.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
+                    swap_bool = self.accept_or_reject(prob_acc)
+
+                    # Theoretically, in an EEXE simulation, we could either choose to swap configurations (via
+                    # swapping GRO files) or replicas (via swapping MDP files). In ensemble_md package, we chose the
+                    # former when implementing the EEXE algorithm. Specifically, in the CLI `run_EEXE`, `swap_pattern`
+                    # is used to swap the GRO files. Therefore, when an attempted swap is accetped and `swap_pattern`
+                    # is updated, we also need to update the variables `shifts`, `weights`, `dhdl_files`,
+                    # `state_ranges`, `self.configs` but not anything else. Otherwise, incorrect results will be
+                    # produced. To better understand this, one can refer to our unit test for get_swapping_pattern
+                    # and calc_prob_acc, set checkpoints and examine why the variables should/should not be updated.
+
+                    if swap_bool is True:
+                        # The assignments need to be done at the same time in just one line.
+                        # states[swap[0]], states[swap[1]] = states[swap[1]], states[swap[0]]
+                        shifts[swap[0]], shifts[swap[1]] = shifts[swap[1]], shifts[swap[0]]
+                        weights[swap[0]], weights[swap[1]] = weights[swap[1]], weights[swap[0]]
+                        dhdl_files[swap[0]], dhdl_files[swap[1]] = dhdl_files[swap[1]], dhdl_files[swap[0]]
+                        swap_pattern[swap[0]], swap_pattern[swap[1]] = swap_pattern[swap[1]], swap_pattern[swap[0]]
+                        state_ranges[swap[0]], state_ranges[swap[1]] = state_ranges[swap[1]], state_ranges[swap[0]]
+                        self.configs[swap[0]], self.configs[swap[1]] = self.configs[swap[1]], self.configs[swap[0]]
+
+                        if n_ex > 1 and self.proposal == 'multiple':  # must be multiple swaps
+                            # After state_ranges have been updated, we re-identify the swappable pairs.
+                            # Notably, states_copy (instead of states) should be used. (They could be different.)
+                            swappables = self.identify_swappable_pairs(states_copy, state_ranges)
+                            print(f"  New swappable pairs: {swappables}")
+                    else:
+                        # In this case, there is no need to update the swappables
+                        pass
+
+                print(f'  Current list of configurations: {self.configs}')
 
         if self.verbose is False:
             print(f'\n{n_ex} swap(s) have been proposed.')

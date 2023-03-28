@@ -13,6 +13,7 @@ Unit tests for the module ensemble_EXE.py.
 import os
 import sys
 import yaml
+import copy
 import random
 import shutil
 import pytest
@@ -321,6 +322,7 @@ class Test_EnsembleEXE:
         L += f"Python version: {sys.version}\ngmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"  # noqa: E501
         L += "Simulation inputs: ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/expanded.mdp\n"  # noqa: E501
         L += "Verbose log file: True\nWhether the replicas run in parallel: False\n"
+        L += "Proposal scheme: exhaustive\n"
         L += "Acceptance scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of attempted swaps in one exchange interval: N^3\n"
@@ -461,9 +463,8 @@ class Test_EnsembleEXE:
         assert swap_2 == (1, 2)
 
     def test_get_swapping_pattern(self, params_dict):
-        EEXE = get_EEXE_instance(params_dict)  # state_ranges: 0-5, 1-6, ..., 3-8
-
-        # weights are obtained from the log files in data/log
+        # weights are obtained from the log files in data/log, where the last states are 5, 2, 2, 8 (global indices)
+        # state_ranges are: 0-5, 1-6, ..., 3-8
         weights = [
             [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
             [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
@@ -472,54 +473,82 @@ class Test_EnsembleEXE:
         dhdl_files = [os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(4)]
 
         # Case 1: Empty swap list
+        EEXE = get_EEXE_instance(params_dict)
         EEXE.verbose = False
         states = [0, 6, 7, 8]  # No swappable pairs
-        pattern_1 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
+        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
+        pattern_1 = EEXE.get_swapping_pattern(f, states, w)
         assert EEXE.n_swap_attempts == 1
-        assert EEXE.n_rejected == 0
+        assert EEXE.n_rejected == 1
         assert pattern_1 == [0, 1, 2, 3]
 
         # Case 2: Single swap (proposal = 'single')
         random.seed(0)
+        EEXE = get_EEXE_instance(params_dict)
         EEXE.verbose = True
         EEXE.proposal = 'single'  # n_ex will be set to 1 automatically.
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
-        pattern_2 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
-        assert EEXE.n_swap_attempts == 2
+        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
+        pattern_2 = EEXE.get_swapping_pattern(f, states, w)
+        assert EEXE.n_swap_attempts == 1
         assert EEXE.n_rejected == 0
         assert pattern_2 == [0, 2, 1, 3]
 
         # Case 3: Neighboring swap
         random.seed(0)
+        EEXE = get_EEXE_instance(params_dict)
         EEXE.proposal = 'neighboring'  # n_ex will be set to 1 automatically.
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (1, 2)], swap = (1, 2), accept
-        pattern_3 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
-        assert EEXE.n_swap_attempts == 3
+        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
+        pattern_3 = EEXE.get_swapping_pattern(f, states, w)
+        assert EEXE.n_swap_attempts == 1
         assert EEXE.n_rejected == 0
         assert pattern_3 == [0, 2, 1, 3]
 
-        # Case 4: Exhaustive swap
+        # Case 4-1: Exhaustive swaps that end up in a single swap
         random.seed(0)
-        EEXE.proposal = 'exhaustive'  # n_ex will be set to 1 automatically.
-        # To be added. :)
+        EEXE = get_EEXE_instance(params_dict)
+        EEXE.proposal = 'exhaustive'
+        states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
+        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
+        pattern_4_1 = EEXE.get_swapping_pattern(f, states, w)
+        assert EEXE.n_swap_attempts == 1
+        assert EEXE.n_rejected == 0
+        assert pattern_4_1 == [0, 2, 1, 3]
+
+        # Case 4-2: Exhaustive swaps that involve multiple attempted swaps
+        random.seed(0)
+        EEXE = get_EEXE_instance(params_dict)
+        EEXE.proposal = 'exhaustive'
+        states = [4, 2, 4, 3]  # swappable pairs: [(0, 1), (0, 2), (0, 3), (1, 2), (2, 3)]; swap 1: (2, 3), accepted; swap 2: (0, 1), accept  # noqa: E501
+        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
+        pattern_4_2 = EEXE.get_swapping_pattern(f, states, w)
+        assert EEXE.n_swap_attempts == 2   # \Delta is negative for both swaps -> both accepted
+        assert EEXE.n_rejected == 0
+        assert pattern_4_2 == [1, 0, 3, 2]
 
         # Case 5-1: Multiple swaps (proposal = 'multiple', n_ex = 5)
+        print('test 5-1')
         random.seed(0)
+        EEXE = get_EEXE_instance(params_dict)
         EEXE.n_ex = 5
         EEXE.proposal = 'multiple'
         states = [3, 1, 4, 6]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], first swap = (1, 2), accept
-        pattern_5_1 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
-        assert EEXE.n_swap_attempts == 8
+        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
+        pattern_5_1 = EEXE.get_swapping_pattern(f, states, w)
+        assert EEXE.n_swap_attempts == 5
         assert EEXE.n_rejected == 4
         assert pattern_5_1 == [2, 1, 0, 3]
 
-        # Case 5-2: Multiple swaps but only one swappable pair (proposal = 'multiple')
+        # Case 5-2: Multiple swaps but with only one swappable pair (proposal = 'multiple')
         # This is specifically for testing n_swap_attempts in the case where n_ex reduces to 1.
         random.seed(0)
+        EEXE = get_EEXE_instance(params_dict)
         states = [0, 2, 3, 8]  # The only swappable pair is [(1, 2)] --> accept
-        pattern_5_2 = EEXE.get_swapping_pattern(dhdl_files, states, weights)
-        assert EEXE.n_swap_attempts == 9
-        assert EEXE.n_rejected == 4
+        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
+        pattern_5_2 = EEXE.get_swapping_pattern(f, states, w)
+        assert EEXE.n_swap_attempts == 1  # since there is only 1 swappable pair
+        assert EEXE.n_rejected == 0
         assert pattern_5_2 == [0, 2, 1, 3]
 
     def test_calc_prob_acc(self, capfd, params_dict):

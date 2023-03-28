@@ -154,16 +154,25 @@ For each proposed swap, we calculate the acceptance ratio to decide whether the 
 In greater detail, this scheme can be decomposed into the following steps:
     
   - **Step 1**: Identify the list of swappable pairs. 
-  - **Step 2**: Randomly draw a pair from the list of swappable pairs. 
-  - **Step 3**: Update the list of swappable pairs by removing pair(s) involving replicas drawn in Step 2.
-  - **Step 4**: Repeat Step 2 and 3 until the list of swappable pairs is empty.
-  - **Step 5**: For each of the pairs drawn in Step 2, calculate the accpetance ratio (using the specified acceptance scheme) to decide whether the coordinates
-    of the pair of replicas should be swapped.
+  - **Step 2**: Randomly draw a pair from the list of swappable pairs.
+  - **Step 3**: Calculate the acceptance ratio for the drawn pair to decide whether the swap should be accepted.
+    Then, perform or reject the swap. 
+  - **Step 4**: Update the list of swappable pairs by removing pair(s) that involve any replica in the drawn pair in Step 2. 
+  - **Step 5**: Repeat Steps 2 to 4 until the list of swappable pairs is empty.
   
-Note that in this method,
+Note that
 
-  - No replicas should be involved in more than one proposed swap. 
-  - Given :math:`N` alchemical intermediate states in total, one can at most perform :math:`\lfloor N \rfloor` swaps.
+  - In this method, no replicas should be involved in more than one proposed swap. 
+  - Given :math:`N` alchemical intermediate states in total, one can at most perform :math:`\lfloor N \rfloor` swaps with this method.
+  - While this method can lead to multiple attempted swaps, these swaps are entirely indepdent of each other, which is
+    different from the method of multiple swaps introduced below.
+  - Importantly, whether the swap in Step 3 is accepted or rejected does not influence the update of the list in Step 4 at all. 
+    This is different from the method of multiple swaps introduced in the next section, where the updated list of swappable pairs depends on
+    the acceptance/rejection of the current attempted swap. 
+  - Since all swaps are independent, instead of calculating and acceptance ratio and performing swaps separately (as done in Step 3 in the procedure above), one
+    can choose to calculates all acceptance ratios for all drawn pairs and perform all swaps at the same time at the end.
+    We chose to implement the former in :obj:`.get_swapping_pattern` since this is more consistent with the protocol of the other proposal schemes
+    , hence easier to code.
 
 .. _doc_multiple_swaps:
 
@@ -389,6 +398,18 @@ ranges (i.e. :math:`g^i_n-g^j_n` and :math:`g^j_m-g^i_m`), it does not make sens
 values from the log file because alchemical weights from in the log files corresponding to simulations 
 sampling different alchemical ranges would have different references. Therefore, only values such as 
 :math:`g^i_n-g^i_m` and :math:`g^j_m-g^j_n` make sense, even if they are as interesting as :math:`g^i_n-g^j_n` and :math:`g^j_m-g^i_m`.
+
+2.4. How is swapping performed?
+-------------------------------
+As implied in :ref:`doc_basic_idea`, in an EEXE simulation, we could either choose to swap configurations
+(via swapping GRO files) or replicas (via swapping MDP files). In this package, we chose the former when
+implementing the EEXE algorithm. Specifically, in the CLI :code:`run_EEXE`, the function :obj:`.get_swapping_pattern`
+is called once for each iteration and returns a list :code:`swap_pattern` that informs :code:`run_EEXE` how
+the GRO files should be swapped. (To better understand the list :code:`swap_pattern`, see the docstring of
+the function :obj:`.get_swapping_pattern`.) Internally, the function :obj:`.get_swapping_pattern` not only swaps
+the list :code:`swap_pattern` when an attempted move is accepted, but also swaps elements in lists that contains
+state shifts, weights, paths to the DHDL files, state ranges, and the attribute :code:`configs`, but not the elements
+in the list of states. Check the source code of :obj :`.get_swapping_pattern` if you want to understand the details.
 
 .. _doc_w_schemes:
 
