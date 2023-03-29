@@ -159,17 +159,20 @@ def main():
             #   (2) Find the final Wang-Landau incrementors and weights from the LOG files.
             dhdl_files = [f'sim_{j}/iteration_{i - 1}/dhdl.xvg' for j in range(EEXE.n_sim)]
             log_files = [f'sim_{j}/iteration_{i - 1}/md.log' for j in range(EEXE.n_sim)]
-            states = EEXE.extract_final_dhdl_info(dhdl_files)
-            wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
+            states_ = EEXE.extract_final_dhdl_info(dhdl_files)
+            wl_delta, weights_, counts = EEXE.extract_final_log_info(log_files)
             print()
 
             # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
-            # Note after `get_swapping_pattern`, `states` won't be necessarily since it is updated by
-            # `get_swapping_pattern`. (Even if the function does not explicitly returns `states`, `states`
-            # can still be different after the use of the function.) Therefore, here we create copy of states
-            # before the use of `get_swapping_pattern`, so we can use the copy in `update_MDP`.
-            states_copy = copy.deepcopy(states)
-            swap_pattern = EEXE.get_swapping_pattern(dhdl_files, states, weights)
+            # Note after `get_swapping_pattern`, `states_` and `weights_` won't be necessarily
+            # since they are updated by `get_swapping_pattern`. (Even if the function does not explicitly
+            # returns `states_` and `weights_`, `states_` and `weights_` can still be different after
+            # the use of the function.) Therefore, here we create copyes for `states_` and `weights_`
+            # before the use of `get_swapping_pattern`, so we can use them in `histogram_correction`,
+            # `combine_weights` and `update_MDP`.
+            states = copy.deepcopy(states_)
+            weights = copy.deepcopy(weights_)
+            swap_pattern = EEXE.get_swapping_pattern(dhdl_files, states_, weights_)
 
             # 3-3. Perform histogram correction for the weights as needed
             weights = EEXE.histogram_correction(weights, counts)
@@ -180,10 +183,10 @@ def main():
 
             # 3-5. Modify the MDP files and swap out the GRO files (if needed)
             # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
-            # Note we use states_copy instead of states in update_MDP.
+            # Note we use states (copy of states_) instead of states_ in update_MDP.
             for j in list(range(EEXE.n_sim)):
                 os.mkdir(f'sim_{j}/iteration_{i}')
-                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states_copy, wl_delta, weights)   # modify with a new template  # noqa: E501
+                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights)   # modify with a new template  # noqa: E501
                 MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
                 shutil.copy(f'{EEXE.top}', f"sim_{j}/iteration_{i}/{EEXE.top.split('/')[-1]}")
 
