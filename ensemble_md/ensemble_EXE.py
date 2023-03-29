@@ -64,6 +64,7 @@ class EnsembleEXE:
     :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`accept_or_reject`.
     :ivar n_swap_attempts: The number of swaps attempted so far. This does not include the cases
         where there is no swappable pair. Updated by :obj:`get_swapping_pattern`.
+    :ivar n_emtpy_swappable: The number of times when there was no swappable pair.
     :ivar rep_trajs: The replica-space trajectories of all replicas.
     :ivar configs: A list that thows the current configuration index that each replica is sampling.
     :ivar g_vecs: The time series of the (processed) whole-range alchemical weights. If no weight combination is
@@ -286,9 +287,10 @@ class EnsembleEXE:
         # 6-7. Map the lamda vectors to state indices
         self.map_lambda2state()
 
-        # 6-8. For counting the number swap attempts and the rejected ones
+        # 6-8. Some variables for counting
         self.n_rejected = 0
         self.n_swap_attempts = 0
+        self.n_empty_swappable = 0
 
         # 6-9. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
         # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
@@ -682,8 +684,7 @@ class EnsembleEXE:
                 # This should only happen when the method of exhaustive swaps is used.
                 print(f'{n_ex_exhaustive} swap(s) have been attempted to exhaustively explore all possible swaps.')
                 if i == 0:
-                    self.n_swap_attempts += 1
-                    self.n_rejected += 1
+                    self.n_empty_swappable += 1
                 break
             else:
                 self.n_swap_attempts += 1

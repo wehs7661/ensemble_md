@@ -207,6 +207,7 @@ class Test_EnsembleEXE:
         assert EEXE.equil == [-1, -1, -1, -1]  # will be zeros right after the first iteration if the weights are fixed
         assert EEXE.n_rejected == 0
         assert EEXE.n_swap_attempts == 0
+        assert EEXE.n_empty_swappable == 0
         assert EEXE.rep_trajs == [[0], [1], [2], [3]]
 
         params_dict['df_method'] = 'MBAR'
@@ -478,8 +479,9 @@ class Test_EnsembleEXE:
         states = [0, 6, 7, 8]  # No swappable pairs
         w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
         pattern_1 = EEXE.get_swapping_pattern(f, states, w)
-        assert EEXE.n_swap_attempts == 1
-        assert EEXE.n_rejected == 1
+        assert EEXE.n_empty_swappable == 1
+        assert EEXE.n_swap_attempts == 0
+        assert EEXE.n_rejected == 0
         assert pattern_1 == [0, 1, 2, 3]
 
         # Case 2: Single swap (proposal = 'single')
