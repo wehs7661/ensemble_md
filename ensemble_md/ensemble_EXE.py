@@ -550,6 +550,13 @@ class EnsembleEXE:
 
         return wl_delta, weights, counts
 
+    def get_averaged_weights(self, log_files):
+        """
+        For each replica, calculate the averaged weights (and the associated error) from the time series
+        of the weights since the previous update of the Wang-Landau incrementor.
+        """
+        pass
+
     def identify_swappable_pairs(self, states, state_ranges):
         """
         Identify swappable pairs. By definition, a pair of simulation is considered swappable only if

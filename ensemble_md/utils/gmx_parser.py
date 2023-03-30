@@ -52,9 +52,11 @@ def parse_log(log_file):
     weights : list
         In all cases, :code:`weights` should be a list of lists (of weights).
 
-        - In Case 1, a list of list of weights as a function of time will be returned.
-        - In Case 2, a list of list of weights as a function of time (up to equilibration) will be returned.
-        - In Case 3, the returned list will only have one list, which is the list of the final weights.
+        - In Case 1, a list of list of weights as a function of time since the last update of the Wang-Landau
+          incrementor will be returned.
+        - In Case 2, a list of list of weights as a function of time since the last update of the Wang-Landau
+          incrementor up to equilibration will be returned.
+        - In Case 3, the returned list will only have one list inside, which is the list of the final weights.
 
         That is, for all cases, :code:`weights[-1]` will be the final weights, which are useful in EEXE.
     counts : list
@@ -78,6 +80,9 @@ def parse_log(log_file):
             N_states = int(l.split("=")[1])
         if "tinit" in l:
             tinit = float(l.split("=")[1])
+        if "weight-equil-wl-delta" in l:
+            # For Case 1 and Case 2
+            cutoff = float(l.split("=")[1])
         if "lmc-stats" in l:
             if l.split("=")[1].split()[0] in ["no", "No"]:  # Case 3
                 case = '3'
@@ -109,12 +114,26 @@ def parse_log(log_file):
                         counts.append(int(lines[n - i].split()[-3]))
                 weights.append(w)
                 break
-    else:
+    else:  # Case 1 and Case 2
         # Here we search from the top, since we need weights as a function of time anyway.
         n = -1
+        find_equil, append_equil = False, False
+        wl_delta_list = [None]  # We use None so that the change in wl-delta will always get deteced at the beginning
         for l in lines:  # noqa: E741
             n += 1
             if "Count   G(in kT)" in l:  # this line is lines[n]
+                # We should first check if wl_delta is changed, set weights=[] if needed before we append new weights
+                if "Wang-Landau incrementor is" in lines[n - 1]:  # Case 1 so far: wl_delta is still updating
+                    case = '1'
+                    equil_time = -1
+                    current_wl_delta = float(lines[n - 1].split(":")[1])
+                    if wl_delta_list[-1] != current_wl_delta and current_wl_delta > cutoff:  # when wl-delta changes
+                        # Note that if the time step the equilibration is reached happens to be a multiple of nstlog,
+                        # a wl-delta right below the cutoff will be printed. In that case, we don't want to reset
+                        # `weights` so we get the time series since the last time when we still have wl_delta > cutoff
+                        weights = []  # we want only time series since the latest update of wl_delta
+                    wl_delta_list.append(float(lines[n - 1].split(":")[1]))
+
                 w, counts = [], []  # the list of weights at this time frame
                 for i in range(1, N_states + 1):
                     # counts will be constantly updated by new values
@@ -124,17 +143,22 @@ def parse_log(log_file):
                     else:
                         w.append(float(lines[n + i].split()[-2]))
                         counts.append(int(lines[n + i].split()[-3]))
-                weights.append(w)
 
-                if "Wang-Landau incrementor is" in lines[n - 1]:  # Case 1 so far: wl_delta is still updating
-                    case = '1'
-                    equil_time = -1
-                    wl_delta = float(lines[n - 1].split(":")[1])  # this will be constantly updated by the newer value
+                if find_equil is False or append_equil is False:
+                    weights.append(w)
+                    if find_equil is True:
+                        append_equil = True
 
             if "Weights have equilibrated" in l:
                 case = '2'  # we don't break the loop even if equil_time is found, as we need the final counts.
+                find_equil = True  # After this, we will append weights one last time, which are equilibrated weights.
                 equil_step = int(l.split(":")[0].split("Step")[1])
                 equil_time = equil_step * dt + tinit  # ps
+                if wl_delta < cutoff:
+                    # Should only happen when equil_time % nstlog == 0, where the weights should have been appended
+                    append_equil = True
+
+            wl_delta = wl_delta_list[-1]
 
     return weights, counts, wl_delta, equil_time
 
