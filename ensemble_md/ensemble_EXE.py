@@ -533,7 +533,7 @@ class EnsembleEXE:
             if self.verbose:
                 print(f'Parsing {log_files[j]} ...')
             result = gmx_parser.parse_log(log_files[j])  # weights, counts, wl_delta, equil_time
-            weights.append(result[0])
+            weights.append(result[0][-1])
             counts.append(result[1])
             wl_delta.append(result[2])
 

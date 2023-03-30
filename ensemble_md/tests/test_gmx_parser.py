@@ -24,35 +24,40 @@ input_path = os.path.join(current_path, "data")
 
 def test_parse_log():
     """
-    Case 1 has been indirectly tesed in the test for extract_final_log_info.
-    So we only need to test the following two cases.
+      - Case 1: The weights have never been equilibrated.
       - Case 2: The weights were equilibrated during the simulation.
       - Case 3: The weights were fixed in the simulation.
     """
-    # Now let's test Case 2
+    # Case 1: weight-updating simulation
+    weights_0, counts_0, wl_delta_0, equil_time_0 = gmx_parser.parse_log(os.path.join(input_path, 'log/EXE_0.log'))
+    assert weights_0[-1] == [0.00000, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408]
+    assert counts_0 == [4, 11, 9, 9, 11, 6]
+    assert wl_delta_0 == 0.4
+    assert np.isclose(equil_time_0, -1)
+
     # Case 2-1: equil_time < 1000 ps
     # As a note, here we used a very lenient weight-equil-wl-delta as 0.3, with nst_sim = 2000.
     # The log file was from sim_0/iteration_1.
     weights_1, counts_1, wl_delta_1, equil_time_1 = gmx_parser.parse_log(os.path.join(input_path, 'log/case2_1.log'))
-    assert wl_delta_1 == 0.32
-    assert weights_1 == [0.00000, 1.40453, 2.85258, 2.72480, 3.46220, 5.88607]
+    assert weights_1[-1] == [0.00000, 1.40453, 2.85258, 2.72480, 3.46220, 5.88607]
     assert counts_1 == [11, 13, 15, 4, 4, 50]
+    assert wl_delta_1 == 0.32
     assert np.isclose(equil_time_1, 6.06)
 
     # Case 2-2: equil_time > 1000 ps
     # As a note, here we used weight-equil-wl-delta as 0.3, with nst_sim = 2000,  n_iterations = 1000, n_sim = 2,
     # s = 4, wl-scale = 0.9, and wl-ratio = 0.9. The log file was from sim_0/iteration_475 (t=1.9 ns).
     weights_2, counts_2, wl_delta_2, equil_time_2 = gmx_parser.parse_log(os.path.join(input_path, 'log/case2_2.log'))
-    assert wl_delta_2 == 0.00099828
-    assert weights_2 == [0.00000, 1.60419, 2.47705, 3.14963, 3.47840]
+    assert weights_2[-1] == [0.00000, 1.60419, 2.47705, 3.14963, 3.47840]
     assert counts_2 == [2, 3, 1, 2, 1]
+    assert wl_delta_2 == 0.00099828
     assert equil_time_2 == 1903.82
 
-    # Here we test Case 3
+    # Case 3: fixed-weight simulation
     weights_3, counts_3, wl_delta_3, equil_time_3 = gmx_parser.parse_log(os.path.join(input_path, 'log/case3.log'))
-    assert wl_delta_3 is None
-    assert weights_3 == [0.00000, 1.55165, 2.55043, 3.15034, 3.26889, 4.37831, 5.28574, 3.29638, 2.22527]
+    assert weights_3[-1] == [0.00000, 1.55165, 2.55043, 3.15034, 3.26889, 4.37831, 5.28574, 3.29638, 2.22527]
     assert counts_3 == [12, 9, 10, 9, 4, 5, 1, 0, 0]
+    assert wl_delta_3 is None
     assert equil_time_3 == 0
 
 

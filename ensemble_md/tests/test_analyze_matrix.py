@@ -107,7 +107,7 @@ def test_calc_spectral_gap(capfd):
 
     # Case 4: Neither left or right stochastic
     mtx = np.random.rand(3, 3)
-    s, _ = analyze_matrix.calc_spectral_gap(mtx)
+    s = analyze_matrix.calc_spectral_gap(mtx)  # the output should be None
     out, err = capfd.readouterr()
     assert s is None
     assert 'The input transition matrix is neither right nor left stochastic' in out
