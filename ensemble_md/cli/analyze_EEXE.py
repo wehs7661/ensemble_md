@@ -133,7 +133,7 @@ def main():
     analyze_matrix.plot_matrix(reps_mtx, f'{args.dir}/rep_transmtx_allconfigs.png')
 
     # 1-3. Calculate the spectral gap for the replica transition amtrix
-    spectral_gap = analyze_matrix.calc_spectral_gap(reps_mtx)
+    spectral_gap, eig_vals = analyze_matrix.calc_spectral_gap(reps_mtx)
     print(f'1-3. The spectral gap of the replica transition matrix: {spectral_gap:.3f}')
 
     # Section 2. Analysis based on transitions between states
@@ -172,10 +172,10 @@ def main():
 
     # 2-4. For each configurration, calculate the spectral gap of the overall transition matrix obtained in step 2-2.
     print('\n2-4. Calculating the spectral gap of the state transition matrices ...')
-    spectral_gaps = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
+    spectral_gaps, eig_vals = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
     if None not in spectral_gaps:
         for i in range(EEXE.n_sim):
-            print(f'   - Configuration {i}: {spectral_gaps[i]:.3f}')
+            print(f'   - Configuration {i}: {spectral_gaps[i]:.3f} (λ_1: {eig_vals[0]:.5f}, λ_2: {eig_vals[1]:.5f})')
         print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
 
     # 2-5. For each configuration, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
@@ -310,7 +310,7 @@ def main():
 
         # 3-5. Calculate the spectral gap from the transition matrix of each configuration
         print('\n3-5. Calculating the spectral gap of the state transition matrices obtained from MSMs ...')
-        spectral_gaps = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
+        spectral_gaps, eig_vals = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
         for i in range(EEXE.n_sim):
             print(f'       - Configuration {i}: {spectral_gaps[i]:.3f}')
 

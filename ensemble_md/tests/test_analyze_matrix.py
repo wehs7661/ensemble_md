@@ -90,21 +90,24 @@ def test_calc_equil_prob(capfd):
 def test_calc_spectral_gap(capfd):
     # Case 1 (sanity check): doublly stochastic
     mtx = np.array([[0.5, 0.5], [0.5, 0.5]])
-    s = analyze_matrix.calc_spectral_gap(mtx)
+    s, vals = analyze_matrix.calc_spectral_gap(mtx)
+    assert vals[0] == 1
     assert np.isclose(s, 1)
 
     # Case 2: Right stochastic
     mtx = np.array([[0.8, 0.2], [0.3, 0.7]])
-    s = analyze_matrix.calc_spectral_gap(mtx)
+    s, vals = analyze_matrix.calc_spectral_gap(mtx)
+    assert vals[0] == 1
     assert s == 0.5
 
     # Case 3: Left stochastic
-    s = analyze_matrix.calc_spectral_gap(mtx.T)
+    s, vals = analyze_matrix.calc_spectral_gap(mtx.T)
+    assert vals[0] == 1
     assert s == 0.5
 
     # Case 4: Neither left or right stochastic
     mtx = np.random.rand(3, 3)
-    s = analyze_matrix.calc_spectral_gap(mtx)
+    s, _ = analyze_matrix.calc_spectral_gap(mtx)
     out, err = capfd.readouterr()
     assert s is None
     assert 'The input transition matrix is neither right nor left stochastic' in out

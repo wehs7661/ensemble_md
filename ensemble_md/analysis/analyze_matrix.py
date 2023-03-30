@@ -135,6 +135,8 @@ def calc_spectral_gap(trans_mtx):
     -------
     spectral_gap : float
         The spectral gap of the input transition matrix
+    eig_vals : list
+        The list of eigenvalues
     """
     check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1) for i in range(len(trans_mtx))])
     check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1) for i in range(len(trans_mtx))])
@@ -153,10 +155,9 @@ def calc_spectral_gap(trans_mtx):
     if np.isclose(eig_vals[0], 1, atol=1e-4) is False:
         raise ParameterError(f'The largest eigenvalue of the input transition matrix {eig_vals[0]} is not close to 1.')
 
-    print(f'The two largest eigenvalues are {eig_vals[0]:.5f} and {eig_vals[1]:.5f}.')
     spectral_gap = np.abs(eig_vals[0]) - np.abs(eig_vals[1])
 
-    return spectral_gap
+    return spectral_gap, eig_vals
 
 
 def split_transmtx(trans_mtx, n_sim, n_sub):

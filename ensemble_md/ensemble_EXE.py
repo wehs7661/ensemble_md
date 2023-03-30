@@ -532,10 +532,10 @@ class EnsembleEXE:
         for j in range(self.n_sim):
             if self.verbose:
                 print(f'Parsing {log_files[j]} ...')
-            result = gmx_parser.parse_log(log_files[j])
-            wl_delta.append(result[0])
-            weights.append(result[1])
-            counts.append(result[2])
+            result = gmx_parser.parse_log(log_files[j])  # weights, counts, wl_delta, equil_time
+            weights.append(result[0])
+            counts.append(result[1])
+            wl_delta.append(result[2])
 
             # In Case 3 described in the docstring of parse_log (fixed-weights),
             # result[3] will be 0 but it will never be passed to self.equil[j]
