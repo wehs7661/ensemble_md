@@ -182,6 +182,8 @@ def main():
             # 3-4. Perform histogram correction/weight combination
             # Note that we never use final weights but averaged weights here.
             # The product of this step should always be named as "weights" to be used in update_MDP
+            if wl_delta != [None for i in range(EEXE.n_sim)]:  # weight-updating
+                print(f'\nCurrent Wang-Landau incrementors: {wl_delta}')
             if EEXE.N_cutoff != -1 and EEXE.w_scheme is not None:
                 # perform both
                 weights_avg = EEXE.histogram_correction(weights_avg, counts)
@@ -212,6 +214,13 @@ def main():
 
                 # Now we swap out the GRO files as needed
                 shutil.copy(f'sim_{swap_pattern[j]}/iteration_{i-1}/confout.gro', f"sim_{j}/iteration_{i}/{EEXE.gro.split('/')[-1]}")  # noqa: E501
+
+        if -1 not in EEXE.equil and 0 not in EEXE.equil:
+            # This is the case where the weights are equilibrated in a weight-updating simulation.
+            # As a remidner, EEXE.equil should be a list of 0 after extract_final_log_info in a
+            # fixed-weight simulation, and a list of -1 for a weight-updating simulation with unequilibrated weights.
+            print('\nSimulation terminated: The weights have been equilibrated for all replicas.')
+            break
 
         # Step 4: Perform another iteration
         # 4-1. Run another ensemble of simulations

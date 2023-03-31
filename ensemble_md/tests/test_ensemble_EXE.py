@@ -632,7 +632,7 @@ class Test_EnsembleEXE:
 
     def test_historgam_correction(self, params_dict):
         EEXE = get_EEXE_instance(params_dict)
-        
+
         # Case 1: Perform histogram correction (N_cutoff reached)
         EEXE.N_cutoff = 5000
         EEXE.verbose = False  # just to increase code coverage

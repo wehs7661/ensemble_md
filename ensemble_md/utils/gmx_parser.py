@@ -62,7 +62,7 @@ def parse_log(log_file):
     counts : list
         The final histogram counts.
     wl_delta : float
-        The final Wang-Landau incementor. In Case 3, :code:`None` will be returned.
+        The final Wang-Landau incementor. In Cases 2 and 3, :code:`None` will be returned.
     equil_time : int or float
         - In Case 1, -1 will be returned, which means that the weights have not been equilibrated.
         - In Case 2, the time in ps that it took to equilibrate the weights will be returned.
@@ -159,6 +159,9 @@ def parse_log(log_file):
                     append_equil = True
 
             wl_delta = wl_delta_list[-1]
+
+        if case == '2':
+            wl_delta = None
 
     return weights, counts, wl_delta, equil_time
 

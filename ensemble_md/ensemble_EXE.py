@@ -62,7 +62,9 @@ class EnsembleEXE:
     :ivar n_tot: The total number of states for all replicas.
     :ivar n_sub: The numbmer of states for each replica. The current implementation assumes homogenous replicas.
     :ivar state_ranges: A list of list of state indices for each replica.
-    :ivar equil: A list of times it took to equilibrated the weights for different replicas.
+    :ivar equil: A list of times it took to equilibrated the weights for different replicas. This
+        list is initialized with a list of -1, where -1 means that the weights haven't been equilibrated. Also,
+        a value of 0 means that the simulation is a fixed-weight simulation.
     :ivar lambda_dict: A dictionary with keys being the tuples of coupling parameters used in each replicas and
         values being the corresponding global index (starting from 0). Assigned by :obj:`map_lambda2state`.
     :ivar lambda_ranges: A list of lambda vectors of state range of each replica. Assigned by :obj:`map_lambda2state`.
@@ -1043,7 +1045,11 @@ class EnsembleEXE:
             g_vec -= g_vec[0]
 
         # Determine the vector of alchemical weights for each replica
-        weights = [list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0]) for i in range(self.n_sim)]
+        for i in range(self.n_sim):
+            if self.equil[i] == -1:  # unequilibrated
+                weights[i] = list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0])
+            else:
+                pass  # we don't change the input weights if they have been equilibrarted.
         weights = np.round(weights, decimals=5).tolist()
 
         if self.verbose is True:
