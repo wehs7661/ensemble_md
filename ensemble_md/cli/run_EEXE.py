@@ -174,12 +174,21 @@ def main():
             weights = copy.deepcopy(weights_)
             swap_pattern = EEXE.get_swapping_pattern(dhdl_files, states_, weights_)
 
+            # 3-3. Calculate the weights averaged since the last update of the Wang-Landau incrementor.
+            # Note that the averaged weights are used for histogram correction/weight combination.
+            # For the calculation of the acceptance ratio (inside get_swapping_pattern), final weights should be used.
+            if EEXE.N_cutoff != -1 or EEXE.w_scheme is not None:
+                # Only when histogram correction/weight combination is needed.
+                weights_avg, weights_err = EEXE.get_averaged_weights(log_files)
+
             # 3-3. Perform histogram correction for the weights as needed
-            weights = EEXE.histogram_correction(weights, counts)
+            if EEXE.N_cutoff != -1:
+                weights = EEXE.histogram_correction(weights, counts)
 
             # 3-4. Combine the weights. Note that this is just for initializing the next iteration and is indepdent of swapping itself.  # noqa: E501
-            weights, g_vec = EEXE.combine_weights(weights, method=EEXE.w_scheme)
-            EEXE.g_vecs.append(g_vec)
+            if EEXE.w_scheme is not None:
+                weights, g_vec = EEXE.combine_weights(weights, method=EEXE.w_scheme)
+                EEXE.g_vecs.append(g_vec)
 
             # 3-5. Modify the MDP files and swap out the GRO files (if needed)
             # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501

@@ -51,6 +51,11 @@ class EnsembleEXE:
     :ivar dt: The simulation timestep in ps.
     :ivar temp: The simulation temperature in Kelvin.
     :ivar fixed_weights: Whether the weights will be fixed during the simulation (according to the template MDP file).
+    :ivar updating_weights: The list of weights as a function of time (since the last update of the Wang-Landau
+        incrementor) for different replicas. The length is equal to the number of replicas. This is only relevant for
+        weight-updating simulations.
+    :ivar current_wl_delta: The current value of the Wang-Landau incrementor. This is only relevent for weight-updating
+        simulations.
     :ivar kT: 1 kT in kJ/mol at the simulation temperature.
     :ivar lambda_types: The types of lambda variables involved in expanded ensemble simulations, e.g.
         :code:`fep_lambdas`, :code:`mass_lambdas`, :code:`coul_lambdas`, etc.
@@ -239,6 +244,8 @@ class EnsembleEXE:
                 self.fixed_weights = True
             else:
                 self.fixed_weights = False
+                self.updating_weights = [[] for i in range(self.n_sim)]
+                self.current_wl_delta = [0 for i in range(self.n_sim)]
         else:
             self.fixed_weights = True
 
@@ -482,7 +489,7 @@ class EnsembleEXE:
         Parameters
         ----------
         dhdl_files : list
-            A list of GROMACS DHDL file names.
+            A list of file paths to GROMACS DHDL files of different replicas.
 
         Returns
         -------
@@ -491,13 +498,13 @@ class EnsembleEXE:
         """
         states, lambda_vecs = [], []
         print("\nBelow are the final states being visited:")
-        for j in range(self.n_sim):
-            dhdl = extract_dHdl(dhdl_files[j], T=self.temp)
+        for i in range(self.n_sim):
+            dhdl = extract_dHdl(dhdl_files[i], T=self.temp)
             lambda_vecs.append(dhdl.index[-1][1:])
             states.append(self.lambda_dict[lambda_vecs[-1]])  # absolute order
             print(
-                f"  Simulation {j}: Global state {states[j]}, (coul, vdw) = \
-                {list(self.lambda_dict.keys())[list(self.lambda_dict.values()).index(states[j])]}"
+                f"  Simulation {i}: Global state {states[i]}, (coul, vdw) = \
+                {list(self.lambda_dict.keys())[list(self.lambda_dict.values()).index(states[i])]}"
             )
         print('\n', end='')
 
@@ -515,7 +522,7 @@ class EnsembleEXE:
         Parameters
         ----------
         log_files : list
-            A list of file paths to GROMACS LOG files.
+            A list of file paths to GROMACS LOG files of different replicas.
 
         Returns
         -------
@@ -528,25 +535,25 @@ class EnsembleEXE:
         """
         wl_delta, weights, counts = [], [], []
 
-        # 2. Find the final Wang-Landau incrementors and weights
-        for j in range(self.n_sim):
+        # Find the final Wang-Landau incrementors and weights
+        for i in range(self.n_sim):
             if self.verbose:
-                print(f'Parsing {log_files[j]} ...')
-            result = gmx_parser.parse_log(log_files[j])  # weights, counts, wl_delta, equil_time
+                print(f'Parsing {log_files[i]} ...')
+            result = gmx_parser.parse_log(log_files[i])  # weights, counts, wl_delta, equil_time
             weights.append(result[0][-1])
             counts.append(result[1])
             wl_delta.append(result[2])
 
             # In Case 3 described in the docstring of parse_log (fixed-weights),
-            # result[3] will be 0 but it will never be passed to self.equil[j]
-            # because once self.equil[j] is not -1, we stop updating. This way, we can keep
+            # result[3] will be 0 but it will never be passed to self.equil[i]
+            # because once self.equil[i] is not -1, we stop updating. This way, we can keep
             # the time when the weights get equilibrated all the way.
-            if self.equil[j] == -1:
+            if self.equil[i] == -1:
                 # At this point self.equil is the equilibration status BEFORE the last iteration
                 # while result[3] is the equilibration status AFTER finishing the last iteraiton.
                 # For any replicas where weights are still equilibrating (i.e. self.equil[j] == -1)
                 # we update its equilibration status.
-                self.equil[j] = result[3]
+                self.equil[i] = result[3]
 
         return wl_delta, weights, counts
 
@@ -554,8 +561,33 @@ class EnsembleEXE:
         """
         For each replica, calculate the averaged weights (and the associated error) from the time series
         of the weights since the previous update of the Wang-Landau incrementor.
+
+        Parameters
+        ----------
+        log_files : list
+            A list of file paths to GROMACS LOG files of different replicas.
+        
+        Returned
+        --------
+        weights_avg : list
+            A list of lists of weights averaged since the last update of the Wang-Landau
+            incrementor. The length of the list should be the number of replicas.
+        weights_err : list
+            A list of lists of errors corresponding to the values in :code:`weights_avg`.
         """
-        pass
+        for i in range(self.n_sim):
+            weights, _, wl_delta, _ = parse_log(log_files[i])
+            if self.current_wl_delta[i] == wl_delta:
+                self.updating_weights[i] += weights  # expand the list
+            else:
+                self.current_wl_delta[i] = wl_delta
+                self.updating_weights = weights
+        
+        # shape of self.updating_weights: (n_sim, n_points, n_states)
+        weight_avg = np.mean(self.updating_weights, axis=1)
+        weight_err = np.std(self.updating_weights, axis=1, ddof=1)
+
+        return weight_avg, weight_err
 
     def identify_swappable_pairs(self, states, state_ranges):
         """
