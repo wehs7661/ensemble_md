@@ -185,12 +185,12 @@ def main():
             if EEXE.N_cutoff != -1 and EEXE.w_scheme is not None:
                 # perform both
                 weights_avg = EEXE.histogram_correction(weights_avg, counts)
-                weights, g_vec = EEXE.combine_weights(weights_avg, method=EEXE.w_scheme)
+                weights, g_vec = EEXE.combine_weights(weights_avg)
                 EEXE.g_vecs.append(g_vec)
             elif EEXE.N_cutoff == -1 and EEXE.w_scheme is not None:
                 # only perform weight combination
                 print('\nNote: No histogram correction will be performed.')
-                weights, g_vec = EEXE.combine_weights(weights_avg, method=EEXE.w_scheme)
+                weights, g_vec = EEXE.combine_weights(weights_avg)
                 EEXE.g_vecs.append(g_vec)
             elif EEXE.N_cutoff != -1 and EEXE.w_scheme is None:
                 # only perform histogram correction
@@ -228,16 +228,18 @@ def main():
                     shutil.move(f, f'sim_{j}/iteration_{i}/')
                 os.rmdir(work_dir[j])
 
-            # 4-3. Checkpoint as needed
+            # 4-3. Save data
             if (i + 1) % EEXE.n_ckpt == 0:
-                print('\n----- Saving .npy files to checkpoint the simulation ---')
                 if EEXE.g_vecs[0] is not None:
+                    # Save g_vec as a function of time if weight combination was used.
                     np.save('g_vecs.npy', EEXE.g_vecs)
+
+                print('\n----- Saving .npy files to checkpoint the simulation ---')
                 np.save('rep_trajs.npy', EEXE.rep_trajs)
 
     # Save the npy files at the end of the simulation anyway.
     if rank == 0:
-        if EEXE.g_vecs[0] is not None:
+        if len(EEXE.g_vecs) != 0:  # The length will be 0 only if there is no weight combination.
             np.save('g_vecs.npy', EEXE.g_vecs)
         np.save('rep_trajs.npy', EEXE.rep_trajs)
 

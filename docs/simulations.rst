@@ -227,7 +227,14 @@ include parameters for data analysis here.
       The Monte Carlo method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
       For more details, please refer to :ref:`doc_acceptance`.
   - :code:`w_scheme`: (Optional, Default: :code:`None`)
-      The method for combining weights. Available options include :code:`None` (unspecified), :code:`mean`, and :code:`geo-mean`/:code:`geo_mean`. 
+      The method for combining weights. Available options include
+    
+        - :code:`mean`: The arithmetic mean of the probability ratios is used to scale the weights.
+        - :code:`geo-mean` or :code:`geo_mean`: The geometric mean of the probability ratios is
+          used to scale the weights.
+        - :code:`g-diff` or :code:`g_diff`: The difference between neighboring weights is used
+          to determine the alchemical weights.
+
       For more details, please refer to :ref:`doc_w_schemes`.
   - :code:`N_cutoff`: (Optional, Default: 1000)
       The histogram cutoff. -1 means that no histogram correction will be performed.

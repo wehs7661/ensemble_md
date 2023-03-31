@@ -942,33 +942,30 @@ class EnsembleEXE:
         weights : list
             An updated list of lists of corected weights.
         """
-        if self.N_cutoff == -1:
-            print('\nNote: No histogram correction will be performed.')
+        if self.verbose is True:
+            print("\nPerforming histogram correction for the lambda weights ...")
         else:
+            print("\nPerforming histogram correction for the lambda weights ...", end="")
+
+        for i in range(len(weights)):  # loop over the replicas
             if self.verbose is True:
-                print("\nPerforming histogram correction for the lambda weights ...")
-            else:
-                print("\nPerforming histogram correction for the lambda weights ...", end="")
+                print(f"  Counts of rep {i}:\t\t{counts[i]}")
+                print(f'  Original weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}')
 
-            for i in range(len(weights)):  # loop over the replicas
-                if self.verbose is True:
-                    print(f"  Counts of rep {i}:\t\t{counts[i]}")
-                    print(f'  Original weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}')
+            for j in range(1, len(weights[i])):  # loop over the alchemical states
+                if counts[i][j - 1] != 0 and counts[i][j - 1] != 0:
+                    if np.min([counts[i][j - 1], counts[i][j]]) > self.N_cutoff:
+                        weights[i][j] += np.log(counts[i][j - 1] / counts[i][j])
 
-                for j in range(1, len(weights[i])):  # loop over the alchemical states
-                    if counts[i][j - 1] != 0 and counts[i][j - 1] != 0:
-                        if np.min([counts[i][j - 1], counts[i][j]]) > self.N_cutoff:
-                            weights[i][j] += np.log(counts[i][j - 1] / counts[i][j])
+            if self.verbose is True:
+                print(f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n')
 
-                if self.verbose is True:
-                    print(f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n')
-
-            if self.verbose is False:
-                print(' Done')
+        if self.verbose is False:
+            print(' Done')
 
         return weights
 
-    def combine_weights(self, weights, method):
+    def combine_weights(self, weights):
         """
         Combine alchemical weights across multiple replicas using probability ratios
         or weight differences. (See :ref:`doc_w_schemes` for mor details.)
@@ -977,105 +974,91 @@ class EnsembleEXE:
         ----------
         weights : list
             A list of Wang-Landau weights of ALL simulations
-        method : str
-            Method for combining weights. Must be one of the following:
-
-              * :code:`None`: No weight combination is performed, and the original weights are returned.
-              * :code:`mean`: The arithmetic mean of the probability ratios is used to scale the weights.
-              * :code:`geo-mean` or :code:`geo_mean`: The geometric mean of the probability ratios is
-                used to scale the weights.
-              * :code:`g-diff` or :code:`g_diff`: The difference between neighboring weights is used
-                to determine the alchemical weights.
 
         Returns
         -------
         weights : list
-            A list of original (if method is :code:`None`) or modified Wang-Landau weights of ALL simulations.
+            A list of modified Wang-Landau weights of ALL simulations.
         g_vec : np.array
             An array of alchemical weights of the whole range of states.
         """
-        if method is None:
-            print('Note: No weight combination will be performed.')
-            g_vec = None
-            return weights, g_vec
+        if self.verbose is True:
+            print(f'Performing weight combination with the {self.w_scheme} method ...')
         else:
-            if self.verbose is True:
-                print(f'Performing weight combination with the {method} method ...')
-            else:
-                print(f'Performing weight combination with the {method} method ...', end='')
+            print(f'Performing weight combination with the {self.w_scheme} method ...', end='')
 
-            if self.verbose is True:
-                w = np.round(weights, decimals=3).tolist()  # just for printing
-                print('  Original weights:')
-                for i in range(len(w)):
-                    print(f'    Rep {i}: {w[i]}')
+        if self.verbose is True:
+            w = np.round(weights, decimals=3).tolist()  # just for printing
+            print('  Original weights:')
+            for i in range(len(w)):
+                print(f'    Rep {i}: {w[i]}')
 
-            if method == 'g-diff' or method == 'g_diff':
-                # Method based on weight differences
-                dg_vec = []
-                dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
-                for i in range(self.n_tot - 1):
-                    dg_list = []
-                    for j in range(len(self.state_ranges)):
-                        if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
-                            idx = self.state_ranges[j].index(i)
-                            dg_list.append(dg_adjacent[j][idx])
-                    dg_vec.append(np.mean(dg_list))
-                dg_vec.insert(0, 0)
-                g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
-            else:
-                # Method based on probability ratios
-                # Step 1: Convert the weights into probabilities
-                weights = np.array(weights)
-                prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
+        if self.w_scheme == 'g-diff' or self.w_scheme == 'g_diff':
+            # Method based on weight differences
+            dg_vec = []
+            dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
+            for i in range(self.n_tot - 1):
+                dg_list = []
+                for j in range(len(self.state_ranges)):
+                    if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
+                        idx = self.state_ranges[j].index(i)
+                        dg_list.append(dg_adjacent[j][idx])
+                dg_vec.append(np.mean(dg_list))
+            dg_vec.insert(0, 0)
+            g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
+        else:
+            # Method based on probability ratios
+            # Step 1: Convert the weights into probabilities
+            weights = np.array(weights)
+            prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
 
-                # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)  # noqa: E501
-                overlapped = [set(self.state_ranges[i]).intersection(set(self.state_ranges[i + 1])) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
-                prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
+            # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)  # noqa: E501
+            overlapped = [set(self.state_ranges[i]).intersection(set(self.state_ranges[i + 1])) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
+            prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
 
-                # Step 3: Average the probability ratios
-                avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
-                if method == 'mean':
-                    avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
-                elif method == 'geo-mean':
-                    avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
+            # Step 3: Average the probability ratios
+            avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
+            if self.w_scheme == 'mean':
+                avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
+            elif self.w_scheme == 'geo-mean':
+                avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
 
-                # Step 4: Scale the probabilities for each replica
-                scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
+            # Step 4: Scale the probabilities for each replica
+            scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
 
-                # Step 5: Average and convert the probabilities
-                p_vec = []
-                for i in range(self.n_tot):   # global state index
-                    p = []   # a list of probabilities to be averaged for each state
-                    for j in range(len(self.state_ranges)):   # j can be regared as the replica index
-                        if i in self.state_ranges[j]:
-                            local_idx = i - j * self.s
-                            p.append(scaled_prob[j][local_idx])
-                    if method == 'mean':
-                        p_vec.append(np.mean(p))
-                    elif method == 'geo-mean' or method == 'geo_mean':
-                        p_vec.append(np.prod(p) ** (1 / len(p)))
+            # Step 5: Average and convert the probabilities
+            p_vec = []
+            for i in range(self.n_tot):   # global state index
+                p = []   # a list of probabilities to be averaged for each state
+                for j in range(len(self.state_ranges)):   # j can be regared as the replica index
+                    if i in self.state_ranges[j]:
+                        local_idx = i - j * self.s
+                        p.append(scaled_prob[j][local_idx])
+                if self.w_scheme == 'mean':
+                    p_vec.append(np.mean(p))
+                elif self.w_scheme == 'geo-mean' or self.w_scheme == 'geo_mean':
+                    p_vec.append(np.prod(p) ** (1 / len(p)))
 
-                g_vec = -np.log(p_vec)
-                g_vec -= g_vec[0]
+            g_vec = -np.log(p_vec)
+            g_vec -= g_vec[0]
 
-            # Determine the vector of alchemical weights for each replica
-            weights = [list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0]) for i in range(self.n_sim)]
-            weights = np.round(weights, decimals=5).tolist()
+        # Determine the vector of alchemical weights for each replica
+        weights = [list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0]) for i in range(self.n_sim)]
+        weights = np.round(weights, decimals=5).tolist()
 
-            if self.verbose is True:
-                w = np.round(weights, decimals=3).tolist()  # just for printing
-                print('\n  Modified weights:')
-                for i in range(len(w)):
-                    print(f'    Rep {i}: {w[i]}')
+        if self.verbose is True:
+            w = np.round(weights, decimals=3).tolist()  # just for printing
+            print('\n  Modified weights:')
+            for i in range(len(w)):
+                print(f'    Rep {i}: {w[i]}')
 
-            if self.verbose is False:
-                print(' DONE')
-                print(f'The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
-            else:
-                print(f'\n  The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
+        if self.verbose is False:
+            print(' DONE')
+            print(f'The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
+        else:
+            print(f'\n  The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
 
-            return weights, g_vec
+        return weights, g_vec
 
     def run_EEXE(self, n):
         """

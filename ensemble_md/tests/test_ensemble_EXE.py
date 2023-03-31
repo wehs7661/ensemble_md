@@ -632,16 +632,12 @@ class Test_EnsembleEXE:
 
     def test_historgam_correction(self, params_dict):
         EEXE = get_EEXE_instance(params_dict)
-        # Case 1: No histogram correction
-        EEXE.N_cutoff = -1
-        weights_1 = [[0, 10.304, 20.073, 29.364]]
-        counts_1 = [[31415, 45701, 55457, 59557]]
-        weights_1 = EEXE.histogram_correction(weights_1, counts_1)
-        assert weights_1 == [[0, 10.304, 20.073, 29.364]]
-
-        # Case 2: Perform histogram correction (N_cutoff reached)
+        
+        # Case 1: Perform histogram correction (N_cutoff reached)
         EEXE.N_cutoff = 5000
         EEXE.verbose = False  # just to increase code coverage
+        weights_1 = [[0, 10.304, 20.073, 29.364]]
+        counts_1 = [[31415, 45701, 55457, 59557]]
         weights_1 = EEXE.histogram_correction(weights_1, counts_1)
         assert np.allclose(weights_1, [
             [
@@ -652,7 +648,7 @@ class Test_EnsembleEXE:
             ]
         ])  # noqa: E501
 
-        # Case 3: Perform histogram correction (N_cutoff not reached by both N_k and N_{k-1})
+        # Case 2: Perform histogram correction (N_cutoff not reached by both N_k and N_{k-1})
         EEXE.verbose = True
         weights_2 = [[0, 10.304, 20.073, 29.364]]
         counts_2 = [[3141, 4570, 5545, 5955]]
@@ -668,36 +664,34 @@ class Test_EnsembleEXE:
         EEXE.state_ranges = [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5]]
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
 
-        # Method: None
-        w1, g_vec_1 = EEXE.combine_weights(weights, method=None)
-        assert np.allclose(w1, weights)
-        assert g_vec_1 is None
-
         # Method: mean
         EEXE.verbose = False  # just to increase code coverage
-        w2, g_vec_2 = EEXE.combine_weights(weights, method='mean')
-        assert np.allclose(w2, [
+        EEXE.w_scheme = 'mean'
+        w1, g_vec_1 = EEXE.combine_weights(weights)
+        assert np.allclose(w1, [
             [0.0, 2.20097, 3.99803, 3.59516],
             [0.0, 1.79706, 1.39419, 2.69607],
             [0.0, -0.40286, 0.89901, 1.88303]])
-        assert np.allclose(list(g_vec_2), [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005])  # noqa: E501
+        assert np.allclose(list(g_vec_1), [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005])  # noqa: E501
 
         # Method: geo-mean
         EEXE.verbose = True
-        w3, g_vec_3 = EEXE.combine_weights(weights, method='geo-mean')
-        assert np.allclose(w3, [
+        EEXE.w_scheme = 'geo-mean'
+        w2, g_vec_2 = EEXE.combine_weights(weights)
+        assert np.allclose(w2, [
             [0.0, 2.2, 3.98889, 3.58889],
             [0.0, 1.78889, 1.38889, 2.68333],
             [0.0, -0.4, 0.89444, 1.87778]])
-        assert np.allclose(list(g_vec_3), [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667])  # noqa: E501
+        assert np.allclose(list(g_vec_2), [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667])  # noqa: E501
 
         # Method: g-diff
-        w4, g_vec_4 = EEXE.combine_weights(weights, method='g-diff')
-        assert np.allclose(w4, [
+        EEXE.w_scheme = 'g-diff'
+        w3, g_vec_3 = EEXE.combine_weights(weights)
+        assert np.allclose(w3, [
             [0, 2.1, 3.9, 3.5],
             [0, 1.8, 1.4, 2.75],
             [0, -0.4, 0.95, 1.95]])
-        assert np.allclose(list(g_vec_4), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
+        assert np.allclose(list(g_vec_3), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
 
     def test_run_EEXE(self, params_dict):
         # We probably can only test serial EEXE
