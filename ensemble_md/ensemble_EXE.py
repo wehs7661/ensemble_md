@@ -249,6 +249,13 @@ class EnsembleEXE:
         else:
             self.fixed_weights = True
 
+        if self.fixed_weights is True:
+            if self.N_cutoff != -1 or self.w_scheme is not None:
+                self.warnings.append('Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
+                # In the case that the warning is ignored, enforce the defaults.
+                self.N_cutoff = -1
+                self.w_scheme = None
+
         if 'lmc_seed' in self.template and self.template['lmc_seed'] != -1:
             self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
@@ -566,7 +573,7 @@ class EnsembleEXE:
         ----------
         log_files : list
             A list of file paths to GROMACS LOG files of different replicas.
-        
+
         Returned
         --------
         weights_avg : list
@@ -576,16 +583,17 @@ class EnsembleEXE:
             A list of lists of errors corresponding to the values in :code:`weights_avg`.
         """
         for i in range(self.n_sim):
-            weights, _, wl_delta, _ = parse_log(log_files[i])
+            weights, _, wl_delta, _ = gmx_parser.parse_log(log_files[i])
             if self.current_wl_delta[i] == wl_delta:
                 self.updating_weights[i] += weights  # expand the list
             else:
                 self.current_wl_delta[i] = wl_delta
-                self.updating_weights = weights
-        
-        # shape of self.updating_weights: (n_sim, n_points, n_states)
-        weight_avg = np.mean(self.updating_weights, axis=1)
-        weight_err = np.std(self.updating_weights, axis=1, ddof=1)
+                self.updating_weights[i] = weights
+
+        # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
+        # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
+        weight_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
+        weight_err = [np.std(self.updating_weights[i], axis=0, ddof=1).tolist() for i in range(self.n_sim)]
 
         return weight_avg, weight_err
 

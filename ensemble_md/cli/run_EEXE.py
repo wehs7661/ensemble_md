@@ -82,9 +82,7 @@ def main():
 
         # Print out warnings and fail if needed
         for i in EEXE.warnings:
-            print()
-            print(f'{i}')
-            print()
+            print(f'\n{i}\n')
 
         if len(EEXE.warnings) > args.maxwarn:
             raise ParameterError(
@@ -181,14 +179,27 @@ def main():
                 # Only when histogram correction/weight combination is needed.
                 weights_avg, weights_err = EEXE.get_averaged_weights(log_files)
 
-            # 3-3. Perform histogram correction for the weights as needed
-            if EEXE.N_cutoff != -1:
-                weights = EEXE.histogram_correction(weights, counts)
-
-            # 3-4. Combine the weights. Note that this is just for initializing the next iteration and is indepdent of swapping itself.  # noqa: E501
-            if EEXE.w_scheme is not None:
-                weights, g_vec = EEXE.combine_weights(weights, method=EEXE.w_scheme)
+            # 3-4. Perform histogram correction/weight combination
+            # Note that we never use final weights but averaged weights here.
+            # The product of this step should always be named as "weights" to be used in update_MDP
+            if EEXE.N_cutoff != -1 and EEXE.w_scheme is not None:
+                # perform both
+                weights_avg = EEXE.histogram_correction(weights_avg, counts)
+                weights, g_vec = EEXE.combine_weights(weights_avg, method=EEXE.w_scheme)
                 EEXE.g_vecs.append(g_vec)
+            elif EEXE.N_cutoff == -1 and EEXE.w_scheme is not None:
+                # only perform weight combination
+                print('\nNote: No histogram correction will be performed.')
+                weights, g_vec = EEXE.combine_weights(weights_avg, method=EEXE.w_scheme)
+                EEXE.g_vecs.append(g_vec)
+            elif EEXE.N_cutoff != -1 and EEXE.w_scheme is None:
+                # only perform histogram correction
+                print('\nNote: No weight combination will be performed.')
+                weights_avg = EEXE.histogram_correction(weights_avg, counts)
+            else:
+                print('\nNote: No histogram correction will be performed.')
+                print('Note: No weight combination will be performed.')
+                pass
 
             # 3-5. Modify the MDP files and swap out the GRO files (if needed)
             # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501

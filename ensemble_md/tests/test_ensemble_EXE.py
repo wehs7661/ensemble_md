@@ -142,15 +142,21 @@ class Test_EnsembleEXE:
         mdp['lmc_seed'] = 1000
         mdp['gen_seed'] = 1000
         mdp['symmetrized_transition_matrix'] = 'yes'
+        mdp['wl_scale'] = ''
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+
         params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
+        params_dict['N_cutoff'] = 1000
         EEXE = get_EEXE_instance(params_dict)
-        warning_1 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
-        warning_2 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
-        warning_3 = 'Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.'
+
+        warning_1 = 'Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.'  # noqa: E501
+        warning_2 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
+        warning_3 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
+        warning_4 = 'Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.'
         assert warning_1 in EEXE.warnings
         assert warning_2 in EEXE.warnings
         assert warning_3 in EEXE.warnings
+        assert warning_4 in EEXE.warnings
 
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
@@ -425,8 +431,7 @@ class Test_EnsembleEXE:
     def test_extract_final_log_info(self, params_dict):
         EEXE = get_EEXE_instance(params_dict)
         log_files = [
-            os.path.join(input_path, f"log/EXE_{i}.log") for i in range(EEXE.n_sim)
-        ]
+            os.path.join(input_path, f"log/EXE_{i}.log") for i in range(EEXE.n_sim)]
         wl_delta, weights, counts = EEXE.extract_final_log_info(log_files)
         assert wl_delta == [0.4, 0.5, 0.5, 0.5]
         assert np.allclose(weights, [
@@ -440,6 +445,14 @@ class Test_EnsembleEXE:
             [3, 1, 1, 9, 15, 21],
             [0, 0, 0, 1, 18, 31], ]
         assert EEXE.equil == [-1, -1, -1, -1]
+
+    def test_get_averaged_weights(self, params_dict):
+        EEXE = get_EEXE_instance(params_dict)
+        log_files = [
+            os.path.join(input_path, f"log/EXE_{i}.log") for i in range(EEXE.n_sim)]
+        avg, err = EEXE.get_averaged_weights(log_files)
+        assert np.allclose(avg[0],  [0, 2.55101, 3.35736, 4.83808, 4.8722, 5.89408])
+        assert np.allclose(err[0], [0, 1.14542569, 1.0198039, 0.8, 0.69282032, 0.35777088])
 
     def test_identify_swappable_pairs(self, params_dict):
         EEXE = get_EEXE_instance(params_dict)
