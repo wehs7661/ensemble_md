@@ -45,7 +45,7 @@ def test_parse_log():
     assert weights_1[0] == [0.0, 2.68453, 4.13258, 4.3248, 4.4222, 6.52607]
     assert weights_1[-1] == [0.00000, 1.40453, 2.85258, 2.72480, 3.46220, 5.88607]
     assert counts_1 == [11, 13, 15, 4, 4, 50]
-    assert wl_delta_1 == None
+    assert wl_delta_1 is None
     assert np.isclose(equil_time_1, 6.06)
 
     # Case 2-2: equil_time > 1000 ps (just another case, nothing special here ...)
@@ -56,7 +56,7 @@ def test_parse_log():
     assert weights_2[0] == [0.00000, 1.60863, 2.47927, 3.15184, 3.47507]
     assert weights_2[-1] == [0.00000, 1.60419, 2.47705, 3.14963, 3.47840]
     assert counts_2 == [2, 3, 1, 2, 1]
-    assert wl_delta_2 == None
+    assert wl_delta_2 is None
     assert equil_time_2 == 1903.82
 
     # Case 3: fixed-weight simulation

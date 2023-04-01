@@ -54,6 +54,9 @@ class EnsembleEXE:
     :ivar updating_weights: The list of weights as a function of time (since the last update of the Wang-Landau
         incrementor) for different replicas. The length is equal to the number of replicas. This is only relevant for
         weight-updating simulations.
+    :ivar equilibrated_weights: The equilibrated weights of different replicas. For weight-equilibratin simulations,
+        this list is initialized as a list of empty lists. Otherwise (weight-fixed), it is initialized as a list of
+        :code:`None`.
     :ivar current_wl_delta: The current value of the Wang-Landau incrementor. This is only relevent for weight-updating
         simulations.
     :ivar kT: 1 kT in kJ/mol at the simulation temperature.
@@ -244,8 +247,10 @@ class EnsembleEXE:
                 # If wl_scale in the MDP file is a blank (i.e. fixed weights), mdp['wl_scale'] will be an empty array.
                 # This is the only case where mdp['wl_scale'] is a numpy array.
                 self.fixed_weights = True
+                self.equilibrated_weights = [None for i in range(self.n_sim)]
             else:
                 self.fixed_weights = False
+                self.equilibrated_weights = [[] for i in range(self.n_sim)]
                 self.updating_weights = [[] for i in range(self.n_sim)]
                 self.current_wl_delta = [0 for i in range(self.n_sim)]
         else:
@@ -563,6 +568,12 @@ class EnsembleEXE:
                 # For any replicas where weights are still equilibrating (i.e. self.equil[j] == -1)
                 # we update its equilibration status.
                 self.equil[i] = result[3]
+
+            if self.equilibrated_weights[i] == []:
+                if self.equil[i] != -1 and self.equil[i] != 0:
+                    # self.equil[i] != -1: uneqilibrated
+                    # self.equil[i] != 0: fixed-weight simulation
+                    self.equilibrated_weights[i] = result[0][-1]
 
         return wl_delta, weights, counts
 
@@ -1049,7 +1060,7 @@ class EnsembleEXE:
             if self.equil[i] == -1:  # unequilibrated
                 weights[i] = list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0])
             else:
-                pass  # we don't change the input weights if they have been equilibrarted.
+                weights[i] = self.equilibrated_weights[i]
         weights = np.round(weights, decimals=5).tolist()
 
         if self.verbose is True:

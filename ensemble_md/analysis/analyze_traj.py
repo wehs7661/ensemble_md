@@ -493,3 +493,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                     plt.savefig(f'{folder}/{fig_prefix}_hist_{fig_names[t]}', dpi=600)
 
     return t_0k_list, t_k0_list, t_roundtrip_list, units
+
+
+def plot_g_vecs(f_g_vecs):
+    pass
