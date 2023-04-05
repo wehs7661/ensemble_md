@@ -379,4 +379,9 @@ def main():
         print(f"  {', '.join(f'{f[i]: .3f} +/- {f_err[i]: .3f} kT' for i in range(EEXE.n_tot))}")
         print(f'The free energy difference between the coupled and decoupled states: {f[-1]: .3f} +/- {f_err[-1]: .3f} kT')  # noqa: E501
 
+    # Section 4. Calculate the time spent in GROMACS
+    t_wall_tot, t_sync = utils.analyze_EEXE_time()
+    print(f'\nTotal wall time GROMACS spent to finish all iterations: {utils.format_time(t_wall_tot)}')
+    print(f'Total time spent in syncrhonizing all replicas: {utils.format_time(t_sync)}')
+    
     print(f'\nTime elpased: {utils.format_time(time.time() - t0)}')

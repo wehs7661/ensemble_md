@@ -12,6 +12,7 @@ The :obj:`.utils` module provides useful utility functions.
 """
 import os
 import sys
+import glob
 import natsort
 import datetime
 import numpy as np
@@ -241,3 +242,66 @@ def weighted_mean(vals, errs):
     err = np.sqrt(1 / np.sum(w))
 
     return mean, err
+
+def get_time_metrics(log):
+    """
+    Gets the time-based metrics from a log file, including the core time (s),
+    wall time, and performance (ns/day).
+
+    Parameters
+    ----------
+    log : str
+        The input log file.
+
+    Returns
+    -------
+    t_metrics : dict
+        A dictionary having following keys: :code:`t_core`, :code:`t_wall`, :code:`performance`.
+    """
+    t_metrics = {}
+    f = open(log, 'r')
+    lines = f.readlines()
+    f.close()
+
+    lines.reverse()
+    for l in lines:
+        if 'Performance: ' in l:
+            t_metrics['performance'] = float(l.split()[1])  # ns/day
+        if 'Time: ' in l:
+            t_metrics['t_core'] = float(l.split()[1])  # s
+            t_metrics['t_wall'] = float(l.split()[2])  # s
+    
+    return t_metrics
+
+
+def analyze_EEXE_time(log_files=None):
+    """
+    Perform simple data analysis on the wall times and performances of all iterations of an EEXE simulation.
+
+    Parameters
+    ----------
+    log_files : None or list
+        A list of sorted file names of all log files.
+
+    Returns
+    -------
+    t_wall_tot : float
+        The total wall time GROMACS spent to finish all iterations for the EEXE simulation.
+    t_sync : float
+        The total time spent in synchronizing all replicas, which is the sum of the differences
+        between the longest and shorted time elapsed to finish a iteration.
+    """
+    n_sim = len(glob.glob('sim_*'))
+    if log_files is None:
+        log_files = natsort.natsorted(glob.glob('sim_*/iteration_*/*log'))
+    n_iter = int(len(log_files) / n_sim)
+
+    t_wall_tot, t_sync = 0, 0
+    for i in range(n_iter):
+        t_wall = [get_time_metrics(log_files[k])['t_wall'] for k in range(i * n_sim, (i + 1) * n_sim)]
+        t_wall_tot += max(t_wall)
+        t_sync += (max(t_wall) - min(t_wall))
+
+    return t_wall_tot, t_sync
+
+
