@@ -243,6 +243,7 @@ def weighted_mean(vals, errs):
 
     return mean, err
 
+
 def get_time_metrics(log):
     """
     Gets the time-based metrics from a log file, including the core time (s),
@@ -264,13 +265,14 @@ def get_time_metrics(log):
     f.close()
 
     lines.reverse()
-    for l in lines:
+    for l in lines:  # noqa: E741
         if 'Performance: ' in l:
             t_metrics['performance'] = float(l.split()[1])  # ns/day
         if 'Time: ' in l:
             t_metrics['t_core'] = float(l.split()[1])  # s
             t_metrics['t_wall'] = float(l.split()[2])  # s
-    
+            break
+
     return t_metrics
 
 
@@ -303,5 +305,3 @@ def analyze_EEXE_time(log_files=None):
         t_sync += (max(t_wall) - min(t_wall))
 
     return t_wall_tot, t_sync
-
-

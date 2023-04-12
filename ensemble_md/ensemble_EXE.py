@@ -54,7 +54,7 @@ class EnsembleEXE:
     :ivar updating_weights: The list of weights as a function of time (since the last update of the Wang-Landau
         incrementor) for different replicas. The length is equal to the number of replicas. This is only relevant for
         weight-updating simulations.
-    :ivar equilibrated_weights: The equilibrated weights of different replicas. For weight-equilibratin simulations,
+    :ivar equilibrated_weights: The equilibrated weights of different replicas. For weight-equilibrating simulations,
         this list is initialized as a list of empty lists. Otherwise (weight-fixed), it is initialized as a list of
         :code:`None`.
     :ivar current_wl_delta: The current value of the Wang-Landau incrementor. This is only relevent for weight-updating
@@ -255,6 +255,7 @@ class EnsembleEXE:
                 self.current_wl_delta = [0 for i in range(self.n_sim)]
         else:
             self.fixed_weights = True
+            self.equilibrated_weights = [None for i in range(self.n_sim)]
 
         if self.fixed_weights is True:
             if self.N_cutoff != -1 or self.w_scheme is not None:
