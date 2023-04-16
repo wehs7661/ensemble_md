@@ -226,15 +226,8 @@ include parameters for data analysis here.
   - :code:`acceptance`: (Optional, Default: :code:`metropolis`)
       The Monte Carlo method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
       For more details, please refer to :ref:`doc_acceptance`.
-  - :code:`w_scheme`: (Optional, Default: :code:`None`)
-      The method for combining weights. Available options include
-    
-        - :code:`mean`: The arithmetic mean of the probability ratios is used to scale the weights.
-        - :code:`geo-mean` or :code:`geo_mean`: The geometric mean of the probability ratios is
-          used to scale the weights.
-        - :code:`g-diff` or :code:`g_diff`: The difference between neighboring weights is used
-          to determine the alchemical weights.
-
+  - :code:`w_combine`: (Optional, Default: :code:`False`)
+      Whether to combine weights across multiple replicas for an weight-updating EEXE simulations. 
       For more details, please refer to :ref:`doc_w_schemes`.
   - :code:`N_cutoff`: (Optional, Default: 1000)
       The histogram cutoff. -1 means that no histogram correction will be performed.
@@ -295,7 +288,7 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     nst_sim: null
     proposal: 'exhaustive'
     acceptance: 'metropolis' 
-    w_scheme: null
+    w_combine: False
     N_cutoff: 1000
     n_ex: 1
     runtime_args: null

@@ -87,7 +87,6 @@ class Test_EnsembleEXE:
         # 2. Available options
         check_param_error(params_dict, 'proposal', "The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.", 'cool', 'multiple')  # set as multiple for later tests for n_ex # noqa: E501
         check_param_error(params_dict, 'acceptance', "The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
-        check_param_error(params_dict, 'w_scheme', "The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
         check_param_error(params_dict, 'df_method', "The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
         check_param_error(params_dict, 'err_method', "The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
@@ -176,7 +175,7 @@ class Test_EnsembleEXE:
         # 2. Check the default values of the parameters not specified in params.yaml
         assert EEXE.proposal == "exhaustive"
         assert EEXE.acceptance == "metropolis"
-        assert EEXE.w_scheme is None
+        assert EEXE.w_combine is False
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_ex == 'N^3'
         assert EEXE.verbose is True
@@ -330,7 +329,8 @@ class Test_EnsembleEXE:
         L += "Simulation inputs: ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/expanded.mdp\n"  # noqa: E501
         L += "Verbose log file: True\nWhether the replicas run in parallel: False\n"
         L += "Proposal scheme: exhaustive\n"
-        L += "Acceptance scheme for swapping simulations: metropolis\nScheme for combining weights: None\n"
+        L += "Acceptance scheme for swapping simulations: metropolis\n"
+        L += "Whether to perform weight combination: False\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of attempted swaps in one exchange interval: N^3\n"
         L += "Length of each replica: 1.0 ps\nFrequency for checkpointing: 100 iterations\n"
@@ -664,34 +664,13 @@ class Test_EnsembleEXE:
         EEXE.state_ranges = [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5]]
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
 
-        # Method: mean
-        EEXE.verbose = False  # just to increase code coverage
-        EEXE.w_scheme = 'mean'
-        w1, g_vec_1 = EEXE.combine_weights(weights)
-        assert np.allclose(w1, [
-            [0.0, 2.20097, 3.99803, 3.59516],
-            [0.0, 1.79706, 1.39419, 2.69607],
-            [0.0, -0.40286, 0.89901, 1.88303]])
-        assert np.allclose(list(g_vec_1), [0.0, 2.200968785917372, 3.9980269151210854, 3.5951633659351256, 4.897041830662871, 5.881054277773005])  # noqa: E501
-
-        # Method: geo-mean
-        EEXE.verbose = True
-        EEXE.w_scheme = 'geo-mean'
-        w2, g_vec_2 = EEXE.combine_weights(weights)
-        assert np.allclose(w2, [
-            [0.0, 2.2, 3.98889, 3.58889],
-            [0.0, 1.78889, 1.38889, 2.68333],
-            [0.0, -0.4, 0.89444, 1.87778]])
-        assert np.allclose(list(g_vec_2), [0.0, 2.1999999999999997, 3.9888888888888885, 3.5888888888888886, 4.883333333333334, 5.866666666666667])  # noqa: E501
-
-        # Method: g-diff
-        EEXE.w_scheme = 'g-diff'
-        w3, g_vec_3 = EEXE.combine_weights(weights)
-        assert np.allclose(w3, [
+        EEXE.w_combine = True
+        w, g_vec = EEXE.combine_weights(weights)
+        assert np.allclose(w, [
             [0, 2.1, 3.9, 3.5],
             [0, 1.8, 1.4, 2.75],
             [0, -0.4, 0.95, 1.95]])
-        assert np.allclose(list(g_vec_3), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
+        assert np.allclose(list(g_vec), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
 
     def test_run_EEXE(self, params_dict):
         # We probably can only test serial EEXE

@@ -175,7 +175,7 @@ def main():
             # 3-3. Calculate the weights averaged since the last update of the Wang-Landau incrementor.
             # Note that the averaged weights are used for histogram correction/weight combination.
             # For the calculation of the acceptance ratio (inside get_swapping_pattern), final weights should be used.
-            if EEXE.N_cutoff != -1 or EEXE.w_scheme is not None:
+            if EEXE.N_cutoff != -1 or EEXE.w_combine is True:
                 # Only when histogram correction/weight combination is needed.
                 weights_avg, weights_err = EEXE.get_averaged_weights(log_files)
 
@@ -184,17 +184,17 @@ def main():
             # The product of this step should always be named as "weights" to be used in update_MDP
             if wl_delta != [None for i in range(EEXE.n_sim)]:  # weight-updating
                 print(f'\nCurrent Wang-Landau incrementors: {wl_delta}')
-            if EEXE.N_cutoff != -1 and EEXE.w_scheme is not None:
+            if EEXE.N_cutoff != -1 and EEXE.w_combine is True:
                 # perform both
                 weights_avg = EEXE.histogram_correction(weights_avg, counts)
                 weights, g_vec = EEXE.combine_weights(weights_avg)
                 EEXE.g_vecs.append(g_vec)
-            elif EEXE.N_cutoff == -1 and EEXE.w_scheme is not None:
+            elif EEXE.N_cutoff == -1 and EEXE.w_combine is True:
                 # only perform weight combination
                 print('\nNote: No histogram correction will be performed.')
                 weights, g_vec = EEXE.combine_weights(weights_avg)
                 EEXE.g_vecs.append(g_vec)
-            elif EEXE.N_cutoff != -1 and EEXE.w_scheme is None:
+            elif EEXE.N_cutoff != -1 and EEXE.w_combine is False:
                 # only perform histogram correction
                 print('\nNote: No weight combination will be performed.')
                 weights_avg = EEXE.histogram_correction(weights_avg, counts)

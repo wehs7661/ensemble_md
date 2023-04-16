@@ -156,7 +156,7 @@ class EnsembleEXE:
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
-            "w_scheme": None,
+            "w_combine": False,
             "N_cutoff": 1000,
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
@@ -186,9 +186,6 @@ class EnsembleEXE:
 
         if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
-
-        if self.w_scheme not in [None, 'mean', 'geo-mean', 'g-diff']:
-            raise ParameterError("The specified weight combining scheme is not available. Available options include None, 'mean', 'geo-mean'/'geo_mean' and 'g-diff/g_diff'.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
@@ -258,11 +255,11 @@ class EnsembleEXE:
             self.equilibrated_weights = [None for i in range(self.n_sim)]
 
         if self.fixed_weights is True:
-            if self.N_cutoff != -1 or self.w_scheme is not None:
+            if self.N_cutoff != -1 or self.w_combine is not False:
                 self.warnings.append('Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
                 # In the case that the warning is ignored, enforce the defaults.
                 self.N_cutoff = -1
-                self.w_scheme = None
+                self.w_combine = False
 
         if 'lmc_seed' in self.template and self.template['lmc_seed'] != -1:
             self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
@@ -355,7 +352,7 @@ class EnsembleEXE:
         print(f"Whether the replicas run in parallel: {self.parallel}")
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
-        print(f"Scheme for combining weights: {self.w_scheme}")
+        print(f"Whether to perform weight combination: {self.w_combine}")
         print(f"Histogram cutoff: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
         print(f"Number of iterations: {self.n_iter}")
@@ -981,8 +978,7 @@ class EnsembleEXE:
 
     def combine_weights(self, weights):
         """
-        Combine alchemical weights across multiple replicas using probability ratios
-        or weight differences. (See :ref:`doc_w_schemes` for mor details.)
+        Combine alchemical weights across multiple replicas. (See :ref:`doc_w_schemes` for mor details.)
 
         Parameters
         ----------
@@ -997,9 +993,9 @@ class EnsembleEXE:
             An array of alchemical weights of the whole range of states.
         """
         if self.verbose is True:
-            print(f'Performing weight combination with the {self.w_scheme} method ...')
+            print('Performing weight combination ...')
         else:
-            print(f'Performing weight combination with the {self.w_scheme} method ...', end='')
+            print('Performing weight combination ...', end='')
 
         if self.verbose is True:
             w = np.round(weights, decimals=3).tolist()  # just for printing
@@ -1007,54 +1003,55 @@ class EnsembleEXE:
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
 
-        if self.w_scheme == 'g-diff' or self.w_scheme == 'g_diff':
-            # Method based on weight differences
-            dg_vec = []
-            dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
-            for i in range(self.n_tot - 1):
-                dg_list = []
-                for j in range(len(self.state_ranges)):
-                    if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
-                        idx = self.state_ranges[j].index(i)
-                        dg_list.append(dg_adjacent[j][idx])
-                dg_vec.append(np.mean(dg_list))
-            dg_vec.insert(0, 0)
-            g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
-        else:
-            # Method based on probability ratios
-            # Step 1: Convert the weights into probabilities
-            weights = np.array(weights)
-            prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
+        # Method based on weight differences (the original g-diff)
+        dg_vec = []
+        dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
+        for i in range(self.n_tot - 1):
+            dg_list = []
+            for j in range(len(self.state_ranges)):
+                if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
+                    idx = self.state_ranges[j].index(i)
+                    dg_list.append(dg_adjacent[j][idx])
+            dg_vec.append(np.mean(dg_list))
+        dg_vec.insert(0, 0)
+        g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
 
-            # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)  # noqa: E501
-            overlapped = [set(self.state_ranges[i]).intersection(set(self.state_ranges[i + 1])) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
-            prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
+        """  Deprecated methods: mean and geo-mean
+        # Method based on probability ratios
+        # Step 1: Convert the weights into probabilities
+        weights = np.array(weights)
+        prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
 
-            # Step 3: Average the probability ratios
-            avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
+        # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)  # noqa: E501
+        overlapped = [set(self.state_ranges[i]).intersection(set(self.state_ranges[i + 1])) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
+        prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
+
+        # Step 3: Average the probability ratios
+        avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
+        if self.w_scheme == 'mean':
+            avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
+        elif self.w_scheme == 'geo-mean':
+            avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
+
+        # Step 4: Scale the probabilities for each replica
+        scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
+
+        # Step 5: Average and convert the probabilities
+        p_vec = []
+        for i in range(self.n_tot):   # global state index
+            p = []   # a list of probabilities to be averaged for each state
+            for j in range(len(self.state_ranges)):   # j can be regared as the replica index
+                if i in self.state_ranges[j]:
+                    local_idx = i - j * self.s
+                    p.append(scaled_prob[j][local_idx])
             if self.w_scheme == 'mean':
-                avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
-            elif self.w_scheme == 'geo-mean':
-                avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
+                p_vec.append(np.mean(p))
+            elif self.w_scheme == 'geo-mean' or self.w_scheme == 'geo_mean':
+                p_vec.append(np.prod(p) ** (1 / len(p)))
 
-            # Step 4: Scale the probabilities for each replica
-            scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
-
-            # Step 5: Average and convert the probabilities
-            p_vec = []
-            for i in range(self.n_tot):   # global state index
-                p = []   # a list of probabilities to be averaged for each state
-                for j in range(len(self.state_ranges)):   # j can be regared as the replica index
-                    if i in self.state_ranges[j]:
-                        local_idx = i - j * self.s
-                        p.append(scaled_prob[j][local_idx])
-                if self.w_scheme == 'mean':
-                    p_vec.append(np.mean(p))
-                elif self.w_scheme == 'geo-mean' or self.w_scheme == 'geo_mean':
-                    p_vec.append(np.prod(p) ** (1 / len(p)))
-
-            g_vec = -np.log(p_vec)
-            g_vec -= g_vec[0]
+        g_vec = -np.log(p_vec)
+        g_vec -= g_vec[0]
+        """
 
         # Determine the vector of alchemical weights for each replica
         for i in range(self.n_sim):
