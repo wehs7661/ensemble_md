@@ -239,7 +239,7 @@ def main():
 
             # 4-3. Save data
             if (i + 1) % EEXE.n_ckpt == 0:
-                if EEXE.g_vecs[0] is not None:
+                if len(EEXE.g_vecs) != 0:
                     # Save g_vec as a function of time if weight combination was used.
                     np.save('g_vecs.npy', EEXE.g_vecs)
 
