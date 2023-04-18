@@ -15,6 +15,7 @@ import sys
 import glob
 import natsort
 import datetime
+import collections
 import numpy as np
 
 
@@ -260,11 +261,10 @@ def get_time_metrics(log):
         A dictionary having following keys: :code:`t_core`, :code:`t_wall`, :code:`performance`.
     """
     t_metrics = {}
-    f = open(log, 'r')
-    lines = f.readlines()
-    f.close()
+    with open(log, 'r') as f:
+        # Using deque is much faster than using readlines and reversing it since we only need the last few lines.
+        lines = collections.deque(f, 20)  # get the last 20 lines should be enough
 
-    lines.reverse()
     for l in lines:  # noqa: E741
         if 'Performance: ' in l:
             t_metrics['performance'] = float(l.split()[1])  # ns/day
@@ -276,12 +276,14 @@ def get_time_metrics(log):
     return t_metrics
 
 
-def analyze_EEXE_time(log_files=None):
+def analyze_EEXE_time(n_iter, log_files=None):
     """
     Perform simple data analysis on the wall times and performances of all iterations of an EEXE simulation.
 
     Parameters
     ----------
+    n_iter : n
+        The number of iterations of the EEXE simulation.
     log_files : None or list
         A list of sorted file names of all log files.
 
@@ -291,15 +293,16 @@ def analyze_EEXE_time(log_files=None):
         The total wall time GROMACS spent to finish all iterations for the EEXE simulation.
     t_sync : float
         The total time spent in synchronizing all replicas, which is the sum of the differences
-        between the longest and shorted time elapsed to finish a iteration.
+        between the longest and the shortest time elapsed to finish a iteration.
     """
     n_sim = len(glob.glob('sim_*'))
+    n_iter = len(glob.glob('sim_0/iteration_*'))
     if log_files is None:
-        log_files = natsort.natsorted(glob.glob('sim_*/iteration_*/*log'))
-    n_iter = int(len(log_files) / n_sim)
+        log_files = [natsort.natsorted(glob.glob(f'sim_*/iteration_{i}/*log')) for i in range(n_iter)]
 
     t_wall_tot, t_sync = 0, 0
     for i in range(n_iter):
+        t_wall = [get_time_metrics(log_files[i][j])['t_wall'] for j in range(len(log_files[i]))]
         t_wall = [get_time_metrics(log_files[k])['t_wall'] for k in range(i * n_sim, (i + 1) * n_sim)]
         t_wall_tot += max(t_wall)
         t_sync += (max(t_wall) - min(t_wall))
