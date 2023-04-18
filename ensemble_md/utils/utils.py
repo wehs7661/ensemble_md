@@ -276,14 +276,12 @@ def get_time_metrics(log):
     return t_metrics
 
 
-def analyze_EEXE_time(n_iter, log_files=None):
+def analyze_EEXE_time(log_files=None):
     """
     Perform simple data analysis on the wall times and performances of all iterations of an EEXE simulation.
 
     Parameters
     ----------
-    n_iter : n
-        The number of iterations of the EEXE simulation.
     log_files : None or list
         A list of sorted file names of all log files.
 
