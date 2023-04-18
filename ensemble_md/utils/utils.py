@@ -301,7 +301,6 @@ def analyze_EEXE_time(log_files=None):
     t_wall_tot, t_sync = 0, 0
     for i in range(n_iter):
         t_wall = [get_time_metrics(log_files[i][j])['t_wall'] for j in range(len(log_files[i]))]
-        t_wall = [get_time_metrics(log_files[k])['t_wall'] for k in range(i * n_sim, (i + 1) * n_sim)]
         t_wall_tot += max(t_wall)
         t_sync += (max(t_wall) - min(t_wall))
 
