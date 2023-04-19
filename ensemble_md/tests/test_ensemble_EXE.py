@@ -225,9 +225,11 @@ class Test_EnsembleEXE:
         assert EEXE.get_u_nk is False
         assert EEXE.get_dHdl is True
 
-        params_dict['runtime_args'] = {'-nt': 16, 'ntomp': 8}
+        params_dict['grompp_args'] = {'-maxwarn': 1}
+        params_dict['runtime_args'] = {'-nt': 16, '-ntomp': 8}
         EEXE = get_EEXE_instance(params_dict)
-        assert EEXE.runtime_args == {'-nt': 16, 'ntomp': 8}
+        assert EEXE.runtime_args == {'-nt': 16, '-ntomp': 8}
+        assert EEXE.grompp_args == {'-maxwarn': 1}
 
         assert EEXE.reformatted_mdp is False
 
@@ -335,6 +337,7 @@ class Test_EnsembleEXE:
         L += "Number of attempted swaps in one exchange interval: N^3\n"
         L += "Length of each replica: 1.0 ps\nFrequency for checkpointing: 100 iterations\n"
         L += "Total number of states: 9\n"
+        L += "Additional grompp arguments: None\n"
         L += "Additional runtime arguments: None\n"
         L += "Alchemical ranges of each replica in EEXE:\n  - Replica 0: States [0, 1, 2, 3, 4, 5]\n"
         L += "  - Replica 1: States [1, 2, 3, 4, 5, 6]\n  - Replica 2: States [2, 3, 4, 5, 6, 7]\n"

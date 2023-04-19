@@ -160,6 +160,7 @@ class EnsembleEXE:
             "N_cutoff": 1000,
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
+            "grompp_args": None,
             "runtime_args": None,
             "n_ckpt": 100,
             "msm": False,
@@ -360,6 +361,7 @@ class EnsembleEXE:
         print(f"Length of each replica: {self.dt * self.nst_sim} ps")
         print(f"Frequency for checkpointing: {self.n_ckpt} iterations")
         print(f"Total number of states: {self.n_tot}")
+        print(f"Additional grompp arguments: {self.grompp_args}")
         print(f"Additional runtime arguments: {self.runtime_args}")
         print("Alchemical ranges of each replica in EEXE:")
         for i in range(self.n_sim):
@@ -1110,9 +1112,16 @@ class EnsembleEXE:
                 i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))]
             print("Preparing the tpr files for the simulation ensemble ...", end="")
 
+        arguments = ['grompp']  # arguments for gmx.commandline_operation
+
+        if self.grompp_args is not None:
+            # Turn the dictionary into a list with the keys alternating with values
+            add_args = [elem for pair in self.grompp_args.items() for elem in pair]
+            arguments.extend(add_args)
+
         grompp = gmx.commandline_operation(
             "gmx",
-            arguments=["grompp"],  # noqa: E127
+            arguments=arguments,  # noqa: E127
             input_files=[  # noqa: E127
                 {
                     "-f": f"../sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}",
@@ -1150,14 +1159,7 @@ class EnsembleEXE:
 
             if self.runtime_args is not None:
                 # Turn the dictionary into a list with the keys alternating with values
-                args_keys = list(self.runtime_args.keys())
-                args_vals = list(self.runtime_args.values())
-
-                add_args = []
-                for i in range(len(args_keys)):
-                    add_args.append(args_keys[i])
-                    add_args.append(args_vals[i])
-
+                add_args = [elem for pair in self.runtime_args.items() for elem in pair]
                 arguments.extend(add_args)
 
             md = gmx.commandline_operation(

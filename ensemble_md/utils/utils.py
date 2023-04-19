@@ -189,7 +189,11 @@ def autoconvert(s):
             if len(s) == 1:
                 return s[0]
             else:
-                return np.array(s)
+                if len(s) != 0 and type(s[0]) == str:
+                    # For the case like pull_coord1_dim = Y Y Y, we don't want to us np.array
+                    return s
+                else:
+                    return np.array(s)
         except (ValueError, AttributeError):
             pass
     raise ValueError("Failed to autoconvert {0!r}".format(s))
@@ -293,7 +297,6 @@ def analyze_EEXE_time(log_files=None):
         The total time spent in synchronizing all replicas, which is the sum of the differences
         between the longest and the shortest time elapsed to finish a iteration.
     """
-    n_sim = len(glob.glob('sim_*'))
     n_iter = len(glob.glob('sim_0/iteration_*'))
     if log_files is None:
         log_files = [natsort.natsorted(glob.glob(f'sim_*/iteration_{i}/*log')) for i in range(n_iter)]

@@ -234,6 +234,9 @@ include parameters for data analysis here.
   - :code:`n_ex`: (Optional, Default: 1)
       The number of attempts swap during an exchange interval. This option is only relevant if the option :code:`proposal` is :code:`multiple`.
       Otherwise, this option is ignored. For more details, please refer to :ref:`doc_multiple_swaps`.
+  - :code:`grompp_args`: (Optional: Default: :code:`None`)
+      Additional arguments to be appended to the GROMACS :code:`grompp` command provided in a dictionary.
+      For example, one could have :code:`{'-maxwarn', '1'}` to specify the :code:`maxwarn` argument for the :code:`grompp` command.
   - :code:`runtime_args`: (Optional, Default: :code:`None`)
       Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. 
       For example, one could have :code:`{'-nt': 16}` to run the simulation using 16 threads.
@@ -291,6 +294,7 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     w_combine: False
     N_cutoff: 1000
     n_ex: 1
+    grompp_args: null
     runtime_args: null
 
     # Section 3: Output settings
