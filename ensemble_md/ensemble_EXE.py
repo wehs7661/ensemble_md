@@ -13,6 +13,7 @@ The :obj:`.ensemble_EXE` module provides functions for setting up and ensemble o
 import os
 import sys
 import copy
+import time
 import yaml
 import shutil
 import random
@@ -333,6 +334,9 @@ class EnsembleEXE:
         else:
             self.get_u_nk = False
             self.get_dHdl = True
+        
+        self.t_mdrun = []
+        self.t_grompp = []
 
     def print_params(self, params_analysis=False):
         """
@@ -1077,6 +1081,7 @@ class EnsembleEXE:
 
         return weights, g_vec
 
+    @profile
     def run_EEXE(self, n):
         """
         Makes TPR files and runs an ensemble of expanded ensemble simulations
@@ -1138,7 +1143,12 @@ class EnsembleEXE:
                 for i in range(self.n_sim)
             ],
         )
+        t1 = time.time()
         grompp.run()
+        t2 = time.time()
+
+        self.t_grompp.append(t2-t1)
+
         if rank == 0:  # just print the messages once
             utils.gmx_output(grompp)
 
@@ -1150,7 +1160,10 @@ class EnsembleEXE:
             tpr = [f'{grompp.output.file["-o"].result()[i]}' for i in range(self.n_sim)]
             inputs = gmx.read_tpr(tpr)
             md = gmx.mdrun(inputs, runtime_args=self.runtime_args)
+            tt1 = time.time()
             md.run()
+            tt2 = time.time()
+            self.t_mdrun.append(tt2-tt1)
         else:
             # Note that we could use output_files argument to customize the output file
             # names but here we'll just use the defaults.
