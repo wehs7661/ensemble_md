@@ -679,6 +679,7 @@ class Test_EnsembleEXE:
         # We probably can only test serial EEXE
         rank = MPI.COMM_WORLD.Get_rank()
         params_dict['runtime_args'] = {'-nt': 1}
+        params_dict['nst_sim'] = 100  # Testing for 100 steps should be enough.
         EEXE = get_EEXE_instance(params_dict)
         if rank == 0:
             for i in range(EEXE.n_sim):

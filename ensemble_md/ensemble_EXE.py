@@ -17,6 +17,7 @@ import time
 import yaml
 import shutil
 import random
+import subprocess
 import numpy as np
 from mpi4py import MPI
 from itertools import combinations
@@ -1081,11 +1082,63 @@ class EnsembleEXE:
 
         return weights, g_vec
 
+    def run_grompp(self, n):
+        """
+        Prepares TPR files for the simulation ensemble using the GROMACS :code:`grompp` command.
+
+        Parameters
+        ----------
+        n : int
+            The iteration index (starting from 0).
+        """
+        rtn_code, stderr_list = [], []
+        for i in range(self.n_sim):
+            # Initialize the command with the base arguments
+            if self.parallel is True:
+                arguments = ['mpirun', '-np', '1', gmx.utility.config()['gmx_executable'], 'grompp']
+            else:
+                arguments = [gmx.utility.config()['gmx_executable'], 'grompp']
+
+            # Add input file arguments
+            arguments.extend([
+                "-f", f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}",
+                "-c", f"sim_{i}/iteration_{n}/{self.gro.split('/')[-1]}",
+                "-p", f"sim_{i}/iteration_{n}/{self.top.split('/')[-1]}"
+            ])
+
+            # Add output file arguments
+            arguments.extend([
+                "-o", f"sim_{i}/iteration_{n}/sys_EE.tpr",
+                "-po", f"sim_{i}/iteration_{n}/mdout.mdp"
+            ])
+
+            # Add additional arguments if any
+            if self.grompp_args is not None:
+                # Turn the dictionary into a list with the keys alternating with values
+                add_args = [elem for pair in self.grompp_args.items() for elem in pair]
+                arguments.extend(add_args)
+
+            # Run the GROMACS grompp command
+            try:
+                result = subprocess.run(arguments, capture_output=True, text=True, check=True)
+                rtn_code.append(result.returncode)
+            except subprocess.CalledProcessError as e:
+                rtn_code.append(e.returncode)
+                stderr_list.append(e.stderr)
+
+        if sum(rtn_code) == 0:
+            print(" Done")
+        else:
+            print(f" Return codes: {rtn_code}")
+            for i in range(len(rtn_code)):
+                if rtn_code[i] != 0:
+                    print(f"\nSTDERR of the process:\n\n {stderr_list[i]}\n")
+            sys.exit(1)
+
     @profile
     def run_EEXE(self, n):
         """
-        Makes TPR files and runs an ensemble of expanded ensemble simulations
-        using GROMACS.
+        Runs an ensemble of expanded ensemble simulations using GROMACS.
 
         Parameters
         ----------
@@ -1102,9 +1155,8 @@ class EnsembleEXE:
         -----
         This function performs the following steps:
 
-          1. Prepares TPR files for the simulation ensemble using :code:`grompp`.
-          2. Runs all the simulations simultaneously using :code:`mdrun`.
-          3. Removes any empty directories created by the function.
+          1. Runs all the simulations simultaneously using :code:`mdrun`.
+          2. Removes any empty directories created by the function.
 
         The function assumes that the GROMACS executable is available.
         """
@@ -1117,47 +1169,14 @@ class EnsembleEXE:
                 i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))]
             print("Preparing the tpr files for the simulation ensemble ...", end="")
 
-        arguments = ['grompp']  # arguments for gmx.commandline_operation
-
-        if self.grompp_args is not None:
-            # Turn the dictionary into a list with the keys alternating with values
-            add_args = [elem for pair in self.grompp_args.items() for elem in pair]
-            arguments.extend(add_args)
-
-        grompp = gmx.commandline_operation(
-            "gmx",
-            arguments=arguments,  # noqa: E127
-            input_files=[  # noqa: E127
-                {
-                    "-f": f"../sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}",
-                    "-c": f"../sim_{i}/iteration_{n}/{self.gro.split('/')[-1]}",
-                    "-p": f"../sim_{i}/iteration_{n}/{self.top.split('/')[-1]}",
-                }
-                for i in range(self.n_sim)
-            ],
-            output_files=[  # noqa: E127
-                {  # noqa: E127
-                    "-o": f"../sim_{i}/iteration_{n}/sys_EE.tpr",
-                    "-po": f"../sim_{i}/iteration_{n}/mdout.mdp",
-                }
-                for i in range(self.n_sim)
-            ],
-        )
-        t1 = time.time()
-        grompp.run()
-        t2 = time.time()
-
-        self.t_grompp.append(t2-t1)
-
-        if rank == 0:  # just print the messages once
-            utils.gmx_output(grompp)
+            self.run_grompp(n)
 
         # Run all the simulations simultaneously using gmxapi
         if rank == 0:
             print("Running an ensemble of simulations ...", end="")
 
         if self.parallel is True:
-            tpr = [f'{grompp.output.file["-o"].result()[i]}' for i in range(self.n_sim)]
+            tpr = [f'sim_{i}/iteration_{n}/sys_EE.tpr' for i in range(self.n_sim)]
             inputs = gmx.read_tpr(tpr)
             md = gmx.mdrun(inputs, runtime_args=self.runtime_args)
             tt1 = time.time()
@@ -1180,7 +1199,7 @@ class EnsembleEXE:
                 arguments=arguments,
                 input_files=[  # noqa: E128
                     {
-                        "-s": grompp.output.file["-o"].result()[i],
+                        "-s": f'../sim_{i}/iteration_{n}/sys_EE.tpr',
                     }
                     for i in range(self.n_sim)
                 ],

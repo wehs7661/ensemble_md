@@ -204,7 +204,6 @@ def main():
             else:
                 print('\nNote: No histogram correction will be performed.')
                 print('Note: No weight combination will be performed.')
-                pass
 
             # 3-5. Modify the MDP files and swap out the GRO files (if needed)
             # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
