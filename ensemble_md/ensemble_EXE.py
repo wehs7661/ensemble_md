@@ -450,7 +450,7 @@ class EnsembleEXE:
 
         return MDP
 
-    def update_MDP(self, new_template, sim_idx, iter_idx, states, wl_delta, weights):
+    def update_MDP(self, new_template, sim_idx, iter_idx, states, wl_delta, weights, counts=None):
         """
         Updates the MDP file for a new iteration based on the new MDP template coming from the previous iteration.
         Note that if the weights got equilibrated in the previous iteration, then the weights will be fixed
@@ -470,6 +470,12 @@ class EnsembleEXE:
             A list of final Wang-Landau incrementors of all simulations.
         weights : list
             A list of lists final weights of all simulations.
+        counts : list
+            A list of lists final counts of all simulations. If the value is :code:`None`,
+            then the MDP parameter :code:`init-histogram-counts` won't be specified in the next iteration.
+            Note that not all the GROMACS versions have the MDP parameter :code:`init-histogram-counts` available,
+            in which case one should always pass :code:`None`, or set :code:`-maxwarn` in :code:`grompp_args`
+            in the input YAML file.
 
         Return
         ------
@@ -481,8 +487,10 @@ class EnsembleEXE:
         MDP["tinit"] = self.nst_sim * self.dt * iter_idx
         MDP["nsteps"] = self.nst_sim
         MDP["init_lambda_state"] = (states[sim_idx] - sim_idx * self.s)  # 2nd term is for shifting from the global to local index.  # noqa: E501
-        MDP["init_lambda_weights"] = weights[sim_idx]
         MDP["init_wl_delta"] = wl_delta[sim_idx]
+        MDP["init_lambda_weights"] = weights[sim_idx]
+        if counts is not None:
+            MDP["init_histogram_counts"] = counts[sim_idx]
 
         if self.equil[sim_idx] == -1:   # the weights haven't been equilibrated
             MDP["init_wl_delta"] = wl_delta[sim_idx]

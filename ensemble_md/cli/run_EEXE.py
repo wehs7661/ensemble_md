@@ -195,7 +195,7 @@ def main():
             elif EEXE.N_cutoff != -1 and EEXE.w_combine is False:
                 # only perform histogram correction
                 print('\nNote: No weight combination will be performed.')
-                weights_avg = EEXE.histogram_correction(weights_avg, counts)
+                weights = EEXE.histogram_correction(weights_avg, counts)
             else:
                 print('\nNote: No histogram correction will be performed.')
                 print('Note: No weight combination will be performed.')
@@ -205,7 +205,7 @@ def main():
             # Note we use states (copy of states_) instead of states_ in update_MDP.
             for j in list(range(EEXE.n_sim)):
                 os.mkdir(f'sim_{j}/iteration_{i}')
-                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights)   # modify with a new template  # noqa: E501
+                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
                 MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
                 # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
                 # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
