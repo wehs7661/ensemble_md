@@ -1169,7 +1169,10 @@ class EnsembleEXE:
                 i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))]
             print("Preparing the tpr files for the simulation ensemble ...", end="")
 
+            t1 = time.time()
             self.run_grompp(n)
+            t2 = time.time()
+            self.t_grompp.append(t2 - t1)
 
         # Run all the simulations simultaneously using gmxapi
         if rank == 0:
