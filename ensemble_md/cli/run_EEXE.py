@@ -97,8 +97,6 @@ def main():
                 os.mkdir(f'sim_{i}/iteration_0')
                 MDP = EEXE.initialize_MDP(i)
                 MDP.write(f"sim_{i}/iteration_0/{EEXE.mdp.split('/')[-1]}", skipempty=True)
-                shutil.copy(f'{EEXE.gro}', f"sim_{i}/iteration_0/{EEXE.gro.split('/')[-1]}")
-                shutil.copy(f'{EEXE.top}', f"sim_{i}/iteration_0/{EEXE.top.split('/')[-1]}")
 
         # 2-2. Run the first ensemble of simulations
         md = EEXE.run_EEXE(0)
@@ -209,10 +207,9 @@ def main():
                 os.mkdir(f'sim_{j}/iteration_{i}')
                 MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights)   # modify with a new template  # noqa: E501
                 MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
-                shutil.copy(f'{EEXE.top}', f"sim_{j}/iteration_{i}/{EEXE.top.split('/')[-1]}")
-
-                # Now we swap out the GRO files as needed
-                shutil.copy(f'sim_{swap_pattern[j]}/iteration_{i-1}/confout.gro', f"sim_{j}/iteration_{i}/{EEXE.gro.split('/')[-1]}")  # noqa: E501
+                # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
+                # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
+                # swap_patter to the function to figure it out internally.
 
         if -1 not in EEXE.equil and 0 not in EEXE.equil:
             # This is the case where the weights are equilibrated in a weight-updating simulation.
@@ -223,7 +220,7 @@ def main():
 
         # Step 4: Perform another iteration
         # 4-1. Run another ensemble of simulations
-        md = EEXE.run_EEXE(i)
+        md = EEXE.run_EEXE(i, swap_pattern)
 
         if rank == 0:
             # 4-2. Restructure the directory (move the files from mdrun_{i}_i0_* to sim_*/iteration_{i})
