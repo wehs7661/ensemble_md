@@ -1203,17 +1203,24 @@ class EnsembleEXE:
 
         The function assumes that the GROMACS executable is available.
         """
+        t1 = time.time()
         if rank == 0:
             iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
             print(iter_str + '\n' + '=' * (len(iter_str) - 1))
             print("Preparing the tpr files for the simulation ensemble ...", end="")
             self.run_grompp(n, swap_pattern)
         comm.barrier()
+        t2 = time.time()
+        self.t_grompp.append(t2 - t1)
 
         # Run all the simulations simultaneously
+        tt1 = time.time()
         self.run_mdrun(n)
 
         comm.barrier()
+        tt2 = time.time()
+        self.t_mdrun.append(tt2 - tt1)
+
 
         """
         if self.parallel is True:

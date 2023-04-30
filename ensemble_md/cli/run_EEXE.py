@@ -153,6 +153,7 @@ def main():
 
     for i in range(start_idx, EEXE.n_iter):
         if rank == 0:
+            t_it1 = time.time()
             # Step 3: Swap the coordinates
             # 3-1. For all the replica simulations,
             #   (1) Find the last sampled state and the corresponding lambda values from the DHDL files.
@@ -241,6 +242,8 @@ def main():
                     shutil.move(f, f'sim_{j}/iteration_{i}/')
                 os.rmdir(work_dir[j])
             """
+            t_it2 = time.time()
+            t_iteration.append(t_it2 - t_it1)
             # 4-3. Save data
             if (i + 1) % EEXE.n_ckpt == 0:
                 if len(EEXE.g_vecs) != 0:
@@ -255,6 +258,9 @@ def main():
         if len(EEXE.g_vecs) != 0:  # The length will be 0 only if there is no weight combination.
             np.save('g_vecs.npy', EEXE.g_vecs)
         np.save('rep_trajs.npy', EEXE.rep_trajs)
+        np.save('t_iteration.npy', t_iteration)
+        np.save('t_grompp.npy', EEXE.t_grompp)
+        np.save('t_mdrun.npy', EEXE.t_mdrun)
 
     # Step 5: Write a summary for the simulation ensemble
     if rank == 0:
