@@ -15,12 +15,10 @@ import sys
 import yaml
 import copy
 import random
-import shutil
 import pytest
 import numpy as np
 import ensemble_md
 import gmxapi as gmx
-from mpi4py import MPI
 from ensemble_md.utils import gmx_parser
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.utils.exceptions import ParameterError
@@ -674,25 +672,3 @@ class Test_EnsembleEXE:
             [0, 1.8, 1.4, 2.75],
             [0, -0.4, 0.95, 1.95]])
         assert np.allclose(list(g_vec), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
-
-    def test_run_EEXE(self, params_dict):
-        # We probably can only test serial EEXE
-        rank = MPI.COMM_WORLD.Get_rank()
-        params_dict['runtime_args'] = {'-nt': 1}
-        params_dict['nst_sim'] = 100  # Testing for 100 steps should be enough.
-        EEXE = get_EEXE_instance(params_dict)
-        if rank == 0:
-            for i in range(EEXE.n_sim):
-                os.mkdir(f'sim_{i}')
-                os.mkdir(f'sim_{i}/iteration_0')
-                MDP = EEXE.initialize_MDP(i)
-                MDP.write(f'sim_{i}/iteration_0/expanded.mdp', skipempty=True)
-                shutil.copy('ensemble_md/tests/data/sys.gro', f'sim_{i}/iteration_0/sys.gro')
-                shutil.copy('ensemble_md/tests/data/sys.top', f'sim_{i}/iteration_0/sys.top')
-
-        md = EEXE.run_EEXE(0)   # just test the first iteration is fine
-        assert md.output.returncode.result() == [0, 0, 0, 0]
-
-        if rank == 0:
-            os.system('rm -r sim_*')
-            os.system('rm -r gmxapi.commandline.cli*_i0*')

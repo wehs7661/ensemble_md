@@ -10,12 +10,9 @@
 """
 Unit tests for the module utils.py.
 """
-import os
 import sys
-import pytest
 import tempfile
 import numpy as np
-import gmxapi as gmx
 from ensemble_md.utils import utils
 
 
