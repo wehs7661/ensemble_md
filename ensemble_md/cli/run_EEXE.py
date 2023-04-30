@@ -90,6 +90,8 @@ def main():
 
     # Step 2: If there is no checkpoint file found/provided, perform the 1st iteration (index 0)
     if os.path.isfile(args.ckpt) is False:
+        start_idx = 1
+
         # 2-1. Set up input files for all simulations with 1 rank
         if rank == 0:
             for i in range(EEXE.n_sim):
@@ -99,21 +101,8 @@ def main():
                 MDP.write(f"sim_{i}/iteration_0/{EEXE.mdp.split('/')[-1]}", skipempty=True)
 
         # 2-2. Run the first ensemble of simulations
-        md = EEXE.run_EEXE(0)
+        EEXE.run_EEXE(0)
 
-        # 2-3. Restructure the directory (move the files from mdrun_0_i0_* to sim_*/iteration_0)
-        """
-        if rank == 0:
-            work_dir = md.output.directory.result()
-            for i in range(EEXE.n_sim):
-                if EEXE.verbose is True:
-                    print(f'  Moving files from {work_dir[i].split("/")[-1]}/ to sim_{i}/iteration_0/ ...')
-                    print(f'  Removing the empty folder {work_dir[i].split("/")[-1]} ...')
-                for f in glob.glob(f'{work_dir[i]}/*'):
-                    shutil.move(f, f'sim_{i}/iteration_0/')
-                os.rmdir(work_dir[i])
-        """
-        start_idx = 1
     else:
         if rank == 0:
             # If there is a checkpoint file, we see the execution as an extension of an EEXE simulation
@@ -153,7 +142,6 @@ def main():
 
     for i in range(start_idx, EEXE.n_iter):
         if rank == 0:
-            t_it1 = time.time()
             # Step 3: Swap the coordinates
             # 3-1. For all the replica simulations,
             #   (1) Find the last sampled state and the corresponding lambda values from the DHDL files.
@@ -228,23 +216,10 @@ def main():
         # Step 4: Perform another iteration
         # 4-1. Run another ensemble of simulations
         swap_pattern = comm.bcast(swap_pattern, root=0)
-        md = EEXE.run_EEXE(i, swap_pattern)
+        EEXE.run_EEXE(i, swap_pattern)
 
         if rank == 0:
-            # 4-2. Restructure the directory (move the files from mdrun_{i}_i0_* to sim_*/iteration_{i})
-            """
-            work_dir = md.output.directory.result()
-            for j in range(EEXE.n_sim):
-                if EEXE.verbose is True:
-                    print(f'  Moving files from {work_dir[j].split("/")[-1]}/ to sim_{j}/iteration_{i}/ ...')
-                    print(f'  Removing the empty folder {work_dir[j].split("/")[-1]} ...')
-                for f in glob.glob(f'{work_dir[j]}/*'):
-                    shutil.move(f, f'sim_{j}/iteration_{i}/')
-                os.rmdir(work_dir[j])
-            """
-            t_it2 = time.time()
-            t_iteration.append(t_it2 - t_it1)
-            # 4-3. Save data
+            # 4-2. Save data
             if (i + 1) % EEXE.n_ckpt == 0:
                 if len(EEXE.g_vecs) != 0:
                     # Save g_vec as a function of time if weight combination was used.
@@ -258,9 +233,6 @@ def main():
         if len(EEXE.g_vecs) != 0:  # The length will be 0 only if there is no weight combination.
             np.save('g_vecs.npy', EEXE.g_vecs)
         np.save('rep_trajs.npy', EEXE.rep_trajs)
-        np.save('t_iteration.npy', t_iteration)
-        np.save('t_grompp.npy', EEXE.t_grompp)
-        np.save('t_mdrun.npy', EEXE.t_mdrun)
 
     # Step 5: Write a summary for the simulation ensemble
     if rank == 0:
