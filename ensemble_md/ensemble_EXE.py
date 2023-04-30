@@ -31,8 +31,8 @@ from ensemble_md.utils import utils
 from ensemble_md.utils import gmx_parser
 from ensemble_md.utils.exceptions import ParameterError
 
-
-rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()  # Note that this is a GLOBAL variable
 
 
 class EnsembleEXE:
@@ -1086,6 +1086,13 @@ class EnsembleEXE:
 
         return weights, g_vec
 
+    def run_gmx_cmd(self, arguments):
+        try:
+            result = subprocess.run(arguments, capture_output=True, text=True, check=True)
+            return result.returncode, result.stdout, None
+        except subprocess.CalledProcessError as e:
+            return e.returncode, None, e.stderr
+
     def run_grompp(self, n, swap_pattern):
         """
         Prepares TPR files for the simulation ensemble using the GROMACS :code:`grompp` command.
@@ -1147,6 +1154,26 @@ class EnsembleEXE:
                     print(f"\nSTDERR of the process:\n\n {stderr_list[i]}\n")
             sys.exit(1)
 
+    def run_mdrun(self, n):
+        # We will change the working directory so the mdrun command should be the same for all replicas.
+        arguments = [gmx.utility.config()['gmx_executable'], 'mdrun']
+        
+        # Add input file arguments
+        arguments.extend(['-s', f'sys_EE.tpr'])
+        
+        if self.runtime_args is not None:
+            # Turn the dictionary into a list with the keys alternating with values
+            add_args = [elem for pair in self.runtime_args.items() for elem in pair]
+            arguments.extend(add_args)
+
+        if rank < self.n_sim:
+            print(f'Running an EXE simulation on rank {rank} ...')
+            os.chdir(f'sim_{rank}/iteration_{n}')
+            returncode, stdout, stderr = self.run_gmx_cmd(arguments)
+            if returncode != 0:
+                print(f'Error on rank {rank}: {stderr}')
+            os.chdir('../../')
+
     def run_EEXE(self, n, swap_pattern=None):
         """
         Makes TPR files and runs an ensemble of expanded ensemble simulations
@@ -1179,18 +1206,16 @@ class EnsembleEXE:
         if rank == 0:
             iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
             print(iter_str + '\n' + '=' * (len(iter_str) - 1))
-
-        if rank == 0:
-            dir_before = [
-                i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))]
             print("Preparing the tpr files for the simulation ensemble ...", end="")
-
             self.run_grompp(n, swap_pattern)
+        comm.barrier()
 
-        # Run all the simulations simultaneously using gmxapi
-        if rank == 0:
-            print("Running an ensemble of simulations ...", end="")
+        # Run all the simulations simultaneously
+        self.run_mdrun(n)
 
+        comm.barrier()
+
+        """
         if self.parallel is True:
             tpr = [f'sim_{i}/iteration_{n}/sys_EE.tpr' for i in range(self.n_sim)]
             inputs = gmx.read_tpr(tpr)
@@ -1220,11 +1245,6 @@ class EnsembleEXE:
             md.run()
             if rank == 0:  # just print the messages once
                 utils.gmx_output(md)
+        """
 
-        if rank == 0:
-            dir_after = [
-                i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))
-            ]
-            utils.clean_up(dir_before, dir_after, self.verbose)
-
-        return md
+        # return md

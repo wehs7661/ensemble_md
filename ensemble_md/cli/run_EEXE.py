@@ -102,6 +102,7 @@ def main():
         md = EEXE.run_EEXE(0)
 
         # 2-3. Restructure the directory (move the files from mdrun_0_i0_* to sim_*/iteration_0)
+        """
         if rank == 0:
             work_dir = md.output.directory.result()
             for i in range(EEXE.n_sim):
@@ -111,6 +112,7 @@ def main():
                 for f in glob.glob(f'{work_dir[i]}/*'):
                     shutil.move(f, f'sim_{i}/iteration_0/')
                 os.rmdir(work_dir[i])
+        """
         start_idx = 1
     else:
         if rank == 0:
@@ -139,6 +141,8 @@ def main():
                         shutil.rmtree(f'sim_{i}/iteration_{j}')
 
             # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
+            # Note that these two arrays are created in rank 0 and should always be operated in rank 0,
+            # or broadcasting is required.
             EEXE.rep_trajs = [list(i) for i in ckpt_data]
             if os.path.isfile(args.g_vecs) is True:
                 EEXE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
@@ -209,7 +213,9 @@ def main():
                 MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
                 # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
                 # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
-                # swap_patter to the function to figure it out internally.
+                # swap_pattern to the function to figure it out internally.
+        else:
+            swap_pattern = None
 
         if -1 not in EEXE.equil and 0 not in EEXE.equil:
             # This is the case where the weights are equilibrated in a weight-updating simulation.
@@ -220,10 +226,12 @@ def main():
 
         # Step 4: Perform another iteration
         # 4-1. Run another ensemble of simulations
+        swap_pattern = comm.bcast(swap_pattern, root=0)
         md = EEXE.run_EEXE(i, swap_pattern)
 
         if rank == 0:
             # 4-2. Restructure the directory (move the files from mdrun_{i}_i0_* to sim_*/iteration_{i})
+            """
             work_dir = md.output.directory.result()
             for j in range(EEXE.n_sim):
                 if EEXE.verbose is True:
@@ -232,7 +240,7 @@ def main():
                 for f in glob.glob(f'{work_dir[j]}/*'):
                     shutil.move(f, f'sim_{j}/iteration_{i}/')
                 os.rmdir(work_dir[j])
-
+            """
             # 4-3. Save data
             if (i + 1) % EEXE.n_ckpt == 0:
                 if len(EEXE.g_vecs) != 0:
