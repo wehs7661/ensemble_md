@@ -25,7 +25,6 @@ from alchemlyb.parsing.gmx import extract_dHdl
 from alchemlyb.parsing.gmx import _get_headers as get_headers
 from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 
-import gmxapi as gmx
 import ensemble_md
 from ensemble_md.utils import gmx_parser
 from ensemble_md.utils.exceptions import ParameterError
@@ -135,12 +134,12 @@ class EnsembleEXE:
         for attr in params:
             setattr(self, attr, params[attr])
 
-        # Step 2: Handle the YAML parameters
+        # Step 2: Handle the compulsory YAML parameters
         required_args = [
+            "gmx_executable",
             "gro",
             "top",
             "mdp",
-            "parallel",
             "n_sim",
             "n_iter",
             "s",
@@ -151,6 +150,10 @@ class EnsembleEXE:
                     f"Required parameter '{i}' not specified in {self.yaml}."
                 )  # noqa: F405
 
+        # Check the GROMACS executable
+        self.check_gmx_executable()
+
+        # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
             "nst_sim": None,
@@ -181,7 +184,7 @@ class EnsembleEXE:
             if i not in all_args:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
-        # Step 3: Check if the parameters in the YAML file are well-defined
+        # Step 4: Check if the parameters in the YAML file are well-defined
         if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'multiple']:
             raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.")  # noqa: E501
 
@@ -223,15 +226,15 @@ class EnsembleEXE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['parallel', 'verbose', 'msm']
+        params_bool = ['verbose', 'msm']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
-        # Step 4: Reformat the input MDP file to replace all hypens with underscores.
+        # Step 5: Reformat the input MDP file to replace all hypens with underscores.
         self.reformat_MDP()
 
-        # Step 5: Read in parameters from the MDP template
+        # Step 6: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
         self.nsteps = self.template["nsteps"]  # will be overwritten by self.nst_sim if nst_sim is specified.
         self.dt = self.template["dt"]  # ps
@@ -275,11 +278,11 @@ class EnsembleEXE:
             raise ParameterError(
                 'The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.')  # noqa: E501
 
-        # Step 6: Set up derived parameters
-        # 6-1. kT in kJ/mol
+        # Step 7: Set up derived parameters
+        # 7-1. kT in kJ/mol
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
 
-        # 6-2. Figure out what types of lambda variables are involved
+        # 7-2. Figure out what types of lambda variables are involved
         # Here is we possible lambda types in the order read by GROMACS, which is likely also the order when being printed to the log file.  # noqa: E501
         # See https://gitlab.com/gromacs/gromacs/-/blob/main/src/gromacs/gmxpreprocess/readir.cpp#L2543
         lambdas_types_all = ['fep_lambdas', 'mass_lambdas', 'coul_lambdas', 'vdw_lambdas', 'bonded_lambdas', 'restraint_lambdas', 'temperature_lambdas']  # noqa: E501
@@ -288,51 +291,69 @@ class EnsembleEXE:
             if i in self.template.keys():  # there shouldn't be parameters like "fep-lambdas" after reformatting the MDP file  # noqa: E501
                 self.lambda_types.append(i)
 
-        # 6-3. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
+        # 7-3. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
         self.n_tot = len(self.template[self.lambda_types[0]])
 
-        # 6-4. Number of states of each replica (assuming the same for all rep)
+        # 7-4. Number of states of each replica (assuming the same for all rep)
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
         if self.n_sub < 1:
             raise ParameterError(
                 f"There must be at least two states for each replica (current value: {self.n_sub}). The current specified configuration (n_tot={self.n_tot}, n_sim={self.n_sim}, s={self.s}) does not work for EEXE.")  # noqa: E501
 
-        # 6-5. A list of sets of state indices
+        # 7-5. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
         self.state_ranges = [list(np.arange(i, i + self.n_sub)) for i in start_idx]
 
-        # 6-6. A list of time it took to get the weights equilibrated
+        # 7-6. A list of time it took to get the weights equilibrated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
 
-        # 6-7. Map the lamda vectors to state indices
+        # 7-7. Map the lamda vectors to state indices
         self.map_lambda2state()
 
-        # 6-8. Some variables for counting
+        # 7-8. Some variables for counting
         self.n_rejected = 0
         self.n_swap_attempts = 0
         self.n_empty_swappable = 0
 
-        # 6-9. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
+        # 7-9. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
         # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
 
-        # 6-10. configs shows the current configuration that each replica is sampling.
+        # 7-10. configs shows the current configuration that each replica is sampling.
         # For example, self.configs = [0, 2, 1, 3] means that configurations 0, 2, 1, and 3 are
         # in replicas, 0, 1, 2, 3, respectively. This list will be constantly updated during the simulation.
         self.configs = list(range(self.n_sim))
 
-        # 6-11. The time series of the (processed) whole-range alchemical weights
+        # 7-11. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
         self.g_vecs = []
 
-        # 6-12. Data analysis
+        # 7-12. Data analysis
         if self.df_method == 'MBAR':
             self.get_u_nk = True
             self.get_dHdl = False
         else:
             self.get_u_nk = False
             self.get_dHdl = True
+
+    def check_gmx_executable(self):
+        """
+        Checks if the GROMACS executable can be used and  gets its absolute path and version.
+        """
+        try:
+            result = subprocess.run(['which', self.gmx_executable], capture_output=True, text=True, check=True)
+            self.gmx_path = result.stdout.strip()  # this can be exactly the same as self.gmx_executable
+
+            version_output = subprocess.run([self.gmx_path, "-version"], capture_output=True, text=True, check=True)
+            for line in version_output.stdout.splitlines():
+                if "GROMACS version" in line:
+                    self.gmx_version = line.split()[-1]
+                    break
+        except subprocess.CalledProcessError:
+            print(f"{self.check_gmx_executable()} is not available on this system.")
+        except Exception as e:
+            print(f"An error occurred:\n{e}")
 
     def print_params(self, params_analysis=False):
         """
@@ -346,11 +367,11 @@ class EnsembleEXE:
         print("Important parameters of EXEE")
         print("============================")
         print(f"Python version: {sys.version}")
-        print(f"gmxapi version: {gmx.__version__}")
+        print(f"GROMACS executable: {self.gmx_path}")  # we print the full path here
+        print(f"GROMACS version: {self.gmx_version}")
         print(f"ensemble_md version: {ensemble_md.__version__}")
         print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
         print(f"Verbose log file: {self.verbose}")
-        print(f"Whether the replicas run in parallel: {self.parallel}")
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
         print(f"Whether to perform weight combination: {self.w_combine}")
@@ -1128,7 +1149,7 @@ class EnsembleEXE:
         for i in range(self.n_sim):
             # mpirun -np 1 does not seem needed here.
             # Actually, it made stderr and stdout both empty even if the return code is 1 ...
-            arguments = [gmx.utility.config()['gmx_executable'], 'grompp']
+            arguments = [self.gmx_executable, 'grompp']
 
             # Input files
             mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
@@ -1172,7 +1193,7 @@ class EnsembleEXE:
             The iteration index (starting from 0).
         """
         # We will change the working directory so the mdrun command should be the same for all replicas.
-        arguments = [gmx.utility.config()['gmx_executable'], 'mdrun']
+        arguments = [self.gmx_executable, 'mdrun']
 
         # Add input file arguments
         arguments.extend(['-s', 'sys_EE.tpr'])

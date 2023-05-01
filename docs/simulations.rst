@@ -119,11 +119,9 @@ other during the simulation ensemble. Check :ref:`doc_parameters` for more detai
 
 Step 2: Run the 1st iteration
 -----------------------------
-With all the input files/parameters set up in the previous run, one can use :obj:`.run_EEXE` to run the 
-first iteration. Specifically, :obj:`.run_EEXE` uses :code:`gmxapi.commandline_operation` to launch an GROMACS
-:code:`grompp` command to generate the input MDP file. Then, if :code:`parallel` is specified as :code:`True` 
-in the input YAML file, :code:`gmxapi.mdrun` will be used to run GROMACS :code:`mdrun` commands in parallel, 
-otherwise :code:`gmxapi.commandline_operation` will be used to run simulations serially.
+With all the input files/parameters set up in the previous run, one can use run the first iteration,
+using :obj:`.run_EEXE`, which uses :code:`subprocess.run` to launch GROMACS :code:`grompp`
+and :code:`mdrun` commands in parallel.
 
 Step 3: Set up the new iteration
 --------------------------------
@@ -194,7 +192,15 @@ In the current implementation of the algorithm, 22 parameters can be specified i
 Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
-3.1. Simulation inputs
+3.1. GROMACS executable
+-----------------------
+
+  - :code:`gmx_executable`: (Required)
+      The GROMACS executable to be used to run the EEXE simulation. The value could be as simple as :code:`gmx`
+      or :code:`gmx_mpi` if the exeutable has be sourced. Otherwise, the full path of the exetuable (e.g.
+      :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`).
+
+3.2. Simulation inputs
 ----------------------
 
   - :code:`gro`: (Required)
@@ -204,11 +210,9 @@ include parameters for data analysis here.
   - :code:`mdp`: (Required)
       The MDP template that has the whole range of :math:`λ` values.
 
-3.2. EEXE parameters
+3.3. EEXE parameters
 --------------------
 
-  - :code:`parallel`: (Required)
-      Whether the replicas of EEXE should be run in parallel or not.
   - :code:`n_sim`: (Required)
       The number of replica simulations.
   - :code:`n_iter`: (Required)
@@ -241,7 +245,7 @@ include parameters for data analysis here.
       Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. 
       For example, one could have :code:`{'-nt': 16}` to run the simulation using 16 threads.
 
-3.3. Output settings
+3.4. Output settings
 --------------------
   - :code:`verbose`: (Optional, Default: :code:`True`)
       Whether a verbse log is wanted. 
@@ -250,7 +254,7 @@ include parameters for data analysis here.
   
 .. _doc_analysis_params:
 
-3.4. Data analysis
+3.5. Data analysis
 ------------------
   - :code:`msm`: (Optional, Default: :code:`False`)
       Whether to build Markov state models (MSMs) for the EEXE simulation and perform relevant analysis.
@@ -271,20 +275,21 @@ include parameters for data analysis here.
   - :code:`seed`: (Optional, Default: None)
       The random seed to use in bootstrapping.
 
-3.5. A template input YAML file
+3.6. A template input YAML file
 -------------------------------
 For convenience, here is a template of the input YAML file, with each optional parameter specified with the default and required 
 parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e. :code:`None`).
 
 ::
+    # Section 1: GROMACS executable
+    gmx_executable:
 
-    # Section 1: Simulation inputs
+    # Section 2: Simulation inputs
     gro:
     top:
     mdp:
 
-    # Section 2: EEXE parameters
-    parallel:
+    # Section 3: EEXE parameters
     n_sim:
     n_iter:
     s:
@@ -297,11 +302,11 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     grompp_args: null
     runtime_args: null
 
-    # Section 3: Output settings
+    # Section 4: Output settings
     verbose: True
     n_ckpt: 100
 
-    # Section 4: Data analysis
+    # Section 5: Data analysis
     msm: False
     free_energy: False 
     df_spacing: 1
