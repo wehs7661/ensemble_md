@@ -48,12 +48,12 @@ jobs:
       - run:
           name: Install the ensemble_md package
           command: |
-            export gmxapi_ROOT=$HOME/pkgs  # set the envrionment variable so gmxapi can be installed successfully
-            python3 -m pip install '.[gmxapi]'
+            python3 -m pip install .
 
       - run:
           name: Run unit tests
           command: |
+            source $HOME/pkgs/bin/GMXRC
             pip3 install pytest 
             pip3 install pytest-cov
             pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
