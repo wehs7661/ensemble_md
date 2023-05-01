@@ -9,7 +9,6 @@
 ####################################################################
 import os
 import sys
-import glob
 import time
 import copy
 import shutil
@@ -107,24 +106,16 @@ def main():
         if rank == 0:
             # If there is a checkpoint file, we see the execution as an extension of an EEXE simulation
             ckpt_data = np.load(args.ckpt)
-            start_idx = len(ckpt_data[0])
+            start_idx = len(ckpt_data[0])  # The length should be the same for the same axis
             print(f'\nGetting prepared to extend the EEXE simulation from iteration {start_idx} ...')
 
-            print('Deleting corrupted data ...')
-            corrupted = glob.glob('gmxapi.commandline.cli*')  # corrupted iteration
-            corrupted.extend(glob.glob('mdrun*'))
-            for i in corrupted:
-                shutil.rmtree(i)
-            if len(corrupted) == 0:
-                corrupt_bool = False
-
-            for i in range(EEXE.n_sim):
-                n_finished = len(next(os.walk(f'sim_{i}'))[1])  # number of finished iterations (the last might be initialized but corrupted though)  # noqa: E501
-                if n_finished == EEXE.n_iter and corrupt_bool is False:
-                    print('Extension aborted: The expected number of iterations have been completed!')
-                    sys.exit()
-                else:
-                    print('Deleting data generated after the checkpoint ...')
+            if start_idx == EEXE.n_iter:
+                print('Extension aborted: The expected number of iterations have been completed!')
+                sys.exit()
+            else:
+                print('Deleting data generated after the checkpoint ...')
+                for i in range(EEXE.n_sim):
+                    n_finished = len(next(os.walk(f'sim_{i}'))[1])  # number of finished iterations
                     for j in range(start_idx, n_finished):
                         print(f'  Deleting the folder sim_{i}/iteration_{j}')
                         shutil.rmtree(f'sim_{i}/iteration_{j}')
