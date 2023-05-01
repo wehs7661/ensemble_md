@@ -93,21 +93,22 @@ setup(
         'seaborn',
         'matplotlib',
         'pyemma',
+        'mpi4py'
     ],
 
-    # The following extra_require directive provides optional dependencies by, in our case, pip install ensemble[gmxapi].
+    # (OBSOLETE) The following extra_require directive provides optional dependencies by, in our case, pip install ensemble[gmxapi].
     # ensemble_md requires GROMACS and gmxapi to be installed before use. 
     # If a working version of GROMACS is available, the user can choose to install ensemble_md along with gmxapi 
     # using the following command: `pip install ensemble_md[gmxapi]`. Otherwise, follow installation 
     # instructions of GROMACS and gmxapi to install each package separately. 
-    extras_require={
-        'gmxapi': [
-            'pybind11>=2.6',
-            'setuptools>=42.0',
-            'mpi4py',
-            'gmxapi>=0.4.0rc2'
-        ],
-    },
+    
+    # extras_require={
+    #    'gmxapi': [
+    #        'pybind11>=2.6',
+    #        'setuptools>=42.0',
+    #        'gmxapi>=0.4.0rc2'
+    #    ],
+    # },
 
     platforms=['Linux',
                'Mac OS-X',

@@ -351,7 +351,7 @@ class EnsembleEXE:
                     self.gmx_version = line.split()[-1]
                     break
         except subprocess.CalledProcessError:
-            print(f"{self.check_gmx_executable()} is not available on this system.")
+            print(f"{self.gmx_executable} is not available on this system.")
         except Exception as e:
             print(f"An error occurred:\n{e}")
 

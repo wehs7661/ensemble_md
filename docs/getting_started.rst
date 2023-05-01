@@ -4,12 +4,11 @@
 running, and analyzing GROMACS simulation ensembles. The current implementation is
 mainly for synchronous ensemble of expanded ensemble (EEXE), but we will develop
 methods like asynchronous EEXE, or ensemble of alchemical metadynamics in the future.
-In the current implementation, `gmxapi`_, which is a higher level Python API of GROMACS,
+In the current implementation, the module :code:`subprocess`
 is used to launch GROMACS commands, but we will switch to `SCALE-MS`_ for this purpose
 in the future when possible.
 
 
-.. _`gmxapi`: https://manual.gromacs.org/current/gmxapi/
 .. _`SCALE-MS`: https://scale-ms.readthedocs.io/en/latest/
 
 
@@ -17,8 +16,7 @@ in the future when possible.
 ===============
 2.1. Requirements
 -----------------
-Before installing :code:`ensemble_md`, one should have working versions of `GROMACS`_
-and `gmxapi`_. Please refer to the linked documentations for full installation instructions.
+Before installing :code:`ensemble_md`, one should have working versions of `GROMACS`_. Please refer to the linked documentations for full installation instructions.
 All the other pip-installable dependencies of :code:`ensemble_md` (specified in :code:`setup.py` of the package)
 will be automatically installed during the installation of the package.
 
@@ -31,14 +29,6 @@ will be automatically installed during the installation of the package.
 
     pip install ensemble-md 
 
-By default, the command above does not install :code:`gmxapi`, so one needs to either
-following the full installation instruction of :code:`gmxapi`, or install
-:code:`gmxapi` along with the package (after sourcing the GROMACS excutable, e.g. 
-:code:`/usr/local/gromacs/bin/GMXRC`) with the following command:
-::
-
-    pip install ensemble-md[gmxapi]
-
 2.3. Installation from source
 -----------------------------
 One can also install :code:`ensemble_md` from the source code, which is available in our
@@ -49,8 +39,7 @@ One can also install :code:`ensemble_md` from the source code, which is availabl
     cd ensemble_md/
     pip install .
 
-To install the pacakg along with :code:`gmxapi`, replace the last command with 
-:code:`pip install '.[gmxapi]'`. If you are interested in contributing to the project, append the 
+If you are interested in contributing to the project, append the 
 last command with the flag :code:`-e` to install the project in the editable mode 
 so that changes you make in the source code will take effects without re-installation of the package. 
 (Pull requests to the project repository are welcome!)
