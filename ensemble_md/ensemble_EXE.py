@@ -25,14 +25,12 @@ from alchemlyb.parsing.gmx import extract_dHdl
 from alchemlyb.parsing.gmx import _get_headers as get_headers
 from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 
-import gmxapi as gmx
 import ensemble_md
-from ensemble_md.utils import utils
 from ensemble_md.utils import gmx_parser
 from ensemble_md.utils.exceptions import ParameterError
 
-
-rank = MPI.COMM_WORLD.Get_rank()  # Note that this is a GLOBAL variable
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()  # Note that this is a GLOBAL variable
 
 
 class EnsembleEXE:
@@ -136,12 +134,12 @@ class EnsembleEXE:
         for attr in params:
             setattr(self, attr, params[attr])
 
-        # Step 2: Handle the YAML parameters
+        # Step 2: Handle the compulsory YAML parameters
         required_args = [
+            "gmx_executable",
             "gro",
             "top",
             "mdp",
-            "parallel",
             "n_sim",
             "n_iter",
             "s",
@@ -152,6 +150,10 @@ class EnsembleEXE:
                     f"Required parameter '{i}' not specified in {self.yaml}."
                 )  # noqa: F405
 
+        # Check the GROMACS executable
+        self.check_gmx_executable()
+
+        # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
             "nst_sim": None,
@@ -182,7 +184,7 @@ class EnsembleEXE:
             if i not in all_args:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
-        # Step 3: Check if the parameters in the YAML file are well-defined
+        # Step 4: Check if the parameters in the YAML file are well-defined
         if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'multiple']:
             raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.")  # noqa: E501
 
@@ -224,15 +226,15 @@ class EnsembleEXE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['parallel', 'verbose', 'msm']
+        params_bool = ['verbose', 'msm']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
-        # Step 4: Reformat the input MDP file to replace all hypens with underscores.
+        # Step 5: Reformat the input MDP file to replace all hypens with underscores.
         self.reformat_MDP()
 
-        # Step 5: Read in parameters from the MDP template
+        # Step 6: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
         self.nsteps = self.template["nsteps"]  # will be overwritten by self.nst_sim if nst_sim is specified.
         self.dt = self.template["dt"]  # ps
@@ -276,11 +278,11 @@ class EnsembleEXE:
             raise ParameterError(
                 'The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.')  # noqa: E501
 
-        # Step 6: Set up derived parameters
-        # 6-1. kT in kJ/mol
+        # Step 7: Set up derived parameters
+        # 7-1. kT in kJ/mol
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
 
-        # 6-2. Figure out what types of lambda variables are involved
+        # 7-2. Figure out what types of lambda variables are involved
         # Here is we possible lambda types in the order read by GROMACS, which is likely also the order when being printed to the log file.  # noqa: E501
         # See https://gitlab.com/gromacs/gromacs/-/blob/main/src/gromacs/gmxpreprocess/readir.cpp#L2543
         lambdas_types_all = ['fep_lambdas', 'mass_lambdas', 'coul_lambdas', 'vdw_lambdas', 'bonded_lambdas', 'restraint_lambdas', 'temperature_lambdas']  # noqa: E501
@@ -289,51 +291,69 @@ class EnsembleEXE:
             if i in self.template.keys():  # there shouldn't be parameters like "fep-lambdas" after reformatting the MDP file  # noqa: E501
                 self.lambda_types.append(i)
 
-        # 6-3. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
+        # 7-3. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
         self.n_tot = len(self.template[self.lambda_types[0]])
 
-        # 6-4. Number of states of each replica (assuming the same for all rep)
+        # 7-4. Number of states of each replica (assuming the same for all rep)
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
         if self.n_sub < 1:
             raise ParameterError(
                 f"There must be at least two states for each replica (current value: {self.n_sub}). The current specified configuration (n_tot={self.n_tot}, n_sim={self.n_sim}, s={self.s}) does not work for EEXE.")  # noqa: E501
 
-        # 6-5. A list of sets of state indices
+        # 7-5. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
         self.state_ranges = [list(np.arange(i, i + self.n_sub)) for i in start_idx]
 
-        # 6-6. A list of time it took to get the weights equilibrated
+        # 7-6. A list of time it took to get the weights equilibrated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
 
-        # 6-7. Map the lamda vectors to state indices
+        # 7-7. Map the lamda vectors to state indices
         self.map_lambda2state()
 
-        # 6-8. Some variables for counting
+        # 7-8. Some variables for counting
         self.n_rejected = 0
         self.n_swap_attempts = 0
         self.n_empty_swappable = 0
 
-        # 6-9. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
+        # 7-9. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
         # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
 
-        # 6-10. configs shows the current configuration that each replica is sampling.
+        # 7-10. configs shows the current configuration that each replica is sampling.
         # For example, self.configs = [0, 2, 1, 3] means that configurations 0, 2, 1, and 3 are
         # in replicas, 0, 1, 2, 3, respectively. This list will be constantly updated during the simulation.
         self.configs = list(range(self.n_sim))
 
-        # 6-11. The time series of the (processed) whole-range alchemical weights
+        # 7-11. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
         self.g_vecs = []
 
-        # 6-12. Data analysis
+        # 7-12. Data analysis
         if self.df_method == 'MBAR':
             self.get_u_nk = True
             self.get_dHdl = False
         else:
             self.get_u_nk = False
             self.get_dHdl = True
+
+    def check_gmx_executable(self):
+        """
+        Checks if the GROMACS executable can be used and  gets its absolute path and version.
+        """
+        try:
+            result = subprocess.run(['which', self.gmx_executable], capture_output=True, text=True, check=True)
+            self.gmx_path = result.stdout.strip()  # this can be exactly the same as self.gmx_executable
+
+            version_output = subprocess.run([self.gmx_path, "-version"], capture_output=True, text=True, check=True)
+            for line in version_output.stdout.splitlines():
+                if "GROMACS version" in line:
+                    self.gmx_version = line.split()[-1]
+                    break
+        except subprocess.CalledProcessError:
+            print(f"{self.gmx_executable} is not available on this system.")
+        except Exception as e:
+            print(f"An error occurred:\n{e}")
 
     def print_params(self, params_analysis=False):
         """
@@ -347,11 +367,11 @@ class EnsembleEXE:
         print("Important parameters of EXEE")
         print("============================")
         print(f"Python version: {sys.version}")
-        print(f"gmxapi version: {gmx.__version__}")
+        print(f"GROMACS executable: {self.gmx_path}")  # we print the full path here
+        print(f"GROMACS version: {self.gmx_version}")
         print(f"ensemble_md version: {ensemble_md.__version__}")
         print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
         print(f"Verbose log file: {self.verbose}")
-        print(f"Whether the replicas run in parallel: {self.parallel}")
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
         print(f"Whether to perform weight combination: {self.w_combine}")
@@ -1086,6 +1106,34 @@ class EnsembleEXE:
 
         return weights, g_vec
 
+    def run_gmx_cmd(self, arguments):
+        """
+        Run a GROMACS command as a subprocess
+
+        Parameters
+        ----------
+        arguments : list
+            A list of arguments that compose of the GROMACS command to run, e.g.
+            :code:`['gmx', 'mdrun', '-deffnm', 'sys']`.
+
+        Returns
+        -------
+        return_code : int
+            The exit code of the GROMACS command. Any number other than 0 indicates an error.
+        stdout : str or None
+            The STDOUT of the process.
+        stderr: str or None
+            The STDERR or the process.
+
+        """
+        try:
+            result = subprocess.run(arguments, capture_output=True, text=True, check=True)
+            return_code, stdout, stderr = result.returncode, result.stdout, None
+        except subprocess.CalledProcessError as e:
+            return_code, stdout, stderr = e.returncode, None, e.stderr
+
+        return return_code, stdout, stderr
+
     def run_grompp(self, n, swap_pattern):
         """
         Prepares TPR files for the simulation ensemble using the GROMACS :code:`grompp` command.
@@ -1097,11 +1145,11 @@ class EnsembleEXE:
         swap_pattern : list
             A list generated by :code:`get_swapping_pattern`. It represents how the replicas should be swapped.
         """
-        rtn_code, stderr_list = [], []
+        args_list = []
         for i in range(self.n_sim):
             # mpirun -np 1 does not seem needed here.
             # Actually, it made stderr and stdout both empty even if the return code is 1 ...
-            arguments = [gmx.utility.config()['gmx_executable'], 'grompp']
+            arguments = [self.gmx_executable, 'grompp']
 
             # Input files
             mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
@@ -1112,11 +1160,7 @@ class EnsembleEXE:
             top = f"{self.top}"
 
             # Add input file arguments
-            arguments.extend([
-                "-f", mdp,
-                "-c", gro,
-                "-p", top
-            ])
+            arguments.extend(["-f", mdp, "-c", gro, "-p", top])
 
             # Add output file arguments
             arguments.extend([
@@ -1130,27 +1174,51 @@ class EnsembleEXE:
                 add_args = [elem for pair in self.grompp_args.items() for elem in pair]
                 arguments.extend(add_args)
 
-            # Run the GROMACS grompp command
-            try:
-                result = subprocess.run(arguments, capture_output=True, text=True, check=True)
-                rtn_code.append(result.returncode)
-            except subprocess.CalledProcessError as e:
-                rtn_code.append(e.returncode)
-                stderr_list.append(e.stderr)
+            args_list.append(arguments)
 
-        if sum(rtn_code) == 0:
-            print(" Done")
-        else:
-            print(f" Return codes: {rtn_code}")
-            for i in range(len(rtn_code)):
-                if rtn_code[i] != 0:
-                    print(f"\nSTDERR of the process:\n\n {stderr_list[i]}\n")
-            sys.exit(1)
+        # Run the GROMACS grompp commands in parallel
+        if rank < self.n_sim:
+            print(f'Generating a TPR file on rank {rank} ...')
+            returncode, stdout, stderr = self.run_gmx_cmd(args_list[rank])
+            if returncode != 0:
+                print(f'Error on rank {rank}:\n{stderr}')
+
+    def run_mdrun(self, n):
+        """
+        Executes GROMACS mdrun commands in parallel.
+
+        Parameters
+        ----------
+        n : int
+            The iteration index (starting from 0).
+        """
+        # We will change the working directory so the mdrun command should be the same for all replicas.
+        arguments = [self.gmx_executable, 'mdrun']
+
+        # Add input file arguments
+        arguments.extend(['-s', 'sys_EE.tpr'])
+
+        if self.runtime_args is not None:
+            # Turn the dictionary into a list with the keys alternating with values
+            add_args = [elem for pair in self.runtime_args.items() for elem in pair]
+            arguments.extend(add_args)
+
+        # Run the GROMACS mdrun commands in parallel
+        if rank < self.n_sim:
+            print(f'Running an EXE simulation on rank {rank} ...')
+            os.chdir(f'sim_{rank}/iteration_{n}')
+            returncode, stdout, stderr = self.run_gmx_cmd(arguments)
+            if returncode != 0:
+                print(f'Error on rank {rank}:\n{stderr}')
+                sys.exit(returncode)
+            os.chdir('../../')
 
     def run_EEXE(self, n, swap_pattern=None):
         """
-        Makes TPR files and runs an ensemble of expanded ensemble simulations
-        using GROMACS.
+        Perform one iteration in the EEXE simulation, which includes generating the
+        TPR files using the GROMACS grompp :code:`command` and running the expanded ensemble simulations
+        in parallel using GROMACS :code:`mdrun` command. The GROMACS commands are launched by as subprocesses.
+        The function assumes that the GROMACS executable is available.
 
         Parameters
         ----------
@@ -1159,72 +1227,23 @@ class EnsembleEXE:
         swap_pattern : list
             A list generated by :code:`get_swapping_pattern`. It represents how the replicas should be swapped.
             This parameter is not needed only if :code:`n` is 0.
-
-        Returns
-        -------
-        md : :code:`gmxapi.commandline.CommandlineOperation` obj
-            The :code:`gmxapi.commandline.CommandlineOperation` object returned by :code:`gmxapi.mdrun`
-            which contains STDOUT and STDERR of the simulation.
-
-        Notes
-        -----
-        This function performs the following steps:
-
-          1. Prepares TPR files for the simulation ensemble using :code:`grompp`.
-          2. Runs all the simulations simultaneously using :code:`mdrun`.
-          3. Removes any empty directories created by the function.
-
-        The function assumes that the GROMACS executable is available.
         """
         if rank == 0:
             iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
             print(iter_str + '\n' + '=' * (len(iter_str) - 1))
 
-        if rank == 0:
-            dir_before = [
-                i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))]
-            print("Preparing the tpr files for the simulation ensemble ...", end="")
+        # 1st synchronizing point for all MPI processes: To make sure ranks other than 0 will not start executing
+        # run_grompp earlier and mess up the order of printing.
+        comm.barrier()
 
-            self.run_grompp(n, swap_pattern)
+        # Generating all required TPR files simultaneously, then run all simulations simultaneously.
+        # No synchronizing point is needed between run_grompp and run_mdrun, since once rank i finishes run_grompp,
+        # it should run run_mdrun in the same working directory, so there won't be any I/O error.
+        self.run_grompp(n, swap_pattern)
+        self.run_mdrun(n)
 
-        # Run all the simulations simultaneously using gmxapi
-        if rank == 0:
-            print("Running an ensemble of simulations ...", end="")
-
-        if self.parallel is True:
-            tpr = [f'sim_{i}/iteration_{n}/sys_EE.tpr' for i in range(self.n_sim)]
-            inputs = gmx.read_tpr(tpr)
-            md = gmx.mdrun(inputs, runtime_args=self.runtime_args)
-            md.run()
-        else:
-            # Note that we could use output_files argument to customize the output file
-            # names but here we'll just use the defaults.
-
-            arguments = ['mdrun']  # arguments for gmx.commandline_operation
-
-            if self.runtime_args is not None:
-                # Turn the dictionary into a list with the keys alternating with values
-                add_args = [elem for pair in self.runtime_args.items() for elem in pair]
-                arguments.extend(add_args)
-
-            md = gmx.commandline_operation(
-                "gmx",
-                arguments=arguments,
-                input_files=[  # noqa: E128
-                    {
-                        "-s": f'../sim_{i}/iteration_{n}/sys_EE.tpr',
-                    }
-                    for i in range(self.n_sim)
-                ],
-            )
-            md.run()
-            if rank == 0:  # just print the messages once
-                utils.gmx_output(md)
-
-        if rank == 0:
-            dir_after = [
-                i for i in os.listdir(".") if os.path.isdir(os.path.join(".", i))
-            ]
-            utils.clean_up(dir_before, dir_after, self.verbose)
-
-        return md
+        # 2nd synchronizaing point for all MPI processes: To make sure no rank will start getting to the next
+        # iteration earlier than the others. For example, if rank 0 finishes the mdrun command earlier, we don't
+        # want it to start parsing the dhdl file (in the if condition of if rank == 0) of simulation 3 being run by
+        # rank 3 that has not been generated, which will lead to an I/O error.
+        comm.barrier()

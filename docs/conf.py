@@ -176,4 +176,4 @@ texinfo_documents = [
 # autoclass_content = 'both'
 autodoc_member_order = 'bysource'
 napoleon_attr_annotations = True
-autodoc_mock_imports = ["mpi4py", "gmxapi"]
+autodoc_mock_imports = ["mpi4py"]  # we originally included gmxapi in the old versions of ensemble_md

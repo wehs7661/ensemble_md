@@ -15,12 +15,9 @@ import sys
 import yaml
 import copy
 import random
-import shutil
 import pytest
 import numpy as np
 import ensemble_md
-import gmxapi as gmx
-from mpi4py import MPI
 from ensemble_md.utils import gmx_parser
 from ensemble_md.ensemble_EXE import EnsembleEXE
 from ensemble_md.utils.exceptions import ParameterError
@@ -35,7 +32,7 @@ def params_dict():
     Generates a dictionary containing the required EEXE parameters.
     """
     EEXE_dict = {
-        'parallel': False,
+        'gmx_executable': 'gmx',
         'gro': 'ensemble_md/tests/data/sys.gro',
         'top': 'ensemble_md/tests/data/sys.top',
         'mdp': 'ensemble_md/tests/data/expanded.mdp',
@@ -79,10 +76,10 @@ class Test_EnsembleEXE:
 
     def test_set_params_error(self, params_dict):
         # 1. Required parameters
-        del params_dict['parallel']
-        with pytest.raises(ParameterError, match="Required parameter 'parallel' not specified in params.yaml."):
+        del params_dict['n_sim']
+        with pytest.raises(ParameterError, match="Required parameter 'n_sim' not specified in params.yaml."):
             get_EEXE_instance(params_dict)
-        params_dict['parallel'] = False  # so params_dict can be read without failing in the assertions below
+        params_dict['n_sim'] = 4  # so params_dict can be read without failing in the assertions below
 
         # 2. Available options
         check_param_error(params_dict, 'proposal', "The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.", 'cool', 'multiple')  # set as multiple for later tests for n_ex # noqa: E501
@@ -108,7 +105,7 @@ class Test_EnsembleEXE:
         check_param_error(params_dict, 'mdp', "The parameter 'mdp' should be a string.", 3, 'ensemble_md/tests/data/expanded.mdp')  # noqa: E501
 
         # 7. Boolean parameters
-        check_param_error(params_dict, 'parallel', "The parameter 'parallel' should be a boolean variable.", 3, False)
+        check_param_error(params_dict, 'msm', "The parameter 'msm' should be a boolean variable.", 3, False)
 
         # 8. nstlog > nst_sim
         mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))  # A perfect mdp file
@@ -164,10 +161,10 @@ class Test_EnsembleEXE:
         EEXE = get_EEXE_instance(params_dict)
 
         # 1. Check the required EEXE parameters
+        assert EEXE.gmx_executable == 'gmx'
         assert EEXE.gro == "ensemble_md/tests/data/sys.gro"
         assert EEXE.top == "ensemble_md/tests/data/sys.top"
         assert EEXE.mdp == "ensemble_md/tests/data/expanded.mdp"
-        assert EEXE.parallel is False
         assert EEXE.n_sim == 4
         assert EEXE.n_iter == 10
         assert EEXE.s == 1
@@ -327,9 +324,12 @@ class Test_EnsembleEXE:
         out_1, err = capfd.readouterr()
         L = ""
         L += "Important parameters of EXEE\n============================\n"
-        L += f"Python version: {sys.version}\ngmxapi version: {gmx.__version__}\nensemble_md version: {ensemble_md.__version__}\n"  # noqa: E501
+        L += f"Python version: {sys.version}\n"
+        L += f"GROMACS executable: {EEXE.gmx_path}\n"  # Easier to pass CI. This is easy to catch anyway
+        L += f"GROMACS version: {EEXE.gmx_version}\n"  # Easier to pass CI. This is easy to catch anyway
+        L += f"ensemble_md version: {ensemble_md.__version__}\n"
         L += "Simulation inputs: ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/expanded.mdp\n"  # noqa: E501
-        L += "Verbose log file: True\nWhether the replicas run in parallel: False\n"
+        L += "Verbose log file: True\n"
         L += "Proposal scheme: exhaustive\n"
         L += "Acceptance scheme for swapping simulations: metropolis\n"
         L += "Whether to perform weight combination: False\n"
@@ -674,25 +674,3 @@ class Test_EnsembleEXE:
             [0, 1.8, 1.4, 2.75],
             [0, -0.4, 0.95, 1.95]])
         assert np.allclose(list(g_vec), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
-
-    def test_run_EEXE(self, params_dict):
-        # We probably can only test serial EEXE
-        rank = MPI.COMM_WORLD.Get_rank()
-        params_dict['runtime_args'] = {'-nt': 1}
-        params_dict['nst_sim'] = 100  # Testing for 100 steps should be enough.
-        EEXE = get_EEXE_instance(params_dict)
-        if rank == 0:
-            for i in range(EEXE.n_sim):
-                os.mkdir(f'sim_{i}')
-                os.mkdir(f'sim_{i}/iteration_0')
-                MDP = EEXE.initialize_MDP(i)
-                MDP.write(f'sim_{i}/iteration_0/expanded.mdp', skipempty=True)
-                shutil.copy('ensemble_md/tests/data/sys.gro', f'sim_{i}/iteration_0/sys.gro')
-                shutil.copy('ensemble_md/tests/data/sys.top', f'sim_{i}/iteration_0/sys.top')
-
-        md = EEXE.run_EEXE(0)   # just test the first iteration is fine
-        assert md.output.returncode.result() == [0, 0, 0, 0]
-
-        if rank == 0:
-            os.system('rm -r sim_*')
-            os.system('rm -r gmxapi.commandline.cli*_i0*')

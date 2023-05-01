@@ -9,7 +9,6 @@
 ####################################################################
 import os
 import sys
-import glob
 import time
 import copy
 import shutil
@@ -90,6 +89,8 @@ def main():
 
     # Step 2: If there is no checkpoint file found/provided, perform the 1st iteration (index 0)
     if os.path.isfile(args.ckpt) is False:
+        start_idx = 1
+
         # 2-1. Set up input files for all simulations with 1 rank
         if rank == 0:
             for i in range(EEXE.n_sim):
@@ -99,46 +100,29 @@ def main():
                 MDP.write(f"sim_{i}/iteration_0/{EEXE.mdp.split('/')[-1]}", skipempty=True)
 
         # 2-2. Run the first ensemble of simulations
-        md = EEXE.run_EEXE(0)
+        EEXE.run_EEXE(0)
 
-        # 2-3. Restructure the directory (move the files from mdrun_0_i0_* to sim_*/iteration_0)
-        if rank == 0:
-            work_dir = md.output.directory.result()
-            for i in range(EEXE.n_sim):
-                if EEXE.verbose is True:
-                    print(f'  Moving files from {work_dir[i].split("/")[-1]}/ to sim_{i}/iteration_0/ ...')
-                    print(f'  Removing the empty folder {work_dir[i].split("/")[-1]} ...')
-                for f in glob.glob(f'{work_dir[i]}/*'):
-                    shutil.move(f, f'sim_{i}/iteration_0/')
-                os.rmdir(work_dir[i])
-        start_idx = 1
     else:
         if rank == 0:
             # If there is a checkpoint file, we see the execution as an extension of an EEXE simulation
             ckpt_data = np.load(args.ckpt)
-            start_idx = len(ckpt_data[0])
+            start_idx = len(ckpt_data[0])  # The length should be the same for the same axis
             print(f'\nGetting prepared to extend the EEXE simulation from iteration {start_idx} ...')
 
-            print('Deleting corrupted data ...')
-            corrupted = glob.glob('gmxapi.commandline.cli*')  # corrupted iteration
-            corrupted.extend(glob.glob('mdrun*'))
-            for i in corrupted:
-                shutil.rmtree(i)
-            if len(corrupted) == 0:
-                corrupt_bool = False
-
-            for i in range(EEXE.n_sim):
-                n_finished = len(next(os.walk(f'sim_{i}'))[1])  # number of finished iterations (the last might be initialized but corrupted though)  # noqa: E501
-                if n_finished == EEXE.n_iter and corrupt_bool is False:
-                    print('Extension aborted: The expected number of iterations have been completed!')
-                    sys.exit()
-                else:
-                    print('Deleting data generated after the checkpoint ...')
+            if start_idx == EEXE.n_iter:
+                print('Extension aborted: The expected number of iterations have been completed!')
+                sys.exit()
+            else:
+                print('Deleting data generated after the checkpoint ...')
+                for i in range(EEXE.n_sim):
+                    n_finished = len(next(os.walk(f'sim_{i}'))[1])  # number of finished iterations
                     for j in range(start_idx, n_finished):
                         print(f'  Deleting the folder sim_{i}/iteration_{j}')
                         shutil.rmtree(f'sim_{i}/iteration_{j}')
 
             # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
+            # Note that these two arrays are created in rank 0 and should always be operated in rank 0,
+            # or broadcasting is required.
             EEXE.rep_trajs = [list(i) for i in ckpt_data]
             if os.path.isfile(args.g_vecs) is True:
                 EEXE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
@@ -209,7 +193,9 @@ def main():
                 MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
                 # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
                 # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
-                # swap_patter to the function to figure it out internally.
+                # swap_pattern to the function to figure it out internally.
+        else:
+            swap_pattern = None
 
         if -1 not in EEXE.equil and 0 not in EEXE.equil:
             # This is the case where the weights are equilibrated in a weight-updating simulation.
@@ -220,20 +206,11 @@ def main():
 
         # Step 4: Perform another iteration
         # 4-1. Run another ensemble of simulations
-        md = EEXE.run_EEXE(i, swap_pattern)
+        swap_pattern = comm.bcast(swap_pattern, root=0)
+        EEXE.run_EEXE(i, swap_pattern)
 
         if rank == 0:
-            # 4-2. Restructure the directory (move the files from mdrun_{i}_i0_* to sim_*/iteration_{i})
-            work_dir = md.output.directory.result()
-            for j in range(EEXE.n_sim):
-                if EEXE.verbose is True:
-                    print(f'  Moving files from {work_dir[j].split("/")[-1]}/ to sim_{j}/iteration_{i}/ ...')
-                    print(f'  Removing the empty folder {work_dir[j].split("/")[-1]} ...')
-                for f in glob.glob(f'{work_dir[j]}/*'):
-                    shutil.move(f, f'sim_{j}/iteration_{i}/')
-                os.rmdir(work_dir[j])
-
-            # 4-3. Save data
+            # 4-2. Save data
             if (i + 1) % EEXE.n_ckpt == 0:
                 if len(EEXE.g_vecs) != 0:
                     # Save g_vec as a function of time if weight combination was used.
