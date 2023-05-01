@@ -4,7 +4,11 @@
 ===============================
 :code:`ensemble_md` provides three command-line interfaces (CLI), including :code:`explore_EEXE`, :code:`run_EEXE` and :code:`analyze_EEXE`.
 :code:`explore_EEXE` helps the user to figure out possible combinations of EEXE parameters, while :code:`run_EEXE` and :code:`analyze_EEXE`
-can be used to perform and analyze EEXE simulations, respectively. Here is the help message of :code:`explore_EEXE`:
+can be used to perform and analyze EEXE simulations, respectively. Below we provide more details about each of these CLIs.
+
+1.1. CLI `explore_EEXE`
+-----------------------
+Here is the help message of :code:`explore_EEXE`:
 
 ::
 
@@ -25,7 +29,9 @@ can be used to perform and analyze EEXE simulations, respectively. Here is the h
                 replicas.
 
 
-And here is the help message of :code:`run_EEXE`:
+1.2. CLI `run_EEXE`
+-------------------
+Here is the help message of :code:`run_EEXE`:
 
 ::
 
@@ -52,6 +58,18 @@ And here is the help message of :code:`run_EEXE`:
                             The maximum number of warnings in parameter specification to be
                             ignored.
 
+In our current implementation, it is assumed that all replicas of an EEXE simulations are performed in
+parallel using MPI. Naturally, performing an EEXE simulation using :code:`run_EEXE` requires a command-line interface
+to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, on a 128-core node
+in a cluster, one may use :code:`mpirun -np 4 run_EEXE` (or :code:`mpiexec -n 4 run_EEXE`) to run an EEXE simulation composed of 4
+replicas with 4 MPI processes. Note that in this case, it is often recommended to explicitly specify
+more details about resources allocated for each replica. For example, one can specifies :code:`{'-nt': 32}`
+for the EEXE parameter `runtime_args` (specified in the input YAML file, see :ref:`doc_EEXE_parameters`),
+so each of the 4 replicas will use 32 threads (assuming thread-MPI GROMACS), taking the full advantage
+of 128 cores.
+
+1.3. CLI `analyze_EEXE`
+-----------------------
 Finally, here is the help message of :code:`analyze_EEXE`:
 
 ::
@@ -209,6 +227,8 @@ include parameters for data analysis here.
       The TOP file that contains the system topology. 
   - :code:`mdp`: (Required)
       The MDP template that has the whole range of :math:`λ` values.
+
+.. _doc_EEXE_parameters:
 
 3.3. EEXE parameters
 --------------------
