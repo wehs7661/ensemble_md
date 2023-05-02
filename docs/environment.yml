@@ -6,8 +6,7 @@ dependencies:
   - pandoc
   - ipykernel
   - mpich
-  - libmpich-dev
-  - libopenmpi-dev
+  - openmpi
   - mpi4py
   - pip
   - pip:
