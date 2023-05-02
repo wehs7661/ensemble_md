@@ -1,0 +1,14 @@
+sphinx
+nbsphinx
+sphinx_rtd_theme
+docutils==0.17.1
+pyyaml
+numpy
+natsort
+argparse
+alchemlyb==2.0.0
+seaborn
+matplotlib
+pyemma
+pymbar==4.0.1
+
