@@ -41,6 +41,9 @@ class EnsembleEXE:
     below is a list of attributes of the class. (All the the attributes are assigned by
     :obj:`set_params` unless otherwise noted.)
 
+    :ivar gmx_path: The absolute path of the GROMACS exectuable.
+    :ivar gmx_version: The version of the GROMACS executable.
+    :ivar mpi_library: The MPI library used to run GROMACS simulations.
     :ivar yaml: The input YAML file used to instantiate the class. Assigned by the :code:`__init__` function.
     :ivar warnings: Warnings about parameter specification in either YAML or MDP files.
     :ivar reformatted_mdp: Whether the templated MDP file has been reformatted by replacing hyphens
@@ -150,12 +153,14 @@ class EnsembleEXE:
                     f"Required parameter '{i}' not specified in {self.yaml}."
                 )  # noqa: F405
 
-        # Check the GROMACS executable
+        # Check the executables
+        self.check_mpi_cli()
         self.check_gmx_executable()
 
         # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
+            "mpi_cli": None,
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
@@ -164,7 +169,7 @@ class EnsembleEXE:
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
             "grompp_args": None,
-            "runtime_args": None,
+            "runtime_args": {},
             "n_ckpt": 100,
             "msm": False,
             "free_energy": False,
@@ -184,7 +189,7 @@ class EnsembleEXE:
             if i not in all_args:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
-        # Step 4: Check if the parameters in the YAML file are well-defined
+        # Step 4: Check if the parameters in the YAML file are well-defined        
         if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'multiple']:
             raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.")  # noqa: E501
 
@@ -230,6 +235,12 @@ class EnsembleEXE:
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
+
+        if self.mpi_library == 'MPI' and self.mpi_arg not in self.runtime_args:
+            self.warnings.append(f"MPI-enabled GROMACS is used, but the number of MPI processes (i.e., '-np' or '-n') is not specified in 'runtime_args'. A default of {self.n_sim} (the number of replicas) will be used.")  # noqa: E501
+            self.runtime_args[self.mpi_arg] = self.n_sim
+        if self.mpi_library == 'MPI' and self.mpi_cli is None:
+            self.warnings.append("MPI-enabled GROMACS is used, but the CLI for launching MPI processes is not specified. The default of 'mpirun' will be used.")  # noqa: E501
 
         # Step 5: Reformat the input MDP file to replace all hypens with underscores.
         self.reformat_MDP()
@@ -337,23 +348,53 @@ class EnsembleEXE:
             self.get_u_nk = False
             self.get_dHdl = True
 
+    def check_mpi_cli(self):
+        """
+        Check if the CLI for lauching MPI processes is available.
+        """
+        if self.mpi_cli is not None:
+            try:
+                result = subprocess.run(['which', self.mpi_cli], capture_output=True, text=True, check=True)
+                
+                # Below we set the argument for specifying the number of MPI processes
+                if 'mpirun' in self.mpi_cli:
+                    self.mpi_arg = '-np'
+                elif 'mpiexec' in self.mpi_cli:
+                    self.mpi_arg = '-n'
+
+            except subprocess.CalledProcessError:
+                print(f"{self.mpi_cli} is not available on this system.")
+
     def check_gmx_executable(self):
         """
-        Checks if the GROMACS executable can be used and  gets its absolute path and version.
+        Checks if the GROMACS executable can be used and gets its absolute path and version.
         """
         try:
             result = subprocess.run(['which', self.gmx_executable], capture_output=True, text=True, check=True)
             self.gmx_path = result.stdout.strip()  # this can be exactly the same as self.gmx_executable
 
-            version_output = subprocess.run([self.gmx_path, "-version"], capture_output=True, text=True, check=True)
+            command = [self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"]
+            print("Command:", command)
+
+            if self.mpi_cli is None:
+                version_output = subprocess.run([self.gmx_path, "-version"], capture_output=True, text=True, check=True)
+            else:
+                # self.mpi_cli should be avialable, or the code won't reach this point. 
+                version_output = subprocess.run([self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"], capture_output=True, text=True, check=True)
+
             for line in version_output.stdout.splitlines():
                 if "GROMACS version" in line:
                     self.gmx_version = line.split()[-1]
+                if "MPI library" in line:
+                    self.mpi_library = line.split()[-1]  # should be either thread_mpi or MPI
                     break
-        except subprocess.CalledProcessError:
-            print(f"{self.gmx_executable} is not available on this system.")
+        # except subprocess.CalledProcessError:
+        #     print(f"{self.gmx_executable} is not available on this system.")
         except Exception as e:
             print(f"An error occurred:\n{e}")
+            print(e.stdout)
+            print(e.stderr)
+            sys.exit(e.returncode)
 
     def print_params(self, params_analysis=False):
         """
@@ -1147,9 +1188,14 @@ class EnsembleEXE:
         """
         args_list = []
         for i in range(self.n_sim):
-            # mpirun -np 1 does not seem needed here.
-            # Actually, it made stderr and stdout both empty even if the return code is 1 ...
-            arguments = [self.gmx_executable, 'grompp']
+            arguments = []
+
+            # See if there is a need to use mpirun or mpiexec
+            if self.mpi_library != 'thread_mpi':
+                arguments.extend([self.mpi_cli, self.mpi_arg, self.runtime_args[self.mpi_arg]])
+
+            # GROMACS command
+            arguments.extend([self.gmx_executable, 'grompp'])
 
             # Input files
             mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
@@ -1192,7 +1238,14 @@ class EnsembleEXE:
         n : int
             The iteration index (starting from 0).
         """
-        # We will change the working directory so the mdrun command should be the same for all replicas.
+        # Note that we will change the working directory so the mdrun command will be the same for all replicas.
+        arguments = []
+
+        # See if there is a need to use mpirun or mpiexec
+        if self.mpi_library != 'thread_mpi':
+            arguments.extend([self.mpi_cli, self.mpi_arg, '1'])
+        
+        # GROMACS command
         arguments = [self.gmx_executable, 'mdrun']
 
         # Add input file arguments
