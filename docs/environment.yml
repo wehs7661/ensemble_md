@@ -9,5 +9,5 @@ dependencies:
   - mpi4py
   - pip
   - pip:
-      - -r file:requirements.txt
+      - -r ./requirements.txt
 
