@@ -616,13 +616,14 @@ class EnsembleEXE:
         log_files : list
             A list of file paths to GROMACS LOG files of different replicas.
 
-        Returned
-        --------
+        Returns
+        -------
         weights_avg : list
             A list of lists of weights averaged since the last update of the Wang-Landau
             incrementor. The length of the list should be the number of replicas.
         weights_err : list
             A list of lists of errors corresponding to the values in :code:`weights_avg`.
+
         """
         for i in range(self.n_sim):
             weights, _, wl_delta, _ = gmx_parser.parse_log(log_files[i])
@@ -678,7 +679,8 @@ class EnsembleEXE:
 
         return swappables
 
-    def propose_swap(self, swappables):
+    @staticmethod
+    def propose_swap(swappables):
         """
         Proposes a swap of coordinates between replicas by drawing samples from the swappable pairs.
 
@@ -1106,13 +1108,14 @@ class EnsembleEXE:
 
         return weights, g_vec
 
-    def run_gmx_cmd(self, arguments):
+    @staticmethod
+    def run_gmx_cmd(arguments: list):
         """
         Run a GROMACS command as a subprocess
 
         Parameters
         ----------
-        arguments : list
+        arguments : list of str
             A list of arguments that compose of the GROMACS command to run, e.g.
             :code:`['gmx', 'mdrun', '-deffnm', 'sys']`.
 
