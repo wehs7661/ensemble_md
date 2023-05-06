@@ -116,9 +116,9 @@ def main():
                 print('Deleting data generated after the checkpoint ...')
                 for i in range(EEXE.n_sim):
                     n_finished = len(next(os.walk(f'sim_{i}'))[1])  # number of finished iterations
-                    for j in range(start_idx, n_finished):
-                        print(f'  Deleting the folder sim_{i}/iteration_{j}')
-                        shutil.rmtree(f'sim_{i}/iteration_{j}')
+                    for ensemble_member in range(start_idx, n_finished):
+                        print(f'  Deleting the folder sim_{i}/iteration_{ensemble_member}')
+                        shutil.rmtree(f'sim_{i}/iteration_{ensemble_member}')
 
             # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
             # Note that these two arrays are created in rank 0 and should always be operated in rank 0,
@@ -173,6 +173,10 @@ def main():
             states = copy.deepcopy(states_)
             weights = copy.deepcopy(weights_)
             swap_pattern = EEXE.get_swapping_pattern(dhdl_files, states_, weights_)
+        else:
+            swap_pattern = None
+        swap_pattern = comm.bcast(swap_pattern, root=0)
+
 
         # 3-3. Calculate the weights averaged since the last update of the Wang-Landau incrementor.
         # Note that the averaged weights are used for histogram correction/weight combination.
@@ -207,20 +211,22 @@ def main():
                 print('\nNote: No histogram correction will be performed.')
                 print('Note: No weight combination will be performed.')
 
+        # Placeholder helper function.
+        # In the current code, there is one ensemble member per rank.
+        def each_ensemble_member():
+            if rank < EEXE.n_sim:
+                yield rank
+
         # 3-5. Modify the MDP files and swap out the GRO files (if needed)
         # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
         # Note we use states (copy of states_) instead of states_ in update_MDP.
-        if rank == 0:
-            for j in list(range(EEXE.n_sim)):
-                os.mkdir(f'sim_{j}/iteration_{i}')
-                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
-                MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
-                # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
-                # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
-                # swap_pattern to the function to figure it out internally.
-
-        if rank != 0:
-            swap_pattern = None
+        for ensemble_member in each_ensemble_member():
+            os.mkdir(f'sim_{ensemble_member}/iteration_{i}')
+            MDP = EEXE.update_MDP(f"sim_{ensemble_member}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", ensemble_member, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
+            MDP.write(f"sim_{ensemble_member}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
+            # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
+            # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
+            # swap_pattern to the function to figure it out internally.
 
         if -1 not in EEXE.equil and 0 not in EEXE.equil:
             # This is the case where the weights are equilibrated in a weight-updating simulation.
@@ -236,7 +242,6 @@ def main():
 
         # Step 4: Perform another iteration
         # 4-1. Run another ensemble of simulations
-        swap_pattern = comm.bcast(swap_pattern, root=0)
         EEXE.run_EEXE(i, swap_pattern)
 
         # 4-2. Save data
