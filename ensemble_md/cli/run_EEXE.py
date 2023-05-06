@@ -65,16 +65,16 @@ def main():
     sys.stdout = utils.Logger(logfile=args.output)
     sys.stderr = utils.Logger(logfile=args.output)
 
-    # Step 1: Set up MPI rank and instantiate EnsembleEXE to set up EEXE parameters
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()  # Note that this is a GLOBAL variable
 
     if rank == 0:
         print(f'Current time: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}')
         print(f'Command line: {" ".join(sys.argv)}\n')
-
+    # Step 1: Set up MPI rank and instantiate EnsembleEXE to set up EEXE parameters
     EEXE = EnsembleEXE(args.yaml)
 
+    # Log some information.
     if rank == 0:
         # Print out simulation parameters
         EEXE.print_params()
@@ -131,39 +131,62 @@ def main():
 
         start_idx = comm.bcast(start_idx, root=0)  # so that all the ranks are aware of start_idx
 
+    # Main loop for iterations after the first.
     for i in range(start_idx, EEXE.n_iter):
+        # Step 3: Swap the coordinates
+        # 3-1. For all the replica simulations,
+        #   (1) Find the last sampled state from the DHDL files.
+        #   (2) Find the final Wang-Landau incrementors and weights from the LOG files.
+        # Single-core task:
+        # (EEXE) -> wl_delta, weights_, counts, dhdl_files, states_:
+        # """
+        # 
+        # weights_: final weights and weights from the LOG files
+        # wl_delta: final Wang-Landau incrementors from the LOG files
+        # dhdl_files: DHDL files paths determined from EEXE.n_sim
+        # states_: last sampled states from the dhdl_files
+        # """
         if rank == 0:
-            # Step 3: Swap the coordinates
-            # 3-1. For all the replica simulations,
-            #   (1) Find the last sampled state and the corresponding lambda values from the DHDL files.
-            #   (2) Find the final Wang-Landau incrementors and weights from the LOG files.
             dhdl_files = [f'sim_{j}/iteration_{i - 1}/dhdl.xvg' for j in range(EEXE.n_sim)]
             log_files = [f'sim_{j}/iteration_{i - 1}/md.log' for j in range(EEXE.n_sim)]
             states_ = EEXE.extract_final_dhdl_info(dhdl_files)
             wl_delta, weights_, counts = EEXE.extract_final_log_info(log_files)
             print()
 
-            # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
-            # Note after `get_swapping_pattern`, `states_` and `weights_` won't be necessarily
-            # since they are updated by `get_swapping_pattern`. (Even if the function does not explicitly
-            # returns `states_` and `weights_`, `states_` and `weights_` can still be different after
-            # the use of the function.) Therefore, here we create copyes for `states_` and `weights_`
-            # before the use of `get_swapping_pattern`, so we can use them in `histogram_correction`,
-            # `combine_weights` and `update_MDP`.
+        # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
+        # Note after `get_swapping_pattern`, `states_` and `weights_` won't be necessarily
+        # since they are updated by `get_swapping_pattern`. (Even if the function does not explicitly
+        # returns `states_` and `weights_`, `states_` and `weights_` can still be different after
+        # the use of the function.) Therefore, here we create copyes for `states_` and `weights_`
+        # before the use of `get_swapping_pattern`, so we can use them in `histogram_correction`,
+        # `combine_weights` and `update_MDP`.
+        # (states_, dhdl_files, weights_) -> swap_pattern
+        # """
+        # 
+        # Returns a list of indices from the input ensemble of coordinates
+        # to use in constructing the next ensemble iteration.
+        # I.e. for an ensemble of size 4:
+        # [0, 1, 2, 3] --> None of the proposed swap is accepted at the end of this iteration
+        # [0, 2, 1, 3] --> The gro files of replicas 1 and 2 will be swapped before initiating the next iteration 
+        # """
+        if rank == 0:
             states = copy.deepcopy(states_)
             weights = copy.deepcopy(weights_)
             swap_pattern = EEXE.get_swapping_pattern(dhdl_files, states_, weights_)
 
-            # 3-3. Calculate the weights averaged since the last update of the Wang-Landau incrementor.
-            # Note that the averaged weights are used for histogram correction/weight combination.
-            # For the calculation of the acceptance ratio (inside get_swapping_pattern), final weights should be used.
+        # 3-3. Calculate the weights averaged since the last update of the Wang-Landau incrementor.
+        # Note that the averaged weights are used for histogram correction/weight combination.
+        # For the calculation of the acceptance ratio (inside get_swapping_pattern), final weights should be used.
+        if rank == 0:
             if EEXE.N_cutoff != -1 or EEXE.w_combine is True:
                 # Only when histogram correction/weight combination is needed.
                 weights_avg, weights_err = EEXE.get_averaged_weights(log_files)
 
-            # 3-4. Perform histogram correction/weight combination
-            # Note that we never use final weights but averaged weights here.
-            # The product of this step should always be named as "weights" to be used in update_MDP
+        
+        # 3-4. Perform histogram correction/weight combination
+        # Note that we never use final weights but averaged weights here.
+        # The product of this step should always be named as "weights" to be used in update_MDP
+        if rank == 0:
             if wl_delta != [None for i in range(EEXE.n_sim)]:  # weight-updating
                 print(f'\nCurrent Wang-Landau incrementors: {wl_delta}')
             if EEXE.N_cutoff != -1 and EEXE.w_combine is True:
@@ -184,9 +207,10 @@ def main():
                 print('\nNote: No histogram correction will be performed.')
                 print('Note: No weight combination will be performed.')
 
-            # 3-5. Modify the MDP files and swap out the GRO files (if needed)
-            # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
-            # Note we use states (copy of states_) instead of states_ in update_MDP.
+        # 3-5. Modify the MDP files and swap out the GRO files (if needed)
+        # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
+        # Note we use states (copy of states_) instead of states_ in update_MDP.
+        if rank == 0:
             for j in list(range(EEXE.n_sim)):
                 os.mkdir(f'sim_{j}/iteration_{i}')
                 MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
@@ -194,7 +218,8 @@ def main():
                 # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
                 # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
                 # swap_pattern to the function to figure it out internally.
-        else:
+
+        if rank != 0:
             swap_pattern = None
 
         if -1 not in EEXE.equil and 0 not in EEXE.equil:
@@ -204,13 +229,18 @@ def main():
             print('\nSimulation terminated: The weights have been equilibrated for all replicas.')
             break
 
+        # For example, if we are going to swap replicas 1 and 2 for the next iteration (iteration i+1):
+        # For replica 1, we will use the gro file generated in replica 2 in iteration i (the iteration we are finalizing). 
+        # For replica 2, we will use the gro file generated in replica 1 in iteration i (the iteration we are finalizing). 
+        # (Previously, the files were copied. In a recent update, the files from the previous iteration are referenced directly.)
+
         # Step 4: Perform another iteration
         # 4-1. Run another ensemble of simulations
         swap_pattern = comm.bcast(swap_pattern, root=0)
         EEXE.run_EEXE(i, swap_pattern)
 
+        # 4-2. Save data
         if rank == 0:
-            # 4-2. Save data
             if (i + 1) % EEXE.n_ckpt == 0:
                 if len(EEXE.g_vecs) != 0:
                     # Save g_vec as a function of time if weight combination was used.
