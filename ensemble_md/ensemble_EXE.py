@@ -18,7 +18,6 @@ import shutil
 import random
 import subprocess
 import numpy as np
-from mpi4py import MPI
 from itertools import combinations
 from collections import OrderedDict
 from alchemlyb.parsing.gmx import extract_dHdl
@@ -28,9 +27,6 @@ from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 import ensemble_md
 from ensemble_md.utils import gmx_parser
 from ensemble_md.utils.exceptions import ParameterError
-
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()  # Note that this is a GLOBAL variable
 
 
 class EnsembleEXE:
@@ -161,6 +157,7 @@ class EnsembleEXE:
         # Key: Optional argument; Value: Default value
         optional_args = {
             "mpi_cli": None,
+            "n_proc": self.n_sim,
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
@@ -205,6 +202,8 @@ class EnsembleEXE:
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.nst_sim is not None:
             params_int.append('nst_sim')
+        if self.n_proc is not None:
+            params_int.append('n_proc')
         if self.n_ex != 'N^3':  # no need to add "and self.proposal == 'multiple' since if multiple swaps are not used, n_ex=1"  # noqa: E501
             params_int.append('n_ex')
         if self.seed is not None:
@@ -236,11 +235,8 @@ class EnsembleEXE:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
-        if self.mpi_library == 'MPI' and self.mpi_arg not in self.runtime_args:
-            self.warnings.append(f"MPI-enabled GROMACS is used, but the number of MPI processes (i.e., '-np' or '-n') is not specified in 'runtime_args'. A default of {self.n_sim} (the number of replicas) will be used.")  # noqa: E501
-            self.runtime_args[self.mpi_arg] = self.n_sim
-        if self.mpi_library == 'MPI' and self.mpi_cli is None:
-            self.warnings.append("MPI-enabled GROMACS is used, but the CLI for launching MPI processes is not specified. The default of 'mpirun' will be used.")  # noqa: E501
+        if self.mpi_cli is None:
+            self.warnings.append("The CLI for launching MPI processes is not specified, so the default of 'mpirun' will be used.")  # noqa: E501
 
         # Step 5: Reformat the input MDP file to replace all hypens with underscores.
         self.reformat_MDP()
@@ -352,14 +348,15 @@ class EnsembleEXE:
         """
         Check if the CLI for lauching MPI processes is available.
         """
+        
         if self.mpi_cli is not None:
             try:
                 result = subprocess.run(['which', self.mpi_cli], capture_output=True, text=True, check=True)
-                
+
                 # Below we set the argument for specifying the number of MPI processes
-                if 'mpirun' in self.mpi_cli:
+                if 'mpirun' in result.stdout:
                     self.mpi_arg = '-np'
-                elif 'mpiexec' in self.mpi_cli:
+                elif 'mpiexec' in result.stdout:
                     self.mpi_arg = '-n'
 
             except subprocess.CalledProcessError:
@@ -369,32 +366,23 @@ class EnsembleEXE:
         """
         Checks if the GROMACS executable can be used and gets its absolute path and version.
         """
-        try:
-            result = subprocess.run(['which', self.gmx_executable], capture_output=True, text=True, check=True)
-            self.gmx_path = result.stdout.strip()  # this can be exactly the same as self.gmx_executable
+        result = subprocess.run(['which', self.gmx_executable], capture_output=True, text=True, check=True)
+        self.gmx_path = result.stdout.strip()  # this can be exactly the same as self.gmx_executable
 
-            command = [self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"]
-            print("Command:", command)
+        command = [self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"]
 
-            if self.mpi_cli is None:
-                version_output = subprocess.run([self.gmx_path, "-version"], capture_output=True, text=True, check=True)
-            else:
-                # self.mpi_cli should be avialable, or the code won't reach this point. 
-                version_output = subprocess.run([self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"], capture_output=True, text=True, check=True)
+        # self.mpi_cli should be avialable, or the code won't reach this point. 
+        version_output = subprocess.run([self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"], capture_output=True, text=True, check=True)
 
-            for line in version_output.stdout.splitlines():
-                if "GROMACS version" in line:
-                    self.gmx_version = line.split()[-1]
-                if "MPI library" in line:
-                    self.mpi_library = line.split()[-1]  # should be either thread_mpi or MPI
-                    break
-        # except subprocess.CalledProcessError:
-        #     print(f"{self.gmx_executable} is not available on this system.")
-        except Exception as e:
-            print(f"An error occurred:\n{e}")
-            print(e.stdout)
-            print(e.stderr)
-            sys.exit(e.returncode)
+        for line in version_output.stdout.splitlines():
+            if "GROMACS version" in line:
+                self.gmx_version = line.split()[-1]
+            if "MPI library" in line:
+                mpi_library = line.split()[-1]  # should be either thread_mpi or MPI
+                break
+        
+        if mpi_library != 'MPI':
+            raise ParameterError(f"MPI-enabled GROMACS must be used.")
 
     def print_params(self, params_analysis=False):
         """
@@ -1191,11 +1179,7 @@ class EnsembleEXE:
             arguments = []
 
             # See if there is a need to use mpirun or mpiexec
-            if self.mpi_library != 'thread_mpi':
-                arguments.extend([self.mpi_cli, self.mpi_arg, self.runtime_args[self.mpi_arg]])
-
-            # GROMACS command
-            arguments.extend([self.gmx_executable, 'grompp'])
+            arguments.extend([self.mpi_cli, self.mpi_arg, '1', self.gmx_executable, 'grompp'])
 
             # Input files
             mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
@@ -1223,11 +1207,12 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
-        if rank < self.n_sim:
-            print(f'Generating a TPR file on rank {rank} ...')
-            returncode, stdout, stderr = self.run_gmx_cmd(args_list[rank])
+        for i in range(self.n_sim):
+            print(f'Generating the TPR file for replica {i} ...')
+            returncode, stdout, stderr = self.run_gmx_cmd(args_list[i])
             if returncode != 0:
-                print(f'Error on rank {rank}:\n{stderr}')
+                print(f'Error:\n{stderr}')
+                sys.exit(returncode)
 
     def run_mdrun(self, n):
         """
@@ -1241,12 +1226,11 @@ class EnsembleEXE:
         # Note that we will change the working directory so the mdrun command will be the same for all replicas.
         arguments = []
 
-        # See if there is a need to use mpirun or mpiexec
-        if self.mpi_library != 'thread_mpi':
-            arguments.extend([self.mpi_cli, self.mpi_arg, '1'])
-        
+        # Specify the MPI CLI and the number of MPI processes
+        arguments.extend([self.mpi_cli, self.mpi_arg, str(self.n_proc)])
+
         # GROMACS command
-        arguments = [self.gmx_executable, 'mdrun']
+        arguments.extend([self.gmx_executable, 'mdrun'])
 
         # Add input file arguments
         arguments.extend(['-s', 'sys_EE.tpr'])
@@ -1256,15 +1240,17 @@ class EnsembleEXE:
             add_args = [elem for pair in self.runtime_args.items() for elem in pair]
             arguments.extend(add_args)
 
+        # Append the directorys after -multidir to enable simulations in parallel
+        dir_list = [f'sim_{i}/iteration_{n}' for i in range(self.n_sim)]
+        arguments.extend(['-multidir'])
+        arguments.extend(dir_list)
+
         # Run the GROMACS mdrun commands in parallel
-        if rank < self.n_sim:
-            print(f'Running an EXE simulation on rank {rank} ...')
-            os.chdir(f'sim_{rank}/iteration_{n}')
-            returncode, stdout, stderr = self.run_gmx_cmd(arguments)
-            if returncode != 0:
-                print(f'Error on rank {rank}:\n{stderr}')
-                sys.exit(returncode)
-            os.chdir('../../')
+        print(f'Running multiple EXE simulations on in parallel ...')
+        returncode, stdout, stderr = self.run_gmx_cmd(arguments)
+        if returncode != 0:
+            print(f'Error:\n{stderr}')
+            sys.exit(returncode)
 
     def run_EEXE(self, n, swap_pattern=None):
         """
@@ -1281,22 +1267,8 @@ class EnsembleEXE:
             A list generated by :code:`get_swapping_pattern`. It represents how the replicas should be swapped.
             This parameter is not needed only if :code:`n` is 0.
         """
-        if rank == 0:
-            iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
-            print(iter_str + '\n' + '=' * (len(iter_str) - 1))
+        iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
+        print(iter_str + '\n' + '=' * (len(iter_str) - 1))
 
-        # 1st synchronizing point for all MPI processes: To make sure ranks other than 0 will not start executing
-        # run_grompp earlier and mess up the order of printing.
-        comm.barrier()
-
-        # Generating all required TPR files simultaneously, then run all simulations simultaneously.
-        # No synchronizing point is needed between run_grompp and run_mdrun, since once rank i finishes run_grompp,
-        # it should run run_mdrun in the same working directory, so there won't be any I/O error.
         self.run_grompp(n, swap_pattern)
         self.run_mdrun(n)
-
-        # 2nd synchronizaing point for all MPI processes: To make sure no rank will start getting to the next
-        # iteration earlier than the others. For example, if rank 0 finishes the mdrun command earlier, we don't
-        # want it to start parsing the dhdl file (in the if condition of if rank == 0) of simulation 3 being run by
-        # rank 3 that has not been generated, which will lead to an I/O error.
-        comm.barrier()

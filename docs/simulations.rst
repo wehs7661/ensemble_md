@@ -224,17 +224,20 @@ In the current implementation of the algorithm, 22 parameters can be specified i
 Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
-3.1. Executables
-----------------
+3.1. Runtime configuration
+--------------------------
 
-  - :code:`gmx_executable`: (Required)
+  - :code:`gmx_executable`: (Optional, Default: :code:`gmx_mpi`)
       The GROMACS executable to be used to run the EEXE simulation. The value could be as simple as :code:`gmx`
-      or :code:`gmx_mpi` if the exeutable has be sourced. Otherwise, the full path of the exetuable (e.g.
-      :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`).
+      or :code:`gmx_mpi` if the exeutable has been sourced. Otherwise, the full path of the executable (e.g.
+      :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
+      Note that EEXE only works with MPI-enabled GROMACS. 
   - :code:`mpi_cli`: (Optional, Default: :code:`mpirun`)
       The CLI for launching MPI processes, e.g. :code:`mpirun` or :code:`mpiexec`. Note that this parameter
       is only required when MPI-enabled GROMACS is used. If tMPI-enabled GROMACS executable is specified 
       in :code:`gmx_executable`, the value of :code:`mpi_cli` will be ignored.
+  - :code:`n_proc`: (Optional, Default: the number of replicas, i.e. the value of :code:`n_sim`)
+      The number of MPI processes to run the EEXE simulation.
 
 3.2. Simulation inputs
 ----------------------
@@ -325,6 +328,7 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     # Section 1: Executables
     gmx_executable:
     mpi_cli: 'mpirun'
+    n_proc: null
 
     # Section 2: Simulation inputs
     gro:
