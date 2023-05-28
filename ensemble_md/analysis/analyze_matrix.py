@@ -122,7 +122,7 @@ def calc_equil_prob(trans_mtx):
     return equil_prob
 
 
-def calc_spectral_gap(trans_mtx):
+def calc_spectral_gap(trans_mtx, atol=1e-8):
     """
     Calculates the spectral gap of the input transition matrix.
 
@@ -130,6 +130,8 @@ def calc_spectral_gap(trans_mtx):
     ----------
     trans_mtx : numpy.ndarray
         The input state transition matrix
+    atol: float
+        The absolute tolerance for checking the sum of columns and rows.
 
     Returns
     -------
@@ -138,8 +140,8 @@ def calc_spectral_gap(trans_mtx):
     eig_vals : list
         The list of eigenvalues
     """
-    check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1) for i in range(len(trans_mtx))])
-    check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1) for i in range(len(trans_mtx))])
+    check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1, atol=atol) for i in range(len(trans_mtx))])
+    check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1, atol=atol) for i in range(len(trans_mtx))])
 
     if check_row == len(trans_mtx):
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx.T)
