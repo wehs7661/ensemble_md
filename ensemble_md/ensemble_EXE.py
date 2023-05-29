@@ -1047,43 +1047,6 @@ class EnsembleEXE:
         dg_vec.insert(0, 0)
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
 
-        """  Deprecated methods: mean and geo-mean
-        # Method based on probability ratios
-        # Step 1: Convert the weights into probabilities
-        weights = np.array(weights)
-        prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
-
-        # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)  # noqa: E501
-        overlapped = [set(self.state_ranges[i]).intersection(set(self.state_ranges[i + 1])) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
-        prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
-
-        # Step 3: Average the probability ratios
-        avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
-        if self.w_scheme == 'mean':
-            avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
-        elif self.w_scheme == 'geo-mean':
-            avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
-
-        # Step 4: Scale the probabilities for each replica
-        scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
-
-        # Step 5: Average and convert the probabilities
-        p_vec = []
-        for i in range(self.n_tot):   # global state index
-            p = []   # a list of probabilities to be averaged for each state
-            for j in range(len(self.state_ranges)):   # j can be regared as the replica index
-                if i in self.state_ranges[j]:
-                    local_idx = i - j * self.s
-                    p.append(scaled_prob[j][local_idx])
-            if self.w_scheme == 'mean':
-                p_vec.append(np.mean(p))
-            elif self.w_scheme == 'geo-mean' or self.w_scheme == 'geo_mean':
-                p_vec.append(np.prod(p) ** (1 / len(p)))
-
-        g_vec = -np.log(p_vec)
-        g_vec -= g_vec[0]
-        """
-
         # Determine the vector of alchemical weights for each replica
         for i in range(self.n_sim):
             if self.equil[i] == -1:  # unequilibrated

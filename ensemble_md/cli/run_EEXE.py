@@ -166,6 +166,7 @@ def main():
             # The product of this step should always be named as "weights" to be used in update_MDP
             if wl_delta != [None for i in range(EEXE.n_sim)]:  # weight-updating
                 print(f'\nCurrent Wang-Landau incrementors: {wl_delta}')
+
             if EEXE.N_cutoff != -1 and EEXE.w_combine is True:
                 # perform both
                 weights_avg = EEXE.histogram_correction(weights_avg, counts)
@@ -242,7 +243,7 @@ def main():
                     EEXE.equil[i] /= 1000
                 else:
                     units = 'ps'
-                print(f'  - Rep {i}: The weights have been equilibrated at {EEXE.equil[i]:.2f} {units} (iteration {idx}).')  # noqa: E501
+                print(f'  - Rep {i}: The weights were equilibrated at {EEXE.equil[i]:.2f} {units} (iteration {idx}).')  # noqa: E501
 
         print(f'\n{EEXE.n_empty_swappable} out of {EEXE.n_iter}, or {EEXE.n_empty_swappable / EEXE.n_iter * 100:.1f}% iterations had an empty list of swappable pairs.')  # noqa: E501
         print(f'{EEXE.n_rejected} out of {EEXE.n_swap_attempts}, or {EEXE.n_rejected / EEXE.n_swap_attempts * 100:.1f}% of attempted exchanges were rejected.')  # noqa: E501
