@@ -545,6 +545,7 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
         # Calculate the RMSE as a function of the iteration index
         RMSE_list = [np.sqrt(np.mean((g_vecs[:, i] - refs) ** 2)) for i in range(len(g_vecs[0]))]
         plt.text(0.02, 0.95, f'Final RMSE: {RMSE_list[-1]:.3f} kT', transform=ax.transAxes)
+        print(f'Final RMSE: {RMSE_list[-1]: .3f} kT')
 
     plt.tight_layout()
     plt.savefig('g_vecs.png', dpi=600)
