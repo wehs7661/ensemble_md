@@ -668,9 +668,18 @@ class Test_EnsembleEXE:
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
 
         EEXE.w_combine = True
-        w, g_vec = EEXE.combine_weights(weights)
-        assert np.allclose(w, [
+        w_1, g_vec_1 = EEXE.combine_weights(weights)
+        assert np.allclose(w_1, [
             [0, 2.1, 3.9, 3.5],
             [0, 1.8, 1.4, 2.75],
             [0, -0.4, 0.95, 1.95]])
-        assert np.allclose(list(g_vec), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
+        assert np.allclose(list(g_vec_1), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
+
+        weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
+        errors = [[0, 0.1, 0.15, 0.1], [0, 0.12, 0.1, 0.12], [0, 0.12, 0.15, 0.1]]
+        w_2, g_vec_2 = EEXE.combine_weights(weights, errors)
+        assert np.allclose(w_2, [
+            [0, 2.1, 3.86141, 3.45417],
+            [0, 1.76141, 1.35417, 2.71437],
+            [0, -0.40723, 0.95296, 1.95296]])
+        assert np.allclose(list(g_vec_2), [0, 2.1, 3.861407249466951, 3.4541731330165306, 4.814368891580968, 5.814368891580968])  # noqa: E501

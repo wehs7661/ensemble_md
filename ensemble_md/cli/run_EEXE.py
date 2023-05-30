@@ -161,6 +161,10 @@ def main():
                 # Only when histogram correction/weight combination is needed.
                 weights_avg, weights_err = EEXE.get_averaged_weights(log_files)
 
+            print('\n')
+            print(weights_avg)
+            print(weights_err)
+
             # 3-4. Perform histogram correction/weight combination
             # Note that we never use final weights but averaged weights here.
             # The product of this step should always be named as "weights" to be used in update_MDP
@@ -170,12 +174,12 @@ def main():
             if EEXE.N_cutoff != -1 and EEXE.w_combine is True:
                 # perform both
                 weights_avg = EEXE.histogram_correction(weights_avg, counts)
-                weights, g_vec = EEXE.combine_weights(weights_avg)
+                weights, g_vec = EEXE.combine_weights(weights_avg, weights_err)
                 EEXE.g_vecs.append(g_vec)
             elif EEXE.N_cutoff == -1 and EEXE.w_combine is True:
                 # only perform weight combination
                 print('\nNote: No histogram correction will be performed.')
-                weights, g_vec = EEXE.combine_weights(weights_avg)
+                weights, g_vec = EEXE.combine_weights(weights_avg, weights_err)
                 EEXE.g_vecs.append(g_vec)
             elif EEXE.N_cutoff != -1 and EEXE.w_combine is False:
                 # only perform histogram correction

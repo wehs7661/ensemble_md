@@ -26,6 +26,7 @@ from alchemlyb.parsing.gmx import _get_headers as get_headers
 from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 
 import ensemble_md
+from ensemble_md.utils import utils
 from ensemble_md.utils import gmx_parser
 from ensemble_md.utils.exceptions import ParameterError
 
@@ -1007,7 +1008,7 @@ class EnsembleEXE:
 
         return weights
 
-    def combine_weights(self, weights):
+    def combine_weights(self, weights, weights_err=None):
         """
         Combine alchemical weights across multiple replicas. (See :ref:`doc_w_schemes` for mor details.)
 
@@ -1037,13 +1038,22 @@ class EnsembleEXE:
         # Method based on weight differences (the original g-diff)
         dg_vec = []
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
+        if weights_err is not None:
+            dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
+
         for i in range(self.n_tot - 1):
-            dg_list = []
+            dg_list, dg_err_list = [], []
             for j in range(len(self.state_ranges)):
                 if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
                     idx = self.state_ranges[j].index(i)
                     dg_list.append(dg_adjacent[j][idx])
-            dg_vec.append(np.mean(dg_list))
+                    if weights_err is not None:
+                        dg_err_list.append(dg_adjacent_err[j][idx])
+            if weights_err is None:
+                dg_vec.append(np.mean(dg_list))
+            else:
+                print(utils.weighted_mean(dg_list, dg_err_list)[0])
+                dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
         dg_vec.insert(0, 0)
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
 
