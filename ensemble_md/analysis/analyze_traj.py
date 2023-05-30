@@ -461,10 +461,9 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
 
             plt.figure()
             for i in range(len(t_list)):    # t_list[i] is the list for configuration i
-                plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)
-            if np.array(t_list).shape != (1, 0):  # at least one configuration has at least one event
-                if np.max(np.max((t_list))) >= 10000:
-                    plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+                plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)            
+            if max(max((t_list))) >= 10000: 
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             plt.xlabel('Event index')
             plt.ylabel(f'{y_labels[t]}')
             plt.grid()
