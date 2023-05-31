@@ -1052,7 +1052,6 @@ class EnsembleEXE:
             if weights_err is None:
                 dg_vec.append(np.mean(dg_list))
             else:
-                print(utils.weighted_mean(dg_list, dg_err_list)[0])
                 dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
         dg_vec.insert(0, 0)
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
