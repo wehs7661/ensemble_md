@@ -170,7 +170,8 @@ def get_subplot_dimension(n_panels):
 
 def weighted_mean(vals, errs):
     """
-    Calculates the inverse-variance-weighted mean.
+    Calculates the inverse-variance-weighted mean. Note that if
+    any error is 0, the simple mean will be returned. 
 
     Parameters
     ----------

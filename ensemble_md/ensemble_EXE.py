@@ -416,13 +416,14 @@ class EnsembleEXE:
         odict = OrderedDict([(k.replace('-', '_'), v) for k, v in params.items()])
         params_new = gmx_parser.MDP(None, **odict)
 
-        if params_new.keys() == params.keys():
-            self.reformatted_mdp = False  # no need to reformat the file
-        else:
-            self.reformatted_mdp = True
-            new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
-            shutil.move(self.mdp, new_name)
-            params_new.write(self.mdp)
+        if rank == 0:
+            if params_new.keys() == params.keys():
+                self.reformatted_mdp = False  # no need to reformat the file
+            else:
+                self.reformatted_mdp = True
+                new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
+                shutil.move(self.mdp, new_name)
+                params_new.write(self.mdp)
 
     def map_lambda2state(self):
         """
@@ -636,7 +637,12 @@ class EnsembleEXE:
         # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
         # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
         weight_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
-        weight_err = [np.std(self.updating_weights[i], axis=0, ddof=1).tolist() for i in range(self.n_sim)]
+        weight_err = []
+        for i in range(self.n_sim):
+            if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
+                weight_err.append([0] * self.n_sub)  # in the function weighted_mean, a simple average will be returned.
+            else:
+                weight_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
 
         return weight_avg, weight_err
 
