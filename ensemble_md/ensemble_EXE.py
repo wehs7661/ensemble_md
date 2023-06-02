@@ -24,6 +24,7 @@ from alchemlyb.parsing.gmx import _get_headers as get_headers
 from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 
 import ensemble_md
+from ensemble_md.utils import utils
 from ensemble_md.utils import gmx_parser
 from ensemble_md.utils.exceptions import ParameterError
 
@@ -455,13 +456,14 @@ class EnsembleEXE:
         odict = OrderedDict([(k.replace('-', '_'), v) for k, v in params.items()])
         params_new = gmx_parser.MDP(None, **odict)
 
-        if params_new.keys() == params.keys():
-            self.reformatted_mdp = False  # no need to reformat the file
-        else:
-            self.reformatted_mdp = True
-            new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
-            shutil.move(self.mdp, new_name)
-            params_new.write(self.mdp)
+        if rank == 0:
+            if params_new.keys() == params.keys():
+                self.reformatted_mdp = False  # no need to reformat the file
+            else:
+                self.reformatted_mdp = True
+                new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
+                shutil.move(self.mdp, new_name)
+                params_new.write(self.mdp)
 
     def map_lambda2state(self):
         """
@@ -675,7 +677,12 @@ class EnsembleEXE:
         # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
         # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
         weight_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
-        weight_err = [np.std(self.updating_weights[i], axis=0, ddof=1).tolist() for i in range(self.n_sim)]
+        weight_err = []
+        for i in range(self.n_sim):
+            if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
+                weight_err.append([0] * self.n_sub)  # in the function weighted_mean, a simple average will be returned.
+            else:
+                weight_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
 
         return weight_avg, weight_err
 
@@ -1047,7 +1054,7 @@ class EnsembleEXE:
 
         return weights
 
-    def combine_weights(self, weights):
+    def combine_weights(self, weights, weights_err=None):
         """
         Combine alchemical weights across multiple replicas. (See :ref:`doc_w_schemes` for mor details.)
 
@@ -1077,52 +1084,23 @@ class EnsembleEXE:
         # Method based on weight differences (the original g-diff)
         dg_vec = []
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
+        if weights_err is not None:
+            dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
+
         for i in range(self.n_tot - 1):
-            dg_list = []
+            dg_list, dg_err_list = [], []
             for j in range(len(self.state_ranges)):
                 if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
                     idx = self.state_ranges[j].index(i)
                     dg_list.append(dg_adjacent[j][idx])
-            dg_vec.append(np.mean(dg_list))
+                    if weights_err is not None:
+                        dg_err_list.append(dg_adjacent_err[j][idx])
+            if weights_err is None:
+                dg_vec.append(np.mean(dg_list))
+            else:
+                dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
         dg_vec.insert(0, 0)
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
-
-        """  Deprecated methods: mean and geo-mean
-        # Method based on probability ratios
-        # Step 1: Convert the weights into probabilities
-        weights = np.array(weights)
-        prob = np.array([[np.exp(-i)/np.sum(np.exp(-weights[j])) for i in weights[j]] for j in range(len(weights))])  # noqa: E501
-
-        # Step 2: Caclulate the probability ratios (after figuring out overlapped states between adjacent replicas)  # noqa: E501
-        overlapped = [set(self.state_ranges[i]).intersection(set(self.state_ranges[i + 1])) for i in range(len(self.state_ranges) - 1)]  # noqa: E501
-        prob_ratio = [prob[i + 1][: len(overlapped[i])] / prob[i][-len(overlapped[i]):] for i in range(len(overlapped))]  # noqa: E501
-
-        # Step 3: Average the probability ratios
-        avg_ratio = [1]   # This allows easier scaling since the first prob vector stays the same.
-        if self.w_scheme == 'mean':
-            avg_ratio.extend([np.mean(prob_ratio[i]) for i in range(len(prob_ratio))])
-        elif self.w_scheme == 'geo-mean':
-            avg_ratio.extend([np.prod(prob_ratio[i])**(1/len(prob_ratio[i])) for i in range(len(prob_ratio))])
-
-        # Step 4: Scale the probabilities for each replica
-        scaled_prob = np.array([prob[i] / np.prod(avg_ratio[: i + 1]) for i in range(len(prob))])
-
-        # Step 5: Average and convert the probabilities
-        p_vec = []
-        for i in range(self.n_tot):   # global state index
-            p = []   # a list of probabilities to be averaged for each state
-            for j in range(len(self.state_ranges)):   # j can be regared as the replica index
-                if i in self.state_ranges[j]:
-                    local_idx = i - j * self.s
-                    p.append(scaled_prob[j][local_idx])
-            if self.w_scheme == 'mean':
-                p_vec.append(np.mean(p))
-            elif self.w_scheme == 'geo-mean' or self.w_scheme == 'geo_mean':
-                p_vec.append(np.prod(p) ** (1 / len(p)))
-
-        g_vec = -np.log(p_vec)
-        g_vec -= g_vec[0]
-        """
 
         # Determine the vector of alchemical weights for each replica
         for i in range(self.n_sim):

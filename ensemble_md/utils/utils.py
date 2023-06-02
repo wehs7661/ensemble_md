@@ -170,7 +170,8 @@ def get_subplot_dimension(n_panels):
 
 def weighted_mean(vals, errs):
     """
-    Calculates the inverse-variance-weighted mean.
+    Calculates the inverse-variance-weighted mean. Note that if
+    any error is 0, the simple mean will be returned. 
 
     Parameters
     ----------
@@ -186,6 +187,12 @@ def weighted_mean(vals, errs):
     err : float
         The propgated error of the mean.
     """
+    if 0 in errs:
+        # This could happen in the very beginning of a simulation, which could lead to an ZeroDivision warning/error.
+        # In this case, we just ignore the w vector and just calculate the simple average.
+        mean, err = np.mean(vals), None
+        return mean, err
+
     w = [1 / (i ** 2) for i in errs]
     wx = [w[i] * vals[i] for i in range(len(vals))]
     mean = np.sum(wx) / np.sum(w)

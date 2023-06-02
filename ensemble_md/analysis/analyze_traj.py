@@ -462,7 +462,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             plt.figure()
             for i in range(len(t_list)):    # t_list[i] is the list for configuration i
                 plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)
-            if np.max(np.max((t_list))) >= 10000:
+
+            if max(max((t_list))) >= 10000:
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             plt.xlabel('Event index')
             plt.ylabel(f'{y_labels[t]}')
@@ -494,5 +495,65 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     return t_0k_list, t_k0_list, t_roundtrip_list, units
 
 
-def plot_g_vecs(f_g_vecs):
-    pass
+def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
+    """
+    Plots the alchemical weight for each alchemical intermediate state as a function of
+    the iteration index. Note that the alchemical weight of the first state (which is always 0)
+    is skipped. If the reference values are given, they will be plotted in the figure and
+    an RMSE will be calculated.
+
+    Parameters
+    ----------
+    g_vecs : np.array
+        The alchemical weights of all states as a function of iteration index. The shape should
+        be (n_iterations, n_states). Such an array can be directly read from :code:`g_vecs.npy`
+        saved by :code:`run_EEXE`.
+    refs : np.array
+        The reference values of the alchemical weights.
+    refs_err : list or np.array
+        The errors of the reference values.
+    plot_rmse : bool
+        Whether to plot RMSE as a function of the iteration index.
+    """
+    # n_iter, n_state = g_vecs.shape[0], g_vecs.shape[1]
+    g_vecs = np.transpose(g_vecs)
+    n_sim = len(g_vecs)
+    cmap = plt.cm.ocean  # other good options are CMRmap, gnuplot, terrain, turbo, brg, etc.
+    colors = [cmap(i) for i in np.arange(n_sim) / n_sim]
+    plt.figure()
+    for i in range(1, len(g_vecs)):
+        if len(g_vecs[0]) < 100:
+            plt.plot(range(len(g_vecs[i])), g_vecs[i], label=f'State {i}', c=colors[i], linewidth=0.8, marker='o', markersize=2)  # noqa: E501
+        else:  # plot without markers
+            plt.plot(range(len(g_vecs[i])), g_vecs[i], label=f'State {i}', c=colors[i], linewidth=0.8)
+    plt.xlabel('Iteration index')
+    plt.ylabel('Alchemical weight (kT)')
+    ax = plt.gca()
+    x_range = ax.get_xlim()
+    plt.xlim([0, x_range[1]])
+    plt.grid()
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.2))
+
+    if refs is not None:
+        for i in range(1, len(refs)):
+            plt.axhline(y=refs[i], c='black', linestyle='--', linewidth=0.5)
+            if refs_err is not None:
+                ax = plt.gca()
+                x_range = ax.get_xlim()
+                plt.fill_between(x_range, y1=refs[i] - refs_err[i], y2=refs[i] + refs_err[i], color='lightgreen')
+
+        # Calculate the RMSE as a function of the iteration index
+        RMSE_list = [np.sqrt(np.mean((g_vecs[:, i] - refs) ** 2)) for i in range(len(g_vecs[0]))]
+        plt.text(0.02, 0.95, f'Final RMSE: {RMSE_list[-1]:.3f} kT', transform=ax.transAxes)
+        print(f'Final RMSE: {RMSE_list[-1]: .3f} kT')
+
+    plt.tight_layout()
+    plt.savefig('g_vecs.png', dpi=600)
+
+    if refs is not None and plot_rmse is True:
+        plt.figure()
+        plt.plot(range(len(g_vecs[i])), RMSE_list)
+        plt.xlabel('Iteration index')
+        plt.ylabel('RMSE in the alchemical weights (kT)')
+        plt.grid()
+        plt.savefig('g_vecs_rmse.png', dpi=600)
