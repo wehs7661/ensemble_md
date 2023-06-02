@@ -16,8 +16,8 @@ import yaml
 import shutil
 import random
 import subprocess
-from subprocess import Popen, PIPE
 import numpy as np
+from multiprocessing import Pool
 from itertools import combinations
 from collections import OrderedDict
 from alchemlyb.parsing.gmx import extract_dHdl
@@ -1195,13 +1195,13 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
-        processes = [Popen(args, stdout=PIPE, stderr=PIPE) for args in args_list]
-        for i, process in enumerate(processes):
-            stdout, stderr = process.communicate()
-            if process.returncode != 0:
-                print(f'Error on replica {i}:\n{stderr.decode()}')
-                sys.exit(process.returncode)
-        print('Finished generating all TPR files.')  # Synchronization point
+        with Pool(self.n_sim) as pool:
+            results = pool.map(self.run_gmx_cmd, args_list)
+
+        for i, (returncode, stdout, stderr) in enumerate(results):
+            if returncode != 0:
+                print(f'Error on replica {i}:\n{stderr}')
+                sys.exit(returncode)
 
     def run_mdrun(self, n):
         """
