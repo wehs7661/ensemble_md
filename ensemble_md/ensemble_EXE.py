@@ -16,6 +16,7 @@ import yaml
 import shutil
 import random
 import subprocess
+import concurrent.futures
 import numpy as np
 from itertools import combinations
 from collections import OrderedDict
@@ -1193,13 +1194,21 @@ class EnsembleEXE:
 
             args_list.append(arguments)
 
-        # Run the GROMACS grompp commands in parallel
-        for i in range(self.n_sim):
-            print(f'Generating the TPR file for replica {i} ...')
-            returncode, stdout, stderr = self.run_gmx_cmd(args_list[i])
-            if returncode != 0:
-                print(f'Error:\n{stderr}')
-                sys.exit(returncode)
+        # Use ThreadPoolExecutor to run the grompp commands in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.n_sim) as executor:
+            futures = [executor.submit(self.run_gmx_cmd, args) for args in args_list]
+
+            for i, future in enumerate(futures):
+                try:
+                    returncode, stdout, stderr = future.result()
+                    if returncode != 0:
+                        print(f'Error:\n{stderr}')
+                        sys.exit(returncode)
+                    else:
+                        print(f'Generating the TPR file for replica {i} ...')
+                except Exception as exc:
+                    print(f'An error occurred: {exc}')
+        print('Finished generating all TPR files.')  # Synchronization point
 
     def run_mdrun(self, n):
         """
@@ -1233,7 +1242,7 @@ class EnsembleEXE:
         arguments.extend(dir_list)
 
         # Run the GROMACS mdrun commands in parallel
-        print('Running multiple EXE simulations on in parallel ...')
+        print('Running multiple EXE simulations in parallel ...')
         returncode, stdout, stderr = self.run_gmx_cmd(arguments)
         if returncode != 0:
             print(f'Error:\n{stderr}')
