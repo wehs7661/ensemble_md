@@ -456,14 +456,13 @@ class EnsembleEXE:
         odict = OrderedDict([(k.replace('-', '_'), v) for k, v in params.items()])
         params_new = gmx_parser.MDP(None, **odict)
 
-        if rank == 0:
-            if params_new.keys() == params.keys():
-                self.reformatted_mdp = False  # no need to reformat the file
-            else:
-                self.reformatted_mdp = True
-                new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
-                shutil.move(self.mdp, new_name)
-                params_new.write(self.mdp)
+        if params_new.keys() == params.keys():
+            self.reformatted_mdp = False  # no need to reformat the file
+        else:
+            self.reformatted_mdp = True
+            new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
+            shutil.move(self.mdp, new_name)
+            params_new.write(self.mdp)
 
     def map_lambda2state(self):
         """
