@@ -17,7 +17,7 @@ import shutil
 import random
 import subprocess
 import numpy as np
-from multiprocessing import Pool
+import asyncio
 from itertools import combinations
 from collections import OrderedDict
 from alchemlyb.parsing.gmx import extract_dHdl
@@ -1151,6 +1151,11 @@ class EnsembleEXE:
 
         return return_code, stdout, stderr
 
+    async def async_run_gmx_cmd(self, args):
+        process = await asyncio.create_subprocess_exec(*args, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await process.communicate()
+        return process.returncode, stdout, stderr
+
     def run_grompp(self, n, swap_pattern):
         """
         Prepares TPR files for the simulation ensemble using the GROMACS :code:`grompp` command.
@@ -1195,12 +1200,13 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
-        with Pool(self.n_sim) as pool:
-            results = pool.map(self.run_gmx_cmd, args_list)
+        loop = asyncio.get_event_loop()
+        tasks = [self.async_run_gmx_cmd(args) for args in args_list]
+        results = loop.run_until_complete(asyncio.gather(*tasks))
 
         for i, (returncode, stdout, stderr) in enumerate(results):
             if returncode != 0:
-                print(f'Error on replica {i}:\n{stderr}')
+                print(f'Error on replica {i}:\n{stderr.decode()}')
                 sys.exit(returncode)
 
     def run_mdrun(self, n):
