@@ -17,7 +17,7 @@ import shutil
 import random
 import subprocess
 import numpy as np
-import asyncio
+from joblib import Parallel, delayed
 from itertools import combinations
 from collections import OrderedDict
 from alchemlyb.parsing.gmx import extract_dHdl
@@ -1200,14 +1200,12 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
-        loop = asyncio.get_event_loop()
-        tasks = [self.async_run_gmx_cmd(args) for args in args_list]
-        results = loop.run_until_complete(asyncio.gather(*tasks))
+            results = Parallel(n_jobs=self.n_sim)(delayed(self.run_gmx_cmd)(args) for args in args_list)
 
-        for i, (returncode, stdout, stderr) in enumerate(results):
-            if returncode != 0:
-                print(f'Error on replica {i}:\n{stderr.decode()}')
-                sys.exit(returncode)
+            for i, (returncode, stdout, stderr) in enumerate(results):
+                if returncode != 0:
+                    print(f'Error on replica {i}:\n{stderr}')
+                    sys.exit(returncode)
 
     def run_mdrun(self, n):
         """
