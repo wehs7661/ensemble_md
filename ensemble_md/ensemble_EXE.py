@@ -39,13 +39,11 @@ class EnsembleEXE:
 
     :ivar gmx_path: The absolute path of the GROMACS exectuable.
     :ivar gmx_version: The version of the GROMACS executable.
-    :ivar mpi_library: The MPI library used to run GROMACS simulations.
     :ivar yaml: The input YAML file used to instantiate the class. Assigned by the :code:`__init__` function.
     :ivar warnings: Warnings about parameter specification in either YAML or MDP files.
     :ivar reformatted_mdp: Whether the templated MDP file has been reformatted by replacing hyphens
         with underscores or not.
     :ivar template: The instance of the :obj:`MDP` class based on the template MDP file.
-    :ivar nsteps: The number of steps per iteration.
     :ivar dt: The simulation timestep in ps.
     :ivar temp: The simulation temperature in Kelvin.
     :ivar fixed_weights: Whether the weights will be fixed during the simulation (according to the template MDP file).
@@ -69,9 +67,9 @@ class EnsembleEXE:
     :ivar lambda_dict: A dictionary with keys being the tuples of coupling parameters used in each replicas and
         values being the corresponding global index (starting from 0). Assigned by :obj:`map_lambda2state`.
     :ivar lambda_ranges: A list of lambda vectors of state range of each replica. Assigned by :obj:`map_lambda2state`.
-    :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`accept_or_reject`.
+    :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`.accept_or_reject`.
     :ivar n_swap_attempts: The number of swaps attempted so far. This does not include the cases
-        where there is no swappable pair. Updated by :obj:`get_swapping_pattern`.
+        where there is no swappable pair. Updated by :obj:`.get_swapping_pattern`.
     :ivar n_emtpy_swappable: The number of times when there was no swappable pair.
     :ivar rep_trajs: The replica-space trajectories of all replicas.
     :ivar configs: A list that thows the current configuration index that each replica is sampling.
@@ -149,10 +147,6 @@ class EnsembleEXE:
                     f"Required parameter '{i}' not specified in {self.yaml}."
                 )  # noqa: F405
 
-        # Check the executables
-        self.check_mpi_cli()
-        self.check_gmx_executable()
-
         # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
@@ -166,7 +160,7 @@ class EnsembleEXE:
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
             "grompp_args": None,
-            "runtime_args": {},
+            "runtime_args": None,
             "n_ckpt": 100,
             "msm": False,
             "free_energy": False,
@@ -236,6 +230,7 @@ class EnsembleEXE:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
         if self.mpi_cli is None:
+            self.mpi_cli = 'mpirun'
             self.warnings.append("The CLI for launching MPI processes is not specified, so the default of 'mpirun' will be used.")  # noqa: E501
 
         # Step 5: Reformat the input MDP file to replace all hypens with underscores.
@@ -357,6 +352,10 @@ class EnsembleEXE:
         else:
             self.get_u_nk = False
             self.get_dHdl = True
+
+        # Step 8. Check the executables
+        self.check_mpi_cli()
+        self.check_gmx_executable()
 
     def check_mpi_cli(self):
         """
@@ -679,7 +678,7 @@ class EnsembleEXE:
         weight_err = []
         for i in range(self.n_sim):
             if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
-                weight_err.append([0] * self.n_sub)  # in the function weighted_mean, a simple average will be returned.
+                weight_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
             else:
                 weight_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
 
@@ -700,7 +699,7 @@ class EnsembleEXE:
             a list that has been updated/modified by :obj:`get_swapping_pattern`, or the result will be incorrect.
         state_ranges : list of lists
             A list of state indies for all replicas. The input list can be a list updated by
-            :code:`get_swapping_pattern`, especially in the case where there is a need to re-identify the
+            :obj:`.get_swapping_pattern`, especially in the case where there is a need to re-identify the
             swappable pairs after an attempted swap is accepted.
 
         Returns
@@ -1066,7 +1065,7 @@ class EnsembleEXE:
         -------
         weights : list
             A list of modified Wang-Landau weights of ALL simulations.
-        g_vec : np.array
+        g_vec : np.ndarray
             An array of alchemical weights of the whole range of states.
         """
         if self.verbose is True:
@@ -1160,7 +1159,7 @@ class EnsembleEXE:
         n : int
             The iteration index (starting from 0).
         swap_pattern : list
-            A list generated by :code:`get_swapping_pattern`. It represents how the replicas should be swapped.
+            A list generated by :obj:`.get_swapping_pattern`. It represents how the replicas should be swapped.
         """
         args_list = []
         for i in range(self.n_sim):
@@ -1252,7 +1251,7 @@ class EnsembleEXE:
         n : int
             The iteration index (starting from 0).
         swap_pattern : list
-            A list generated by :code:`get_swapping_pattern`. It represents how the replicas should be swapped.
+            A list generated by :obj:`.get_swapping_pattern`. It represents how the replicas should be swapped.
             This parameter is not needed only if :code:`n` is 0.
         """
         iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501

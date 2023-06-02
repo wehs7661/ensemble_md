@@ -128,7 +128,7 @@ def traj2transmtx(traj, N, normalize=True):
 
     Returns
     -------
-    transmtx : numpy.ndarray
+    transmtx : np.ndarray
         The transition matrix computed from the trajectory
     """
     transmtx = np.zeros([N, N])

@@ -33,11 +33,11 @@ def parse_transmtx(log_file, expanded_ensemble=True):
 
     Returns
     -------
-    empirical : numpy.ndarray
+    empirical : np.ndarray
         The final empirical state transition matrix.
-    theoretical : None or numpy.ndarray
+    theoretical : None or np.ndarray
         The final theoretical state transition matrix.
-    diff_matrix : None or numpy.ndarray
+    diff_matrix : None or np.ndarray
         The difference between the theortial and empirical state transition matrix (empirical - theoretical).
     """
     f = open(log_file, "r")
@@ -92,12 +92,12 @@ def calc_equil_prob(trans_mtx):
 
     Parameters
     ----------
-    trans_mtx : numpy.ndarray
+    trans_mtx : np.ndarray
         The input state transition matrix
 
     Returns
     -------
-    equil_prob : numpy.ndarray
+    equil_prob : np.ndarray
     """
     check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1) for i in range(len(trans_mtx))])
     check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1) for i in range(len(trans_mtx))])
@@ -128,7 +128,7 @@ def calc_spectral_gap(trans_mtx, atol=1e-8):
 
     Parameters
     ----------
-    trans_mtx : numpy.ndarray
+    trans_mtx : np.ndarray
         The input state transition matrix
     atol: float
         The absolute tolerance for checking the sum of columns and rows.
@@ -172,7 +172,7 @@ def split_transmtx(trans_mtx, n_sim, n_sub):
 
     Parameters
     ----------
-    trans_mtx : numpy.ndarray
+    trans_mtx : np.ndarray
         The input state transition matrix to split
     n_sim : int
         The number of replicas in EEXE.
@@ -202,7 +202,7 @@ def plot_matrix(matrix, png_name, title=None, start_idx=0):
 
     Parameters
     ----------
-    matrix : numpy.ndarray
+    matrix : np.ndarray
         The matrix to be visualized
     png_name : str
         The file name of the output PNG file (including the extension).

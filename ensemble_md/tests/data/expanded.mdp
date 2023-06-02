@@ -11,7 +11,7 @@ nstfout = 0
 nstlog = 100
 nstcalcenergy = 1
 nstenergy = 1000
-nstxout_compressed = 1000
+nstxout_compressed = 100
 
 ; Neighborsearching and short-range nonbonded interactions
 nstlist = 10
