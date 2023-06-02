@@ -10,7 +10,6 @@
 """
 The :obj:`.ensemble_EXE` module provides functions for setting up and ensemble of expanded ensemble.
 """
-import os
 import sys
 import copy
 import yaml
@@ -186,7 +185,7 @@ class EnsembleEXE:
             if i not in all_args:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
-        # Step 4: Check if the parameters in the YAML file are well-defined        
+        # Step 4: Check if the parameters in the YAML file are well-defined
         if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'multiple']:
             raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.")  # noqa: E501
 
@@ -243,12 +242,26 @@ class EnsembleEXE:
 
         # Step 6: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
-        self.nsteps = self.template["nsteps"]  # will be overwritten by self.nst_sim if nst_sim is specified.
         self.dt = self.template["dt"]  # ps
         self.temp = self.template["ref_t"]
 
         if self.nst_sim is None:
-            self.nst_sim = self.nsteps
+            self.nst_sim = self.template["nsteps"]
+
+        if 'nstxout' not in self.template and 'nstxout_compressed' not in self.template:
+            raise ParameterError("At least nstxout or nstxout_compressed should be specified, or expanded ensemble simulations with the -multidir flag won't write the output gro file, which is needed in the next iteration.")  # noqa: E501
+
+        if 'nstxout' in self.template and 'nstxout_compressed' in self.template:
+            if self.template['nstxout'] > self.nst_sim and self.template['nstxout_compressed'] > self.nst_sim:
+                raise ParameterError("At least one of nstxout and nstxout_compressed should be smaller than nst_sim specified in the input YAML file, or expanded ensemble simulations with the -multidir flag won't write the output gro file, which is needed in the next iteration.")  # noqa: E501
+
+        if 'nstxout' in self.template:
+            if self.template['nstxout'] > self.nst_sim:
+                raise ParameterError("nstxout should be smaller than nst_sim specified in the input YAML file, or expanded ensemble simulations with the -multidir flag won't write the output gro file, which is needed in the next iteration.")  # noqa: $501
+
+        if 'nstxout_compressed' in self.template:
+            if self.template['nstxout_compressed'] > self.nst_sim:
+                raise ParameterError("nstxout_compressed should be smaller than nst_sim specified in the input YAML file, or expanded ensemble simulations with the -multidir flag won't write the output gro file, which is needed in the next iteration.")  # noqa: E501
 
         if 'wl_scale' in self.template.keys():
             if isinstance(self.template['wl_scale'], np.ndarray):
@@ -348,7 +361,7 @@ class EnsembleEXE:
         """
         Check if the CLI for lauching MPI processes is available.
         """
-        
+
         if self.mpi_cli is not None:
             try:
                 result = subprocess.run(['which', self.mpi_cli], capture_output=True, text=True, check=True)
@@ -369,10 +382,8 @@ class EnsembleEXE:
         result = subprocess.run(['which', self.gmx_executable], capture_output=True, text=True, check=True)
         self.gmx_path = result.stdout.strip()  # this can be exactly the same as self.gmx_executable
 
-        command = [self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"]
-
-        # self.mpi_cli should be avialable, or the code won't reach this point. 
-        version_output = subprocess.run([self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"], capture_output=True, text=True, check=True)
+        # self.mpi_cli should be avialable, or the code won't reach this point.
+        version_output = subprocess.run([self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"], capture_output=True, text=True, check=True)  # noqa: E501
 
         for line in version_output.stdout.splitlines():
             if "GROMACS version" in line:
@@ -380,9 +391,9 @@ class EnsembleEXE:
             if "MPI library" in line:
                 mpi_library = line.split()[-1]  # should be either thread_mpi or MPI
                 break
-        
+
         if mpi_library != 'MPI':
-            raise ParameterError(f"MPI-enabled GROMACS must be used.")
+            raise ParameterError("MPI-enabled GROMACS must be used.")
 
     def print_params(self, params_analysis=False):
         """
@@ -1246,7 +1257,7 @@ class EnsembleEXE:
         arguments.extend(dir_list)
 
         # Run the GROMACS mdrun commands in parallel
-        print(f'Running multiple EXE simulations on in parallel ...')
+        print('Running multiple EXE simulations on in parallel ...')
         returncode, stdout, stderr = self.run_gmx_cmd(arguments)
         if returncode != 0:
             print(f'Error:\n{stderr}')
