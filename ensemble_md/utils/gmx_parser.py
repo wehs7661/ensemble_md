@@ -154,8 +154,10 @@ def parse_log(log_file):
                 find_equil = True  # After this, we will append weights one last time, which are equilibrated weights.
                 equil_step = int(l.split(":")[0].split("Step")[1])
                 equil_time = equil_step * dt + tinit  # ps
-                if wl_delta < cutoff:
+                if wl_delta is not None and wl_delta < cutoff:
                     # Should only happen when equil_time % nstlog == 0, where the weights should have been appended
+                    # Note that we additionally have wl_delta is not None. Since wl_delta could be None if the
+                    # weights get equilibrated right after the simulation stop (before nstlog).
                     append_equil = True
 
             wl_delta = wl_delta_list[-1]

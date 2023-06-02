@@ -32,7 +32,7 @@ def params_dict():
     Generates a dictionary containing the required EEXE parameters.
     """
     EEXE_dict = {
-        'gmx_executable': 'gmx',
+        'gmx_executable': 'gmx_mpi',
         'gro': 'ensemble_md/tests/data/sys.gro',
         'top': 'ensemble_md/tests/data/sys.top',
         'mdp': 'ensemble_md/tests/data/expanded.mdp',
@@ -161,7 +161,7 @@ class Test_EnsembleEXE:
         EEXE = get_EEXE_instance(params_dict)
 
         # 1. Check the required EEXE parameters
-        assert EEXE.gmx_executable == 'gmx'
+        assert EEXE.gmx_executable == 'gmx_mpi'
         assert EEXE.gro == "ensemble_md/tests/data/sys.gro"
         assert EEXE.top == "ensemble_md/tests/data/sys.top"
         assert EEXE.mdp == "ensemble_md/tests/data/expanded.mdp"
@@ -187,7 +187,6 @@ class Test_EnsembleEXE:
         assert EEXE.seed is None
 
         # 3. Check the MDP parameters
-        assert EEXE.nsteps == 500
         assert EEXE.dt == 0.002
         assert EEXE.temp == 298
         assert EEXE.nst_sim == 500

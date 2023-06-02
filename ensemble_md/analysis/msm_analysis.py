@@ -64,7 +64,7 @@ def plot_its(trajs, lags, fig_name, dt=1, units='step'):
     Returns
     -------
     ts_list : list
-        An list of instances of the ImpliedTimescales class in PyEMMA.
+        An list of instances of the :code:`ImpliedTimescales` class in PyEMMA.
     """
     ts_list = []
     n_rows, n_cols = utils.get_subplot_dimension(len(trajs))

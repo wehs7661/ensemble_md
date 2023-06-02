@@ -6,8 +6,8 @@
 :code:`explore_EEXE` helps the user to figure out possible combinations of EEXE parameters, while :code:`run_EEXE` and :code:`analyze_EEXE`
 can be used to perform and analyze EEXE simulations, respectively. Below we provide more details about each of these CLIs.
 
-1.1. CLI `explore_EEXE`
------------------------
+1.1. CLI :code:`explore_EEXE`
+-----------------------------
 Here is the help message of :code:`explore_EEXE`:
 
 ::
@@ -29,8 +29,8 @@ Here is the help message of :code:`explore_EEXE`:
                 replicas.
 
 
-1.2. CLI `run_EEXE`
--------------------
+1.2. CLI :code:`run_EEXE`
+-------------------------
 Here is the help message of :code:`run_EEXE`:
 
 ::
@@ -58,18 +58,24 @@ Here is the help message of :code:`run_EEXE`:
                             The maximum number of warnings in parameter specification to be
                             ignored.
 
+Same as any other replica-exchange methods, EEXE only works with MPI-enabled GROMACS. To leverage
+the allocated computational resources, one can specify the number of MPI processes via the parameter
+:code:`n_proc`, with the CLI of MPI (e.g. :code:`mpirun` or :code:`mpiexec`) speicifed via the 
+parameter :code:`mpi_cli`. In addition, one can specify the number of OpenMP threads per MPI process (i.e., 
+:code:`-ntomp` used with the GROMACS mdrun commands) via the parameter :code:`runtime_args` by using
+:code:`runtime_args = {'-ntomp': '16'}`. 
+
+
+
 In our current implementation, it is assumed that all replicas of an EEXE simulations are performed in
 parallel using MPI. Naturally, performing an EEXE simulation using :code:`run_EEXE` requires a command-line interface
-to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, on a 128-core node
-in a cluster, one may use :code:`mpirun -np 4 run_EEXE` (or :code:`mpiexec -n 4 run_EEXE`) to run an EEXE simulation composed of 4
-replicas with 4 MPI processes. Note that in this case, it is often recommended to explicitly specify
-more details about resources allocated for each replica. For example, one can specifies :code:`{'-nt': 32}`
-for the EEXE parameter `runtime_args` (specified in the input YAML file, see :ref:`doc_EEXE_parameters`),
-so each of the 4 replicas will use 32 threads (assuming thread-MPI GROMACS), taking the full advantage
-of 128 cores.
+to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, to run an EEXE simulation
+composed of 4 replicas, one must use :code:`mpirun -np 4 run_EEXE` (or :code:`mpiexec -n 4 run_EEXE`),
+where the value of :code:`-np` should be the same as the number of replicas.
+For more information about the parameter :code:`runtime_args` in the input YAML file, see :ref:`doc_EEXE_parameters`.
 
-1.3. CLI `analyze_EEXE`
------------------------
+1.3. CLI :code:`analyze_EEXE`
+-----------------------------
 Finally, here is the help message of :code:`analyze_EEXE`:
 
 ::
@@ -210,13 +216,20 @@ In the current implementation of the algorithm, 22 parameters can be specified i
 Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
-3.1. GROMACS executable
------------------------
+3.1. Runtime configuration
+--------------------------
 
-  - :code:`gmx_executable`: (Required)
+  - :code:`gmx_executable`: (Optional, Default: :code:`gmx_mpi`)
       The GROMACS executable to be used to run the EEXE simulation. The value could be as simple as :code:`gmx`
-      or :code:`gmx_mpi` if the exeutable has be sourced. Otherwise, the full path of the exetuable (e.g.
-      :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`).
+      or :code:`gmx_mpi` if the exeutable has been sourced. Otherwise, the full path of the executable (e.g.
+      :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
+      Note that EEXE only works with MPI-enabled GROMACS. 
+  - :code:`mpi_cli`: (Optional, Default: :code:`mpirun`)
+      The CLI for launching MPI processes, e.g. :code:`mpirun` or :code:`mpiexec`. Note that this parameter
+      is only required when MPI-enabled GROMACS is used. If tMPI-enabled GROMACS executable is specified 
+      in :code:`gmx_executable`, the value of :code:`mpi_cli` will be ignored.
+  - :code:`n_proc`: (Optional, Default: the number of replicas, i.e. the value of :code:`n_sim`)
+      The number of MPI processes to run the EEXE simulation.
 
 3.2. Simulation inputs
 ----------------------
@@ -261,9 +274,11 @@ include parameters for data analysis here.
   - :code:`grompp_args`: (Optional: Default: :code:`None`)
       Additional arguments to be appended to the GROMACS :code:`grompp` command provided in a dictionary.
       For example, one could have :code:`{'-maxwarn', '1'}` to specify the :code:`maxwarn` argument for the :code:`grompp` command.
-  - :code:`runtime_args`: (Optional, Default: :code:`None`)
+  - :code:`runtime_args`: (Optional, Default: :code:`{}`)
       Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. 
-      For example, one could have :code:`{'-nt': 16}` to run the simulation using 16 threads.
+      For example, one could have :code:`{'-nt': 16}` to run the simulation using tMPI-enabled GROMACS with 16 threads.
+      Notably, if MPI-enabled GROMACS is used, one should specify :code:`-np` to better use the resources. If it is
+      not specified, the default will be the number of simulations and a warning will occur.
 
 3.4. Output settings
 --------------------
@@ -300,9 +315,13 @@ include parameters for data analysis here.
 For convenience, here is a template of the input YAML file, with each optional parameter specified with the default and required 
 parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e. :code:`None`).
 
-::
-    # Section 1: GROMACS executable
+
+.. code-block:: yaml
+
+    # Section 1: Runtime configuration
     gmx_executable:
+    mpi_cli: 'mpirun'
+    n_proc: null
 
     # Section 2: Simulation inputs
     gro:

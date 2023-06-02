@@ -128,7 +128,7 @@ def traj2transmtx(traj, N, normalize=True):
 
     Returns
     -------
-    transmtx : numpy.ndarray
+    transmtx : np.ndarray
         The transition matrix computed from the trajectory
     """
     transmtx = np.zeros([N, N])
@@ -462,6 +462,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             plt.figure()
             for i in range(len(t_list)):    # t_list[i] is the list for configuration i
                 plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)
+
             if max(max((t_list))) >= 10000:
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             plt.xlabel('Event index')

@@ -10,7 +10,6 @@
 """
 The :obj:`.ensemble_EXE` module provides functions for setting up and ensemble of expanded ensemble.
 """
-import os
 import sys
 import copy
 import yaml
@@ -18,7 +17,6 @@ import shutil
 import random
 import subprocess
 import numpy as np
-from mpi4py import MPI
 from itertools import combinations
 from collections import OrderedDict
 from alchemlyb.parsing.gmx import extract_dHdl
@@ -30,9 +28,6 @@ from ensemble_md.utils import utils
 from ensemble_md.utils import gmx_parser
 from ensemble_md.utils.exceptions import ParameterError
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()  # Note that this is a GLOBAL variable
-
 
 class EnsembleEXE:
     """
@@ -42,12 +37,13 @@ class EnsembleEXE:
     below is a list of attributes of the class. (All the the attributes are assigned by
     :obj:`set_params` unless otherwise noted.)
 
+    :ivar gmx_path: The absolute path of the GROMACS exectuable.
+    :ivar gmx_version: The version of the GROMACS executable.
     :ivar yaml: The input YAML file used to instantiate the class. Assigned by the :code:`__init__` function.
     :ivar warnings: Warnings about parameter specification in either YAML or MDP files.
     :ivar reformatted_mdp: Whether the templated MDP file has been reformatted by replacing hyphens
         with underscores or not.
     :ivar template: The instance of the :obj:`MDP` class based on the template MDP file.
-    :ivar nsteps: The number of steps per iteration.
     :ivar dt: The simulation timestep in ps.
     :ivar temp: The simulation temperature in Kelvin.
     :ivar fixed_weights: Whether the weights will be fixed during the simulation (according to the template MDP file).
@@ -71,9 +67,9 @@ class EnsembleEXE:
     :ivar lambda_dict: A dictionary with keys being the tuples of coupling parameters used in each replicas and
         values being the corresponding global index (starting from 0). Assigned by :obj:`map_lambda2state`.
     :ivar lambda_ranges: A list of lambda vectors of state range of each replica. Assigned by :obj:`map_lambda2state`.
-    :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`accept_or_reject`.
+    :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`.accept_or_reject`.
     :ivar n_swap_attempts: The number of swaps attempted so far. This does not include the cases
-        where there is no swappable pair. Updated by :obj:`get_swapping_pattern`.
+        where there is no swappable pair. Updated by :obj:`.get_swapping_pattern`.
     :ivar n_emtpy_swappable: The number of times when there was no swappable pair.
     :ivar rep_trajs: The replica-space trajectories of all replicas.
     :ivar configs: A list that thows the current configuration index that each replica is sampling.
@@ -151,12 +147,11 @@ class EnsembleEXE:
                     f"Required parameter '{i}' not specified in {self.yaml}."
                 )  # noqa: F405
 
-        # Check the GROMACS executable
-        self.check_gmx_executable()
-
         # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
+            "mpi_cli": None,
+            "n_proc": self.n_sim,
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
@@ -201,6 +196,8 @@ class EnsembleEXE:
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.nst_sim is not None:
             params_int.append('nst_sim')
+        if self.n_proc is not None:
+            params_int.append('n_proc')
         if self.n_ex != 'N^3':  # no need to add "and self.proposal == 'multiple' since if multiple swaps are not used, n_ex=1"  # noqa: E501
             params_int.append('n_ex')
         if self.seed is not None:
@@ -232,17 +229,35 @@ class EnsembleEXE:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
+        if self.mpi_cli is None:
+            self.mpi_cli = 'mpirun'
+            self.warnings.append("The CLI for launching MPI processes is not specified, so the default of 'mpirun' will be used.")  # noqa: E501
+
         # Step 5: Reformat the input MDP file to replace all hypens with underscores.
         self.reformat_MDP()
 
         # Step 6: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
-        self.nsteps = self.template["nsteps"]  # will be overwritten by self.nst_sim if nst_sim is specified.
         self.dt = self.template["dt"]  # ps
         self.temp = self.template["ref_t"]
 
         if self.nst_sim is None:
-            self.nst_sim = self.nsteps
+            self.nst_sim = self.template["nsteps"]
+
+        if 'nstxout' not in self.template and 'nstxout_compressed' not in self.template:
+            raise ParameterError("At least nstxout or nstxout_compressed should be specified, or expanded ensemble simulations with the -multidir flag won't write the output gro file, which is needed in the next iteration.")  # noqa: E501
+
+        if 'nstxout' in self.template and 'nstxout_compressed' in self.template:
+            if self.template['nstxout'] > self.nst_sim and self.template['nstxout_compressed'] > self.nst_sim:
+                raise ParameterError("At least one of nstxout and nstxout_compressed should be smaller than nst_sim specified in the input YAML file, or expanded ensemble simulations with the -multidir flag won't write the output gro file, which is needed in the next iteration.")  # noqa: E501
+
+        if 'nstxout' in self.template:
+            if self.template['nstxout'] > self.nst_sim:
+                raise ParameterError("nstxout should be smaller than nst_sim specified in the input YAML file, or expanded ensemble simulations with the -multidir flag won't write the output gro file, which is needed in the next iteration.")  # noqa: $501
+
+        if 'nstxout_compressed' in self.template:
+            if self.template['nstxout_compressed'] > self.nst_sim:
+                raise ParameterError("nstxout_compressed should be smaller than nst_sim specified in the input YAML file, or expanded ensemble simulations with the -multidir flag won't write the output gro file, which is needed in the next iteration.")  # noqa: E501
 
         if 'wl_scale' in self.template.keys():
             if isinstance(self.template['wl_scale'], np.ndarray):
@@ -338,23 +353,47 @@ class EnsembleEXE:
             self.get_u_nk = False
             self.get_dHdl = True
 
+        # Step 8. Check the executables
+        self.check_mpi_cli()
+        self.check_gmx_executable()
+
+    def check_mpi_cli(self):
+        """
+        Check if the CLI for lauching MPI processes is available.
+        """
+
+        if self.mpi_cli is not None:
+            try:
+                result = subprocess.run(['which', self.mpi_cli], capture_output=True, text=True, check=True)
+
+                # Below we set the argument for specifying the number of MPI processes
+                if 'mpirun' in result.stdout:
+                    self.mpi_arg = '-np'
+                elif 'mpiexec' in result.stdout:
+                    self.mpi_arg = '-n'
+
+            except subprocess.CalledProcessError:
+                print(f"{self.mpi_cli} is not available on this system.")
+
     def check_gmx_executable(self):
         """
-        Checks if the GROMACS executable can be used and  gets its absolute path and version.
+        Checks if the GROMACS executable can be used and gets its absolute path and version.
         """
-        try:
-            result = subprocess.run(['which', self.gmx_executable], capture_output=True, text=True, check=True)
-            self.gmx_path = result.stdout.strip()  # this can be exactly the same as self.gmx_executable
+        result = subprocess.run(['which', self.gmx_executable], capture_output=True, text=True, check=True)
+        self.gmx_path = result.stdout.strip()  # this can be exactly the same as self.gmx_executable
 
-            version_output = subprocess.run([self.gmx_path, "-version"], capture_output=True, text=True, check=True)
-            for line in version_output.stdout.splitlines():
-                if "GROMACS version" in line:
-                    self.gmx_version = line.split()[-1]
-                    break
-        except subprocess.CalledProcessError:
-            print(f"{self.gmx_executable} is not available on this system.")
-        except Exception as e:
-            print(f"An error occurred:\n{e}")
+        # self.mpi_cli should be avialable, or the code won't reach this point.
+        version_output = subprocess.run([self.mpi_cli, self.mpi_arg, '1', self.gmx_path, "-version"], capture_output=True, text=True, check=True)  # noqa: E501
+
+        for line in version_output.stdout.splitlines():
+            if "GROMACS version" in line:
+                self.gmx_version = line.split()[-1]
+            if "MPI library" in line:
+                mpi_library = line.split()[-1]  # should be either thread_mpi or MPI
+                break
+
+        if mpi_library != 'MPI':
+            raise ParameterError("MPI-enabled GROMACS must be used.")
 
     def print_params(self, params_analysis=False):
         """
@@ -416,14 +455,13 @@ class EnsembleEXE:
         odict = OrderedDict([(k.replace('-', '_'), v) for k, v in params.items()])
         params_new = gmx_parser.MDP(None, **odict)
 
-        if rank == 0:
-            if params_new.keys() == params.keys():
-                self.reformatted_mdp = False  # no need to reformat the file
-            else:
-                self.reformatted_mdp = True
-                new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
-                shutil.move(self.mdp, new_name)
-                params_new.write(self.mdp)
+        if params_new.keys() == params.keys():
+            self.reformatted_mdp = False  # no need to reformat the file
+        else:
+            self.reformatted_mdp = True
+            new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
+            shutil.move(self.mdp, new_name)
+            params_new.write(self.mdp)
 
     def map_lambda2state(self):
         """
@@ -640,7 +678,7 @@ class EnsembleEXE:
         weight_err = []
         for i in range(self.n_sim):
             if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
-                weight_err.append([0] * self.n_sub)  # in the function weighted_mean, a simple average will be returned.
+                weight_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
             else:
                 weight_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
 
@@ -661,7 +699,7 @@ class EnsembleEXE:
             a list that has been updated/modified by :obj:`get_swapping_pattern`, or the result will be incorrect.
         state_ranges : list of lists
             A list of state indies for all replicas. The input list can be a list updated by
-            :code:`get_swapping_pattern`, especially in the case where there is a need to re-identify the
+            :obj:`.get_swapping_pattern`, especially in the case where there is a need to re-identify the
             swappable pairs after an attempted swap is accepted.
 
         Returns
@@ -1027,7 +1065,7 @@ class EnsembleEXE:
         -------
         weights : list
             A list of modified Wang-Landau weights of ALL simulations.
-        g_vec : np.array
+        g_vec : np.ndarray
             An array of alchemical weights of the whole range of states.
         """
         if self.verbose is True:
@@ -1121,13 +1159,14 @@ class EnsembleEXE:
         n : int
             The iteration index (starting from 0).
         swap_pattern : list
-            A list generated by :code:`get_swapping_pattern`. It represents how the replicas should be swapped.
+            A list generated by :obj:`.get_swapping_pattern`. It represents how the replicas should be swapped.
         """
         args_list = []
         for i in range(self.n_sim):
-            # mpirun -np 1 does not seem needed here.
-            # Actually, it made stderr and stdout both empty even if the return code is 1 ...
-            arguments = [self.gmx_executable, 'grompp']
+            arguments = []
+
+            # See if there is a need to use mpirun or mpiexec
+            arguments.extend([self.mpi_cli, self.mpi_arg, '1', self.gmx_executable, 'grompp'])
 
             # Input files
             mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
@@ -1155,11 +1194,12 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
-        if rank < self.n_sim:
-            print(f'Generating a TPR file on rank {rank} ...')
-            returncode, stdout, stderr = self.run_gmx_cmd(args_list[rank])
+        for i in range(self.n_sim):
+            print(f'Generating the TPR file for replica {i} ...')
+            returncode, stdout, stderr = self.run_gmx_cmd(args_list[i])
             if returncode != 0:
-                print(f'Error on rank {rank}:\n{stderr}')
+                print(f'Error:\n{stderr}')
+                sys.exit(returncode)
 
     def run_mdrun(self, n):
         """
@@ -1170,8 +1210,14 @@ class EnsembleEXE:
         n : int
             The iteration index (starting from 0).
         """
-        # We will change the working directory so the mdrun command should be the same for all replicas.
-        arguments = [self.gmx_executable, 'mdrun']
+        # Note that we will change the working directory so the mdrun command will be the same for all replicas.
+        arguments = []
+
+        # Specify the MPI CLI and the number of MPI processes
+        arguments.extend([self.mpi_cli, self.mpi_arg, str(self.n_proc)])
+
+        # GROMACS command
+        arguments.extend([self.gmx_executable, 'mdrun'])
 
         # Add input file arguments
         arguments.extend(['-s', 'sys_EE.tpr'])
@@ -1181,15 +1227,17 @@ class EnsembleEXE:
             add_args = [elem for pair in self.runtime_args.items() for elem in pair]
             arguments.extend(add_args)
 
+        # Append the directorys after -multidir to enable simulations in parallel
+        dir_list = [f'sim_{i}/iteration_{n}' for i in range(self.n_sim)]
+        arguments.extend(['-multidir'])
+        arguments.extend(dir_list)
+
         # Run the GROMACS mdrun commands in parallel
-        if rank < self.n_sim:
-            print(f'Running an EXE simulation on rank {rank} ...')
-            os.chdir(f'sim_{rank}/iteration_{n}')
-            returncode, stdout, stderr = self.run_gmx_cmd(arguments)
-            if returncode != 0:
-                print(f'Error on rank {rank}:\n{stderr}')
-                sys.exit(returncode)
-            os.chdir('../../')
+        print('Running multiple EXE simulations on in parallel ...')
+        returncode, stdout, stderr = self.run_gmx_cmd(arguments)
+        if returncode != 0:
+            print(f'Error:\n{stderr}')
+            sys.exit(returncode)
 
     def run_EEXE(self, n, swap_pattern=None):
         """
@@ -1203,25 +1251,11 @@ class EnsembleEXE:
         n : int
             The iteration index (starting from 0).
         swap_pattern : list
-            A list generated by :code:`get_swapping_pattern`. It represents how the replicas should be swapped.
+            A list generated by :obj:`.get_swapping_pattern`. It represents how the replicas should be swapped.
             This parameter is not needed only if :code:`n` is 0.
         """
-        if rank == 0:
-            iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
-            print(iter_str + '\n' + '=' * (len(iter_str) - 1))
+        iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501
+        print(iter_str + '\n' + '=' * (len(iter_str) - 1))
 
-        # 1st synchronizing point for all MPI processes: To make sure ranks other than 0 will not start executing
-        # run_grompp earlier and mess up the order of printing.
-        comm.barrier()
-
-        # Generating all required TPR files simultaneously, then run all simulations simultaneously.
-        # No synchronizing point is needed between run_grompp and run_mdrun, since once rank i finishes run_grompp,
-        # it should run run_mdrun in the same working directory, so there won't be any I/O error.
         self.run_grompp(n, swap_pattern)
         self.run_mdrun(n)
-
-        # 2nd synchronizaing point for all MPI processes: To make sure no rank will start getting to the next
-        # iteration earlier than the others. For example, if rank 0 finishes the mdrun command earlier, we don't
-        # want it to start parsing the dhdl file (in the if condition of if rank == 0) of simulation 3 being run by
-        # rank 3 that has not been generated, which will lead to an I/O error.
-        comm.barrier()
