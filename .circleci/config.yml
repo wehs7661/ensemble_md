@@ -39,10 +39,10 @@ jobs:
             cd $HOME && mkdir pkgs 
             git clone https://gitlab.com/gromacs/gromacs.git
             cd gromacs && mkdir build && cd build
-            cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/pkgs -DGMX_ENABLE_CCACHE=ON
+            cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/pkgs -DGMX_ENABLE_CCACHE=ON -DGMX_MPI=on
             make install 
             source $HOME/pkgs/bin/GMXRC
-            gmx --version
+            gmx_mpi --version
             ccache -s
 
       - run:
