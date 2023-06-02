@@ -58,29 +58,21 @@ Here is the help message of :code:`run_EEXE`:
                             The maximum number of warnings in parameter specification to be
                             ignored.
 
+Same as any other replica-exchange methods, EEXE only works with MPI-enabled GROMACS. To leverage
+the allocated computational resources, one can specify the number of MPI processes via the parameter
+:code:`n_proc`, with the CLI of MPI (e.g. :code:`mpirun` or :code:`mpiexec`) speicifed via the 
+parameter :code:`mpi_cli`. In addition, one can specify the number of OpenMP threads per MPI process (i.e., 
+:code:`-ntomp` used with the GROMACS mdrun commands) via the parameter :code:`runtime_args` by using
+:code:`runtime_args = {'-ntomp': '16'}`. 
+
+
+
 In our current implementation, it is assumed that all replicas of an EEXE simulations are performed in
 parallel using MPI. Naturally, performing an EEXE simulation using :code:`run_EEXE` requires a command-line interface
 to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, to run an EEXE simulation
 composed of 4 replicas, one must use :code:`mpirun -np 4 run_EEXE` (or :code:`mpiexec -n 4 run_EEXE`),
 where the value of :code:`-np` should be the same as the number of replicas.
-
-Importantly, it is recommended that more details about resources allocated for 
-each replicas are excplitily specified in the input YAML file . As an example,
-here we consider a case of running an EEXE simulation composed of 4 replicas on a 128-core node.
-Since our implementation works for both tMPI-enabled and MPI-enabled GROMACS, one
-can do the following to make sure all cores are used:
-
-- If tMPI-enabled GROMACS is used, one can launch the simulation using :code:`mpirun -np 4 run_EEXE`,
-    with :code:`runtime_args = {'-nt': 32, 'ntmpi': 1}` specified in the input YAML file. Note that :code:`-nt`
-    should be 32 to use all the 128 CPU cores, while the value of :code:`ntmpi` can be numbers like 1, 2, 4, ..., etc.
-- If MPI-enabled GROMACS is used, one can launch the simulation using :code:`mpirun -np 4 run_EEXE`,
-    but with :code:`runtime_args = {'-np': 16, 'ntomp': 2}` specified in the input YAML file. Note that in this case,
-    there are two levels of parallelism. :code:`-np 4` in the command :code:`mpirun -np 4 run_EEXE` runs 4 instances
-    of the CLI :code:`run_EEXE`. Inside :code:`run_EEXE`, :code:`subprocess.run()` performes each of the 4 GROMACS :code:`mdrun`
-    commands in parallel, each with 16 MPI processes and 2 OpenMP threads per MPI process. That is, each replica
-    runs on :math:`16 \times 2=32` CPU cores, so all 4 replicas use 128 cores in total. Of course, different numbers of 
-    :code:`-np` and :code:`-ntomp` can be used as long as their produce is 32 in this case. For more information about
-    the parameter :code:`runtime_args` in the input YAML file, see :ref:`doc_EEXE_parameters`.
+For more information about the parameter :code:`runtime_args` in the input YAML file, see :ref:`doc_EEXE_parameters`.
 
 1.3. CLI :code:`analyze_EEXE`
 -----------------------------
@@ -323,9 +315,10 @@ include parameters for data analysis here.
 For convenience, here is a template of the input YAML file, with each optional parameter specified with the default and required 
 parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e. :code:`None`).
 
-::
 
-    # Section 1: Executables
+.. code-block:: yaml
+
+    # Section 1: Runtime configuration
     gmx_executable:
     mpi_cli: 'mpirun'
     n_proc: null
