@@ -13,8 +13,10 @@ The :obj:`.ensemble_EXE` module provides functions for setting up and ensemble o
 import sys
 import copy
 import yaml
+import time
 import shutil
 import random
+import datetime
 import subprocess
 import numpy as np
 from itertools import combinations
@@ -1122,6 +1124,7 @@ class EnsembleEXE:
 
         return weights, g_vec
 
+    @profile
     def run_gmx_cmd(self, arguments):
         """
         Run a GROMACS command as a subprocess
@@ -1142,6 +1145,7 @@ class EnsembleEXE:
             The STDERR or the process.
 
         """
+        print('current time: ', datetime.datetime.now().time())
         try:
             result = subprocess.run(arguments, capture_output=True, text=True, check=True)
             return_code, stdout, stderr = result.returncode, result.stdout, None
@@ -1150,6 +1154,7 @@ class EnsembleEXE:
 
         return return_code, stdout, stderr
 
+    @profile
     def run_grompp(self, n, swap_pattern):
         """
         Prepares TPR files for the simulation ensemble using the GROMACS :code:`grompp` command.
@@ -1201,7 +1206,8 @@ class EnsembleEXE:
             if process.returncode != 0:
                 print(f'Error on replica {i}:\n{stderr.decode()}')
                 sys.exit(process.returncode)
-
+    
+    @profile
     def run_mdrun(self, n):
         """
         Executes GROMACS mdrun commands in parallel.
@@ -1240,6 +1246,7 @@ class EnsembleEXE:
             print(f'Error:\n{stderr}')
             sys.exit(returncode)
 
+    @profile
     def run_EEXE(self, n, swap_pattern=None):
         """
         Perform one iteration in the EEXE simulation, which includes generating the
@@ -1259,4 +1266,8 @@ class EnsembleEXE:
         print(iter_str + '\n' + '=' * (len(iter_str) - 1))
 
         self.run_grompp(n, swap_pattern)
+        t1 = time.time()
+        print('current time: ', datetime.datetime.now().time())
         self.run_mdrun(n)
+        t2 = time.time()
+        print('mdrun time: ', t2-t1)
