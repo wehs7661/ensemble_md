@@ -249,7 +249,7 @@ def analyze_EEXE_time(log_files=None):
         The total time spent in synchronizing all replicas, which is the sum of the differences
         between the longest and the shortest time elapsed to finish a iteration.
     t_wall_list : list
-        The list of wall times of finishing each mdrun command. 
+        The list of wall times of finishing each mdrun command.
     """
     n_iter = len(glob.glob('sim_0/iteration_*'))
     if log_files is None:
