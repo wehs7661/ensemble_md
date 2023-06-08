@@ -1195,18 +1195,13 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
-        for i in range(self.n_sim):
-            print(f'Generating the TPR file for replica {i} ...')
-            process = subprocess.Popen(args_list[i], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            process_list.append(process)
-
-        for i, process in enumerate(process_list):
+        processes = [subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) for args in args_list]
+        for i, process in enumerate(processes):
             process.wait()
+            stderr = process.communicate()[1] # This line fetches the STDERR.
             if process.returncode != 0:
-                print(f'Error on rank {i}:\nProcess returned non-zero exit code.')
+                print(f'Error on replica {i}:\n{stderr.decode()}')
                 sys.exit(process.returncode)
-            else:
-                print(f'Success on rank {i}: Process completed.')
 
     def run_mdrun(self, n):
         """

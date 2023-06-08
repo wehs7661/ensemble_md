@@ -248,15 +248,19 @@ def analyze_EEXE_time(log_files=None):
     t_sync : float
         The total time spent in synchronizing all replicas, which is the sum of the differences
         between the longest and the shortest time elapsed to finish a iteration.
+    t_wall_list : list
+        The list of wall times of finishing each mdrun command. 
     """
     n_iter = len(glob.glob('sim_0/iteration_*'))
     if log_files is None:
         log_files = [natsort.natsorted(glob.glob(f'sim_*/iteration_{i}/*log')) for i in range(n_iter)]
 
+    t_wall_list = []
     t_wall_tot, t_sync = 0, 0
     for i in range(n_iter):
         t_wall = [get_time_metrics(log_files[i][j])['t_wall'] for j in range(len(log_files[i]))]
+        t_wall_list.append(t_wall)
         t_wall_tot += max(t_wall)
         t_sync += (max(t_wall) - min(t_wall))
 
-    return t_wall_tot, t_sync
+    return t_wall_tot, t_sync, t_wall_list
