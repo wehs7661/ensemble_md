@@ -16,7 +16,7 @@ in the future when possible.
 ===============
 2.1. Requirements
 -----------------
-Importantly, :code:`ensemble_md` only works with MPI-enabled `GROMACS`_. Please refer to the linked documentation for full installation instructions.
+Before installing :code:`ensemble_md`, one should have working versions of `GROMACS`_. Please refer to the linked documentation for full installation instructions.
 All the other pip-installable dependencies of :code:`ensemble_md` (specified in :code:`setup.py` of the package)
 will be automatically installed during the installation of the package.
 

@@ -58,21 +58,15 @@ Here is the help message of :code:`run_EEXE`:
                             The maximum number of warnings in parameter specification to be
                             ignored.
 
-Same as any other replica-exchange methods, EEXE only works with MPI-enabled GROMACS. To leverage
-the allocated computational resources, one can specify the number of MPI processes via the parameter
-:code:`n_proc`, with the CLI of MPI (e.g. :code:`mpirun` or :code:`mpiexec`) speicifed via the 
-parameter :code:`mpi_cli`. In addition, one can specify the number of OpenMP threads per MPI process (i.e., 
-:code:`-ntomp` used with the GROMACS mdrun commands) via the parameter :code:`runtime_args` by using
-:code:`runtime_args = {'-ntomp': '16'}`. 
-
-
-
 In our current implementation, it is assumed that all replicas of an EEXE simulations are performed in
 parallel using MPI. Naturally, performing an EEXE simulation using :code:`run_EEXE` requires a command-line interface
-to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, to run an EEXE simulation
-composed of 4 replicas, one must use :code:`mpirun -np 4 run_EEXE` (or :code:`mpiexec -n 4 run_EEXE`),
-where the value of :code:`-np` should be the same as the number of replicas.
-For more information about the parameter :code:`runtime_args` in the input YAML file, see :ref:`doc_EEXE_parameters`.
+to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, on a 128-core node
+in a cluster, one may use :code:`mpirun -np 4 run_EEXE` (or :code:`mpiexec -n 4 run_EEXE`) to run an EEXE simulation composed of 4
+replicas with 4 MPI processes. Note that in this case, it is often recommended to explicitly specify
+more details about resources allocated for each replica. For example, one can specifies :code:`{'-nt': 32}`
+for the EEXE parameter `runtime_args` (specified in the input YAML file, see :ref:`doc_EEXE_parameters`),
+so each of the 4 replicas will use 32 threads (assuming thread-MPI GROMACS), taking the full advantage
+of 128 cores.
 
 1.3. CLI :code:`analyze_EEXE`
 -----------------------------
@@ -216,20 +210,14 @@ In the current implementation of the algorithm, 22 parameters can be specified i
 Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
-3.1. Runtime configuration
---------------------------
+3.1. GROMACS executable
+-----------------------
 
   - :code:`gmx_executable`: (Optional, Default: :code:`gmx_mpi`)
       The GROMACS executable to be used to run the EEXE simulation. The value could be as simple as :code:`gmx`
       or :code:`gmx_mpi` if the exeutable has been sourced. Otherwise, the full path of the executable (e.g.
       :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
       Note that EEXE only works with MPI-enabled GROMACS. 
-  - :code:`mpi_cli`: (Optional, Default: :code:`mpirun`)
-      The CLI for launching MPI processes, e.g. :code:`mpirun` or :code:`mpiexec`. Note that this parameter
-      is only required when MPI-enabled GROMACS is used. If tMPI-enabled GROMACS executable is specified 
-      in :code:`gmx_executable`, the value of :code:`mpi_cli` will be ignored.
-  - :code:`n_proc`: (Optional, Default: the number of replicas, i.e. the value of :code:`n_sim`)
-      The number of MPI processes to run the EEXE simulation.
 
 3.2. Simulation inputs
 ----------------------
@@ -320,8 +308,6 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
 
     # Section 1: Runtime configuration
     gmx_executable:
-    mpi_cli: 'mpirun'
-    n_proc: null
 
     # Section 2: Simulation inputs
     gro:
