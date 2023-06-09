@@ -41,7 +41,7 @@ jobs:
             cmake .. -DCMAKE_CXX_COMPILER=$CXX -DCMAKE_C_COMPILER=$CC -DCMAKE_INSTALL_PREFIX=$HOME/pkgs
             make install 
             source $HOME/pkgs/bin/GMXRC
-            gmx_mpi --version
+            gmx --version
 
       - run:
           name: Install the ensemble_md package
