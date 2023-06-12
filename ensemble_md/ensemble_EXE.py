@@ -155,6 +155,7 @@ class EnsembleEXE:
         # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
+            "modify_coords": None,
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
@@ -1132,7 +1133,10 @@ class EnsembleEXE:
             if n == 0:
                 gro = f"{self.gro}"
             else:
-                gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
+                if self.modify_coords is None:
+                    gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
+                else:
+                    gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout_modified.gro"  # This effectively swap out GRO files  # noqa: E501
             top = f"{self.top}"
 
             # Add input file arguments
