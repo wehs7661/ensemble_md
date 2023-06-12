@@ -1157,7 +1157,7 @@ class EnsembleEXE:
             print(f'Generating a TPR file on rank {rank} ...')
             returncode, stdout, stderr = self.run_gmx_cmd(args_list[rank])
             if returncode != 0:
-                print(f'Error on rank {rank}:\n{stderr}')
+                raise RuntimeError(f'Error on rank {rank}:\n{stderr}')
 
     def run_mdrun(self, n):
         """
@@ -1185,8 +1185,7 @@ class EnsembleEXE:
             os.chdir(f'sim_{rank}/iteration_{n}')
             returncode, stdout, stderr = self.run_gmx_cmd(arguments)
             if returncode != 0:
-                print(f'Error on rank {rank}:\n{stderr}')
-                sys.exit(returncode)
+                raise RuntimeError(f'Error on rank {rank}:\n{stderr}')
             os.chdir('../../')
 
     def run_EEXE(self, n, swap_pattern=None):
