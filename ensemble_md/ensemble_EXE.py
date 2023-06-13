@@ -1157,11 +1157,16 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
+        code_list = []
         if rank < self.n_sim:
             print(f'Generating a TPR file on rank {rank} ...')
             returncode, stdout, stderr = self.run_gmx_cmd(args_list[rank])
+            code_list.append(returncode)
             if returncode != 0:
-                raise RuntimeError(f'Error on rank {rank}:\n{stderr}')
+                print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
+
+        if code_list != [0] * self.n_sim:
+            MPI.COMM_WORLD.Abort(1)   # Doesn't matter what non-zero returncode we put here as the code from GROMACS will be printed before this point anyway.  # noqa: E501
 
     def run_mdrun(self, n):
         """
@@ -1184,13 +1189,18 @@ class EnsembleEXE:
             arguments.extend(add_args)
 
         # Run the GROMACS mdrun commands in parallel
+        code_list = []
         if rank < self.n_sim:
             print(f'Running an EXE simulation on rank {rank} ...')
             os.chdir(f'sim_{rank}/iteration_{n}')
             returncode, stdout, stderr = self.run_gmx_cmd(arguments)
+            code_list.append(returncode)
             if returncode != 0:
-                raise RuntimeError(f'Error on rank {rank}:\n{stderr}')
+                print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
             os.chdir('../../')
+
+        if code_list != [0] * self.n_sim:
+            MPI.COMM_WORLD.Abort(1)   # Doesn't matter what non-zero returncode we put here as the code from GROMACS will be printed before this point anyway.  # noqa: E501
 
     def run_EEXE(self, n, swap_pattern=None):
         """
