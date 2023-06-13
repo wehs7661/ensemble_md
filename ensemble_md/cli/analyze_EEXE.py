@@ -382,7 +382,7 @@ def main():
         print(f'The free energy difference between the coupled and decoupled states: {f[-1]: .3f} +/- {f_err[-1]: .3f} kT')  # noqa: E501
 
     # Section 4. Calculate the time spent in GROMACS (This could take a while.)
-    t_wall_tot, t_sync = utils.analyze_EEXE_time()
+    t_wall_tot, t_sync, _ = utils.analyze_EEXE_time()
     print(f'\nTotal wall time GROMACS spent to finish all iterations: {utils.format_time(t_wall_tot)}')
     print(f'Total time spent in syncrhonizing all replicas: {utils.format_time(t_sync)}')
 
