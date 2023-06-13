@@ -109,7 +109,7 @@ def calc_equil_prob(trans_mtx):
         # Left stochastic matrix - calcualte the right eigenvector
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx)
     else:
-        result_str = "The input transition matrix is neither right nor left stochastic, so the equilibrium probability cannot be calculated."  # noqa: E501
+        result_str = "The input transition matrix is neither right nor left stochastic, so the equilibrium probability cannot be calculated. "  # noqa: E501
         result_str += "This might be a result of poor sampling. Check your state-space trajectory to troubleshoot."
         print(result_str)
         return None
@@ -148,10 +148,10 @@ def calc_spectral_gap(trans_mtx, atol=1e-8):
     elif check_col == len(trans_mtx):
         eig_vals, eig_vecs = np.linalg.eig(trans_mtx)
     else:
-        result_str = "The input transition matrix is neither right nor left stochastic, so the spectral gap cannot be calculated."  # noqa: E501
+        result_str = "The input transition matrix is neither right nor left stochastic, so the spectral gap cannot be calculated. "  # noqa: E501
         result_str += "This might be a result of poor sampling. Check your state-space trajectory to troubleshoot."
         print(result_str)
-        return None
+        return None, None
 
     eig_vals = np.sort(eig_vals)[::-1]  # descending order
     if np.isclose(eig_vals[0], 1, atol=1e-4) is False:
