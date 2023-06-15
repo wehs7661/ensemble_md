@@ -169,12 +169,12 @@ def main():
             if EEXE.N_cutoff != -1 and EEXE.w_combine is True:
                 # perform both
                 weights_avg = EEXE.histogram_correction(weights_avg, counts)
-                weights, g_vec = EEXE.combine_weights(weights_avg, weights_err)
+                weights, g_vec = EEXE.combine_weights(weights_avg)  # inverse-variance weighting seems worse
                 EEXE.g_vecs.append(g_vec)
             elif EEXE.N_cutoff == -1 and EEXE.w_combine is True:
                 # only perform weight combination
                 print('\nNote: No histogram correction will be performed.')
-                weights, g_vec = EEXE.combine_weights(weights_avg, weights_err)
+                weights, g_vec = EEXE.combine_weights(weights_avg)  # inverse-variance weighting seems worse
                 EEXE.g_vecs.append(g_vec)
             elif EEXE.N_cutoff != -1 and EEXE.w_combine is False:
                 # only perform histogram correction

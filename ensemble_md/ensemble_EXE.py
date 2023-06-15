@@ -778,7 +778,6 @@ class EnsembleEXE:
 
             if len(swappables) == 0 and self.proposal == 'exhaustive':
                 # This should only happen when the method of exhaustive swaps is used.
-                print(f'{n_ex_exhaustive} swap(s) have been attempted to exhaustively explore all possible swaps.')
                 if i == 0:
                     self.n_empty_swappable += 1
                 break
@@ -1016,7 +1015,10 @@ class EnsembleEXE:
 
     def combine_weights(self, weights, weights_err=None):
         """
-        Combine alchemical weights across multiple replicas. (See :ref:`doc_w_schemes` for mor details.)
+        Combine alchemical weights across multiple replicas. Note that if
+        :code:`weights_err` is provided, inverse-variance weighting will be used.
+        Care must be taken since inverse-variance weighting can lead to slower
+        convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for mor details.)
 
         Parameters
         ----------
