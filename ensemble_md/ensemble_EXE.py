@@ -207,7 +207,7 @@ class EnsembleEXE:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iter', 's', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
         if self.nst_sim is not None:
             params_pos.append('nst_sim')
         for i in params_pos:
@@ -216,6 +216,9 @@ class EnsembleEXE:
 
         if self.n_ex != 'N^3' and self.n_ex < 0:
             raise ParameterError("The parameter 'n_ex' should be non-negative.")
+
+        if self.s < 0:
+            raise ParameterError("The parameter 's' should be non-negative.")
 
         if self.N_cutoff < 0 and self.N_cutoff != -1:
             raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
@@ -275,6 +278,18 @@ class EnsembleEXE:
         if self.template['nstlog'] > self.nst_sim:
             raise ParameterError(
                 'The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.')  # noqa: E501
+
+        if self.nst_sim % self.template['nstlog'] != 0:
+            raise ParameterError(
+                'The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file')
+
+        if self.nst_sim % self.template['nstdhdl'] != 0:
+            raise ParameterError(
+                'The parameter "nstdhdl" must be a factor of the parameter "nst_sim" specified in the YAML file')
+
+        if self.template['nstexpanded'] % self.template['nstdhdl'] != 0:
+            raise ParameterError(
+                'In EEXE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
 
         # Step 7: Set up derived parameters
         # 7-1. kT in kJ/mol
