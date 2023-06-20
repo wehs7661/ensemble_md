@@ -789,6 +789,7 @@ class EnsembleEXE:
                 swap = self.propose_swap(swappables)
                 print(f'\nProposed swap: {swap}')
                 if swap == []:
+                    self.n_empty_swappable += 1
                     print('No swap is proposed because there is no swappable pair at all.')
                     break  # no need to re-identify swappable pairs and draw new samples
                 else:
@@ -1155,8 +1156,9 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
+        if rank == 0:
+            print('Generating TPR files on ...')
         if rank < self.n_sim:
-            print(f'Generating a TPR file on rank {rank} ...')
             returncode, stdout, stderr = self.run_gmx_cmd(args_list[rank])
             if returncode != 0:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
@@ -1189,8 +1191,9 @@ class EnsembleEXE:
             arguments.extend(add_args)
 
         # Run the GROMACS mdrun commands in parallel
+        if rank == 0:
+            print('Running EXE simulations ...')
         if rank < self.n_sim:
-            print(f'Running an EXE simulation on rank {rank} ...')
             os.chdir(f'sim_{rank}/iteration_{n}')
             returncode, stdout, stderr = self.run_gmx_cmd(arguments)
             if returncode != 0:

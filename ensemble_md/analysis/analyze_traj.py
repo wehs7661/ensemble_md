@@ -327,6 +327,7 @@ def plot_state_hist(trajs, state_ranges, fig_name):
     plt.ylabel('Count')
     plt.grid()
     plt.legend()
+    plt.tight_layout()
     plt.savefig(f'{fig_name}', dpi=600)
 
 
@@ -557,3 +558,129 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
         plt.ylabel('RMSE in the alchemical weights (kT)')
         plt.grid()
         plt.savefig('g_vecs_rmse.png', dpi=600)
+
+
+def get_swaps(EEXE_log='run_EEXE_log.txt'):
+    """
+    For each replica, identifies the states where exchanges were proposed and accepted.
+    (Todo: We should be able to only use :code:`rep_trajs.npy` and :code:`state_trajs.npy`
+    instead of parsing the EEXE log file to reach the same goal.)
+
+    Parameters
+    ----------
+    EEXE_log : str
+        The output log file of the EEXE simulation.
+
+    Returns
+    -------
+    proposed_swaps : list
+        A list of dictionaries showing where the swaps were proposed in
+        each replica. Each dictionary (corresponding to one replica) have
+        keys being the global state indices and values being the number of
+        proposed swaps that occurred in the state indicated by the key.
+    accepted_swaps : list
+        A list of dictionaries showing where the swaps were accepted in
+        each replica. Each dictionary (corresponding to one replica) have
+        keys being the global state indices and values being the number of
+        accepted swaps that occurred in the state indicated by the key.
+    """
+    f = open(EEXE_log, 'r')
+    lines = f.readlines()
+    f.close()
+
+    state_list = []
+    for line in lines:
+        if 'Number of replicas: ' in line:
+            n_sim = int(line.split('Number of replicas: ')[-1])
+        if '- Replica' in line:
+            state_list.append(eval(line.split('States ')[-1]))
+
+        if 'Iteration' in line:
+            break
+
+    # Note that proposed_swaps and accepted_swaps are initialized in the same way
+    proposed_swaps = [{i: 0 for i in state_list[j]} for j in range(n_sim)]  # Key: global state index; Value: The number of accepted swaps  # noqa: E501
+    accepted_swaps = [{i: 0 for i in state_list[j]} for j in range(n_sim)]  # Key: global state index; Value: The number of accepted swaps  # noqa: E501
+    state_trajs = [[] for i in range(n_sim)]  # the state-space trajectory for each REPLICA (not configuration)
+    for line in lines:
+        if 'Simulation' in line and 'Global state' in line:
+            rep = int(line.split(':')[0].split()[-1])
+            state = int(line.split(',')[0].split()[-1])
+            state_trajs[rep].append(state)
+
+        if 'Proposed swap' in line:
+            swap = eval(line.split(': ')[-1])
+            proposed_swaps[swap[0]][state_trajs[swap[0]][-1]] += 1  # states_trajs[swap[0]][-1] is the last state sampled by swap[0]  # noqa: E501
+            proposed_swaps[swap[1]][state_trajs[swap[1]][-1]] += 1  # states_trajs[swap[1]][-1] is the last state sampled by swap[1]  # noqa: E501
+
+        if 'Swap accepted!' in line:
+            accepted_swaps[swap[0]][state_trajs[swap[0]][-1]] += 1  # states_trajs[swap[0]][-1] is the last state sampled by swap[0]  # noqa: E501
+            accepted_swaps[swap[1]][state_trajs[swap[1]][-1]] += 1  # states_trajs[swap[1]][-1] is the last state sampled by swap[1]  # noqa: E501
+
+    return proposed_swaps, accepted_swaps
+
+
+def plot_swaps(swaps, swap_type='', figsize=None):
+    """
+    Plots the histogram of the proposed swaps or accepted swaps for each replica.
+
+    Parameters
+    ----------
+    swaps : list
+        A list of dictionaries showing showing the number of swaps for each
+        state for each replica. This list could be either of the outputs from :obj:`.get_swaps`.
+    swap_type : str
+        The value should be either :code:`'accepted'` or :code:`'proposed'`. This value
+        will only influence the name of y-axis and the output file name.
+    figsize : tuple
+        A tuple specifying the length and width of the output figure. The
+        default is :code:`(6.4, 4.8)` for cases having less than 30 states and :code:`(10, 4.8)` otherwise.
+    """
+    n_sim = len(swaps)
+    n_states = max(max(d.keys()) for d in swaps) + 1
+    lower_bound, upper_bound = -0.5, n_states - 0.5
+    state_ranges = [list(swaps[i].keys()) for i in range(n_sim)]
+    cmap = plt.cm.ocean
+    colors = [cmap(i) for i in np.arange(n_sim) / n_sim]
+
+    if figsize is None:
+        if n_states > 30:
+            figsize = (10, 4.8)
+        else:
+            figsize = (6.4, 4.8)  # default
+
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111)
+    for i in range(n_sim):
+        plt.bar(
+            list(swaps[i].keys()),
+            list(swaps[i].values()),
+            align='center',
+            width=1,
+            color=colors[i],
+            edgecolor='black',
+            label=f'Replica {i}',
+            alpha=0.5
+        )
+    plt.xticks(range(n_states))
+
+    # Here we color the different regions to show alchemical ranges
+    y_min, y_max = ax.get_ylim()
+    for i in range(n_sim):
+        bounds = [list(state_ranges[i])[0], list(state_ranges[i])[-1]]
+        if i == 0:
+            bounds[0] -= 0.5
+        if i == n_sim - 1:
+            bounds[1] += 0.5
+        plt.fill_betweenx([y_min, y_max], x1=bounds[1] + 0.5, x2=bounds[0] - 0.5, color=colors[i], alpha=0.1, zorder=0)
+    plt.xlim([lower_bound, upper_bound])
+    plt.ylim([y_min, y_max])
+    plt.xlabel('State')
+    plt.ylabel(f'Number of {swap_type} swaps')
+    plt.grid()
+    plt.legend()
+    plt.tight_layout()
+    if swap_type == '':
+        plt.savefig('swaps.png', dpi=600)
+    else:
+        plt.savefig(f'{swap_type}_swaps.png', dpi=600)
