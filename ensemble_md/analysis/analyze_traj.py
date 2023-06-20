@@ -287,7 +287,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1):
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_state_hist(trajs, state_ranges, fig_name):
+def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None):
     """
     Plots the histograms of the state index for each configuration.
 
@@ -299,17 +299,54 @@ def plot_state_hist(trajs, state_ranges, fig_name):
         A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.EnsembleEXE`.)
     fig_name : str
         The file name of the png file to be saved (with the extension).
+    stack : bool
+        Whether to stack the histograms.
+    figsize : tuple
+        A tuple specifying the length and width of the output figure. The
+        default is :code:`(6.4, 4.8)` for cases having less than 30 states and :code:`(10, 4.8)` otherwise.
     """
     n_configs = len(trajs)
+    n_states = max(max(state_ranges)) + 1
     cmap = plt.cm.ocean  # other good options are CMRmap, gnuplot, terrain, turbo, brg, etc.
     colors = [cmap(i) for i in np.arange(n_configs) / n_configs]
 
-    fig = plt.figure()
+    if figsize is None:
+        if max(trajs[-1]) > 30:
+            figsize = (10, 4.8)
+        else:
+            figsize = (6.4, 4.8)  # default
+
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111)
-    lower_bound = min(trajs[0]) - 0.5
-    upper_bound = max(trajs[-1]) + 0.5
-    for i in range(len(trajs)):
-        plt.hist(trajs[i], np.arange(lower_bound, upper_bound + 1, 1), label=f'Configuration {i}', alpha=0.5, edgecolor='black', color=colors[i])  # noqa: E501
+    lower_bound, upper_bound = -0.5, n_states - 0.5
+
+    hist_data = []
+    for traj in trajs:
+        hist, bins = np.histogram(traj, bins=np.arange(lower_bound, upper_bound + 1, 1))
+        hist_data.append(hist)
+
+    # Use the same bins for all histograms
+    bins = bins[:-1]  # Remove the last bin edge because there are n+1 bin edges for n bins
+
+    # Initialize the list of bottom
+    bottom = [0] * n_states
+
+    for i in range(n_configs):
+        plt.bar(
+            range(n_states),
+            hist_data[i],
+            align='center',
+            width=1,
+            color=colors[i],
+            edgecolor='black',
+            label=f'Configuration {i}',
+            alpha=0.5,
+            bottom=bottom
+        )
+
+        if stack is True:
+            bottom = [b + c for b, c in zip(bottom, hist_data[i])]
+
     plt.xticks(range(max(state_ranges[-1]) + 1))
 
     # Here we color the different regions to show alchemical ranges
@@ -620,7 +657,7 @@ def get_swaps(EEXE_log='run_EEXE_log.txt'):
     return proposed_swaps, accepted_swaps
 
 
-def plot_swaps(swaps, swap_type='', figsize=None):
+def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
     """
     Plots the histogram of the proposed swaps or accepted swaps for each replica.
 
@@ -632,6 +669,8 @@ def plot_swaps(swaps, swap_type='', figsize=None):
     swap_type : str
         The value should be either :code:`'accepted'` or :code:`'proposed'`. This value
         will only influence the name of y-axis and the output file name.
+    stack : bool
+        Whether to stack the histograms.
     figsize : tuple
         A tuple specifying the length and width of the output figure. The
         default is :code:`(6.4, 4.8)` for cases having less than 30 states and :code:`(10, 4.8)` otherwise.
@@ -643,6 +682,15 @@ def plot_swaps(swaps, swap_type='', figsize=None):
     cmap = plt.cm.ocean
     colors = [cmap(i) for i in np.arange(n_sim) / n_sim]
 
+    # A new list of dictionaries, each of which consider all state indies
+    full_data = [{state: d.get(state, 0) for state in range(n_states)} for d in swaps]  # d.get(state, 0) returns 0 if the state is unavilable  # noqa: E501
+
+    # counts of swaps for all states
+    counts_list = [[d[state] for state in range(n_states)] for d in full_data]
+
+    # Initialize the list of bottom
+    bottom = [0] * n_states
+
     if figsize is None:
         if n_states > 30:
             figsize = (10, 4.8)
@@ -651,21 +699,29 @@ def plot_swaps(swaps, swap_type='', figsize=None):
 
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111)
+
     for i in range(n_sim):
         plt.bar(
-            list(swaps[i].keys()),
-            list(swaps[i].values()),
+            range(n_states),
+            counts_list[i],
             align='center',
             width=1,
             color=colors[i],
             edgecolor='black',
             label=f'Replica {i}',
-            alpha=0.5
+            alpha=0.5,
+            bottom=bottom
         )
+
+        if stack is True:
+            bottom = [b + c for b, c in zip(bottom, counts_list[i])]
+
     plt.xticks(range(n_states))
 
     # Here we color the different regions to show alchemical ranges
     y_min, y_max = ax.get_ylim()
+    if stack is True:
+        y_max *= 1.05  # for some reason, without this line, there is no space for the heighest bar.
     for i in range(n_sim):
         bounds = [list(state_ranges[i])[0], list(state_ranges[i])[-1]]
         if i == 0:
