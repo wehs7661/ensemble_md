@@ -275,10 +275,6 @@ class EnsembleEXE:
         if 'symmetrized_transition_matrix' in self.template and self.template['symmetrized_transition_matrix'] == 'yes':  # noqa: E501
             self.warnings.append('Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.')
 
-        if self.template['nstlog'] > self.nst_sim:
-            raise ParameterError(
-                'The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.')  # noqa: E501
-
         if self.nst_sim % self.template['nstlog'] != 0:
             raise ParameterError(
                 'The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file')
@@ -661,7 +657,8 @@ class EnsembleEXE:
 
         return weight_avg, weight_err
 
-    def identify_swappable_pairs(self, states, state_ranges):
+    @staticmethod
+    def identify_swappable_pairs(states, state_ranges, neighbor_exchange):
         """
         Identify swappable pairs. By definition, a pair of simulation is considered swappable only if
         their last sampled states are in the alchemical ranges of both simulations. This is required
@@ -678,13 +675,16 @@ class EnsembleEXE:
             A list of state indies for all replicas. The input list can be a list updated by
             :obj:`.get_swapping_pattern`, especially in the case where there is a need to re-identify the
             swappable pairs after an attempted swap is accepted.
+        neighbor_exchange : bool
+            Whether to exchange only between neighboring replicas.
 
         Returns
         -------
         swappables : list
             A list of tuples representing the simulations that can be swapped.
         """
-        sim_idx = list(range(self.n_sim))
+        n_sim = len(states)
+        sim_idx = list(range(n_sim))
         all_pairs = list(combinations(sim_idx, 2))
 
         # First, we identify pairs of replicas with overlapping ranges
@@ -694,7 +694,7 @@ class EnsembleEXE:
         # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the acceptance cannot be calculated.
         swappables = [i for i in swappables if states[i[0]] in state_ranges[i[1]] and states[i[1]] in state_ranges[i[0]]]  # noqa: E501
 
-        if self.proposal == 'neighboring':
+        if neighbor_exchange is True:
             print('Note: One neighboring swap will be proposed.')
             swappables = [i for i in swappables if np.abs(i[0] - i[1]) == 1]
 
@@ -772,7 +772,7 @@ class EnsembleEXE:
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         state_ranges = copy.deepcopy(self.state_ranges)
         states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges
-        swappables = self.identify_swappable_pairs(states, state_ranges)
+        swappables = EnsembleEXE.identify_swappable_pairs(states, state_ranges, self.proposal=='neighboring')
 
         # Note that if there is only 1 swappable pair, then it will still be the only swappable pair
         # after an attempted swap is accepted. Therefore, there is no need to perform multiple swaps or re-identify
@@ -837,7 +837,7 @@ class EnsembleEXE:
                         if n_ex > 1 and self.proposal == 'multiple':  # must be multiple swaps
                             # After state_ranges have been updated, we re-identify the swappable pairs.
                             # Notably, states_copy (instead of states) should be used. (They could be different.)
-                            swappables = self.identify_swappable_pairs(states_copy, state_ranges)
+                            swappables = EnsembleEXE.identify_swappable_pairs(states_copy, state_ranges, self.proposal=='neighboring')
                             print(f"  New swappable pairs: {swappables}")
                     else:
                         # In this case, there is no need to update the swappables
@@ -1172,7 +1172,7 @@ class EnsembleEXE:
 
         # Run the GROMACS grompp commands in parallel
         if rank == 0:
-            print('Generating TPR files on ...')
+            print('Generating TPR files ...')
         if rank < self.n_sim:
             returncode, stdout, stderr = self.run_gmx_cmd(args_list[rank])
             if returncode != 0:
