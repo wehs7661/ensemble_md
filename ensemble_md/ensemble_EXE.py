@@ -245,8 +245,8 @@ class EnsembleEXE:
             self.nst_sim = self.template["nsteps"]
 
         if 'wl_scale' in self.template.keys():
-            if isinstance(self.template['wl_scale'], np.ndarray):
-                # If wl_scale in the MDP file is a blank (i.e. fixed weights), mdp['wl_scale'] will be an empty array.
+            if self.template['wl_scale'] == []:
+                # If wl_scale in the MDP file is a blank (i.e. fixed weights), mdp['wl_scale'] will be an empty list.
                 # This is the only case where mdp['wl_scale'] is a numpy array.
                 self.fixed_weights = True
                 self.equilibrated_weights = [None for i in range(self.n_sim)]
@@ -277,11 +277,11 @@ class EnsembleEXE:
 
         if self.nst_sim % self.template['nstlog'] != 0:
             raise ParameterError(
-                'The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file')
+                'The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.')
 
         if self.nst_sim % self.template['nstdhdl'] != 0:
             raise ParameterError(
-                'The parameter "nstdhdl" must be a factor of the parameter "nst_sim" specified in the YAML file')
+                'The parameter "nstdhdl" must be a factor of the parameter "nst_sim" specified in the YAML file.')
 
         if self.template['nstexpanded'] % self.template['nstdhdl'] != 0:
             raise ParameterError(
@@ -772,7 +772,7 @@ class EnsembleEXE:
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         state_ranges = copy.deepcopy(self.state_ranges)
         states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges
-        swappables = EnsembleEXE.identify_swappable_pairs(states, state_ranges, self.proposal=='neighboring')
+        swappables = EnsembleEXE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring')
 
         # Note that if there is only 1 swappable pair, then it will still be the only swappable pair
         # after an attempted swap is accepted. Therefore, there is no need to perform multiple swaps or re-identify
@@ -837,7 +837,7 @@ class EnsembleEXE:
                         if n_ex > 1 and self.proposal == 'multiple':  # must be multiple swaps
                             # After state_ranges have been updated, we re-identify the swappable pairs.
                             # Notably, states_copy (instead of states) should be used. (They could be different.)
-                            swappables = EnsembleEXE.identify_swappable_pairs(states_copy, state_ranges, self.proposal=='neighboring')
+                            swappables = EnsembleEXE.identify_swappable_pairs(states_copy, state_ranges, self.proposal == 'neighboring')  # noqa: E501
                             print(f"  New swappable pairs: {swappables}")
                     else:
                         # In this case, there is no need to update the swappables

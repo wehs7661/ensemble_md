@@ -64,10 +64,10 @@ def test_autoconvert():
     assert utils.autoconvert("3.14159") == 3.14159
 
     # Test string input that can be converted to a numpy array of ints
-    assert np.array_equal(utils.autoconvert("1 2 3"), np.array([1, 2, 3]))
+    assert utils.autoconvert("1 2 3") == [1, 2, 3]
 
     # Test string input that can be converted to a numpy array of floats
-    assert np.allclose(utils.autoconvert("1.0 2.0 3.0"), np.array([1.0, 2.0, 3.0]))
+    assert utils.autoconvert("1.0 2.0 3.0") == [1.0, 2.0, 3.0]
 
 
 def test_get_subplot_dimension():

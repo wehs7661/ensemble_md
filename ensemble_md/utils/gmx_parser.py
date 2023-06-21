@@ -377,11 +377,6 @@ class MDP(odict, FileUtils):
                 elif k[0] == "C":  # comment
                     mdp.write("; {v!s}\n".format(**vars()))
                 else:  # parameter = value
-                    print(k, v, type(v))
-                    print(v == "")
-                    print(v is None)
-                    print(skipempty and (v == "" or v is None))
-                    print('\n')
                     if skipempty and (v == "" or v is None):
                         continue
                     if isinstance(v, six.string_types) or not hasattr(v, "__iter__"):

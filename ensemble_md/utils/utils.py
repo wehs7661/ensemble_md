@@ -134,11 +134,14 @@ def autoconvert(s):
             if len(s) == 1:
                 return s[0]
             else:
+                return s
+                """
                 if len(s) != 0 and type(s[0]) == str:
-                    # For the case like pull_coord1_dim = Y Y Y, we don't want to us np.array
+                    # For the case like pull_coord1_dim = Y Y Y
                     return s
                 else:
                     return np.array(s)
+                """
         except (ValueError, AttributeError):
             pass
     raise ValueError("Failed to autoconvert {0!r}".format(s))

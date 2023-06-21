@@ -113,7 +113,7 @@ class Test_EnsembleEXE:
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
         params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
         params_dict['nst_sim'] = 100
-        with pytest.raises(ParameterError, match='The parameter "nstlog" should be equal to or smaller than "nst_sim" specified in the YAML file so that the sampling information can be parsed.'):  # noqa: E501
+        with pytest.raises(ParameterError, match='The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
             get_EEXE_instance(params_dict)
         params_dict['nst_sim'] = 500
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
@@ -462,12 +462,12 @@ class Test_EnsembleEXE:
         states = [4, 2, 2, 7]   # This would lead to the swappables: [(0, 1), (0, 2), (1, 2)] in the standard case
 
         # Case 1: Any case that is not neighboring swap has the same definition for the swappable pairs
-        swappables_1 = EEXE.identify_swappable_pairs(states, EEXE.state_ranges)
+        swappables_1 = EEXE.identify_swappable_pairs(states, EEXE.state_ranges, EEXE.proposal == 'neighboring')
         assert swappables_1 == [(0, 1), (0, 2), (1, 2)]
 
         # Case 2: Neighboring exchange
         EEXE.proposal = 'neighboring'
-        swappables_2 = EEXE.identify_swappable_pairs(states, EEXE.state_ranges)
+        swappables_2 = EEXE.identify_swappable_pairs(states, EEXE.state_ranges, EEXE.proposal == 'neighboring')
         assert swappables_2 == [(0, 1), (1, 2)]
 
     def test_propose_swap(self, params_dict):

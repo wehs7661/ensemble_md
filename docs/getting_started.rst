@@ -58,3 +58,5 @@ or
 ::
 
     python -m pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
+
+Note that the flags :code:`--cov` and :code:`--cov-report` require that :code:`pytest-cov` be installed. 
