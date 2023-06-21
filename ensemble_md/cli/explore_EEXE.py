@@ -8,9 +8,11 @@
 #                                                                  #
 ####################################################################
 import sys
+import random
 import argparse
 import numpy as np
 import pandas as pd
+from ensemble_md.ensemble_EXE import EnsembleEXE
 
 
 def initialize(args):
@@ -40,7 +42,13 @@ def initialize(args):
                         default=False,
                         action='store_true',
                         help='Whether the apply the constraint such that the number of overlapping states \
-                            does notexceed 50%% of the number of states in both overlapping replicas.')
+                            does not exceed 50%% of the number of states in both overlapping replicas.')
+    parser.add_argument('-e',
+                        '--estimate',
+                        default=False,
+                        action='store_true',
+                        help='Whether to provide estimates of the chance of not having any swappable \
+                            pairs for each solution.')
     args_parse = parser.parse_args(args)
 
     return args_parse
@@ -116,7 +124,18 @@ def main():
         soln = soln_all.iloc[row_idx]
         start_idx = [i * soln['s'] for i in range(soln['r'])]
         state_ranges = [list(np.arange(i, i + soln['n'])) for i in start_idx]
-        print(f"- Solution {row_idx + 1}: (N, r, n, s) = ({args.N}, {soln['r']}, {soln['n']}, {soln['s']})")
+
+        if args.estimate is True:
+            n = 0  # number of times of not having any swappable pairs
+            for i in range(1000000):
+                rands = [random.choice(state_ranges[i]) for i in range(len(state_ranges))]
+                swappables = EnsembleEXE.identify_swappable_pairs(rands, state_ranges, False)
+                if swappables == []:
+                    n += 1
+
+            frac = n / 1000000 * 100   # in percentage
+
+        print(f"- Solution {row_idx + 1}: (N, r, n, s) = ({args.N}, {soln['r']}, {soln['n']}, {soln['s']}), {frac:.1f}% chance to not have any swappable pair")  # noqa: E501
         for i in range(soln['r']):
             print(f'  - Replica {i}: {state_ranges[i]}')
         print()

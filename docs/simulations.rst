@@ -12,21 +12,23 @@ Here is the help message of :code:`explore_EEXE`:
 
 ::
 
-    usage: explore_EEXE [-h] -N N [-r R] [-n N] [-s S] [-c]
+    usage: explore_EEXE [-h] -N N [-r R] [-n N] [-s S] [-c] [-e]
 
     This code explores the parameter space of homogenous EEXE to help you figure out all
     possible combinations of the number of replicas, the number of states in each replica,
     and the number of overlapping states, and the total number states.
 
     optional arguments:
-    -h, --help   show this help message and exit
-    -N N, --N N  The total number of states of the EEXE simulation.
-    -r R, --r R  The number of replicas that compose the EEXE simulation.
-    -n N, --n N  The number of states for each replica.
-    -s S, --s S  The state shift between adjacent replicas.
-    -c, --cnst   Whether the apply the constraint such that the number of overlapping
-                states does notexceed 50% of the number of states in both overlapping
-                replicas.
+      -h, --help      show this help message and exit
+      -N N, --N N     The total number of states of the EEXE simulation.
+      -r R, --r R     The number of replicas that compose the EEXE simulation.
+      -n N, --n N     The number of states for each replica.
+      -s S, --s S     The state shift between adjacent replicas.
+      -c, --cnst      Whether the apply the constraint such that the number of overlapping
+                      states does not exceed 50% of the number of states in both overlapping
+                      replicas.
+      -e, --estimate  Whether to provide estimates of the chance of not having any swappable
+                      pairs for each solution.
 
 
 1.2. CLI :code:`run_EEXE`
