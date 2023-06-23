@@ -96,7 +96,22 @@ def solv_EEXE_diophantine(N, constraint=False):
     return soln_all
 
 
-def estimate_empty_rate(state_ranges, N=1000000):
+def estimate_swapless_rate(state_ranges, N=1000000):
+    """
+    Estimates the chance of not having any swappable pair in an iteration.
+
+    Parameters
+    ----------
+    state_ranges : list
+        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
+    N : n
+        The number of Monte Carlo iterations for the estimation.
+
+    Returns
+    -------
+    p : float
+        The probability of not having any swappable pair in an iteration.
+    """
     n = 0  # number of times of not having any swappable pairs
     for i in range(N):
         rands = [random.choice(state_ranges[i]) for i in range(len(state_ranges))]
@@ -139,7 +154,7 @@ def main():
         state_ranges = [list(np.arange(i, i + soln['n'])) for i in start_idx]
 
         if args.estimate is True:
-            p = estimate_empty_rate(state_ranges)
+            p = estimate_swapless_rate(state_ranges)
             print(f"- Solution {row_idx + 1}: (N, r, n, s) = ({args.N}, {soln['r']}, {soln['n']}, {soln['s']}), {p:.1f}% chance to not have any swappable pair")  # noqa: E501
         else:
             print(f"- Solution {row_idx + 1}: (N, r, n, s) = ({args.N}, {soln['r']}, {soln['n']}, {soln['s']})")

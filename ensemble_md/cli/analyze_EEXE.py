@@ -150,9 +150,7 @@ def main():
         print('2-0. Stitching trajectories for each configuration from dhdl files ...')
         dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
         shifts = np.arange(EEXE.n_sim) * EEXE.s
-        state_trajs = analyze_traj.stitch_trajs(dhdl_files, rep_trajs, shifts=shifts)  # length: the number of replicas
-        print('     Saving state_trajs.npy ...')
-        np.save('state_trajs.npy', state_trajs)   # save the stithced trajectories
+        state_trajs = analyze_traj.stitch_trajs(dhdl_files, rep_trajs, shifts=shifts, save=True)  # length: the number of replicas  # noqa: E501
 
     # 2-1. Plot the state-space trajectory
     print('\n2-1. Plotting transitions between different alchemical states ...')

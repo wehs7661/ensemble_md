@@ -39,7 +39,7 @@ def extract_state_traj(dhdl):
     return traj
 
 
-def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1):
+def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True):
     """
     Stitches the state-space/CV-space trajectories for each configuration from DHDL files
     or PLUMED output files generated at different iterations.
@@ -67,6 +67,8 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1):
     col_idx : int
         The index of the column to be extracted from the input files. This is only needed when :code:`dhdl=False`,
         By default, we extract the last column.
+    save : bool
+        Whether to save the output trajectories as an NPY file.
 
     Returns
     -------
@@ -92,19 +94,78 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1):
                 if dhdl:
                     traj = extract_state_traj(files_sorted[i][j])
                 else:
-                    traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, -1]
+                    traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx]
             else:
                 # Starting from the 2nd iteration, we get rid of the first time frame the first
                 # frame of iteration n+1 the is the same as the last frame of iteration n
                 if dhdl:
                     traj = extract_state_traj(files_sorted[i][j])[1:]
                 else:
-                    traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, -1][1:]
+                    traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx][1:]
 
             if dhdl:  # Trajectories of global alchemical indices will be generated.
                 shift_idx = rep_trajs[i][j]
                 traj = list(np.array(traj) + shifts[shift_idx])
             trajs[i].extend(traj)
+
+    # Save the trajectories as an NPY file if desired
+    if save is True:
+        np.save('state_trajs.npy', trajs)
+
+    return trajs
+
+
+def stitch_trajs_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
+    """
+    Stitches the state-space/CV-space trajectories in the same replica/simulation folder.
+    That is, the output trajectory is contributed by multiple different configurations to
+    a certain alchemical range.
+
+    Parameters
+    ----------
+    files : list
+        A list of lists of file names of GROMACS DHDL files or general GROMACS XVG files
+        or PLUMED output files. Specifically, :code:`files[i]` should be a list containing
+        the files of interest from all iterations in replica :code:`i`.
+    shifts : list
+        A list of values for shifting the state indices for each replica. The length of the list
+        should be equal to the number of replicas. This is only needed when :code:`dhdl=True`.
+    dhdl : bool
+        Whether the input files are GROMACS dhdl files, in which case trajectories of global alchemical indices
+        will be generated. If :code:`dhdl=False`, the input files must be readable by `numpy.loadtxt` assuming that
+        the start of a comment is indicated by either the :code:`#` or :code:`@` characters.
+        Such files include any GROMACS XVG files or PLUMED output files (output by plumed driver, for instance).
+        In this case, trajectories of the configurational collective variable of interest are generated.
+        The default is :code:`True`.
+    col_idx : int
+        The index of the column to be extracted from the input files. This is only needed when :code:`dhdl=False`,
+        By default, we extract the last column.
+    save : bool
+        Whether to save the output trajectories as an NPY file.
+
+    Returns
+    -------
+    trajs : list
+        A list that contains lists of state-space/CV-space trajectory (in global indices) for each replica.
+        For example, :code:`trajs[i]` is the state-space/CV-space trajectory of replica :code:`i`.
+    """
+    n_sim = len(files)      # number of replicas
+    n_iter = len(files[0])  # number of iterations per replica
+    trajs = [[] for i in range(n_sim)]
+    for i in range(n_sim):
+        for j in range(n_iter):
+            if dhdl:
+                traj = extract_state_traj(files[i][j])
+            else:
+                traj = np.loadtxt(files[i][j], comments=['#', '@'])[:, col_idx]
+
+            if dhdl:
+                traj = list(np.array(traj) + shifts[i])
+            trajs[i].extend(traj)
+
+    # Save the trajectories as an NPY file if desired
+    if save is True:
+        np.save('state_trajs_for_sim.npy', trajs)
 
     return trajs
 
@@ -198,7 +259,7 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1):
+def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_prefix='Configuration'):
     """
     Plots the time series of states visited by each configuration in a subplot.
 
@@ -214,10 +275,13 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1):
         The time interval between consecutive frames of the trajectories. If None, it is assumed
         that the trajectories are in terms of Monte Carlo (MC) moves instead of timeframes, and
         the x-axis label is set to 'MC moves'. Default is None.
-    stride : int, optional
+    stride : int
         The stride for plotting the time series. The default is 10 if the length of
         any trajectory has more than 100,000 frames. Otherwise, it will be 1. Typically
         plotting more than 10 million frames can take a lot of memory.
+    title_prefix : str
+        The prefix shared by the titles of the subplots. For example, if :code:`title_prefix` is
+        set to "Configuration", then the titles of the subplots will be "Configuration 0", "Configuration 1", ..., etc.
     """
     n_sim = len(trajs)
     cmap = plt.cm.ocean  # other good options are CMRmap, gnuplot, terrain, turbo, brg, etc.
@@ -271,7 +335,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1):
             plt.xlabel(f'Time ({units})')
 
         plt.ylabel('State')
-        plt.title(f'Configuration {i}', fontweight='bold')
+        plt.title(f'{title_prefix} {i}', fontweight='bold')
         if len(trajs[0]) >= 10000:
             plt.ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
         plt.xlim(x_range)
