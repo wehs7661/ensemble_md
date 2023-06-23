@@ -76,7 +76,7 @@ class EnsembleEXE:
     :ivar n_swap_attempts: The number of swaps attempted so far. This does not include the cases
         where there is no swappable pair. Updated by :obj:`.get_swapping_pattern`.
     :ivar n_emtpy_swappable: The number of times when there was no swappable pair.
-    :ivar rep_trajs: The replica-space trajectories of all replicas.
+    :ivar rep_trajs: The replica-space trajectories of all configurations.
     :ivar configs: A list that thows the current configuration index that each replica is sampling.
     :ivar g_vecs: The time series of the (processed) whole-range alchemical weights. If no weight combination is
         applied, this list will just be a list of :code:`None`'s.
@@ -700,7 +700,8 @@ class EnsembleEXE:
 
         return swappables
 
-    def propose_swap(self, swappables):
+    @staticmethod
+    def propose_swap(swappables):
         """
         Proposes a swap of coordinates between replicas by drawing samples from the swappable pairs.
 
@@ -779,8 +780,7 @@ class EnsembleEXE:
         # the new set of swappable pairs. In this case, we set n_ex back to 1.
         if len(swappables) == 1:
             if n_ex > 1:
-                print('n_ex is set back to 1 since there is only 1 swappable pair.')
-                n_ex = 1
+                n_ex = 1  # n_ex is set back to 1 since there is only 1 swappable pair.
 
         print(f"Swappable pairs: {swappables}")
         for i in range(n_ex):
@@ -801,7 +801,7 @@ class EnsembleEXE:
                 if self.proposal == 'exhaustive':
                     n_ex_exhaustive += 1
 
-                swap = self.propose_swap(swappables)
+                swap = EnsembleEXE.propose_swap(swappables)
                 print(f'\nProposed swap: {swap}')
                 if swap == []:
                     self.n_empty_swappable += 1
@@ -1171,6 +1171,7 @@ class EnsembleEXE:
             args_list.append(arguments)
 
         # Run the GROMACS grompp commands in parallel
+        returncode = None  # Initialize as None for all ranks (necessary for the case when -np > n_sim, which is rare)
         if rank == 0:
             print('Generating TPR files ...')
         if rank < self.n_sim:
@@ -1178,10 +1179,12 @@ class EnsembleEXE:
             if returncode != 0:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
 
-            # gather return codes at rank 0
-            code_list = comm.gather(returncode, root=0)
+        # gather return codes at rank 0
+        code_list = comm.gather(returncode, root=0)
 
         if rank == 0:
+            # Filter out None values which represent ranks that did not execute the command
+            code_list = [code for code in code_list if code is not None]
             if code_list != [0] * self.n_sim:
                 MPI.COMM_WORLD.Abort(1)   # Doesn't matter what non-zero returncode we put here as the code from GROMACS will be printed before this point anyway.  # noqa: E501
 
@@ -1206,6 +1209,7 @@ class EnsembleEXE:
             arguments.extend(add_args)
 
         # Run the GROMACS mdrun commands in parallel
+        returncode = None  # Initialize as None for all ranks (necessary for the case when -np > n_sim, which is rare)
         if rank == 0:
             print('Running EXE simulations ...')
         if rank < self.n_sim:
@@ -1215,10 +1219,12 @@ class EnsembleEXE:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
             os.chdir('../../')
 
-            # gather return codes at rank 0
-            code_list = comm.gather(returncode, root=0)
+        # gather return codes at rank 0
+        code_list = comm.gather(returncode, root=0)
 
         if rank == 0:
+            # Filter out None values which represent ranks that did not execute the command
+            code_list = [code for code in code_list if code is not None]
             if code_list != [0] * self.n_sim:
                 MPI.COMM_WORLD.Abort(1)   # Doesn't matter what non-zero returncode we put here as the code from GROMACS will be printed before this point anyway.  # noqa: E501
 

@@ -96,6 +96,19 @@ def solv_EEXE_diophantine(N, constraint=False):
     return soln_all
 
 
+def estimate_empty_rate(state_ranges, N=1000000):
+    n = 0  # number of times of not having any swappable pairs
+    for i in range(N):
+        rands = [random.choice(state_ranges[i]) for i in range(len(state_ranges))]
+        swappables = EnsembleEXE.identify_swappable_pairs(rands, state_ranges, False)
+        if swappables == []:
+            n += 1
+
+    p = n / N * 100   # in percentage
+
+    return p
+
+
 def main():
     # For now, we only consider homogenous EEXE simulations
     args = initialize(sys.argv[1:])
@@ -126,16 +139,10 @@ def main():
         state_ranges = [list(np.arange(i, i + soln['n'])) for i in start_idx]
 
         if args.estimate is True:
-            n = 0  # number of times of not having any swappable pairs
-            for i in range(1000000):
-                rands = [random.choice(state_ranges[i]) for i in range(len(state_ranges))]
-                swappables = EnsembleEXE.identify_swappable_pairs(rands, state_ranges, False)
-                if swappables == []:
-                    n += 1
-
-            frac = n / 1000000 * 100   # in percentage
-
-        print(f"- Solution {row_idx + 1}: (N, r, n, s) = ({args.N}, {soln['r']}, {soln['n']}, {soln['s']}), {frac:.1f}% chance to not have any swappable pair")  # noqa: E501
+            p = estimate_empty_rate(state_ranges)
+            print(f"- Solution {row_idx + 1}: (N, r, n, s) = ({args.N}, {soln['r']}, {soln['n']}, {soln['s']}), {p:.1f}% chance to not have any swappable pair")  # noqa: E501
+        else:
+            print(f"- Solution {row_idx + 1}: (N, r, n, s) = ({args.N}, {soln['r']}, {soln['n']}, {soln['s']})")
         for i in range(soln['r']):
             print(f'  - Replica {i}: {state_ranges[i]}')
         print()
