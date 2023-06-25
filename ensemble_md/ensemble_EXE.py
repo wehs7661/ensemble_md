@@ -86,11 +86,11 @@ class EnsembleEXE:
         during data analysis and if :code:`df_method` is specified.
     """
 
-    def __init__(self, yaml_file):
+    def __init__(self, yaml_file, analysis=False):
         self.yaml = yaml_file
-        self.set_params()
+        self.set_params(analysis)
 
-    def set_params(self):
+    def set_params(self, analysis):
         """
         Sets up or reads in the user-defined parameters from a yaml file and an MDP template.
         This function is called to instantiate the class in the :code:`__init__` function of
@@ -109,6 +109,9 @@ class EnsembleEXE:
 
         :param yaml_file: The file name of the YAML file for specifying the parameters for EEXE.
         :type yaml_file: str
+        :param analysis: Whether the instantiation of the class is for data analysis of EEXE simulations.
+            The default is :code:`False`
+        :type analysis: bool
 
         :raises ParameterError:
 
@@ -347,7 +350,8 @@ class EnsembleEXE:
             self.get_dHdl = True
 
         # Step 8. Check the executables
-        self.check_gmx_executable()
+        if analysis is False:
+            self.check_gmx_executable()
 
     def check_gmx_executable(self):
         """

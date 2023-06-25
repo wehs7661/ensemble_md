@@ -351,29 +351,55 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_pre
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None):
+def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, prefix='Configuration', subplots=False, save_hist=True):  # noqa: E501
     """
     Plots the histograms of the state index for each configuration.
 
     Parameters
     ----------
     trajs : list
-         A list of arrays that represent the state space trajectories of all configurations.
+        A list of arrays that represent the state space trajectories of all configurations.
     state_ranges : list
         A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.EnsembleEXE`.)
     fig_name : str
         The file name of the png file to be saved (with the extension).
     stack : bool
-        Whether to stack the histograms.
+        Whether to stack the histograms. Only meaningful when :code:`subplots` is :code:`False`.
     figsize : tuple
         A tuple specifying the length and width of the output figure. The
         default is :code:`(6.4, 4.8)` for cases having less than 30 states and :code:`(10, 4.8)` otherwise.
+    prefix : str
+        The prefix shared by the titles of the subplots, or the labels shown in the same plot.
+        For example, if :code:`prefix` is set to "Configuration", then the titles/labels of the
+        will be "Configuration 0", "Configuration 1", ..., etc.
+    subplots : bool
+        Whether to plot the histogram in multiple subplots, with the title of
+        each based on the value of :code:`prefix`.
+    save_hist : bool
+        Whether to save the histogram data.
+
+    Returns
+    -------
+    hist_data : list
+        The histogram data of the state index for each configuration.
     """
     n_configs = len(trajs)
     n_states = max(max(state_ranges)) + 1
     cmap = plt.cm.ocean  # other good options are CMRmap, gnuplot, terrain, turbo, brg, etc.
     colors = [cmap(i) for i in np.arange(n_configs) / n_configs]
 
+    hist_data = []
+    lower_bound, upper_bound = -0.5, n_states - 0.5
+    for traj in trajs:
+        hist, bins = np.histogram(traj, bins=np.arange(lower_bound, upper_bound + 1, 1))
+        hist_data.append(hist)
+    if save_hist is True:
+        np.save('hist_data.npy', hist_data)
+
+    # Use the same bins for all histograms
+    bins = bins[:-1]  # Remove the last bin edge because there are n+1 bin edges for n bins
+
+    # Start plotting
     if figsize is None:
         if max(trajs[-1]) > 30:
             figsize = (10, 4.8)
@@ -381,55 +407,75 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None):
             figsize = (6.4, 4.8)  # default
 
     fig = plt.figure(figsize=figsize)
-    ax = fig.add_subplot(111)
-    lower_bound, upper_bound = -0.5, n_states - 0.5
 
-    hist_data = []
-    for traj in trajs:
-        hist, bins = np.histogram(traj, bins=np.arange(lower_bound, upper_bound + 1, 1))
-        hist_data.append(hist)
+    if subplots is False:
+        # Initialize the list of bottom (only matters for stack = True)
+        bottom = [0] * n_states
 
-    # Use the same bins for all histograms
-    bins = bins[:-1]  # Remove the last bin edge because there are n+1 bin edges for n bins
+        ax = fig.add_subplot(111)
+        y_max = 0
+        for i in range(n_configs):
+            max_count = np.max(bottom + hist_data[i])
+            if max_count > y_max:
+                y_max = max_count
+            plt.bar(
+                range(n_states),
+                hist_data[i],
+                align='center',
+                width=1,
+                color=colors[i],
+                edgecolor='black',
+                label=f'{prefix} {i}',
+                alpha=0.5,
+                bottom=bottom
+            )
 
-    # Initialize the list of bottom
-    bottom = [0] * n_states
+            if stack is True:
+                bottom = [b + c for b, c in zip(bottom, hist_data[i])]
 
-    for i in range(n_configs):
-        plt.bar(
-            range(n_states),
-            hist_data[i],
-            align='center',
-            width=1,
-            color=colors[i],
-            edgecolor='black',
-            label=f'Configuration {i}',
-            alpha=0.5,
-            bottom=bottom
-        )
+        plt.xticks(range(n_states))
 
-        if stack is True:
-            bottom = [b + c for b, c in zip(bottom, hist_data[i])]
+        # Here we color the different regions to show alchemical ranges
+        y_max *= 1.05
+        for i in range(n_configs):
+            bounds = [list(state_ranges[i])[0], list(state_ranges[i])[-1]]
+            if i == 0:
+                bounds[0] -= 0.5
+            if i == n_configs - 1:
+                bounds[1] += 0.5
+            plt.fill_betweenx([0, y_max], x1=bounds[1] + 0.5, x2=bounds[0] - 0.5, color=colors[i], alpha=0.1, zorder=0)
+        plt.xlim([lower_bound, upper_bound])
+        plt.ylim([0, y_max])
+        plt.xlabel('State index')
+        plt.ylabel('Count')
+        plt.grid()
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(f'{fig_name}', dpi=600)
+    else:
+        n_rows, n_cols = utils.get_subplot_dimension(n_configs)
+        _, ax = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(4 * n_cols, 3 * n_rows))
+        for i in range(n_configs):
+            plt.subplot(n_rows, n_cols, i + 1)
+            plt.bar(
+                state_ranges[i],
+                hist_data[i][state_ranges[i]],
+                align='center',
+                width=1,
+                edgecolor='black',
+                alpha=0.5
+            )
 
-    plt.xticks(range(max(state_ranges[-1]) + 1))
+            plt.xticks(state_ranges[i], fontsize=8)
+            plt.xlim([state_ranges[i][0] - 0.5, state_ranges[i][-1] + 0.5])
+            plt.xlabel('State index')
+            plt.ylabel('Count')
+            plt.title(f'{prefix} {i}')
+            plt.grid()
+        plt.tight_layout()
+        plt.savefig(f'{fig_name}', dpi=600)
 
-    # Here we color the different regions to show alchemical ranges
-    y_min, y_max = ax.get_ylim()
-    for i in range(n_configs):
-        bounds = [list(state_ranges[i])[0], list(state_ranges[i])[-1]]
-        if i == 0:
-            bounds[0] -= 0.5
-        if i == n_configs - 1:
-            bounds[1] += 0.5
-        plt.fill_betweenx([y_min, y_max], x1=bounds[1] + 0.5, x2=bounds[0] - 0.5, color=colors[i], alpha=0.1, zorder=0)
-    plt.xlim([lower_bound, upper_bound])
-    plt.ylim([y_min, y_max])
-    plt.xlabel('State index')
-    plt.ylabel('Count')
-    plt.grid()
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(f'{fig_name}', dpi=600)
+    return hist_data
 
 
 def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
@@ -784,8 +830,6 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
 
     # Here we color the different regions to show alchemical ranges
     y_min, y_max = ax.get_ylim()
-    if stack is True:
-        y_max *= 1.05  # for some reason, without this line, there is no space for the heighest bar.
     for i in range(n_sim):
         bounds = [list(state_ranges[i])[0], list(state_ranges[i])[-1]]
         if i == 0:
@@ -794,7 +838,7 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
             bounds[1] += 0.5
         plt.fill_betweenx([y_min, y_max], x1=bounds[1] + 0.5, x2=bounds[0] - 0.5, color=colors[i], alpha=0.1, zorder=0)
     plt.xlim([lower_bound, upper_bound])
-    plt.ylim([y_min, y_max])
+    # plt.ylim([y_min, y_max])
     plt.xlabel('State')
     plt.ylabel(f'Number of {swap_type} swaps')
     plt.grid()
