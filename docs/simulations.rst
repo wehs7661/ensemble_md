@@ -221,8 +221,8 @@ include parameters for data analysis here.
       :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
       Note that EEXE only works with MPI-enabled GROMACS. 
 
-3.2. Simulation inputs
-----------------------
+3.2. Input files
+----------------
 
   - :code:`gro`: (Required)
       The GRO file that contains the starting configuration for all replicas.
@@ -230,7 +230,14 @@ include parameters for data analysis here.
       The TOP file that contains the system topology. 
   - :code:`mdp`: (Required)
       The MDP template that has the whole range of :math:`λ` values.
+  - :code:`modify_coords`: (Optional)
+      The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
+      before the coordinate exchange. Here is the predefined contract for the module/function:
 
+        - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
+        - The function must take in the GRO file to be modified and return :code:`None` (i.e., no return value).
+        - The function is expected to save the modified GRO file as :code:`confout_modified.gro`.
+        
 .. _doc_EEXE_parameters:
 
 3.3. EEXE parameters
