@@ -228,6 +228,14 @@ class EnsembleEXE:
             raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
 
         params_str = ['gro', 'top', 'mdp']
+        # First check if self.gro and self.top are lists and check their lengths
+        check_files = ['gro', 'top']
+        for i in check_files:
+            if isinstance(getattr(self, i), list):
+                params_str.remove(i)
+                if len(getattr(self, i)) != self.n_sim:
+                    raise ParameterError(f"The number of the input {i.upper()} files must be the same as the number of replicas, if multiple are specified.")  # noqa: E501
+
         for i in params_str:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
@@ -381,13 +389,23 @@ class EnsembleEXE:
         params_analysis : bool, optional
             If True, additional parameters related to data analysis will be printed. Default is False.
         """
+        if isinstance(self.gro, list):
+            gro_str = ', '.join(self.gro)
+        else:
+            gro_str = self.gro
+        
+        if isinstance(self.top, list):
+            top_str = ', '.join(self.top)
+        else:
+            top_str = self.top
+
         print("Important parameters of EXEE")
         print("============================")
         print(f"Python version: {sys.version}")
         print(f"GROMACS executable: {self.gmx_path}")  # we print the full path here
         print(f"GROMACS version: {self.gmx_version}")
         print(f"ensemble_md version: {ensemble_md.__version__}")
-        print(f'Simulation inputs: {self.gro}, {self.top}, {self.mdp}')
+        print(f'Simulation inputs: {gro_str}, {top_str}, {self.mdp}')
         print(f"Verbose log file: {self.verbose}")
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
@@ -1153,13 +1171,20 @@ class EnsembleEXE:
             # Input files
             mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
             if n == 0:
-                gro = f"{self.gro}"
+                if isinstance(self.gro, list):
+                    gro = f"{self.gro[i]}"
+                else:
+                    gro = f"{self.gro}"
             else:
                 if self.modify_coords is None:
                     gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
                 else:
                     gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout_modified.gro"  # This effectively swap out GRO files  # noqa: E501
-            top = f"{self.top}"
+           
+            if isinstance(self.top, list):
+                top = f"{self.top[i]}"
+            else:
+                top = f"{self.top}"
 
             # Add input file arguments
             arguments.extend(["-f", mdp, "-c", gro, "-p", top])
