@@ -260,62 +260,6 @@ class Test_EnsembleEXE:
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
         os.remove(os.path.join(input_path, "expanded_test_backup.mdp"))
 
-    def test_map_lambda2state(self, params_dict):
-        # Note that the function map_lambda2state is called in set_params
-        EEXE = get_EEXE_instance(params_dict)
-        assert EEXE.lambda_dict == {
-            (0, 0): 0,
-            (0.25, 0): 1,
-            (0.5, 0): 2,
-            (0.75, 0): 3,
-            (1, 0): 4,
-            (1, 0.25): 5,
-            (1, 0.5): 6,
-            (1, 0.75): 7,
-            (1, 1): 8}
-        assert EEXE.lambda_ranges == [
-            [(0.0, 0.0), (0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25)],
-            [(0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5)],
-            [(0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75)],
-            [(0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75), (1.0, 1.0)], ]
-
-        # Here we test another combinations: only 'fep_lambdas'
-        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))
-        del mdp['coul_lambdas']
-        del mdp['vdw_lambdas']
-        mdp['fep_lambdas'] = '0.0 0.2 0.4 0.6 0.8 1.0'
-        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
-        params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
-        params_dict['n_sim'] = 3
-        EEXE = get_EEXE_instance(params_dict)
-        assert EEXE.lambda_types == ['fep_lambdas']
-        assert EEXE.lambda_dict == {
-            (0.0,): 0, (0.2,): 1, (0.4,): 2, (0.6,): 3, (0.8,): 4, (1.0,): 5}
-        assert EEXE.lambda_ranges == [
-            [(0.0, ), (0.2,), (0.4,), (0.6,)], [(0.2,), (0.4,), (0.6,), (0.8,)], [(0.4,), (0.6,), (0.8,), (1.0,)]]
-
-        # Still another combination: fep_lambdas, coul_lambdas, vdw_lambdas, restraint_lambdas
-        mdp['coul_lambdas'] = '0.0 0.5 0.8 1.0 1.0 1.0'
-        mdp['vdw_lambdas'] = '0.0 0.0 0.0 0.0 0.5 1.0'
-        mdp['restraint_lambdas'] = '0.0 0.2 0.4 0.6 0.8 1.0'
-        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
-        EEXE = get_EEXE_instance(params_dict)
-        assert EEXE.lambda_types == ['fep_lambdas', 'coul_lambdas', 'vdw_lambdas', 'restraint_lambdas']
-        assert EEXE.lambda_dict == {
-            (0.0, 0.0, 0.0, 0.0): 0,
-            (0.2, 0.5, 0.0, 0.2): 1,
-            (0.4, 0.8, 0.0, 0.4): 2,
-            (0.6, 1.0, 0.0, 0.6): 3,
-            (0.8, 1.0, 0.5, 0.8): 4,
-            (1.0, 1.0, 1.0, 1.0): 5}
-
-        assert EEXE.lambda_ranges == [
-            [(0.0, 0.0, 0.0, 0.0), (0.2, 0.5, 0.0, 0.2), (0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6)],
-            [(0.2, 0.5, 0.0, 0.2), (0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6), (0.8, 1.0, 0.5, 0.8)],
-            [(0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6), (0.8, 1.0, 0.5, 0.8), (1.0, 1.0, 1.0, 1.0)]]
-
-        os.remove(os.path.join(input_path, "expanded_test.mdp"))
-
     def test_print_params(self, capfd, params_dict):
         # capfd is a fixture in pytest for testing STDOUT
         EEXE = get_EEXE_instance(params_dict)

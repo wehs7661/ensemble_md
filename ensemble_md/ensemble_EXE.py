@@ -21,7 +21,6 @@ import numpy as np
 from mpi4py import MPI
 from itertools import combinations
 from collections import OrderedDict
-from alchemlyb.parsing.gmx import extract_dHdl
 from alchemlyb.parsing.gmx import _get_headers as get_headers
 from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 
@@ -69,9 +68,6 @@ class EnsembleEXE:
     :ivar equil: A list of times it took to equilibrated the weights for different replicas. This
         list is initialized with a list of -1, where -1 means that the weights haven't been equilibrated. Also,
         a value of 0 means that the simulation is a fixed-weight simulation.
-    :ivar lambda_dict: A dictionary with keys being the tuples of coupling parameters used in each replicas and
-        values being the corresponding global index (starting from 0). Assigned by :obj:`map_lambda2state`.
-    :ivar lambda_ranges: A list of lambda vectors of state range of each replica. Assigned by :obj:`map_lambda2state`.
     :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`.accept_or_reject`.
     :ivar n_swap_attempts: The number of swaps attempted so far. This does not include the cases
         where there is no swappable pair. Updated by :obj:`.get_swapping_pattern`.
@@ -320,29 +316,26 @@ class EnsembleEXE:
         # 7-6. A list of time it took to get the weights equilibrated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
 
-        # 7-7. Map the lamda vectors to state indices
-        self.map_lambda2state()
-
-        # 7-8. Some variables for counting
+        # 7-7. Some variables for counting
         self.n_rejected = 0
         self.n_swap_attempts = 0
         self.n_empty_swappable = 0
 
-        # 7-9. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
+        # 7-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
         # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
 
-        # 7-10. configs shows the current configuration that each replica is sampling.
+        # 7-9. configs shows the current configuration that each replica is sampling.
         # For example, self.configs = [0, 2, 1, 3] means that configurations 0, 2, 1, and 3 are
         # in replicas, 0, 1, 2, 3, respectively. This list will be constantly updated during the simulation.
         self.configs = list(range(self.n_sim))
 
-        # 7-11. The time series of the (processed) whole-range alchemical weights
+        # 7-10. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
         self.g_vecs = []
 
-        # 7-12. Data analysis
+        # 7-11. Data analysis
         if self.df_method == 'MBAR':
             self.get_u_nk = True
             self.get_dHdl = False
@@ -440,24 +433,6 @@ class EnsembleEXE:
                 new_name = self.mdp.split('.mdp')[0] + '_backup.mdp'
                 shutil.move(self.mdp, new_name)
                 params_new.write(self.mdp)
-
-    def map_lambda2state(self):
-        """
-        Define attrbitues that map vectors of coupling parameters to state indices.
-
-        Attributes
-        ----------
-        lambda_dict : dict
-            A dictionary whose keys are tuples of coupling parameters and
-            values are the corresponding GLOBAL state indices (starting from 0).
-        lambda_ranges : list
-            A list of lambda vectors of the state range of each replica.
-        """
-        self.lambda_dict = {}  # key: vector of coupling parameters, value: state index
-        for i in range(self.n_tot):
-            key = tuple([self.template[j][i] for j in self.lambda_types])
-            self.lambda_dict[key] = i
-        self.lambda_ranges = [[list(self.lambda_dict.keys())[j] for j in self.state_ranges[i]]for i in range(len(self.state_ranges))]  # noqa: E501
 
     def initialize_MDP(self, idx):
         """
@@ -557,16 +532,14 @@ class EnsembleEXE:
         states : list
             A list of the global indices of the last sampled states of all simulaitons.
         """
-        states, lambda_vecs = [], []
+        states = []
         print("\nBelow are the final states being visited:")
-        for i in range(self.n_sim):
-            dhdl = extract_dHdl(dhdl_files[i], T=self.temp)
-            lambda_vecs.append(dhdl.index[-1][1:])
-            states.append(self.lambda_dict[lambda_vecs[-1]])  # absolute order
-            print(
-                f"  Simulation {i}: Global state {states[i]}, (coul, vdw) = \
-                {list(self.lambda_dict.keys())[list(self.lambda_dict.values()).index(states[i])]}"
-            )
+        for i in range(len(dhdl_files)):
+            headers = get_headers(dhdl_files[i])
+            state_local = list(extract_dataframe(dhdl_files[i], headers=headers)['Thermodynamic state'])[-1]  # local index of the last state  # noqa: E501
+            state_global = state_local + i * self.s  # global index of the last state
+            states.append(state_global)  # append the global index
+            print(f"  Simulation {i}: Global state {states[i]}")
         print('\n', end='')
 
         return states
@@ -597,7 +570,7 @@ class EnsembleEXE:
         wl_delta, weights, counts = [], [], []
 
         # Find the final Wang-Landau incrementors and weights
-        for i in range(self.n_sim):
+        for i in range(len(log_files)):
             if self.verbose:
                 print(f'Parsing {log_files[i]} ...')
             result = gmx_parser.parse_log(log_files[i])  # weights, counts, wl_delta, equil_time
