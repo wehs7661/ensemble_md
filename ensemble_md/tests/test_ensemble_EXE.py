@@ -193,7 +193,7 @@ class Test_EnsembleEXE:
         assert EEXE.fixed_weights is False
 
         # 4. Checked the derived parameters
-        # Note that lambda_dict and lambda_ranges will also be tested in test_map_lambda2state.
+        # Note that lambda_dict will also be tested in test_map_lambda2state.
         k = 1.380649e-23
         NA = 6.0221408e23
         assert EEXE.kT == k * NA * 298 / 1000
@@ -273,11 +273,6 @@ class Test_EnsembleEXE:
             (1, 0.5): 6,
             (1, 0.75): 7,
             (1, 1): 8}
-        assert EEXE.lambda_ranges == [
-            [(0.0, 0.0), (0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25)],
-            [(0.25, 0.0), (0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5)],
-            [(0.5, 0.0), (0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75)],
-            [(0.75, 0.0), (1.0, 0.0), (1.0, 0.25), (1.0, 0.5), (1.0, 0.75), (1.0, 1.0)], ]
 
         # Here we test another combinations: only 'fep_lambdas'
         mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))
@@ -291,8 +286,6 @@ class Test_EnsembleEXE:
         assert EEXE.lambda_types == ['fep_lambdas']
         assert EEXE.lambda_dict == {
             (0.0,): 0, (0.2,): 1, (0.4,): 2, (0.6,): 3, (0.8,): 4, (1.0,): 5}
-        assert EEXE.lambda_ranges == [
-            [(0.0, ), (0.2,), (0.4,), (0.6,)], [(0.2,), (0.4,), (0.6,), (0.8,)], [(0.4,), (0.6,), (0.8,), (1.0,)]]
 
         # Still another combination: fep_lambdas, coul_lambdas, vdw_lambdas, restraint_lambdas
         mdp['coul_lambdas'] = '0.0 0.5 0.8 1.0 1.0 1.0'
@@ -308,11 +301,6 @@ class Test_EnsembleEXE:
             (0.6, 1.0, 0.0, 0.6): 3,
             (0.8, 1.0, 0.5, 0.8): 4,
             (1.0, 1.0, 1.0, 1.0): 5}
-
-        assert EEXE.lambda_ranges == [
-            [(0.0, 0.0, 0.0, 0.0), (0.2, 0.5, 0.0, 0.2), (0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6)],
-            [(0.2, 0.5, 0.0, 0.2), (0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6), (0.8, 1.0, 0.5, 0.8)],
-            [(0.4, 0.8, 0.0, 0.4), (0.6, 1.0, 0.0, 0.6), (0.8, 1.0, 0.5, 0.8), (1.0, 1.0, 1.0, 1.0)]]
 
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
