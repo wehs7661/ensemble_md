@@ -75,11 +75,6 @@ def main():
 
     EEXE = EnsembleEXE(args.yaml)
 
-    if isinstance(EEXE.mdp, list):
-        mdp_filename = f"{EEXE.mdp[0].split('/')[-1]}"
-    else:
-        mdp_filename = f"{EEXE.mdp.split('/')[-1]}"
-
     if rank == 0:
         # Print out simulation parameters
         EEXE.print_params()
@@ -102,7 +97,7 @@ def main():
                 os.mkdir(f'sim_{i}')
                 os.mkdir(f'sim_{i}/iteration_0')
                 MDP = EEXE.initialize_MDP(i)
-                MDP.write(f"sim_{i}/iteration_0/{mdp_filename}", skipempty=True)
+                MDP.write(f"sim_{i}/iteration_0/expanded.mdp", skipempty=True)
 
         # 2-2. Run the first ensemble of simulations
         EEXE.run_EEXE(0)
@@ -194,8 +189,8 @@ def main():
             # Note we use states (copy of states_) instead of states_ in update_MDP.
             for j in list(range(EEXE.n_sim)):
                 os.mkdir(f'sim_{j}/iteration_{i}')
-                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{mdp_filename}", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
-                MDP.write(f"sim_{j}/iteration_{i}/{mdp_filename}", skipempty=True)
+                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/expanded.mdp", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
+                MDP.write(f"sim_{j}/iteration_{i}/expanded.mdp", skipempty=True)
                 # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
                 # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
                 # swap_pattern to the function to figure it out internally.
