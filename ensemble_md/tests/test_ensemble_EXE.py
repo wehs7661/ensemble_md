@@ -193,7 +193,7 @@ class Test_EnsembleEXE:
         assert EEXE.fixed_weights is False
 
         # 4. Checked the derived parameters
-        # Note that lambda_dict and lambda_ranges will also be tested in test_map_lambda2state.
+        # Note that lambda_dict will also be tested in test_map_lambda2state.
         k = 1.380649e-23
         NA = 6.0221408e23
         assert EEXE.kT == k * NA * 298 / 1000

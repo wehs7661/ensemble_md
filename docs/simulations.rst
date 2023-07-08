@@ -225,14 +225,25 @@ include parameters for data analysis here.
 ----------------
 
   - :code:`gro`: (Required)
-      The GRO file that contains the starting configuration for all replicas.
+      The input system configuration in the form of GRO file(s) used to initiate the EEXE simulation. If only one GRO file is specified,
+      it will be used to initiate all the replicas. If multiple GRO files are specified (using the YAML syntax),
+      the number of GRO files has to be the same as the number of replicas. 
   - :code:`top`: (Required)
-      The TOP file that contains the system topology. 
+      The input system topology in the form of TOP file(s) used to initiate the EEXE simulation. If only one TOP file is specified,
+      it will be used to initiate all the replicas. If multiple TOP files are specified (using the YAML syntax),
+      the number of TOP files has to be the same as the number of replicas. In the case where multiple TOP and GRO files are specified,
+      the i-th TOP file corresponds to the i-th GRO file.
   - :code:`mdp`: (Required)
-      The MDP template that has the whole range of :math:`λ` values.
+      The input MDP file(s) used to initiate the EEXE simulation. If only one MDP file is specified, it will serve as a template for
+      customizing MDP files for all replicas. In this case, the MDP template must have the whole range of :math:`λ` values
+      and the corresponding weights (in fixed-weight simulations). This holds for EEXE simulations for multiple serial mutations as well.
+      For example, in an EEXE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if
+      exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Alternatively,
+      one could specify multiple MDP files, one for each replica, with the i-th MDP file coorresponding to the i-th GRO file. 
   - :code:`modify_coords`: (Optional)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
-      before the coordinate exchange. Here is the predefined contract for the module/function:
+      before the coordinate exchange, which could be useful for EEXE simulations for multiple serial mutations.
+      Here is the predefined contract for the module/function:
 
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
         - The function must take in the GRO file to be modified and return :code:`None` (i.e., no return value).

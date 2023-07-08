@@ -20,7 +20,6 @@ from datetime import datetime
 
 from ensemble_md.utils import utils
 from ensemble_md.ensemble_EXE import EnsembleEXE
-from ensemble_md.utils.exceptions import ParameterError
 
 
 def initialize(args):
@@ -85,8 +84,8 @@ def main():
             print(f'\n{i}\n')
 
         if len(EEXE.warnings) > args.maxwarn:
-            raise ParameterError(
-                f"The execution failed due to warning(s) about parameter spcificaiton. Check the warnings, or consider setting maxwarn in the input YAML file if you find them harmless.")  # noqa: E501, F541
+            print(f"The execution failed due to warning(s) about parameter spcificaiton. Check the warnings, or consider setting maxwarn in the input YAML file if you find them harmless.")  # noqa: E501, F541
+            comm.Abort(101)
 
     # Step 2: If there is no checkpoint file found/provided, perform the 1st iteration (index 0)
     if os.path.isfile(args.ckpt) is False:
@@ -98,7 +97,7 @@ def main():
                 os.mkdir(f'sim_{i}')
                 os.mkdir(f'sim_{i}/iteration_0')
                 MDP = EEXE.initialize_MDP(i)
-                MDP.write(f"sim_{i}/iteration_0/{EEXE.mdp.split('/')[-1]}", skipempty=True)
+                MDP.write(f"sim_{i}/iteration_0/expanded.mdp", skipempty=True)
 
         # 2-2. Run the first ensemble of simulations
         EEXE.run_EEXE(0)
@@ -190,8 +189,8 @@ def main():
             # Note we use states (copy of states_) instead of states_ in update_MDP.
             for j in list(range(EEXE.n_sim)):
                 os.mkdir(f'sim_{j}/iteration_{i}')
-                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/{EEXE.mdp.split('/')[-1]}", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
-                MDP.write(f"sim_{j}/iteration_{i}/{EEXE.mdp.split('/')[-1]}", skipempty=True)
+                MDP = EEXE.update_MDP(f"sim_{j}/iteration_{i - 1}/expanded.mdp", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
+                MDP.write(f"sim_{j}/iteration_{i}/expanded.mdp", skipempty=True)
                 # In run_EEXE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
                 # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
                 # swap_pattern to the function to figure it out internally.
