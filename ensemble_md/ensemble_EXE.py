@@ -16,6 +16,7 @@ import copy
 import yaml
 import shutil
 import random
+import importlib
 import subprocess
 import numpy as np
 from mpi4py import MPI
@@ -80,6 +81,8 @@ class EnsembleEXE:
         data analysis and if :code:`df_method` is specified.
     :ivar get_dHdl: Whether to get the :math:`dH/dλ` dataset from the DHDL files. Only meaningful
         during data analysis and if :code:`df_method` is specified.
+    :ivar modify_coords_fn: The function (callable) in the external module (specified as :code:`modify_coords` in the input YAML
+        file) for modifying coordinates at exchanges.
     """
 
     def __init__(self, yaml_file, analysis=False):
@@ -367,6 +370,14 @@ class EnsembleEXE:
         else:
             self.get_u_nk = False
             self.get_dHdl = True
+
+        # 8-12. External module for coordinate modification
+        if self.modify_coords is not None:
+            sys.path.append(os.getcwd())
+            module = importlib.import_module(self.modify_coords)
+            self.modify_coords_fn = getattr(module, self.modify_coords)
+        else:
+            self.modify_coords_fn = None
 
         # Step 9. Check the executables
         if analysis is False:

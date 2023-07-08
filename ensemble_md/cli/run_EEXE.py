@@ -13,7 +13,6 @@ import time
 import copy
 import shutil
 import argparse
-import importlib
 import numpy as np
 from mpi4py import MPI
 from datetime import datetime
@@ -207,12 +206,10 @@ def main():
         # Step 4: Perform another iteration
         # 4-1. Modify the coordinates of the output gro files if needed.
         swap_pattern = comm.bcast(swap_pattern, root=0)
-        if EEXE.modify_coords is not None:
-            module = importlib.import_module(EEXE.modify_coords)
-            modify_coords_fn = getattr(module, EEXE.modify_coords)
+        if EEXE.modify_coords_fn is not None:
             for j in range(len(swap_pattern)):
-                if swap_pattern[j] != j:  # then sim_{swap_pattern[i]} is involved in swapping
-                    modify_coords_fn(f'sim_{swap_pattern[j]}/iteration_{i-1}/confout.gro')
+                if swap_pattern[j] != j:  # then sim_{swap_pattern[j]} is involved in swapping
+                    EEXE.modify_coords_fn(f'sim_{swap_pattern[j]}/iteration_{i-1}/confout.gro')
 
         # 4-2. Run another ensemble of simulations
         EEXE.run_EEXE(i, swap_pattern)
