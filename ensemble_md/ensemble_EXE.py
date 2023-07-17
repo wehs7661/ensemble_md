@@ -156,6 +156,7 @@ class EnsembleEXE:
         # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
+            "add_swappables": None,
             "modify_coords": None,
             "nst_sim": None,
             "proposal": 'exhaustive',
@@ -227,13 +228,12 @@ class EnsembleEXE:
 
         params_str = ['gro', 'top', 'mdp']
         # First check if self.gro and self.top are lists and check their lengths
-        check_files = ['gro', 'top', 'mdp']
+        check_files = ['gro', 'top']  # just for checking file types that can take multiple inputs
         for i in check_files:
             if isinstance(getattr(self, i), list):
                 params_str.remove(i)
                 if len(getattr(self, i)) != self.n_sim:
                     raise ParameterError(f"The number of the input {i.upper()} files must be the same as the number of replicas, if multiple are specified.")  # noqa: E501
-
         for i in params_str:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
@@ -243,28 +243,21 @@ class EnsembleEXE:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
+        if self.add_swappables is not None:
+            if not isinstance(self.add_swappables, list):
+                raise ParameterError("The parameter 'add_swappables' should be a nested list.")
+            for sublist in self.add_swappables:
+                if not isinstance(sublist, list):
+                    raise ParameterError("The parameter 'add_swappables' should be a nested list.")
+                for item in sublist:
+                    if not isinstance(item, int) or item < 0:
+                        raise ParameterError("Each number specified in 'add_swappables' should be a non-negative integer.")  # noqa: E501
+
         # Step 5: Reformat the input MDP file to replace all hypens with underscores.
-        if isinstance(self.mdp, list):
-            for i in self.mdp:
-                self.reformat_MDP(i)
-        else:
-            self.reformat_MDP(self.mdp)
+        self.reformat_MDP(self.mdp)
 
-        # Step 6: If multiple MDP files are specified, check if they have the same values for parameters other than lambdas or weights  # noqa: E501
-        if isinstance(self.mdp, list):
-            diff_params = EnsembleEXE.compare_MDPs(self.mdp)
-            diff_params = [i for i in diff_params if 'lambda' not in i]
-            if len(diff_params) != 0:
-                diff_str = ', '.join(diff_params)
-                self.warnings.append(f'The input MDP files have different values in some parameters not relevant to lambda values or lambda weights. These parameters include: {diff_str}.')  # noqa: E501
-                self.template = gmx_parser.MDP(self.mdp[0])  # just to finish the function and fail externally with warnings if n_warnings > maxwarn  # noqa: E501
-            else:
-                # If all MDP files have the same general MDP parameters, we'll just use the first one as the template.
-                self.template = gmx_parser.MDP(self.mdp[0])
-        else:
-            self.template = gmx_parser.MDP(self.mdp)
-
-        # Step 7: Read in parameters from the MDP template
+        # Step 6: Read in parameters from the MDP template
+        self.template = gmx_parser.MDP(self.mdp)
         self.dt = self.template["dt"]  # ps
         self.temp = self.template["ref_t"]
 
@@ -314,11 +307,11 @@ class EnsembleEXE:
             raise ParameterError(
                 'In EEXE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
 
-        # Step 8: Set up derived parameters
-        # 8-1. kT in kJ/mol
+        # Step 7: Set up derived parameters
+        # 7-1. kT in kJ/mol
         self.kT = k * NA * self.temp / 1000  # 1 kT in kJ/mol
 
-        # 8-2. Figure out what types of lambda variables are involved
+        # 7-2. Figure out what types of lambda variables are involved
         # Here is we possible lambda types in the order read by GROMACS, which is likely also the order when being printed to the log file.  # noqa: E501
         # See https://gitlab.com/gromacs/gromacs/-/blob/main/src/gromacs/gmxpreprocess/readir.cpp#L2543
         lambdas_types_all = ['fep_lambdas', 'mass_lambdas', 'coul_lambdas', 'vdw_lambdas', 'bonded_lambdas', 'restraint_lambdas', 'temperature_lambdas']  # noqa: E501
@@ -327,42 +320,42 @@ class EnsembleEXE:
             if i in self.template.keys():  # there shouldn't be parameters like "fep-lambdas" after reformatting the MDP file  # noqa: E501
                 self.lambda_types.append(i)
 
-        # 8-3. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
+        # 7-3. Total # of states: n_tot = n_sub * n_sim - (n_overlap) * (n_sim - 1), where n_overlap = n_sub - s
         self.n_tot = len(self.template[self.lambda_types[0]])
 
-        # 8-4. Number of states of each replica (assuming the same for all rep)
+        # 7-4. Number of states of each replica (assuming the same for all rep)
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
         if self.n_sub < 1:
             raise ParameterError(
                 f"There must be at least two states for each replica (current value: {self.n_sub}). The current specified configuration (n_tot={self.n_tot}, n_sim={self.n_sim}, s={self.s}) does not work for EEXE.")  # noqa: E501
 
-        # 8-5. A list of sets of state indices
+        # 7-5. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
         self.state_ranges = [list(np.arange(i, i + self.n_sub)) for i in start_idx]
 
-        # 8-6. A list of time it took to get the weights equilibrated
+        # 7-6. A list of time it took to get the weights equilibrated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
 
-        # 8-7. Some variables for counting
+        # 7-7. Some variables for counting
         self.n_rejected = 0
         self.n_swap_attempts = 0
         self.n_empty_swappable = 0
 
-        # 8-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
+        # 7-8. Replica space trajectories. For example, rep_trajs[0] = [0, 2, 3, 0, 1, ...] means
         # that configuration 0 transitioned to replica 2, then 3, 0, 1, in iterations 1, 2, 3, 4, ...,
         # respectively. The first element of rep_traj[i] should always be i.
         self.rep_trajs = [[i] for i in range(self.n_sim)]
 
-        # 8-9. configs shows the current configuration that each replica is sampling.
+        # 7-9. configs shows the current configuration that each replica is sampling.
         # For example, self.configs = [0, 2, 1, 3] means that configurations 0, 2, 1, and 3 are
         # in replicas, 0, 1, 2, 3, respectively. This list will be constantly updated during the simulation.
         self.configs = list(range(self.n_sim))
 
-        # 8-10. The time series of the (processed) whole-range alchemical weights
+        # 7-10. The time series of the (processed) whole-range alchemical weights
         # If no weight combination is applied, self.g_vecs will just be a list of None's.
         self.g_vecs = []
 
-        # 8-11. Data analysis
+        # 7-11. Data analysis
         if self.df_method == 'MBAR':
             self.get_u_nk = True
             self.get_dHdl = False
@@ -370,7 +363,7 @@ class EnsembleEXE:
             self.get_u_nk = False
             self.get_dHdl = True
 
-        # 8-12. External module for coordinate modification
+        # 7-12. External module for coordinate modification
         if self.modify_coords is not None:
             sys.path.append(os.getcwd())
             module = importlib.import_module(self.modify_coords)
@@ -378,7 +371,7 @@ class EnsembleEXE:
         else:
             self.modify_coords_fn = None
 
-        # Step 9. Check the executables
+        # Step 8. Check the executables
         if analysis is False:
             self.check_gmx_executable()
 
@@ -478,40 +471,6 @@ class EnsembleEXE:
                 new_name = mdp_file.split('.mdp')[0] + '_backup.mdp'
                 os.rename(mdp_file, new_name)
                 params_new.write(mdp_file)
-
-    @staticmethod
-    def compare_MDPs(mdp_list):
-        """
-        Given a list of MDP files, identify the parameters for which not all MDP
-        files have the same values.
-
-        Returns
-        -------
-        diff_params : list
-            The list of parameters differing between the input MDP files.
-        """
-        compare_list = list(combinations(mdp_list, r=2))
-        diff_params = []
-        for i in range(len(compare_list)):
-            mdp_1 = gmx_parser.MDP(compare_list[i][0])
-            mdp_2 = gmx_parser.MDP(compare_list[i][1])
-
-            # First figure out the union set of the parameters and exclude blanks and comments
-            all_params = set(list(mdp_1.keys()) + list(mdp_2.keys()))
-            all_params = [p for p in all_params if not p.startswith(('B', 'C'))]
-
-            for p in all_params:
-                if p in diff_params:
-                    pass  # already in the list, no need to compare again
-                else:
-                    if p not in mdp_1 or p not in mdp_2:
-                        diff_params.append(p)
-                    else:
-                        # the parameter is in both MDP files
-                        if mdp_1[p] != mdp_2[p]:
-                            diff_params.append(p)
-
-        return diff_params
 
     def initialize_MDP(self, idx):
         """
@@ -715,7 +674,7 @@ class EnsembleEXE:
         return weight_avg, weight_err
 
     @staticmethod
-    def identify_swappable_pairs(states, state_ranges, neighbor_exchange):
+    def identify_swappable_pairs(states, state_ranges, neighbor_exchange, add_swappables=None):
         """
         Identify swappable pairs. By definition, a pair of simulation is considered swappable only if
         their last sampled states are in the alchemical ranges of both simulations. This is required
@@ -750,6 +709,15 @@ class EnsembleEXE:
         # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
         # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the acceptance cannot be calculated.
         swappables = [i for i in swappables if states[i[0]] in state_ranges[i[1]] and states[i[1]] in state_ranges[i[0]]]  # noqa: E501
+
+        # Expand the definition of swappable pairs when add_swappables is specified
+        if add_swappables is not None:
+            all_paired_states = [[states[p[0]], states[p[1]]] for p in all_pairs]
+            for i in all_paired_states:
+                if i in add_swappables:
+                    pair = all_pairs[all_paired_states.index(i)]
+                    if pair not in swappables:
+                        swappables.append(pair)
 
         if neighbor_exchange is True:
             print('Note: One neighboring swap will be proposed.')
@@ -1207,10 +1175,7 @@ class EnsembleEXE:
             arguments = [self.gmx_executable, 'grompp']
 
             # Input files
-            if isinstance(self.mdp, list):
-                mdp = f"sim_{i}/iteration_{n}/{self.mdp[i].split('/')[-1]}"
-            else:
-                mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
+            mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
             if n == 0:
                 if isinstance(self.gro, list):
                     gro = f"{self.gro[i]}"

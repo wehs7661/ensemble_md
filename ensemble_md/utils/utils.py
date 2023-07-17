@@ -16,6 +16,8 @@ import natsort
 import datetime
 import collections
 import numpy as np
+from itertools import combinations
+from ensemble_md.utils import gmx_parser
 
 
 class Logger:
@@ -66,6 +68,42 @@ class Logger:
         """
         # self.terminal.log()
         pass
+
+
+def compare_MDPs(mdp_list):
+    """
+    Given a list of MDP files, identify the parameters for which not all MDP
+    files have the same values. (Currently, this function is not used in the
+    workflow adopted in :code:`run_EEXE.py` but it might be useful in some places,
+    so we decided to keep it.)
+
+    Returns
+    -------
+    diff_params : list
+        The list of parameters differing between the input MDP files.
+    """
+    compare_list = list(combinations(mdp_list, r=2))
+    diff_params = []
+    for i in range(len(compare_list)):
+        mdp_1 = gmx_parser.MDP(compare_list[i][0])
+        mdp_2 = gmx_parser.MDP(compare_list[i][1])
+
+        # First figure out the union set of the parameters and exclude blanks and comments
+        all_params = set(list(mdp_1.keys()) + list(mdp_2.keys()))
+        all_params = [p for p in all_params if not p.startswith(('B', 'C'))]
+
+        for p in all_params:
+            if p in diff_params:
+                pass  # already in the list, no need to compare again
+            else:
+                if p not in mdp_1 or p not in mdp_2:
+                    diff_params.append(p)
+                else:
+                    # the parameter is in both MDP files
+                    if mdp_1[p] != mdp_2[p]:
+                        diff_params.append(p)
+
+    return diff_params
 
 
 def format_time(t):

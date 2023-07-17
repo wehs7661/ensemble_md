@@ -234,12 +234,13 @@ include parameters for data analysis here.
       the number of TOP files has to be the same as the number of replicas. In the case where multiple TOP and GRO files are specified,
       the i-th TOP file corresponds to the i-th GRO file.
   - :code:`mdp`: (Required)
-      The input MDP file(s) used to initiate the EEXE simulation. If only one MDP file is specified, it will serve as a template for
-      customizing MDP files for all replicas. In this case, the MDP template must have the whole range of :math:`λ` values
+      The input MDP file used to initiate the EEXE simulation. Specifically, this input MDP file will serve as a template for
+      customizing MDP files for all replicas. Therefore, the MDP template must have the whole range of :math:`λ` values. 
       and the corresponding weights (in fixed-weight simulations). This holds for EEXE simulations for multiple serial mutations as well.
       For example, in an EEXE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if
-      exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Alternatively,
-      one could specify multiple MDP files, one for each replica, with the i-th MDP file coorresponding to the i-th GRO file. 
+      exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Notably, unlike
+      the parameters :code:`gro` and :code:`top`, only one MDP file can be specified for the parameter :code:`mdp`. If you wish to use
+      different parameters for different replicas, please use the parameter :code:`mdp_args`.
   - :code:`modify_coords`: (Optional)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
       before the coordinate exchange, which could be useful for EEXE simulations for multiple serial mutations.
@@ -267,6 +268,11 @@ include parameters for data analysis here.
   - :code:`nst_sim`: (Optional, Default: :code:`nsteps` in the template MDP file)
       The number of simulation steps to carry out for one iteration, i.e. stpes between exchanges proposed between replicas. The value specified here will
       overwrite the :code:`nsteps` parameter in the MDP file of each iteration. This option also assumes replicas with homogeneous simulation lengths.
+  - :code:`add_swappables`: (Optional, Default: :code:`None`)
+      A list of lists that additionally consider states (in global indices) that can be swapped. For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that
+      if a replica samples state 4, it can be swapped with another replica that samples state 5 and vice versa. The same logic applies to states 14 and 15. 
+      This could be useful for EEXE simulations for multiple serial mutations, where we enforce exchanges between states 4 and 5 (and 14 and 15) and perform
+      coordinate manipulation.
   - :code:`proposal`: (Optional, Default: :code:`exhaustive`)
       The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`exhaustive`, :code:`neighboring`, and :code:`multiple`.
       For more details, please refer to :ref:`doc_proposal`.
