@@ -243,11 +243,13 @@ include parameters for data analysis here.
   - :code:`modify_coords`: (Optional)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
       before the coordinate exchange, which could be useful for EEXE simulations for multiple serial mutations.
-      Here is the predefined contract for the module/function:
+      For the CLI :code:`run_EEXE` to work, here is the predefined contract for the module/function based on the assumptions :code:`run_EEXE` makes.
+      Modules/functions not obeying the contract are unlikely to work.
 
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
         - The function must take in the GRO file to be modified and return :code:`None` (i.e., no return value).
-        - The function is expected to save the modified GRO file as :code:`confout_modified.gro`.
+        - The function is expected to save the modified GRO file as :code:`confout.gro`. In the CLI :code:`run_EEXE.py`, :code:`confout.gro` generated
+            will be automatically backed up to prevent overwriting.
         
 .. _doc_EEXE_parameters:
 

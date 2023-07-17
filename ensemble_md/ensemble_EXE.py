@@ -14,7 +14,6 @@ import os
 import sys
 import copy
 import yaml
-import shutil
 import random
 import importlib
 import subprocess
@@ -81,8 +80,8 @@ class EnsembleEXE:
         data analysis and if :code:`df_method` is specified.
     :ivar get_dHdl: Whether to get the :math:`dH/dλ` dataset from the DHDL files. Only meaningful
         during data analysis and if :code:`df_method` is specified.
-    :ivar modify_coords_fn: The function (callable) in the external module (specified as :code:`modify_coords` in the input YAML
-        file) for modifying coordinates at exchanges.
+    :ivar modify_coords_fn: The function (callable) in the external module (specified as :code:`modify_coords` in
+        the input YAML file) for modifying coordinates at exchanges.
     """
 
     def __init__(self, yaml_file, analysis=False):
@@ -477,7 +476,7 @@ class EnsembleEXE:
             else:
                 self.reformatted_mdp = True
                 new_name = mdp_file.split('.mdp')[0] + '_backup.mdp'
-                shutil.move(mdp_file, new_name)
+                os.rename(mdp_file, new_name)
                 params_new.write(mdp_file)
 
     @staticmethod
@@ -812,8 +811,11 @@ class EnsembleEXE:
         Returns
         -------
         swap_pattern : list
-            A list that represents how the replicas should be swapped.
+            A list showing the configuration of replicas after swapping.
+        swap_list : list
+            A list of tuples showing the accepted swaps.
         """
+        swap_list = []
         if self.proposal != 'multiple':
             if self.proposal == 'exhaustive':
                 n_ex = int(np.floor(self.n_sim / 2))  # This is the maximum, not necessarily the number that will always be reached.  # noqa
@@ -883,6 +885,7 @@ class EnsembleEXE:
                     # and calc_prob_acc, set checkpoints and examine why the variables should/should not be updated.
 
                     if swap_bool is True:
+                        swap_list.append(swap)
                         # The assignments need to be done at the same time in just one line.
                         # states[swap[0]], states[swap[1]] = states[swap[1]], states[swap[0]]
                         shifts[swap[0]], shifts[swap[1]] = shifts[swap[1]], shifts[swap[0]]
@@ -912,7 +915,7 @@ class EnsembleEXE:
         for i in range(self.n_sim):
             self.rep_trajs[i].append(self.configs.index(i))
 
-        return swap_pattern
+        return swap_pattern, swap_list
 
     def calc_prob_acc(self, swap, dhdl_files, states, shifts, weights):
         """
@@ -1214,10 +1217,7 @@ class EnsembleEXE:
                 else:
                     gro = f"{self.gro}"
             else:
-                if self.modify_coords is None:
-                    gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
-                else:
-                    gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout_modified.gro"  # This effectively swap out GRO files  # noqa: E501
+                gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
 
             if isinstance(self.top, list):
                 top = f"{self.top[i]}"
