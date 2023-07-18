@@ -243,14 +243,16 @@ include parameters for data analysis here.
       different parameters for different replicas, please use the parameter :code:`mdp_args`.
   - :code:`modify_coords`: (Optional)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
-      before the coordinate exchange, which could be useful for EEXE simulations for multiple serial mutations.
+      before the coordinate exchange, which is generally required in EEXE simulations for multiple serial mutations.
       For the CLI :code:`run_EEXE` to work, here is the predefined contract for the module/function based on the assumptions :code:`run_EEXE` makes.
       Modules/functions not obeying the contract are unlikely to work.
 
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
-        - The function must take in the GRO file to be modified and return :code:`None` (i.e., no return value).
-        - The function is expected to save the modified GRO file as :code:`confout.gro`. In the CLI :code:`run_EEXE.py`, :code:`confout.gro` generated
-            will be automatically backed up to prevent overwriting.
+        - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on
+            the order of the input GRO files. 
+        - The function must return :code:`None` (i.e., no return value). 
+        - The function is expected to save the modified GRO file as :code:`confout.gro`. Note that in the CLI :code:`run_EEXE`,
+            :code:`confout.gro` generated as the simulation output will be automatically backed up to prevent overwriting.
         
 .. _doc_EEXE_parameters:
 
@@ -344,10 +346,11 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     # Section 1: Runtime configuration
     gmx_executable:
 
-    # Section 2: Simulation inputs
+    # Section 2: Input files
     gro:
     top:
     mdp:
+    modify_coords: null
 
     # Section 3: EEXE parameters
     n_sim:
@@ -359,6 +362,7 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     w_combine: False
     N_cutoff: 1000
     n_ex: 1
+    mdp_args: null
     grompp_args: null
     runtime_args: null
 
