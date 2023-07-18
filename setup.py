@@ -92,7 +92,7 @@ setup(
         'pyyaml',
         'seaborn',
         'matplotlib',
-        'pyemma',
+        # 'pyemma',
         'mpi4py'
     ],
 

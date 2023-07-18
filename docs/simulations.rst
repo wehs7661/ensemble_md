@@ -196,7 +196,7 @@ status of the previous iteration.
 This means:
 
 * For each replica, the input configuration for initializing a new iterations should be the output configuraiton of the previous iteration. For example, if the final configurations are represented by :code:`[1, 2, 0, 3]` (returned by :obj:`.get_swapped_configs`), then in the next iteration, replica 0 should be initialized by the output configuration of replica 1 in the previous iteration, while replica 3 can just inherit the output configuration from previous iteration of the same replica. Notably, instead of exchanging the MDP files, we recommend swapping out the coordinate files to exchange replicas.
-* For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion of the same replica except that parameters like :code:`tinit`, :code:`init-lambda-state`, :code:`init-wl-delta`, and :code:`init-lambda-weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
+* For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion of the same replica except that parameters like :code:`tinit`, :code:`init_lambda_state`, :code:`init_wl_delta`, and :code:`init_lambda_weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
 
 Step 4: Run the new iteration
 -----------------------------
@@ -234,20 +234,25 @@ include parameters for data analysis here.
       the number of TOP files has to be the same as the number of replicas. In the case where multiple TOP and GRO files are specified,
       the i-th TOP file corresponds to the i-th GRO file.
   - :code:`mdp`: (Required)
-      The input MDP file(s) used to initiate the EEXE simulation. If only one MDP file is specified, it will serve as a template for
-      customizing MDP files for all replicas. In this case, the MDP template must have the whole range of :math:`λ` values
+      The input MDP file used to initiate the EEXE simulation. Specifically, this input MDP file will serve as a template for
+      customizing MDP files for all replicas. Therefore, the MDP template must have the whole range of :math:`λ` values. 
       and the corresponding weights (in fixed-weight simulations). This holds for EEXE simulations for multiple serial mutations as well.
       For example, in an EEXE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if
-      exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Alternatively,
-      one could specify multiple MDP files, one for each replica, with the i-th MDP file coorresponding to the i-th GRO file. 
+      exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Notably, unlike
+      the parameters :code:`gro` and :code:`top`, only one MDP file can be specified for the parameter :code:`mdp`. If you wish to use
+      different parameters for different replicas, please use the parameter :code:`mdp_args`.
   - :code:`modify_coords`: (Optional)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
-      before the coordinate exchange, which could be useful for EEXE simulations for multiple serial mutations.
-      Here is the predefined contract for the module/function:
+      before the coordinate exchange, which is generally required in EEXE simulations for multiple serial mutations.
+      For the CLI :code:`run_EEXE` to work, here is the predefined contract for the module/function based on the assumptions :code:`run_EEXE` makes.
+      Modules/functions not obeying the contract are unlikely to work.
 
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
-        - The function must take in the GRO file to be modified and return :code:`None` (i.e., no return value).
-        - The function is expected to save the modified GRO file as :code:`confout_modified.gro`.
+        - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on
+            the order of the input GRO files. 
+        - The function must return :code:`None` (i.e., no return value). 
+        - The function must save the modified GRO file as :code:`confout.gro`. Note that in the CLI :code:`run_EEXE`,
+            :code:`confout.gro` generated as the simulation output will be automatically backed up to prevent overwriting.
         
 .. _doc_EEXE_parameters:
 
@@ -265,6 +270,11 @@ include parameters for data analysis here.
   - :code:`nst_sim`: (Optional, Default: :code:`nsteps` in the template MDP file)
       The number of simulation steps to carry out for one iteration, i.e. stpes between exchanges proposed between replicas. The value specified here will
       overwrite the :code:`nsteps` parameter in the MDP file of each iteration. This option also assumes replicas with homogeneous simulation lengths.
+  - :code:`add_swappables`: (Optional, Default: :code:`None`)
+      A list of lists that additionally consider states (in global indices) that can be swapped. For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that
+      if a replica samples state 4, it can be swapped with another replica that samples state 5 and vice versa. The same logic applies to states 14 and 15. 
+      This could be useful for EEXE simulations for multiple serial mutations, where we enforce exchanges between states 4 and 5 (and 14 and 15) and perform
+      coordinate manipulation.
   - :code:`proposal`: (Optional, Default: :code:`exhaustive`)
       The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`exhaustive`, :code:`neighboring`, and :code:`multiple`.
       For more details, please refer to :ref:`doc_proposal`.
@@ -279,6 +289,13 @@ include parameters for data analysis here.
   - :code:`n_ex`: (Optional, Default: 1)
       The number of attempts swap during an exchange interval. This option is only relevant if the option :code:`proposal` is :code:`multiple`.
       Otherwise, this option is ignored. For more details, please refer to :ref:`doc_multiple_swaps`.
+  - :code:`mdp_args`: (Optional, Default: :code:`None`)
+      MDP parameters differing across replicas provided in a dictionary. For each key in the dictionary, the value should
+      always be a list of length of the number of replicas. For example, :code:`{'ref_p': [1.0, 1.01, 1.02, 1.03]}` means that the
+      MDP parameter :code:`ref_p` will be set as 1.0 bar, 1.01 bar, 1.02 bar, and 1.03 bar for replicas 0, 1, 2, and 3, respectively.
+      Note that while this feature allows high flexibility in parameter specification, not all parameters are suitable to be
+      varied across replicas. For example, varying :code:`nsteps` across replicas for synchronous EEXE simulations does not make sense. 
+      Additionally, this feature is a work in progress and differing :code:`ref_t` or :code:`dt` across replicas might cause issues. 
   - :code:`grompp_args`: (Optional: Default: :code:`None`)
       Additional arguments to be appended to the GROMACS :code:`grompp` command provided in a dictionary.
       For example, one could have :code:`{'-maxwarn', '1'}` to specify the :code:`maxwarn` argument for the :code:`grompp` command.
@@ -329,21 +346,24 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     # Section 1: Runtime configuration
     gmx_executable:
 
-    # Section 2: Simulation inputs
+    # Section 2: Input files
     gro:
     top:
     mdp:
+    modify_coords: null
 
     # Section 3: EEXE parameters
     n_sim:
     n_iter:
     s:
     nst_sim: null
+    add_swappables: null
     proposal: 'exhaustive'
     acceptance: 'metropolis' 
     w_combine: False
     N_cutoff: 1000
     n_ex: 1
+    mdp_args: null
     grompp_args: null
     runtime_args: null
 

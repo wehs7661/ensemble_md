@@ -9,6 +9,6 @@ argparse
 alchemlyb==2.0.0
 seaborn
 matplotlib
-pyemma
+# pyemma
 pymbar==4.0.1
 

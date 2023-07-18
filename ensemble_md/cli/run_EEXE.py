@@ -13,7 +13,6 @@ import time
 import copy
 import shutil
 import argparse
-import importlib
 import numpy as np
 from mpi4py import MPI
 from datetime import datetime
@@ -111,7 +110,7 @@ def main():
 
             if start_idx == EEXE.n_iter:
                 print('Extension aborted: The expected number of iterations have been completed!')
-                sys.exit()
+                MPI.COMM_WORLD.Abort(1)
             else:
                 print('Deleting data generated after the checkpoint ...')
                 for i in range(EEXE.n_sim):
@@ -152,7 +151,7 @@ def main():
             # `combine_weights` and `update_MDP`.
             states = copy.deepcopy(states_)
             weights = copy.deepcopy(weights_)
-            swap_pattern = EEXE.get_swapping_pattern(dhdl_files, states_, weights_)
+            swap_pattern, swap_list = EEXE.get_swapping_pattern(dhdl_files, states_, weights_)  # swap_list will only be used for modify_coords  # noqa: E501
 
             # 3-3. Calculate the weights averaged since the last update of the Wang-Landau incrementor.
             # Note that the averaged weights are used for histogram correction/weight combination.
@@ -195,7 +194,7 @@ def main():
                 # level of the simulation (the file that will be shared by all simulations). For the gro file, we pass
                 # swap_pattern to the function to figure it out internally.
         else:
-            swap_pattern = None
+            swap_pattern, swap_list = None, None
 
         if -1 not in EEXE.equil and 0 not in EEXE.equil:
             # This is the case where the weights are equilibrated in a weight-updating simulation.
@@ -207,12 +206,19 @@ def main():
         # Step 4: Perform another iteration
         # 4-1. Modify the coordinates of the output gro files if needed.
         swap_pattern = comm.bcast(swap_pattern, root=0)
-        if EEXE.modify_coords is not None:
-            module = importlib.import_module(EEXE.modify_coords)
-            modify_coords_fn = getattr(module, EEXE.modify_coords)
-            for j in range(len(swap_pattern)):
-                if swap_pattern[j] != j:  # then sim_{swap_pattern[i]} is involved in swapping
-                    modify_coords_fn(f'sim_{swap_pattern[j]}/iteration_{i-1}/confout.gro')
+        swap_list = comm.bcast(swap_list, root=0)
+
+        if len(swap_list) == 0:
+            pass
+        else:
+            if EEXE.modify_coords_fn is not None:
+                if rank == 0:
+                    for j in range(len(swap_list)):
+                        print('\nModifying the coordinates of the following output GRO files ...')
+                        gro_1 = f'sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
+                        gro_2 = f'sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
+                        print(f'  - {gro_1}\n  - {gro_2}')
+                        EEXE.modify_coords_fn(gro_1, gro_2)  # the order should not matter
 
         # 4-2. Run another ensemble of simulations
         EEXE.run_EEXE(i, swap_pattern)
@@ -253,7 +259,8 @@ def main():
                 print(f'  - Rep {i}: The weights have been equilibrated at {EEXE.equil[i]:.2f} {units} (iteration {idx}).')  # noqa: E501
 
         print(f'\n{EEXE.n_empty_swappable} out of {EEXE.n_iter}, or {EEXE.n_empty_swappable / EEXE.n_iter * 100:.1f}% iterations had an empty list of swappable pairs.')  # noqa: E501
-        print(f'{EEXE.n_rejected} out of {EEXE.n_swap_attempts}, or {EEXE.n_rejected / EEXE.n_swap_attempts * 100:.1f}% of attempted exchanges were rejected.')  # noqa: E501
+        if EEXE.n_swap_attempts != 0:
+            print(f'{EEXE.n_rejected} out of {EEXE.n_swap_attempts}, or {EEXE.n_rejected / EEXE.n_swap_attempts * 100:.1f}% of attempted exchanges were rejected.')  # noqa: E501
 
         print(f'\nTime elapsed: {utils.format_time(time.time() - t1)}')
 
