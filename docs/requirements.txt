@@ -9,6 +9,7 @@ argparse
 alchemlyb==2.0.0
 seaborn
 matplotlib
+mdtraj==1.9.7
 pyemma
 pymbar==4.0.1
 
