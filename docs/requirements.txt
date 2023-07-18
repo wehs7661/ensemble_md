@@ -7,6 +7,7 @@ numpy
 natsort
 argparse
 Cython==0.29.36
+mdtraj==1.9.7
 alchemlyb==2.0.0
 seaborn
 matplotlib
