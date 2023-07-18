@@ -256,7 +256,7 @@ class EnsembleEXE:
 
         if self.mdp_args is not None:
             for key in self.mdp_args.keys():
-                if isinstance(key, str):
+                if not isinstance(key, str):
                     raise ParameterError("All keys specified in 'mdp_args' should be strings.")
                 else:
                     if '-' in key:
@@ -458,8 +458,15 @@ class EnsembleEXE:
         print(f"Length of each replica: {self.dt * self.nst_sim} ps")
         print(f"Frequency for checkpointing: {self.n_ckpt} iterations")
         print(f"Total number of states: {self.n_tot}")
+        print(f"Additionally defined swappable states: {self.add_swappables}")
         print(f"Additional grompp arguments: {self.grompp_args}")
         print(f"Additional runtime arguments: {self.runtime_args}")
+        if self.mdp_args is not None and len(self.mdp_args.keys()) > 1:
+            print("MDP parameters differing across replicas:")
+            for i in self.mdp_args.keys():
+                print(f"  - {i}: {self.mdp_args[i]}")
+        else:
+            print(f"MDP parameters differing across replicas: {self.mdp_args}")
         print("Alchemical ranges of each replica in EEXE:")
         for i in range(self.n_sim):
             print(f"  - Replica {i}: States {self.state_ranges[i]}")

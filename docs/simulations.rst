@@ -357,6 +357,7 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     n_iter:
     s:
     nst_sim: null
+    add_swappables: null
     proposal: 'exhaustive'
     acceptance: 'metropolis' 
     w_combine: False
