@@ -212,12 +212,13 @@ def main():
             pass
         else:
             if EEXE.modify_coords_fn is not None:
-                print('Modifying coordinates of the output GRO files ...')
-                for j in range(len(swap_list)):
-                    gro_1 = f'sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
-                    gro_2 = f'sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
-                    print(f'{  gro_1}\n{  gro_2}')
-                    EEXE.modify_coords_fn(gro_1, gro_2)  # the order should not matter
+                if rank == 0:
+                    for j in range(len(swap_list)):
+                        print('\nModifying the coordinates of the following output GRO files ...')
+                        gro_1 = f'sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
+                        gro_2 = f'sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
+                        print(f'  - {gro_1}\n  - {gro_2}')
+                        EEXE.modify_coords_fn(gro_1, gro_2)  # the order should not matter
 
         # 4-2. Run another ensemble of simulations
         EEXE.run_EEXE(i, swap_pattern)

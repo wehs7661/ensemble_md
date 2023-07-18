@@ -732,6 +732,11 @@ class EnsembleEXE:
             swappable pairs after an attempted swap is accepted.
         neighbor_exchange : bool
             Whether to exchange only between neighboring replicas.
+        add_swappables: list
+            A list of lists that additionally consider states (in global indices) that can be swapped.
+            For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that if a replica samples state 4,
+            it can be swapped with another replica that samples state 5 and vice versa. The same logic applies
+            to states 14 and 15.
 
         Returns
         -------
@@ -840,7 +845,7 @@ class EnsembleEXE:
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         state_ranges = copy.deepcopy(self.state_ranges)
         states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges
-        swappables = EnsembleEXE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring')
+        swappables = EnsembleEXE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
 
         # Note that if there is only 1 swappable pair, then it will still be the only swappable pair
         # after an attempted swap is accepted. Therefore, there is no need to perform multiple swaps or re-identify
@@ -878,9 +883,12 @@ class EnsembleEXE:
                     if self.verbose is True and self.proposal != 'exhaustive':
                         print(f'A swap ({i + 1}/{n_ex}) is proposed between the configurations of Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
 
-                    # Calculate the acceptance ratio and decide whether to accept the swap.
-                    prob_acc = self.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
-                    swap_bool = self.accept_or_reject(prob_acc)
+                    if self.modify_coords_fn is not None:
+                        swap_bool = True  # always accept the move
+                    else:
+                        # Calculate the acceptance ratio and decide whether to accept the swap.
+                        prob_acc = self.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
+                        swap_bool = self.accept_or_reject(prob_acc)
 
                     # Theoretically, in an EEXE simulation, we could either choose to swap configurations (via
                     # swapping GRO files) or replicas (via swapping MDP files). In ensemble_md package, we chose the
@@ -905,7 +913,7 @@ class EnsembleEXE:
                         if n_ex > 1 and self.proposal == 'multiple':  # must be multiple swaps
                             # After state_ranges have been updated, we re-identify the swappable pairs.
                             # Notably, states_copy (instead of states) should be used. (They could be different.)
-                            swappables = EnsembleEXE.identify_swappable_pairs(states_copy, state_ranges, self.proposal == 'neighboring')  # noqa: E501
+                            swappables = EnsembleEXE.identify_swappable_pairs(states_copy, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
                             print(f"  New swappable pairs: {swappables}")
                     else:
                         # In this case, there is no need to update the swappables
