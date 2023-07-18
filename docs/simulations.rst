@@ -251,7 +251,7 @@ include parameters for data analysis here.
         - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on
             the order of the input GRO files. 
         - The function must return :code:`None` (i.e., no return value). 
-        - The function is expected to save the modified GRO file as :code:`confout.gro`. Note that in the CLI :code:`run_EEXE`,
+        - The function must save the modified GRO file as :code:`confout.gro`. Note that in the CLI :code:`run_EEXE`,
             :code:`confout.gro` generated as the simulation output will be automatically backed up to prevent overwriting.
         
 .. _doc_EEXE_parameters:
