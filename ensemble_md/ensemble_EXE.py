@@ -304,6 +304,9 @@ class EnsembleEXE:
         if 'gen_seed' in self.template and self.template['gen_seed'] != -1:
             self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
+        if 'gen_vel' not in self.template or ('gen_vel' in self.template and self.template['gen_vel'] == 'no'):
+            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.')  # noqa: E501
+
         if self.nst_sim % self.template['nstlog'] != 0:
             raise ParameterError(
                 'The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.')
@@ -322,6 +325,9 @@ class EnsembleEXE:
 
             if 'gen_seed' in self.mdp_args and -1 not in self.mdp_args['gen_seed']:
                 self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
+
+            if 'gen_vel' in self.mdp_args and 'no' in self.mdp_args['gen_vel']:
+                self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.')  # noqa: E501
 
             if 'nstlog' in self.mdp_args and sum(self.nst_sim % np.array(self.mdp_args['nstlog'])) != 0:
                 raise ParameterError(

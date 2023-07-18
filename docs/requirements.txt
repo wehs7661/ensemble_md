@@ -6,6 +6,7 @@ pyyaml
 numpy
 natsort
 argparse
+Cython==0.29.36
 alchemlyb==2.0.0
 seaborn
 matplotlib
