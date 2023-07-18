@@ -165,6 +165,7 @@ class EnsembleEXE:
             "N_cutoff": 1000,
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
+            "mdp_args": None,
             "grompp_args": None,
             "runtime_args": None,
             "n_ckpt": 100,
@@ -253,6 +254,17 @@ class EnsembleEXE:
                     if not isinstance(item, int) or item < 0:
                         raise ParameterError("Each number specified in 'add_swappables' should be a non-negative integer.")  # noqa: E501
 
+        if self.mdp_args is not None:
+            for key in self.mdp_args.keys():
+                if isinstance(key, str):
+                    raise ParameterError("All keys specified in 'mdp_args' should be strings.")
+                else:
+                    if '-' in key:
+                        raise ParameterError("Parameters specified in 'mdp_args' must use underscores in place of hyphens.")  # noqa: E501
+            for val_list in self.mdp_args.values():
+                if len(val_list) != self.n_sim:
+                    raise ParameterError("The number of values specified for each key in 'mdp_args' should be the same as the number of replicas.")  # noqa: E501
+
         # Step 5: Reformat the input MDP file to replace all hypens with underscores.
         self.reformat_MDP(self.mdp)
 
@@ -292,9 +304,6 @@ class EnsembleEXE:
         if 'gen_seed' in self.template and self.template['gen_seed'] != -1:
             self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
-        if 'symmetrized_transition_matrix' in self.template and self.template['symmetrized_transition_matrix'] == 'yes':  # noqa: E501
-            self.warnings.append('Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.')
-
         if self.nst_sim % self.template['nstlog'] != 0:
             raise ParameterError(
                 'The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.')
@@ -306,6 +315,25 @@ class EnsembleEXE:
         if self.template['nstexpanded'] % self.template['nstdhdl'] != 0:
             raise ParameterError(
                 'In EEXE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
+
+        if self.mdp_args is not None:
+            if 'lmc_seed' in self.mdp_args and -1 not in self.mdp_args['lmc_seed']:
+                self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
+
+            if 'gen_seed' in self.mdp_args and -1 not in self.mdp_args['gen_seed']:
+                self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
+
+            if 'nstlog' in self.mdp_args and sum(self.nst_sim % np.array(self.mdp_args['nstlog'])) != 0:
+                raise ParameterError(
+                    'The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.')
+
+            if 'nstdhdl' in self.mdp_args and sum(self.nst_sim % np.array(self.mdp_args['nstdhdl'])) != 0:
+                raise ParameterError(
+                    'The parameter "nstdhdl" must be a factor of the parameter "nst_sim" specified in the YAML file.')
+
+            if 'nstexpanded' in self.mdp_args and 'nstdhdl' in self.mdp_args and sum(np.array(self.mdp_args['nstexpanded']) % np.array(self.mdp_args['nstdhdl'])) != 0:  # noqa: E501
+                raise ParameterError(
+                    'In EEXE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501                
 
         # Step 7: Set up derived parameters
         # 7-1. kT in kJ/mol
@@ -491,6 +519,10 @@ class EnsembleEXE:
         """
         MDP = copy.deepcopy(self.template)
         MDP["nsteps"] = self.nst_sim
+
+        if self.mdp_args is not None:
+            for param in self.mdp_args.keys():
+                MDP[param] = self.mdp_args[param][idx]
 
         start_idx = idx * self.s
         for i in self.lambda_types:

@@ -196,7 +196,7 @@ status of the previous iteration.
 This means:
 
 * For each replica, the input configuration for initializing a new iterations should be the output configuraiton of the previous iteration. For example, if the final configurations are represented by :code:`[1, 2, 0, 3]` (returned by :obj:`.get_swapped_configs`), then in the next iteration, replica 0 should be initialized by the output configuration of replica 1 in the previous iteration, while replica 3 can just inherit the output configuration from previous iteration of the same replica. Notably, instead of exchanging the MDP files, we recommend swapping out the coordinate files to exchange replicas.
-* For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion of the same replica except that parameters like :code:`tinit`, :code:`init-lambda-state`, :code:`init-wl-delta`, and :code:`init-lambda-weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
+* For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion of the same replica except that parameters like :code:`tinit`, :code:`init_lambda_state`, :code:`init_wl_delta`, and :code:`init_lambda_weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
 
 Step 4: Run the new iteration
 -----------------------------
@@ -287,6 +287,13 @@ include parameters for data analysis here.
   - :code:`n_ex`: (Optional, Default: 1)
       The number of attempts swap during an exchange interval. This option is only relevant if the option :code:`proposal` is :code:`multiple`.
       Otherwise, this option is ignored. For more details, please refer to :ref:`doc_multiple_swaps`.
+  - :code:`mdp_args`: (Optional, Default: :code:`None`)
+      MDP parameters differing across replicas provided in a dictionary. For each key in the dictionary, the value should
+      always be a list of length of the number of replicas. For example, :code:`{'ref_p': [1.0, 1.01, 1.02, 1.03]}` means that the
+      MDP parameter :code:`ref_p` will be set as 1.0 bar, 1.01 bar, 1.02 bar, and 1.03 bar for replicas 0, 1, 2, and 3, respectively.
+      Note that while this feature allows high flexibility in parameter specification, not all parameters are suitable to be
+      varied across replicas. For example, varying :code:`nsteps` across replicas for synchronous EEXE simulations does not make sense. 
+      Additionally, this feature is a work in progress and differing :code:`ref_t` or :code:`dt` across replicas might cause issues. 
   - :code:`grompp_args`: (Optional: Default: :code:`None`)
       Additional arguments to be appended to the GROMACS :code:`grompp` command provided in a dictionary.
       For example, one could have :code:`{'-maxwarn', '1'}` to specify the :code:`maxwarn` argument for the :code:`grompp` command.

@@ -137,7 +137,6 @@ class Test_EnsembleEXE:
         mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))  # A perfect mdp file
         mdp['lmc_seed'] = 1000
         mdp['gen_seed'] = 1000
-        mdp['symmetrized_transition_matrix'] = 'yes'
         mdp['wl_scale'] = ''
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
 
@@ -148,11 +147,9 @@ class Test_EnsembleEXE:
         warning_1 = 'Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.'  # noqa: E501
         warning_2 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
         warning_3 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
-        warning_4 = 'Warning: We recommend setting symmetrized-transition-matrix to no instead of yes.'
         assert warning_1 in EEXE.warnings
         assert warning_2 in EEXE.warnings
         assert warning_3 in EEXE.warnings
-        assert warning_4 in EEXE.warnings
 
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
 

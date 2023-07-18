@@ -117,7 +117,7 @@ def format_time(t):
 
     Returns
     -------
-    t_str : sttr
+    t_str : str
         A string in the format of "XX day XX hour(s) XX minute(s) XX second(s)".
     """
     hh_mm_ss = str(datetime.timedelta(seconds=t)).split(":")
