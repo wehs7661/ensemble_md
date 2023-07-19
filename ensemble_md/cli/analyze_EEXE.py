@@ -113,8 +113,8 @@ def main():
     print('\nData analysis of the simulation ensemble')
     print('========================================')
 
-    # Section 1. Analysis based on transitions between replicas
-    print('[ Section 1. Analysis based on transitions between replicas ]')
+    # Section 1. Analysis based on transitions between alchemical ranges
+    print('[ Section 1. Analysis based on transitions between alchemical ranges ]')
     section_idx += 1
 
     # 1-0. Read in replica-space trajectories
@@ -122,32 +122,32 @@ def main():
     rep_trajs = np.load(args.rep_trajs)  # Shape: (n_sim, n_iter)
 
     # 1-1. Plot the replica-sapce trajectory
-    print('1-1. Plotting transitions between replicas ...')
+    print('1-1. Plotting transitions between alchemical ranges ...')
     dt_swap = EEXE.nst_sim * EEXE.dt    # dt for swapping replicas
     analyze_traj.plot_rep_trajs(rep_trajs, f'{args.dir}/rep_trajs.png', dt_swap)
 
-    # 1-2. Plot the replica transition matrix
-    print('1-2. Plotting the replica transition matrix (considering all configurations) ...')
+    # 1-2. Plot the replica-space transition matrix
+    print('1-2. Plotting the replica-space transition matrix (considering all continuous trajectories) ...')
     counts = [analyze_traj.traj2transmtx(rep_trajs[i], EEXE.n_sim, normalize=False) for i in range(len(rep_trajs))]
     reps_mtx = np.sum(counts, axis=0)  # First sum up the counts. This should be symmetric if n_ex=1. Otherwise it might not be. # noqa: E501
     reps_mtx /= np.sum(reps_mtx, axis=1)[:, None]   # and then normalize each row
     analyze_matrix.plot_matrix(reps_mtx, f'{args.dir}/rep_transmtx_allconfigs.png')
 
-    # 1-3. Calculate the spectral gap for the replica transition amtrix
+    # 1-3. Calculate the spectral gap for the replica-space transition amtrix
     spectral_gap, eig_vals = analyze_matrix.calc_spectral_gap(reps_mtx)
-    print(f'1-3. The spectral gap of the replica transition matrix: {spectral_gap:.3f}')
+    print(f'1-3. The spectral gap of the replica-space transition matrix: {spectral_gap:.3f}')
 
     # Section 2. Analysis based on transitions between states
     print('\n[ Section 2. Analysis based on transitions between states ]')
     section_idx += 1
 
-    # 2-0. Stitch the trajectories for each configuration
+    # 2-0. Recover all continuous trajectories
     if os.path.isfile(args.state_trajs) is True:
         print('2-0. Reading in the stitched state-space trajectory ...')
         state_trajs = np.load(args.state_trajs)
     else:
         # This may take a while.
-        print('2-0. Stitching trajectories for each configuration from dhdl files ...')
+        print('2-0. Stitching trajectories for each starting configuration from dhdl files ...')
         dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
         shifts = np.arange(EEXE.n_sim) * EEXE.s
         state_trajs = analyze_traj.stitch_trajs(dhdl_files, rep_trajs, shifts=shifts, save=True)  # length: the number of replicas  # noqa: E501
@@ -167,7 +167,7 @@ def main():
     for i in range(EEXE.n_sim):
         mtx = analyze_traj.traj2transmtx(state_trajs[i], EEXE.n_tot)
         mtx_list.append(mtx)
-        analyze_matrix.plot_matrix(mtx, f'{args.dir}/config_{i}_state_transmtx.png')
+        analyze_matrix.plot_matrix(mtx, f'{args.dir}/traj_{i}_state_transmtx.png')
 
     # 2-4. For each configurration, calculate the spectral gap of the overall transition matrix obtained in step 2-2.
     print('\n2-4. Calculating the spectral gap of the state transition matrices ...')
@@ -176,28 +176,28 @@ def main():
     eig_vals = [results[i][1] if None not in results else None for i in range(len(results))]
     if None not in spectral_gaps:
         for i in range(EEXE.n_sim):
-            print(f'   - Configuration {i}: {spectral_gaps[i]:.3f} (λ_1: {eig_vals[i][0]:.5f}, λ_2: {eig_vals[i][1]:.5f})')  # noqa: E501
+            print(f'   - Trajectory {i}: {spectral_gaps[i]:.3f} (λ_1: {eig_vals[i][0]:.5f}, λ_2: {eig_vals[i][1]:.5f})')  # noqa: E501
         print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
 
-    # 2-5. For each configuration, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
+    # 2-5. For each trajectory, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
     print('\n2-5. Calculating the stationary distributions ...')
     pi_list = [analyze_matrix.calc_equil_prob(mtx) for mtx in mtx_list]
     if any([x is None for x in pi_list]):
         pass  # None is in the list
     else:
         for i in range(EEXE.n_sim):
-            print(f'   - Configuration {i}: {", ".join([f"{j:.3f}" for j in pi_list[i].reshape(-1)])}')
+            print(f'   - Trajectory {i}: {", ".join([f"{j:.3f}" for j in pi_list[i].reshape(-1)])}')
         if len({len(i) for i in pi_list}) == 1:  # all lists in pi_list have the same length
             print(f'   - Average of the above: {", ".join([f"{i:.3f}" for i in np.mean(pi_list, axis=0).reshape(-1)])}')  # noqa: E501
 
-    # 2-6. Calculate the state index correlation time for each configuration (this step is more time-consuming one)
+    # 2-6. Calculate the state index correlation time for each trajectory (this step is more time-consuming one)
     print('\n2-6. Calculating the state index correlation time ...')
     tau_list = [(pymbar.timeseries.statistical_inefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(EEXE.n_sim)]  # noqa: E501
     for i in range(EEXE.n_sim):
-        print(f'   - Configuration {i}: {tau_list[i]:.1f} ps')
+        print(f'   - Trajectory {i}: {tau_list[i]:.1f} ps')
     print(f'   - Average of the above: {np.mean(tau_list):.1f} ps (std: {np.std(tau_list, ddof=1):.1f} ps)')
 
-    # 2-7. Calculate transit times for each configuration
+    # 2-7. Calculate transit times for each trajectory
     print('\n2-7. Plotting the average transit times ...')
     t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, dt=dt_traj, folder=args.dir)  # noqa: E501
     meta_list = [t_0k_list, t_k0_list, t_roundtrip_list]
@@ -211,9 +211,9 @@ def main():
         print(t_names[i])
         for j in range(len(t_list)):
             if t_list[j] is None:
-                print(f'     - Configuration {j}: Skipped')
+                print(f'     - Trajectory {j}: Skipped')
             else:
-                print(f'     - Configuration {j} ({len(t_list[j])} events): {np.mean(t_list[j]):.2f} {units}')
+                print(f'     - Trajectory {j} ({len(t_list[j])} events): {np.mean(t_list[j]):.2f} {units}')
         print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.2f} {units} (std: {np.std([np.mean(i) for i in t_list], ddof=1):.2f} {units})')  # noqa: E501
 
     if np.sum(np.isnan([np.mean(i) for i in t_list])) != 0:
@@ -227,7 +227,7 @@ def main():
         print('\n[ Section 3. Analysis based on Markov state models ]')
 
         # 3-1. Plot the implied timescale as a function of lag time
-        print('\n3-1. Plotting the implied timescale as a function of lag time for all configurations ...')
+        print('\n3-1. Plotting the implied timescale as a function of lag time for all trajectories ...')
         lags = np.arange(EEXE.lag_spacing, EEXE.lag_max + EEXE.lag_spacing, EEXE.lag_spacing)
         # lags could also be None and decided automatically. Could consider using that.
         ts_list = msm_analysis.plot_its(state_trajs, lags, fig_name=f'{args.dir}/implied_timescales.png', dt=dt_traj, units='ps')  # noqa: E501
@@ -235,17 +235,17 @@ def main():
         # 3-2. Decide a lag time for building MSM
         print('\n3-2. Calculating recommended lag times for building MSMs ...')
         chosen_lags = msm_analysis.decide_lagtimes(ts_list)
-        print('     \nSuggested lag times for each configuration:')
+        print('     \nSuggested lag times for each trajectory:')
         for i in range(len(chosen_lags)):
-            print(f'       - Configuration {i}: {chosen_lags[i] * dt_traj:.1f} ps')
+            print(f'       - Trajectory {i}: {chosen_lags[i] * dt_traj:.1f} ps')
 
-        # 3-3. Build a Bayesian MSM and perform a CK test for each configuration to validate the models
-        print('\n3-3. Building Bayesian MSMs for the state-space trajectory for each configuration ...')
+        # 3-3. Build a Bayesian MSM and perform a CK test for each trajectory to validate the models
+        print('\n3-3. Building Bayesian MSMs for the state-space trajectory for each trajectory ...')
         print('     Performing a Chapman-Kolmogorov test on each trajectory ...')
         models = [pyemma.msm.bayesian_markov_model(state_trajs[i], chosen_lags[i], dt_traj=f'{dt_traj} ps', show_progress=False) for i in range(EEXE.n_sim)]  # noqa: E501
 
         for i in range(len(models)):
-            print(f'     Plotting the CK-test results for configuration {i} ...')
+            print(f'     Plotting the CK-test results for trajectory {i} ...')
             mlags = 5  # this maps to 5 (mlags: multiples of lag times for testing the model)
             nsets = models[i].nstates  # number of metastable states.
             # Note that nstates is the number of unique states in the input trajectores counted with the effective mode
@@ -258,15 +258,15 @@ def main():
             cktest = models[i].cktest(nsets=nsets, mlags=mlags, show_progress=False)
             pyemma.plots.plot_cktest(cktest, dt=dt_traj, units='ps')
             plt.tight_layout(rect=[0, 0.03, 1, 0.98])
-            plt.savefig(f'{args.dir}/config_{i}_CKtest.png', dpi=600)
+            plt.savefig(f'{args.dir}/traj_{i}_CKtest.png', dpi=600)
 
-        # Additionally, check if the sampling is poor for each configuration
+        # Additionally, check if the sampling is poor for each trajectory
         for i in range(len(models)):
             if models[i].nstates != EEXE.n_tot:
-                print(f'     Note: The sampling of configuration {i} was poor.')
+                print(f'     Note: The sampling of trajectory {i} was poor.')
 
         # 3-4. Plot the state transition matrices estimated with the specified lag times in MSMs
-        print('\n3-4. Plotting the overall transition matrices for all configurations and their average ...')
+        print('\n3-4. Plotting the overall transition matrices for all trajectories and their average ...')
         mtx_list = [m.transition_matrix for m in models]
         mtx_list_modified = []  # just for plotting (if all trajs sampled the fulle range frequently, this will be the same as mtx_list)  # noqa: E501
         for i in range(len(mtx_list)):
@@ -302,28 +302,28 @@ def main():
         np.save(f'{args.dir}/transmtx.npy', mtx_list_modified)
 
         for i in range(EEXE.n_sim):
-            analyze_matrix.plot_matrix(mtx_list[i], f'{args.dir}/config_{i}_state_transmtx_msm.png')
+            analyze_matrix.plot_matrix(mtx_list[i], f'{args.dir}/traj_{i}_state_transmtx_msm.png')
         analyze_matrix.plot_matrix(avg_mtx, f'{args.dir}/state_transmtx_avg_msm.png')
 
-        # Note that if a configuration never visited a certain replica, the rows in the alchemical range of that
+        # Note that if a trajectory never visited a certain replica, the rows in the alchemical range of that
         # replica will only have 0 entries. Below we check if this is the case.
         print('     Checking the sum of each row of each transition matrix is 1 ...')
         is_transmtx = [is_transition_matrix(i) for i in mtx_list]
         for i in range(len(is_transmtx)):
             if is_transmtx[i] is False:
-                print(f'     The sums of the rows are not 1 (but {np.sum(mtx_list[i], axis=1)}) for the transition matrix of configuration {i}.')  # noqa: E501
+                print(f'     The sums of the rows are not 1 (but {np.sum(mtx_list[i], axis=1)}) for the transition matrix of trajectory {i}.')  # noqa: E501
 
-        # 3-5. Calculate the spectral gap from the transition matrix of each configuration
+        # 3-5. Calculate the spectral gap from the transition matrix of each trajectory
         print('\n3-5. Calculating the spectral gap of the state transition matrices obtained from MSMs ...')
         spectral_gaps, eig_vals = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
         for i in range(EEXE.n_sim):
-            print(f'       - Configuration {i}: {spectral_gaps[i]:.3f}')
+            print(f'       - Trajectory {i}: {spectral_gaps[i]:.3f}')
 
-        # 3-6. Calculate the stationary distribution for each configuration
+        # 3-6. Calculate the stationary distribution for each trajectory
         print('\n3-6. Calculating the stationary distributions from the transition matrices obtained from MSMs ...')
         pi_list = [m.pi for m in models]
         for i in range(EEXE.n_sim):
-            print(f'       - Configuration {i}: {", ".join([f"{j:.3f}" for j in pi_list[i]])}')
+            print(f'       - Trajectory {i}: {", ".join([f"{j:.3f}" for j in pi_list[i]])}')
         if len({len(i) for i in pi_list}) == 1:  # all lists in pi_list have the same length
             print(f'       - Average of the above: {", ".join([f"{i:.3f}" for i in np.mean(pi_list, axis=0)])}')
 
@@ -333,11 +333,11 @@ def main():
         # though sometimes these two could be same.
         mfpt_list = [m.mfpt(0, m.nstates - 1) for m in models]
         for i in range(EEXE.n_sim):
-            print(f'       - Configuration {i}: {mfpt_list[i]:.1f} ps')
+            print(f'       - Trajectory {i}: {mfpt_list[i]:.1f} ps')
         print(f'       - Average of the above: {np.mean(mfpt_list):.1f} ps (std: {np.std(mfpt_list, ddof=1):.1f} ps)')
 
-        # 3-8. Calculate the state index correlation time for each configuration
-        print('\n3-8. Plotting the state index correlation times for all configurations ...')
+        # 3-8. Calculate the state index correlation time for each trajectory
+        print('\n3-8. Plotting the state index correlation times for all trajectories ...')
         msm_analysis.plot_acf(models, EEXE.n_tot, f'{args.dir}/state_ACF.png')
     """
 
@@ -363,7 +363,7 @@ def main():
 
         if u_nk_list == [] and dHdl_list == []:
             for i in range(EEXE.n_sim):
-                print(f'Reading dhdl files of replica {i} ...')
+                print(f'Reading dhdl files of alchemical range {i} ...')
                 files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
                 u_nk, dHdl = analyze_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)  # noqa: E501
                 u_nk_list.append(u_nk)

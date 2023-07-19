@@ -41,7 +41,7 @@ def extract_state_traj(dhdl):
 
 def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True):
     """
-    Stitches the state-space/CV-space trajectories for each configuration from DHDL files
+    Stitches the state-space/CV-space trajectories for each starting configuration from DHDL files
     or PLUMED output files generated at different iterations.
 
     Parameters
@@ -51,8 +51,8 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True
         Specifically, :code:`files[i]` should be a list containing the files of interest from all iterations in
         replica :code:`i`.
     rep_trajs : list
-        A list of lists that represents the replica space trajectories for each configuration. For example,
-        :code:`rep_trajs[0] = [0, 2, 3, 0, 1, ...]` means that configuration 0 transitioned to replica 2, then
+        A list of lists that represents the replica space trajectories for each starting configuration. For example,
+        :code:`rep_trajs[0] = [0, 2, 3, 0, 1, ...]` means that starting configuration 0 transitioned to replica 2, then
         3, 0, 1, in iterations 1, 2, 3, 4, ..., respectively.
     shifts : list
         A list of values for shifting the state indices for each replica. The length of the list
@@ -73,21 +73,23 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True
     Returns
     -------
     trajs : list
-        A list that contains lists of state-space/CV-space trajectory (in global indices) for each configuration.
-        For example, :code:`trajs[i]` is the state-space/CV-space trajectory of configuration :code:`i`.
+        A list that contains lists of state-space/CV-space trajectory (in global indices) for each starting
+        configuration. For example, :code:`trajs[i]` is the state-space/CV-space trajectory of starting
+        configuration :code:`i`.
     """
     n_configs = len(files)  # number of starting configurations
     n_iter = len(files[0])  # number of iterations per replica
 
-    # First figure out which dhdl/plumed output files each configuration corresponds to
-    # files_sorted[i] contains the dhdl/plumed output files for configuration i sorted based on iteration indices
+    # First figure out which dhdl/plumed output files each starting configuration corresponds to
+    # files_sorted[i] contains the dhdl/plumed output files for starting configuration i sorted
+    # based on iteration indices
     files_sorted = [[] for i in range(n_configs)]
     for i in range(n_configs):
         for j in range(n_iter):
             files_sorted[i].append(files[rep_trajs[i][j]][j])
 
-    # Then, stitch the trajectories for each configuration
-    trajs = [[] for i in range(n_configs)]  # for each configuration
+    # Then, stitch the trajectories for each starting configuration
+    trajs = [[] for i in range(n_configs)]  # for each starting configuration
     for i in range(n_configs):
         for j in range(n_iter):
             if j == 0:
@@ -118,8 +120,8 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True
 def stitch_trajs_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
     """
     Stitches the state-space/CV-space trajectories in the same replica/simulation folder.
-    That is, the output trajectory is contributed by multiple different configurations to
-    a certain alchemical range.
+    That is, the output time series is contributed by multiple different trajectories (initiated by
+    different starting configurations) to a certain alchemical range.
 
     Parameters
     ----------
@@ -204,12 +206,12 @@ def traj2transmtx(traj, N, normalize=True):
 
 def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     """
-    Plots the time series of replicas visited by each configuration in a single plot.
+    Plots the time series of replicas visited by each trajectory in a single plot.
 
     Parameters
     ----------
     trajs : list
-        A list of arrays that represent the replica space trajectories of all configurations.
+        A list of arrays that represent the all replica space trajectories.
     fig_name : str
         The file name of the png file to be saved (with the extension).
     dt : float or None, optional
@@ -243,9 +245,9 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     ax = fig.add_subplot(111)
     for i in range(n_sim):
         if len(trajs[0]) >= 100:  # don't show the markers
-            plt.plot(x[::stride], trajs[i][::stride], color=colors[i], label=f'Configuration {i}')
+            plt.plot(x[::stride], trajs[i][::stride], color=colors[i], label=f'Trajectory {i}')
         else:
-            plt.plot(x[::stride], trajs[i][::stride], color=colors[i], label=f'Configuration {i}', marker='o')
+            plt.plot(x[::stride], trajs[i][::stride], color=colors[i], label=f'Trajectory {i}', marker='o')
 
     if dt is None:
         plt.xlabel('MC moves')
@@ -259,14 +261,14 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_prefix='Configuration'):
+def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_prefix='Trajectory'):
     """
-    Plots the time series of states visited by each configuration in a subplot.
+    Plots the time series of states visited by each trajectory in a subplot.
 
     Parameters
     ----------
     trajs : list
-        A list of arrays that represent the state space trajectories of all configurations.
+        A list of arrays that represent the state space trajectories of all continuous trajectories.
     state_ranges : list
         A list of lists of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
     fig_name : str
@@ -281,7 +283,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_pre
         plotting more than 10 million frames can take a lot of memory.
     title_prefix : str
         The prefix shared by the titles of the subplots. For example, if :code:`title_prefix` is
-        set to "Configuration", then the titles of the subplots will be "Configuration 0", "Configuration 1", ..., etc.
+        set to "Trajectory", then the titles of the subplots will be "Trajectory 0", "Trajectory 1", ..., etc.
     """
     n_sim = len(trajs)
     cmap = plt.cm.ocean  # other good options are CMRmap, gnuplot, terrain, turbo, brg, etc.
@@ -351,14 +353,14 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_pre
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, prefix='Configuration', subplots=False, save_hist=True):  # noqa: E501
+def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, prefix='Trajectory', subplots=False, save_hist=True):  # noqa: E501
     """
-    Plots the histograms of the state index for each configuration.
+    Plots the histograms of the state index for each trajectory.
 
     Parameters
     ----------
     trajs : list
-        A list of arrays that represent the state space trajectories of all configurations.
+        A list of arrays that represent the state space trajectories of all continuous trajectories.
     state_ranges : list
         A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.EnsembleEXE`.)
     fig_name : str
@@ -370,8 +372,8 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
         default is :code:`(6.4, 4.8)` for cases having less than 30 states and :code:`(10, 4.8)` otherwise.
     prefix : str
         The prefix shared by the titles of the subplots, or the labels shown in the same plot.
-        For example, if :code:`prefix` is set to "Configuration", then the titles/labels of the
-        will be "Configuration 0", "Configuration 1", ..., etc.
+        For example, if :code:`prefix` is set to "Trajectory", then the titles/labels of the
+        will be "Trajectory 0", "Trajectory 1", ..., etc.
     subplots : bool
         Whether to plot the histogram in multiple subplots, with the title of
         each based on the value of :code:`prefix`.
@@ -381,7 +383,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
     Returns
     -------
     hist_data : list
-        The histogram data of the state index for each configuration.
+        The histogram data of the state index for each trajectory.
     """
     n_configs = len(trajs)
     n_states = max(max(state_ranges)) + 1
@@ -480,7 +482,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
 
 def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     """
-    Caclulcates and plots the average transit times for each configuration, including the time
+    Caclulcates and plots the average transit times for each trajectory, including the time
     it takes from states 0 to k, from k to 0 and from 0 to k back to 0 (i.e. round-trip time).
     If there are more than 100 round-trips, 3 histograms corresponding to t_0k, t_k0 and t_roundtrip
     will be generated.
@@ -488,7 +490,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     Parameters
     ----------
     trajs : list
-        A list of arrays that represent the state space trajectories of all configurations.
+        A list of arrays that represent the state space trajectories of all continuous trajectories.
     N : int
         The total number of states in the whole alchemical range.
     fig_prefix : str
@@ -501,11 +503,11 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     Returns
     -------
     t_0k_list : list
-        A list of transit time from states 0 to k for each configuration.
+        A list of transit time from states 0 to k for each trajectory.
     t_k0_list : list
-        A list of transit time from states k to 0 for each configuration.
+        A list of transit time from states k to 0 for each trajectory.
     t_roundtrip_list : list
-        A list of round-trip times for each configuration.
+        A list of round-trip times for each trajectory.
     units : str
         The units of the times.
     """
@@ -520,7 +522,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
         else:
             units = 'ps'
 
-    # The lists below are for storing data corresponding to different configurations.
+    # The lists below are for storing data corresponding to different trajectories.
     t_0k_list, t_k0_list, t_roundtrip_list = [], [], []
     t_0k_avg, t_k0_avg, t_roundtrip_avg = [], [], []
 
@@ -608,8 +610,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                 marker = ''
 
             plt.figure()
-            for i in range(len(t_list)):    # t_list[i] is the list for configuration i
-                plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Configuration {i}', marker=marker)
+            for i in range(len(t_list)):    # t_list[i] is the list for trajectory i
+                plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Trajectory {i}', marker=marker)
 
             if max(max((t_list))) >= 10000:
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
@@ -628,7 +630,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
 
                 plt.figure()
                 for i in range(len(t_list)):
-                    plt.hist(t_list[i], bins=int(len(t_list[i]) / 20), label=f'Configuration {i}')
+                    plt.hist(t_list[i], bins=int(len(t_list[i]) / 20), label=f'Trajectory {i}')
                     if max(counts) >= 10000:
                         plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
                 plt.xlabel(f'{y_labels[t]}')
@@ -748,7 +750,7 @@ def get_swaps(EEXE_log='run_EEXE_log.txt'):
     # Note that proposed_swaps and accepted_swaps are initialized in the same way
     proposed_swaps = [{i: 0 for i in state_list[j]} for j in range(n_sim)]  # Key: global state index; Value: The number of accepted swaps  # noqa: E501
     accepted_swaps = [{i: 0 for i in state_list[j]} for j in range(n_sim)]  # Key: global state index; Value: The number of accepted swaps  # noqa: E501
-    state_trajs = [[] for i in range(n_sim)]  # the state-space trajectory for each REPLICA (not configuration)
+    state_trajs = [[] for i in range(n_sim)]  # the state-space trajectory for each REPLICA (not trajectory)
     for line in lines:
         if 'Simulation' in line and 'Global state' in line:
             rep = int(line.split(':')[0].split()[-1])

@@ -248,11 +248,9 @@ include parameters for data analysis here.
       Modules/functions not obeying the contract are unlikely to work.
 
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
-        - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on
-            the order of the input GRO files. 
+        - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on the order of the input GRO files. 
         - The function must return :code:`None` (i.e., no return value). 
-        - The function must save the modified GRO file as :code:`confout.gro`. Note that in the CLI :code:`run_EEXE`,
-            :code:`confout.gro` generated as the simulation output will be automatically backed up to prevent overwriting.
+        - The function must save the modified GRO file as :code:`confout.gro`. Note that in the CLI :code:`run_EEXE`, :code:`confout.gro` generated as the simulation output will be automatically backed up to prevent overwriting.
         
 .. _doc_EEXE_parameters:
 
