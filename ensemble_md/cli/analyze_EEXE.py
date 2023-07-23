@@ -11,7 +11,7 @@ import os
 import sys
 import time
 import glob
-# import pyemma
+import pyemma
 import pymbar
 import pickle
 import natsort
@@ -21,13 +21,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import rc
 from datetime import datetime
-# from deeptime.markov.tools.analysis import is_transition_matrix
+from deeptime.markov.tools.analysis import is_transition_matrix
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 from ensemble_md.utils import utils  # noqa: E402
 from ensemble_md.analysis import analyze_traj  # noqa: E402
 from ensemble_md.analysis import analyze_matrix  # noqa: E402
-# from ensemble_md.analysis import msm_analysis  # noqa: E402
+from ensemble_md.analysis import msm_analysis  # noqa: E402
 from ensemble_md.analysis import analyze_free_energy  # noqa: E402
 from ensemble_md.ensemble_EXE import EnsembleEXE  # noqa: E402
 from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
@@ -219,7 +219,6 @@ def main():
     if np.sum(np.isnan([np.mean(i) for i in t_list])) != 0:
         poor_sampling = True
 
-    """
     if EEXE.msm is True:
         section_idx += 1
 
@@ -339,7 +338,6 @@ def main():
         # 3-8. Calculate the state index correlation time for each trajectory
         print('\n3-8. Plotting the state index correlation times for all trajectories ...')
         msm_analysis.plot_acf(models, EEXE.n_tot, f'{args.dir}/state_ACF.png')
-    """
 
     # Section 4 (or Section 3). Free energy calculations
     if EEXE.free_energy is True:
