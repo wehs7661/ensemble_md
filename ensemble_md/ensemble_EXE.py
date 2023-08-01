@@ -305,7 +305,7 @@ class EnsembleEXE:
             self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
         if 'gen_vel' not in self.template or ('gen_vel' in self.template and self.template['gen_vel'] == 'no'):
-            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.')  # noqa: E501
+            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with detailed balance.')  # noqa: E501
 
         if self.nst_sim % self.template['nstlog'] != 0:
             raise ParameterError(

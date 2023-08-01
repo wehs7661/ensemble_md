@@ -127,7 +127,8 @@ by the single GRO file, but the user should also be able to initialize different
 configurations (represented by multiple GRO files) in the near future. Also, the MDP template should contain parameters 
 common across all replicas and define the coupling parmaeters for all possible intermediate states,
 so that we can cusotmize different MDP files by defining a subset of alchemical states in different 
-replicas. Importantly, to extend an EEXE simulation, one needs to additionally provide the following
+replicas. For EEXE simulations, some MDP parameters need additional care to be taken, which we describe in
+:ref:`doc_mdp_params`. Importantly, to extend an EEXE simulation, one needs to additionally provide the following
 two checkpoint files:
 
 * One NPY file containing the replica-space trajectories of different configurations saved by the previous run of EEXE simulation with a default name as :code:`rep_trajs.npy`.
@@ -206,9 +207,9 @@ iterations (:code:`n_iterations`) is reached.
 
 .. _doc_parameters:
 
-3. Simulation parameters
+3. Input YAML parameters
 ========================
-In the current implementation of the algorithm, 22 parameters can be specified in the input YAML file.
+In the current implementation of the algorithm, 27 parameters can be specified in the input YAML file.
 Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
@@ -378,3 +379,40 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     n_bootstrap: 50
     seed : null
 
+.. _doc_mdp_params:
+
+4. Input MDP parameters
+=======================
+As mentioned above, a template MDP file should have all the parameters that will be shared
+across all replicas. It should also define the coupling parameters for the whole range of
+states so that different MDP files can be customized for different replicas. For an EEXE simulation
+launched by the CLI :code:`run_EEXE`, any GROMACS MDP parameter that could potentially lead to issues
+in the EEXE simulation will raise a warning. If the number of warnings is larger than the value
+specified for the flag `-m`/`--maxwarn` in the CLI :code:`run_EEXE`, the simulation will error
+out. To avoid warnings arised from MDP specification, we need to take extra care for the following
+MDP parameters:
+
+- We recommend setting :code:`lmc_seed = -1` so that a different random seed
+  for Monte Carlo moves in the state space will be used for each iteration. 
+- We recommend setting :code:`gen_vel = yes` to re-generating new velocities for each iteration to avoid
+  potential issues with detailed balance. 
+- We recommend setting :code:`gen_seed = -1` so that a different random seed for velocity generation
+  will be used for each iteration.
+- The MDP parameter :code:`nstlog` must be a factor of the YAML parameter :code:`nst_sim` so that the final status
+  of the simulation can be correctly parsed from the LOG file.
+- The MDP parameter :code:`nstdhdl` must be a factor of the YAML parameter :code:`nst_sim` so that the time series
+  of the state index can be correctly parsed from the DHDL file.
+- In EEXE, the MDP parameter :code:`nstdhdl` must be a factor of the MDP parameter :code:`nstexpanded`, or
+  the calculation of the acceptance ratio may be wrong. 
+- Be careful with the pull code specification if you want to apply a distance restraint between two pull groups.
+  Specifically, in an EEXE simulation, all iterations should use the same reference distance. Otherwise, poor sampling
+  can be observed in a fixed-weight EEXE simulation and the equilibration time may be much longer for a weight-updating
+  EEXE simulation. To ensure the same reference distance across all iterations in an EEXE simulation, consider the
+  following scenarios:
+    - If you would like to use the COM distance between the pull groups in the input :code:`.gro` file as the reference distance
+      for all the iterations (whatever that value is), then specify :code:`pull_coord1_start = yes` with
+      :code:`pull_coord1_init = 0` in your input MDP template. In this case, :obj:`.update_MDP` will parse :code:`pullx.xvg`
+      from the first iteration to get the initial COM distance (:code:`d`) and use it as the reference distance for all the following
+      iterations using :code:`pull_coord1_start = no` with :code:`pull_coord1_init = d`. 
+    - If you want to explicitly specify a reference distance (:code:`d`) to use for all iterations, simply use 
+      :code:`pull_coord1_start = no` with :code:`pull_coord1_init = d` in your input MDP template.
