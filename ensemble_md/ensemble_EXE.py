@@ -305,7 +305,7 @@ class EnsembleEXE:
             self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
         if 'gen_vel' not in self.template or ('gen_vel' in self.template and self.template['gen_vel'] == 'no'):
-            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.')  # noqa: E501
+            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with detailed balance.')  # noqa: E501
 
         if self.nst_sim % self.template['nstlog'] != 0:
             raise ParameterError(
@@ -340,6 +340,22 @@ class EnsembleEXE:
             if 'nstexpanded' in self.mdp_args and 'nstdhdl' in self.mdp_args and sum(np.array(self.mdp_args['nstexpanded']) % np.array(self.mdp_args['nstdhdl'])) != 0:  # noqa: E501
                 raise ParameterError(
                     'In EEXE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
+
+        if 'pull' in self.template and self.template['pull'] == 'yes':
+            pull_ncoords = self.template['pull_ncoords']
+            self.set_ref_dist = []
+            for i in range(pull_ncoords):
+                if self.template[f'pull_coord{i+1}_geometry'] == 'distance':
+                    if self.template[f'pull_coord{i+1}_start'] == 'yes':
+                        self.set_ref_dist.append(True)  # starting from the second iteration, set pull_coord*_init.
+                        if 'pull_nstxout' not in self.template:
+                            self.warnings.append('A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.')  # noqa: E501
+                        if self.template['pull_nstxout'] == 0:
+                            self.warnings.append('A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.')  # noqa: E501
+                    else:
+                        self.set_ref_dist.append(False)  # Here we assume that the user know what reference distance to use.  # noqa: E501
+                else:
+                    self.set_ref_dist.append(False)  # we only deal with distance restraints for now.
 
         # Step 7: Set up derived parameters
         # 7-1. kT in kJ/mol
@@ -546,6 +562,21 @@ class EnsembleEXE:
 
         return MDP
 
+    def get_ref_dist(self):
+        """
+        Gets the reference distance(s) to use starting from the second iteration if distance restraint(s) are used.
+        Specifically, a reference distance determined here is the initial COM distance between the pull groups
+        in the input GRO file. This function initializes the attribute :code:`ref_dist`.
+        """
+        if hasattr(self, 'set_ref_dist'):
+            self.ref_dist = []
+            pullx_file = 'sim_0/iteration_0/pullx.xvg'
+            headers = get_headers(pullx_file)
+            for i in range(len(self.set_ref_dist)):
+                if self.set_ref_dist[i] is True:
+                    dist = list(extract_dataframe(pullx_file, headers=headers)[f'{i+1}'])[0]
+                    self.ref_dist.append(dist)
+
     def update_MDP(self, new_template, sim_idx, iter_idx, states, wl_delta, weights, counts=None):
         """
         Updates the MDP file for a new iteration based on the new MDP template coming from the previous iteration.
@@ -597,6 +628,12 @@ class EnsembleEXE:
             MDP["init_wl_delta"] = ""
             MDP["lmc_weights_equil"] = ""
             MDP["weight_equil_wl_delta"] = ""
+
+        # Here we deal with the distance restraint in the pull code, if any.
+        if hasattr(self, 'ref_dist'):
+            for i in range(len(self.ref_dist)):
+                MDP[f'pull_coord{i+1}_start'] = "no"
+                MDP[f'pull_coord{i+1}_init'] = self.ref_dist[i]
 
         return MDP
 
