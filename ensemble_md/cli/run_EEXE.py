@@ -130,6 +130,9 @@ def main():
 
         start_idx = comm.bcast(start_idx, root=0)  # so that all the ranks are aware of start_idx
 
+    # 2-3. Get the reference distance for the distance restraint specified in the pull code, if any.
+    EEXE.get_ref_dist()
+
     for i in range(start_idx, EEXE.n_iter):
         if rank == 0:
             # Step 3: Swap the coordinates

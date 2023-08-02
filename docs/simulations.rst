@@ -409,10 +409,11 @@ MDP parameters:
   can be observed in a fixed-weight EEXE simulation and the equilibration time may be much longer for a weight-updating
   EEXE simulation. To ensure the same reference distance across all iterations in an EEXE simulation, consider the
   following scenarios:
-    - If you would like to use the COM distance between the pull groups in the input :code:`.gro` file as the reference distance
+    - If you would like to use the COM distance between the pull groups in the input GRO file as the reference distance
       for all the iterations (whatever that value is), then specify :code:`pull_coord1_start = yes` with
       :code:`pull_coord1_init = 0` in your input MDP template. In this case, :obj:`.update_MDP` will parse :code:`pullx.xvg`
       from the first iteration to get the initial COM distance (:code:`d`) and use it as the reference distance for all the following
-      iterations using :code:`pull_coord1_start = no` with :code:`pull_coord1_init = d`. 
+      iterations using :code:`pull_coord1_start = no` with :code:`pull_coord1_init = d`. Note that this implies that
+      the MDP parameter :code:`pull_nstxout` should not be 0.
     - If you want to explicitly specify a reference distance (:code:`d`) to use for all iterations, simply use 
       :code:`pull_coord1_start = no` with :code:`pull_coord1_init = d` in your input MDP template.
