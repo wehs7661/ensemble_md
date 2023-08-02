@@ -345,8 +345,8 @@ class EnsembleEXE:
             pull_ncoords = self.template['pull_ncoords']
             self.set_ref_dist = []
             for i in range(pull_ncoords):
-                if self.template[f'pull_coord{i}_geometry'] == 'distance':
-                    if self.template[f'pull_coord{i}_start'] == 'yes':
+                if self.template[f'pull_coord{i+1}_geometry'] == 'distance':
+                    if self.template[f'pull_coord{i+1}_start'] == 'yes':
                         self.set_ref_dist.append(True)  # starting from the second iteration, set pull_coord*_init.
                         if 'pull_nstxout' not in self.template:
                             self.warnings.append('A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.')  # noqa: E501
