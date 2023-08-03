@@ -118,7 +118,7 @@ def calc_equil_prob(trans_mtx):
     close_to_1_idx = np.isclose(eig_vals, 1, atol=1e-4)
     equil_prob = eig_vecs[:, close_to_1_idx]  # note that this is normalized
     equil_prob /= np.sum(equil_prob)   # So the sum of all components is 1
-
+    equil_prob = np.array([i.real for i in equil_prob if i.imag == 0])  # get rid of the imaginary part if it is 0
     return equil_prob
 
 

@@ -63,7 +63,7 @@ def initialize(args):
     parser.add_argument('-sts',
                         '--state_trajs_for_sim',
                         type=str,
-                        default='state_trajs_for_sim.py',
+                        default='state_trajs_for_sim.npy',
                         help='The NPY file containing the stitched state-space time series for different alchemical\
                              ranges. If the specified file is not found, the code will try to find all the \
                              time series and stitch them. (Default: state_trajs.npy)')
@@ -162,15 +162,26 @@ def main():
     # 2-2. Plot the state-space trajectory
     print('\n2-2. Plotting transitions between different alchemical states ...')
     dt_traj = EEXE.dt * EEXE.template['nstdhdl']  # in ps
-    analyze_traj.plot_state_trajs(state_trajs, EEXE.state_ranges, f'{args.dir}/state_trajs.png', dt_traj)
+    analyze_traj.plot_state_trajs(
+        state_trajs,
+        EEXE.state_ranges,
+        f'{args.dir}/state_trajs.png',
+        dt_traj
+    )
 
     # 2-3. Plot the histograms of state index for different trajectories
     print('\n2-3. Plotting the histograms of the state index for different trajectories ...')
-    analyze_traj.plot_state_hist(state_trajs, EEXE.state_ranges, f'{args.dir}/state_hist.png')
+    hist_data = analyze_traj.plot_state_hist(
+        state_trajs,
+        EEXE.state_ranges,
+        f'{args.dir}/state_hist.png'
+    )
+    rmse = analyze_traj.calculate_hist_rmse(hist_data, EEXE.state_ranges)
+    print(f'The RMSE of accumulated histogram counts of the state index: {rmse:.0f}')
 
     # 2-4. Stitch the time series of state index for different alchemical ranges
     if os.path.isfile(args.state_trajs_for_sim) is True:
-        print('2-4. Reading in the stitched time series of state index for different alchemical ranges ...')
+        print('\n2-4. Reading in the stitched time series of state index for different alchemical ranges ...')
         state_trajs_for_sim = np.load(args.state_trajs_for_sim)
     else:
         # This may take a while.
@@ -180,7 +191,7 @@ def main():
         state_trajs_for_sim = analyze_traj.stitch_trajs_for_sim(dhdl_files, shifts)
 
     # 2-5. Plot the time series of state index for different alchemical ranges
-    print('2-5. Plotting the time series of state index for different alchemical ranges ...')
+    print('\n2-5. Plotting the time series of state index for different alchemical ranges ...')
     analyze_traj.plot_state_trajs(
         state_trajs_for_sim,
         EEXE.state_ranges,
@@ -189,7 +200,7 @@ def main():
     )
 
     # 2-6. Plot the histograms of state index for different alchemical ranges
-    print('2-6. Plotting the histograms of state index for different alchemical ranges')
+    print('\n2-6. Plotting the histograms of state index for different alchemical ranges')
     analyze_traj.plot_state_hist(
         state_trajs_for_sim,
         EEXE.state_ranges,

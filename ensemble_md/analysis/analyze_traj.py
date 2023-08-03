@@ -266,12 +266,13 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
 
 def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_prefix='Trajectory'):
     """
-    Plots the time series of states visited by each trajectory in a subplot.
+    Plots the time series of state index.
 
     Parameters
     ----------
     trajs : list
-        A list of arrays that represent the state space trajectories of all continuous trajectories.
+        A list of state index time series either from different continuous trajectories or from different
+        alchemical ranges (i.e. from different simulation folders).
     state_ranges : list
         A list of lists of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
     fig_name : str
@@ -363,7 +364,8 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
     Parameters
     ----------
     trajs : list
-        A list of arrays that represent the state space trajectories of all continuous trajectories.
+        A list of state index time series either from different continuous trajectories or from different
+        alchemical ranges (i.e. from different simulation folders).
     state_ranges : list
         A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.EnsembleEXE`.)
     fig_name : str
@@ -386,7 +388,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
     Returns
     -------
     hist_data : list
-        The histogram data of the state index for each trajectory.
+        The histogram data of the each state index time series.
     """
     n_configs = len(trajs)
     n_states = max(max(state_ranges)) + 1
@@ -481,6 +483,35 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
         plt.savefig(f'{fig_name}', dpi=600)
 
     return hist_data
+
+
+def calculate_hist_rmse(hist_data, state_ranges):
+    """
+    Calculates the RMSE of accumulated histogram counts of the state index. The reference
+    is determined by assuming all alchemical states have equal chances to be visited, i.e.
+    the alchemical weights are perfect.
+
+    Parameters
+    ----------
+    hist_data : list
+        The histogram data of the state index for each trajectory.
+    state_ranges : list
+        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.EnsembleEXE`.)
+
+    Returns
+    -------
+    rmse : float
+        The RMSE value of accumulated histogram counts of the state index.
+    """
+    N = np.max(state_ranges) + 1  # the number of states
+    n_accessible = np.histogram(state_ranges, bins=np.arange(-0.5, N + 0.5))[0]
+    n_samples = np.sum(hist_data)  # Should be equal to (n_iter * nst_sim / nstdhdl + 1) * n_sim
+    n_states_sum = np.sum(n_accessible)  # n_sub * n_sim
+    hist_ref = n_samples * (n_accessible / n_states_sum)  # may not be all integers but should be fine
+    hist_acc = np.sum(hist_data, axis=0)
+    rmse = np.sqrt(np.sum((hist_acc - hist_ref) ** 2) / len(hist_ref))
+
+    return rmse
 
 
 def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
