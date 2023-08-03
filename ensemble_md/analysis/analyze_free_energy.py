@@ -101,23 +101,23 @@ def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
     return preprocessed_u_nk, preprocessed_dHdl
 
 
-def _calculate_df_adjacent(data, df_method="MBAR"):
+def _apply_estimators(data, df_method="MBAR"):
     """
-    An Internal function that generates a list of estimators fitting the input data
-    and calculates at list of free energy between adjacent states for all replicas.
+    An internal function that generates a list of estimators fitting the input data.
 
     Parameters
     ----------
     data : pd.Dataframe
         A list of dHdl or u_nk dataframes obtained from all replicas of the EEXE simulation of interest.
         Preferrably, the dHdl or u_nk data should be preprocessed by the function proprocess_data.
+    df_method : str
+        The selected free energy estimator. Options include "MBAR", "BAR" and "TI".
 
     Returns
     -------
-    df_adjacent : list
-        A list of free energy differences between adjacent states for all replicas.
-    df_err_adjacent : list
-        A list of uncertainties corresponding to the values of df_adjacent.
+    estimators : list
+        A list of estimators fitting the input data for all replicas. With this, the user
+        can access all the free energies and their associated uncertainties for all states and replicas.
     """
     n_sim = len(data)
     estimators = []  # A list of objects of the corresponding class in alchemlyb.estimators
@@ -131,6 +131,28 @@ def _calculate_df_adjacent(data, df_method="MBAR"):
         else:
             raise ParameterError('Specified estimator not available.')
 
+    return estimators
+
+
+def _calculate_df_adjacent(estimators):
+    """
+    An Internal function that calculates at list of free energy between adjacent
+    states for all replicas.
+
+    Parameters
+    ----------
+    estimators : list
+        A list of estimators fitting the input data for all replicas. With this, the user
+        can access all the free energies and their associated uncertainties for all states and replicas.
+
+    Returns
+    -------
+    df_adjacent : list
+        A list of free energy differences between adjacent states for all replicas.
+    df_err_adjacent : list
+        A list of uncertainties corresponding to the values of df_adjacent.
+    """
+    n_sim = len(estimators)
     df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
     df_err_adjacent = [list(np.array(estimators[i].d_delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
 
@@ -226,7 +248,8 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     """
     n_sim = len(data)
     n_tot = state_ranges[-1][-1] + 1
-    df_adjacent, df_err_adjacent = _calculate_df_adjacent(data, df_method)
+    estimators = _apply_estimators(data, df_method)
+    df_adjacent, df_err_adjacent = _calculate_df_adjacent(estimators)
     df, df_err, overlap_bool = _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagated_err=True)
 
     if err_method == 'bootstrap':
@@ -238,7 +261,8 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
         sampled_data_all = [data[i].sample(n=len(data[i]) * n_bootstrap, replace=True, random_state=seed) for i in range(n_sim)]  # noqa: E501
         for b in range(n_bootstrap):
             sampled_data = [sampled_data_all[i].iloc[b * len(data[i]):(b + 1) * len(data[i])] for i in range(n_sim)]
-            df_adjacent, df_err_adjacent = _calculate_df_adjacent(sampled_data, df_method)
+            bootstrap_estimators = _apply_estimators(sampled_data, df_method)
+            df_adjacent, df_err_adjacent = _calculate_df_adjacent(bootstrap_estimators)
             df_sampled, _, overlap_bool = _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagated_err=False)  # noqa: E501
             df_bootstrap.append(df_sampled)
         error_bootstrap = np.std(df_bootstrap, axis=0, ddof=1)
@@ -255,7 +279,40 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     f = [sum(df[:(i + 1)]) for i in range(len(df))]
     f_err = [np.sqrt(sum([x**2 for x in df_err[:(i+1)]])) for i in range(len(df_err))]
 
-    return f, f_err
+    return f, f_err, estimators
+
+
+def calculate_df_rmse(estimators, df_ref, state_ranges):
+    """
+    Calculates the RMSE values of the free energy profiles of different alchemical ranges given the reference free
+    energy profile for the whole range of states.
+
+    Parameters
+    ----------
+    estimators : list
+        A list of estimators fitting the input data for all replicas. With this, the user
+        can access all the free energies and their associated uncertainties for all states and replicas.
+    df_ref : list
+        A list of values corresponding to the free energies of the whole range of states. The length
+        of the list should be equal to the number of states in total.
+    state_ranges : list
+        A list of lists of intergers that represents the alchemical states that can be sampled by different replicas.
+
+    Returns
+    -------
+    rmse_list : list
+        A list of RMSE values of the free energy profiles of different alchemical ranges.
+    """
+    n_sim = len(estimators)
+    df_ref = np.array(df_ref)
+    rmse_list = []
+    for i in range(n_sim):
+        df = np.array(estimators[i].delta_f_.iloc[0])  # the first state always has 0 free energy here
+        ref = df_ref[state_ranges[i]]
+        ref -= ref[0]   # shift the free energy of the first state in the range to 0
+        rmse_list.append(np.sqrt(np.sum((df - ref) ** 2) / len(df)))
+
+    return rmse_list
 
 
 def plot_free_energy(f, f_err, fig_name):

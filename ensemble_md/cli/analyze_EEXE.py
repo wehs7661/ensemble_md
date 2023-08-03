@@ -375,16 +375,21 @@ def main():
 
         state_ranges = [list(i) for i in EEXE.state_ranges]
         if EEXE.get_u_nk is True:
-            f, f_err = analyze_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
+            f, f_err, estimators = analyze_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
         else:
-            f, f_err = analyze_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
+            f, f_err, estimators = analyze_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
 
         print('Plotting the full-range free energy profile ...')
         analyze_free_energy.plot_free_energy(f, f_err, f'{args.dir}/free_energy_profile.png')
 
         print('The full-range free energy profile averaged over all replicas:')
-        print(f"  {', '.join(f'{f[i]: .3f} +/- {f_err[i]: .3f} kT' for i in range(EEXE.n_tot))}")
-        print(f'The free energy difference between the coupled and decoupled states: {f[-1]: .3f} +/- {f_err[-1]: .3f} kT')  # noqa: E501
+        print(f"  {', '.join(f'{f[i]:.3f} +/- {f_err[i]:.3f} kT' for i in range(EEXE.n_tot))}")
+        print(f'The free energy difference between the coupled and decoupled states: {f[-1]:.3f} +/- {f_err[-1]:.3f} kT')  # noqa: E501
+
+        if EEXE.df_ref is not None:
+            rmse_list = analyze_free_energy.calculate_df_rmse(estimators, EEXE.df_ref, EEXE.state_ranges)
+            for i in range(EEXE.n_sim):
+                print(f'RMSE of the free energy profile for alchemical range {i} (states {EEXE.state_ranges[i][0]} to {EEXE.state_ranges[i][-1]}): {rmse_list[i]:.2f} kT')  # noqa: E501
 
     # Section 4. Calculate the time spent in GROMACS (This could take a while.)
     t_wall_tot, t_sync, _ = utils.analyze_EEXE_time()

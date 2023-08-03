@@ -172,6 +172,7 @@ class EnsembleEXE:
             "msm": False,
             "free_energy": False,
             "df_spacing": 1,
+            "df_ref": None,
             "df_method": "MBAR",
             "err_method": "propagate",
             "n_bootstrap": 50,
