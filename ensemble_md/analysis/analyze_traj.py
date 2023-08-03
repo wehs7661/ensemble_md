@@ -119,7 +119,7 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True
 
 def stitch_trajs_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
     """
-    Stitches the state-space/CV-space trajectories in the same replica/simulation folder.
+    Stitches the state-space/CV-space time series in the same replica/simulation folder.
     That is, the output time series is contributed by multiple different trajectories (initiated by
     different starting configurations) to a certain alchemical range.
 
@@ -163,6 +163,9 @@ def stitch_trajs_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
 
             if dhdl:
                 traj = list(np.array(traj) + shifts[i])
+
+            if j != 0:
+                traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
             trajs[i].extend(traj)
 
     # Save the trajectories as an NPY file if desired
@@ -355,7 +358,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_pre
 
 def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, prefix='Trajectory', subplots=False, save_hist=True):  # noqa: E501
     """
-    Plots the histograms of the state index for each trajectory.
+    Plots state index histograms.
 
     Parameters
     ----------

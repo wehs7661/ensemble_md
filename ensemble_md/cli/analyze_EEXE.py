@@ -60,6 +60,13 @@ def initialize(args):
                         help='The NPY file containing the stitched state-space trajectory. \
                             If the specified file is not found, the code will try to find all the trajectories and \
                             stitch them. (Default: state_trajs.npy)')
+    parser.add_argument('-sts',
+                        '--state_trajs_for_sim',
+                        type=str,
+                        default='state_trajs_for_sim.py',
+                        help='The NPY file containing the stitched state-space time series for different alchemical\
+                             ranges. If the specified file is not found, the code will try to find all the \
+                             time series and stitch them. (Default: state_trajs.npy)')
     parser.add_argument('-d',
                         '--dir',
                         default='analysis',
@@ -141,36 +148,66 @@ def main():
     print('\n[ Section 2. Analysis based on transitions between states ]')
     section_idx += 1
 
-    # 2-0. Recover all continuous trajectories
+    # 2-1. Recover all continuous trajectories
     if os.path.isfile(args.state_trajs) is True:
-        print('2-0. Reading in the stitched state-space trajectory ...')
+        print('2-1. Reading in the stitched state-space trajectory ...')
         state_trajs = np.load(args.state_trajs)
     else:
         # This may take a while.
-        print('2-0. Stitching trajectories for each starting configuration from dhdl files ...')
+        print('2-1. Stitching trajectories for each starting configuration from dhdl files ...')
         dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
         shifts = np.arange(EEXE.n_sim) * EEXE.s
         state_trajs = analyze_traj.stitch_trajs(dhdl_files, rep_trajs, shifts=shifts, save=True)  # length: the number of replicas  # noqa: E501
 
-    # 2-1. Plot the state-space trajectory
-    print('\n2-1. Plotting transitions between different alchemical states ...')
+    # 2-2. Plot the state-space trajectory
+    print('\n2-2. Plotting transitions between different alchemical states ...')
     dt_traj = EEXE.dt * EEXE.template['nstdhdl']  # in ps
     analyze_traj.plot_state_trajs(state_trajs, EEXE.state_ranges, f'{args.dir}/state_trajs.png', dt_traj)
 
-    # 2-2. Plot the histograms for the states
-    print('\n2-2. Plotting the histograms of the state index ...')
+    # 2-3. Plot the histograms of state index for different trajectories
+    print('\n2-3. Plotting the histograms of the state index for different trajectories ...')
     analyze_traj.plot_state_hist(state_trajs, EEXE.state_ranges, f'{args.dir}/state_hist.png')
 
-    # 2-3. Plot the overall state transition matrices calculated from the state-space trajectories
-    print('\n2-3. Plotting the overall state transition matrices ...')
+    # 2-4. Stitch the time series of state index for different alchemical ranges
+    if os.path.isfile(args.state_trajs_for_sim) is True:
+        print('2-4. Reading in the stitched time series of state index for different alchemical ranges ...')
+        state_trajs_for_sim = np.load(args.state_trajs_for_sim)
+    else:
+        # This may take a while.
+        print('2-4. Stitching time series of state index for each alchemical range ...')
+        dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
+        shifts = np.arange(EEXE.n_sim) * EEXE.s
+        state_trajs_for_sim = analyze_traj.stitch_trajs_for_sim(dhdl_files, shifts)
+
+    # 2-5. Plot the time series of state index for different alchemical ranges
+    print('2-5. Plotting the time series of state index for different alchemical ranges ...')
+    analyze_traj.plot_state_trajs(
+        state_trajs_for_sim,
+        EEXE.state_ranges,
+        f'{args.dir}/state_trajs_for_sim.png',
+        title_prefix='Alchemical range'
+    )
+
+    # 2-6. Plot the histograms of state index for different alchemical ranges
+    print('2-6. Plotting the histograms of state index for different alchemical ranges')
+    analyze_traj.plot_state_hist(
+        state_trajs_for_sim,
+        EEXE.state_ranges,
+        f'{args.dir}/state_hist_for_sim.png',
+        prefix='Alchemical range',
+        subplots=True
+    )
+
+    # 2-7. Plot the overall state transition matrices calculated from the state-space trajectories
+    print('\n2-7. Plotting the overall state transition matrices from different trajectories ...')
     mtx_list = []
     for i in range(EEXE.n_sim):
         mtx = analyze_traj.traj2transmtx(state_trajs[i], EEXE.n_tot)
         mtx_list.append(mtx)
         analyze_matrix.plot_matrix(mtx, f'{args.dir}/traj_{i}_state_transmtx.png')
 
-    # 2-4. For each configurration, calculate the spectral gap of the overall transition matrix obtained in step 2-2.
-    print('\n2-4. Calculating the spectral gap of the state transition matrices ...')
+    # 2-8. For each trajectory, calculate the spectral gap of the overall transition matrix obtained in step 2-2.
+    print('\n2-8. Calculating the spectral gap of the state transition matrices ...')
     results = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]  # a list of tuples
     spectral_gaps = [results[i][0] if None not in results else None for i in range(len(results))]
     eig_vals = [results[i][1] if None not in results else None for i in range(len(results))]
@@ -179,8 +216,8 @@ def main():
             print(f'   - Trajectory {i}: {spectral_gaps[i]:.3f} (λ_1: {eig_vals[i][0]:.5f}, λ_2: {eig_vals[i][1]:.5f})')  # noqa: E501
         print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
 
-    # 2-5. For each trajectory, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
-    print('\n2-5. Calculating the stationary distributions ...')
+    # 2-9. For each trajectory, calculate the stationary distribution from the overall transition matrix obtained in step 2-2.  # noqa: E501
+    print('\n2-9. Calculating the stationary distributions ...')
     pi_list = [analyze_matrix.calc_equil_prob(mtx) for mtx in mtx_list]
     if any([x is None for x in pi_list]):
         pass  # None is in the list
@@ -190,15 +227,15 @@ def main():
         if len({len(i) for i in pi_list}) == 1:  # all lists in pi_list have the same length
             print(f'   - Average of the above: {", ".join([f"{i:.3f}" for i in np.mean(pi_list, axis=0).reshape(-1)])}')  # noqa: E501
 
-    # 2-6. Calculate the state index correlation time for each trajectory (this step is more time-consuming one)
-    print('\n2-6. Calculating the state index correlation time ...')
+    # 2-10. Calculate the state index correlation time for each trajectory (this step is more time-consuming one)
+    print('\n2-10. Calculating the state index correlation time ...')
     tau_list = [(pymbar.timeseries.statistical_inefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(EEXE.n_sim)]  # noqa: E501
     for i in range(EEXE.n_sim):
         print(f'   - Trajectory {i}: {tau_list[i]:.1f} ps')
     print(f'   - Average of the above: {np.mean(tau_list):.1f} ps (std: {np.std(tau_list, ddof=1):.1f} ps)')
 
-    # 2-7. Calculate transit times for each trajectory
-    print('\n2-7. Plotting the average transit times ...')
+    # 2-11. Calculate transit times for each trajectory
+    print('\n2-11. Plotting the average transit times ...')
     t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, dt=dt_traj, folder=args.dir)  # noqa: E501
     meta_list = [t_0k_list, t_k0_list, t_roundtrip_list]
     t_names = [
