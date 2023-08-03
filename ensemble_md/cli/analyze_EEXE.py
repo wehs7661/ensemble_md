@@ -391,4 +391,4 @@ def main():
     print(f'\nTotal wall time GROMACS spent to finish all iterations: {utils.format_time(t_wall_tot)}')
     print(f'Total time spent in syncrhonizing all replicas: {utils.format_time(t_sync)}')
 
-    print(f'\nTime elpased: {utils.format_time(time.time() - t0)}')
+    print(f'\nTime spent in data analysis: {utils.format_time(time.time() - t0)}')

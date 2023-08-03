@@ -567,11 +567,12 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                 t_0k = list(np.array(t_0k) * dt)  # units: ps
                 t_k0 = list(np.array(t_k0) * dt)  # units: ps
                 t_roundtrip = list(np.array(t_roundtrip) * dt)  # units: ps
-                if np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
-                    units = 'ns'
-                    t_0k = list(np.array(t_0k) / 1000)   # units: ns
-                    t_k0 = list(np.array(t_k0) / 1000)   # units: ns
-                    t_roundtrip = list(np.array(t_roundtrip) / 1000)   # units: ns
+                if len(t_0k) + len(t_k0) + len(t_roundtrip) > 0:  # i.e. not all are empty
+                    if np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
+                        units = 'ns'
+                        t_0k = list(np.array(t_0k) / 1000)   # units: ns
+                        t_k0 = list(np.array(t_k0) / 1000)   # units: ns
+                        t_roundtrip = list(np.array(t_roundtrip) / 1000)   # units: ns
 
             t_0k_list.append(t_0k)
             t_0k_avg.append(np.mean(t_0k))
@@ -582,8 +583,9 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             t_roundtrip_list.append(t_roundtrip)
             t_roundtrip_avg.append(np.mean(t_roundtrip))
 
-            if sci is False and np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
-                sci = True
+            if len(t_0k) + len(t_k0) + len(t_roundtrip) > 0:  # i.e. not all are empty
+                if sci is False and np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
+                    sci = True
         else:
             t_0k_list.append([])
             t_k0_list.append([])
