@@ -169,6 +169,7 @@ class EnsembleEXE:
             "grompp_args": None,
             "runtime_args": None,
             "n_ckpt": 100,
+            "rm_cpt": True,
             "msm": False,
             "free_energy": False,
             "df_spacing": 1,
@@ -228,7 +229,7 @@ class EnsembleEXE:
         if self.N_cutoff < 0 and self.N_cutoff != -1:
             raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
 
-        params_str = ['gro', 'top', 'mdp']
+        params_str = ['gro', 'top', 'mdp', 'gmx_executable']
         # First check if self.gro and self.top are lists and check their lengths
         check_files = ['gro', 'top']  # just for checking file types that can take multiple inputs
         for i in check_files:
@@ -236,14 +237,26 @@ class EnsembleEXE:
                 params_str.remove(i)
                 if len(getattr(self, i)) != self.n_sim:
                     raise ParameterError(f"The number of the input {i.upper()} files must be the same as the number of replicas, if multiple are specified.")  # noqa: E501
+        if self.modify_coords is not None:
+            params_str.append('modify_coords')
         for i in params_str:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['verbose', 'msm']
+        params_bool = ['verbose', 'rm_cpt', 'w_combine', 'msm', 'free_energy']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
+
+        params_list = ['add_swappables', 'df_ref']
+        for i in params_list:
+            if getattr(self, i) is not None and not isinstance(getattr(self, i), list):
+                raise ParameterError(f"The parameter '{i}' should be a list.")
+
+        params_dict = ['mdp_args', 'grompp_args', 'runtime_args']
+        for i in params_dict:
+            if getattr(self, i) is not None and not isinstance(getattr(self, i), dict):
+                raise ParameterError(f"The parameter '{i}' should be a dictionary.")
 
         if self.add_swappables is not None:
             if not isinstance(self.add_swappables, list):
@@ -1344,6 +1357,8 @@ class EnsembleEXE:
             returncode, stdout, stderr = self.run_gmx_cmd(arguments)
             if returncode != 0:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
+            if self.rm_cpt is True:
+                os.remove('state.cpt')
             os.chdir('../../')
 
         # gather return codes at rank 0

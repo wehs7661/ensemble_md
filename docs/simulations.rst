@@ -209,7 +209,7 @@ iterations (:code:`n_iterations`) is reached.
 
 3. Input YAML parameters
 ========================
-In the current implementation of the algorithm, 27 parameters can be specified in the input YAML file.
+In the current implementation of the algorithm, 28 parameters can be specified in the input YAML file.
 Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
@@ -242,7 +242,7 @@ include parameters for data analysis here.
       exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Notably, unlike
       the parameters :code:`gro` and :code:`top`, only one MDP file can be specified for the parameter :code:`mdp`. If you wish to use
       different parameters for different replicas, please use the parameter :code:`mdp_args`.
-  - :code:`modify_coords`: (Optional)
+  - :code:`modify_coords`: (Optional, Default: :code:`None`)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
       before the coordinate exchange, which is generally required in EEXE simulations for multiple serial mutations.
       For the CLI :code:`run_EEXE` to work, here is the predefined contract for the module/function based on the assumptions :code:`run_EEXE` makes.
@@ -298,7 +298,7 @@ include parameters for data analysis here.
   - :code:`grompp_args`: (Optional: Default: :code:`None`)
       Additional arguments to be appended to the GROMACS :code:`grompp` command provided in a dictionary.
       For example, one could have :code:`{'-maxwarn', '1'}` to specify the :code:`maxwarn` argument for the :code:`grompp` command.
-  - :code:`runtime_args`: (Optional, Default: :code:`{}`)
+  - :code:`runtime_args`: (Optional, Default: :code:`None`)
       Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. 
       For example, one could have :code:`{'-nt': 16}` to run the simulation using tMPI-enabled GROMACS with 16 threads.
       Notably, if MPI-enabled GROMACS is used, one should specify :code:`-np` to better use the resources. If it is
@@ -310,6 +310,11 @@ include parameters for data analysis here.
       Whether a verbse log is wanted. 
   - :code:`n_ckpt`: (Optional, Default: 100)
       The frequency for checkpointing in the number of iterations.
+  - :code:`rm_cpt`: (Optional, Default: :code:`True`)
+      Whether the GROMACS checkpoint file (:code:`state.cpt`) from each iteration should be deleted.
+      Normally we don't need CPT files for EEXE simulations (even for extension) so we recommend just
+      deleting the CPT files (which could save a lot of space if you perform a huge number of iterations).
+      If you wish to keep them, specify this parameter as :code:`False`.
   
 .. _doc_analysis_params:
 
@@ -322,6 +327,8 @@ include parameters for data analysis here.
       could be computationally expensive depending on the relevant settings.
   - :code:`df_spacing`: (Optional, Default: 1)
       The step to used in subsampling the DHDL data in free energy calculations.
+  - :code:`df_ref`: (Optional, Default: :code:`None`)
+      The reference free energy profile for the whole range of states input as a list having the length of the number of states.
   - :code:`df_method`: (Optional, Default: :code:`MBAR`)
       The free energy estimator to use in free energy calcuulation. Available options include :code:`TI`, :code:`BAR`, and :code:`MBAR`.
   - :code:`err_method`: (Optional, Default: :code:`propagate`)
@@ -343,7 +350,7 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
 .. code-block:: yaml
 
     # Section 1: Runtime configuration
-    gmx_executable:
+    gmx_executable: 'gmx_mpi'
 
     # Section 2: Input files
     gro:
@@ -369,11 +376,13 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     # Section 4: Output settings
     verbose: True
     n_ckpt: 100
+    rm_cpt: False
 
     # Section 5: Data analysis
     msm: False
     free_energy: False 
     df_spacing: 1
+    df_ref: null
     df_method: "MBAR"
     err_method: "propagate"
     n_bootstrap: 50
