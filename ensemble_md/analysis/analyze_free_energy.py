@@ -24,81 +24,64 @@ from ensemble_md.utils import utils  # noqa: E402
 from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 
-def preprocess_data(files, temp, spacing=1, get_u_nk=True, get_dHdl=False):
+def preprocess_data(files_list, temp, data_type, spacing=1):
     """
-    This function preprocesses :math:`dH/dλ` data obtained from the EEXE simulation.
-    For each replica, it reads in :math:`dH/dλ` data from all iterations, concatenate
+    This function preprocesses :math:`u_{nk}`/:math:`dH/dλ` data for all replicas in an EEXE simulation.
+    For each replica, it reads in :math:`u_{nk}`/:math:`dH/dλ` data from all iterations, concatenate
     them, remove the equilibrium region and and decorrelate the concatenated data. Notably,
     the data preprocessing protocol is basically the same as the one adopted in
     :code:`alchemlyb.subsampling.equilibrium_detection`.
 
     Parameters
     ----------
-    files : list
-        A list of naturally sorted dhdl files from all iterations of one replica.
+    files_list : list
+        A list of lists of naturally sorted dhdl file names from all iterations for different replicas.
+        :code:`files[i]` should be the list of dhdl file names from all iterations of replica :code:`i`.
     temp : float
-        The simulation temperature in Kelvin.
+        The simulation temperature in Kelvin. We assume all replicas were performed at the same temperature.
     spacing : int
-        The spacing (number of data points) to consider when subsampling the data.
-    get_u_nk : bool
-        Whether to get the u_nk data from the dhdl files. The default is True.
-    get_dHdl : bool
-        Whether to get the dHdl data from the dhdl files. the default is False.
+        The spacing (number of data points) to consider when subsampling the data, which is assumed to
+        be the same for all replicas.
 
     Returns
     -------
-    preprocessed_u_nk : pd.Dataframe
-        The preprocessed dHdl data that can serve as the input to free energy estimators.
-    preprocessed_dHdl : pd.Dataframe
-        The preprocessed dHdl data that can serve as the input to free energy estimators.
+    preprocessed_data_all : pd.Dataframe
+        A list of preprocessed :math:`u_{nk}`/:math:`dH/dλ` data for all replicas that can serve as the
+        input to free energy estimators.
     """
-    if get_u_nk is True:
-        print('Collecting u_nk data from all iterations ...')
-        u_nk = alchemlyb.concat([extract_u_nk(xvg, T=temp) for xvg in files])
-        u_nk_series = subsampling.u_nk2series(u_nk)  # default method: 'dE'
-        u_nk, u_nk_series = subsampling._prepare_input(u_nk, u_nk_series, drop_duplicates=True, sort=True)
-        u_nk = subsampling.slicing(u_nk, step=spacing)
-        u_nk_series = subsampling.slicing(u_nk_series, step=spacing)
+    if data_type == 'u_nk':
+        extract_fn, convert_fn = extract_u_nk, subsampling.u_nk2series
+    elif data_type == 'dhdl':
+        extract_fn, convert_fn = extract_dHdl, subsampling.dhdl2series
+    else:
+        raise ValueError("Invalid data_type. Expected 'u_nk' or 'dhdl'.")
 
-        print('Subsampling and decorrelating the concatenated u_nk data ...')
-        t, statinef, Neff_max = detect_equilibration(u_nk_series.values)
+    n_sim = len(files_list)
+    preprocessed_data_all = []
+    for i in range(n_sim):
+        print(f'Reading dhdl files of alchemical range {i} ...')
+        print(f'Collecting {data_type} data from all iterations ...')
+        data = alchemlyb.concat([extract_fn(xvg, T=temp) for xvg in files_list[i]])
+        data_series = convert_fn(data)
+        data, data_series = subsampling._prepare_input(data, data_series, drop_duplicates=True, sort=True)
+        data = subsampling.slicing(data, step=spacing)
+        data_series = subsampling.slicing(data_series, step=spacing)
+
+        print(f'Subsampling and decorrelating the concatenated {data_type} data ...')
+        t, statinef, Neff_max = detect_equilibration(data_series.values)
 
         print(f'  Adopted spacing: {spacing: .0f}')
-        print(f' {t / len(u_nk_series) * 100: .1f}% of the u_nk data was in the equilibrium region and therfore discarded.')  # noqa: E501
-        print(f'  Statistical inefficiency of u_nk: {statinef: .1f}')
+        print(f' {t / len(data_series) * 100: .1f}% of the {data_type} data was in the equilibrium region and therfore discarded.')  # noqa: E501
+        print(f'  Statistical inefficiency of {data_type}: {statinef: .1f}')
         print(f'  Number of effective samples: {Neff_max: .0f}\n')
 
-        u_nk_series_equil, u_nk_equil = u_nk_series[t:], u_nk[t:]
-        indices = subsample_correlated_data(u_nk_series_equil, g=statinef)
-        preprocessed_u_nk = u_nk_equil.iloc[indices]
+        data_series_equil, data_equil = data_series[t:], data[t:]
+        indices = subsample_correlated_data(data_series_equil, g=statinef)
+        preprocessed_data = data_equil.iloc[indices]
 
-    else:
-        preprocessed_u_nk = None
+        preprocessed_data_all.append(preprocessed_data)
 
-    if get_dHdl is True:
-        print('Collecting dHdl data from all iterations ...')
-        dHdl = alchemlyb.concat([extract_dHdl(xvg, T=temp) for xvg in files])
-        dHdl_series = subsampling.dhdl2series(dHdl)  # default method: 'dE'
-        dHdl, dHdl_series = subsampling._prepare_input(dHdl, dHdl_series, drop_duplicates=True, sort=True)
-        dHdl = subsampling.slicing(dHdl, step=spacing)
-        dHdl_series = subsampling.slicing(dHdl_series, step=spacing)
-
-        print('Subsampling and decorrelating the concatenated dHdl data ...')
-        t, statinef, Neff_max = detect_equilibration(dHdl_series.values)
-
-        print(f'  Adopted spacing: {spacing: .0f}')
-        print(f' {t / len(dHdl_series) * 100: .1f}% of the dHdl data was in the equilibrium region and therfore discarded.')  # noqa: E501
-        print(f'  Statistical inefficiency of dHdl: {statinef: .1f}')
-        print(f'  Number of effective samples: {Neff_max: .0f}\n')
-
-        dHdl_series_equil, dHdl_equil = dHdl_series[t:], dHdl[t:]
-        indices = subsample_correlated_data(dHdl_series_equil, g=statinef)
-        preprocessed_dHdl = dHdl_equil.iloc[indices]
-
-    else:
-        preprocessed_dHdl = None
-
-    return preprocessed_u_nk, preprocessed_dHdl
+    return preprocessed_data_all
 
 
 def _apply_estimators(data, df_method="MBAR"):

@@ -76,10 +76,8 @@ class EnsembleEXE:
     :ivar configs: A list that thows the current configuration index that each replica is sampling.
     :ivar g_vecs: The time series of the (processed) whole-range alchemical weights. If no weight combination is
         applied, this list will just be a list of :code:`None`'s.
-    :ivar get_u_nk: Whether to get the :math:`u_{nk}` dataset from the DHDL files. Only meaningful during
-        data analysis and if :code:`df_method` is specified.
-    :ivar get_dHdl: Whether to get the :math:`dH/dλ` dataset from the DHDL files. Only meaningful
-        during data analysis and if :code:`df_method` is specified.
+    :ivar df_data_type: The type of data (either :math:`u_{nk}` or :math:`dH/dλ`) that will be used for
+        free energy calculations if :code:`df_method` is :code:`True`.
     :ivar modify_coords_fn: The function (callable) in the external module (specified as :code:`modify_coords` in
         the input YAML file) for modifying coordinates at exchanges.
     """
@@ -421,11 +419,9 @@ class EnsembleEXE:
 
         # 7-11. Data analysis
         if self.df_method == 'MBAR':
-            self.get_u_nk = True
-            self.get_dHdl = False
+            self.df_data_type = 'u_nk'
         else:
-            self.get_u_nk = False
-            self.get_dHdl = True
+            self.df_data_type = 'dhdl'
 
         # 7-12. External module for coordinate modification
         if self.modify_coords is not None:

@@ -395,37 +395,29 @@ def main():
         section_idx += 1
         print(f'\n[ Section {section_idx}. Free energy calculations ]')
 
-        u_nk_list, dHdl_list = [], []
+        # 4-1. Subsampling the data
+        data_list = []   # either a list of u_nk or a list of dhdl
+        if EEXE.df_data_type == 'u_nk':
+            if os.path.isfile(f'{args.dir}/u_nk_data.pickle') is True:
+                print('Loading the preprocessed data u_nk ...')
+                with open(f'{args.dir}/u_nk_data.pickle', 'rb') as handle:
+                    data_list = pickle.load(handle)
+        else:  # should always be 'dhdl'
+            if os.path.isfile(f'{args.dir}/dHdl_data.pickle') is True:
+                print('Loading the preprocessed data dHdl ...')
+                with open(f'{args.dir}/dHdl_data.pickle', 'rb') as handle:
+                    data_list = pickle.load(handle)
 
-        if os.path.isfile(f'{args.dir}/u_nk_data.pickle') is True:
-            print('Loading the preprocessed data u_nk ...')
-            with open(f'{args.dir}/u_nk_data.pickle', 'rb') as handle:
-                u_nk_list = pickle.load(handle)
+        if data_list == []:
+            files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.sim)]
+            data_list = analyze_free_energy.preprocess_data(files_list, EEXE.temp, EEXE.df_data_type, EEXE.df_spacing)
 
-        if os.path.isfile(f'{args.dir}/dHdl_data.pickle') is True:
-            print('Loading the preprocessed data dHdl ...')
-            with open(f'{args.dir}/dHdl_data.pickle', 'rb') as handle:
-                dHdl_list = pickle.load(handle)
+            with open(f'{args.dir}/{EEXE.df_data_type}_data.pickle', 'wb') as handle:
+                pickle.dump(data_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        if u_nk_list == [] and dHdl_list == []:
-            for i in range(EEXE.n_sim):
-                print(f'Reading dhdl files of alchemical range {i} ...')
-                files = natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg'))
-                u_nk, dHdl = analyze_free_energy.preprocess_data(files, EEXE.temp, EEXE.df_spacing, EEXE.get_u_nk, EEXE.get_dHdl)  # noqa: E501
-                u_nk_list.append(u_nk)
-                dHdl_list.append(dHdl)
-
-            with open(f'{args.dir}/u_nk_data.pickle', 'wb') as handle:
-                pickle.dump(u_nk_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-            with open(f'{args.dir}/dHdl_data.pickle', 'wb') as handle:
-                pickle.dump(dHdl_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
+        # 4-2. Calculate the free energy profile
         state_ranges = [list(i) for i in EEXE.state_ranges]
-        if EEXE.get_u_nk is True:
-            f, f_err, estimators = analyze_free_energy.calculate_free_energy(u_nk_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
-        else:
-            f, f_err, estimators = analyze_free_energy.calculate_free_energy(dHdl_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
+        f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
 
         print('Plotting the full-range free energy profile ...')
         analyze_free_energy.plot_free_energy(f, f_err, f'{args.dir}/free_energy_profile.png')
