@@ -410,14 +410,13 @@ def main():
 
         if data_list == []:
             files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.sim)]
-            data_list = analyze_free_energy.preprocess_data(files_list, EEXE.temp, EEXE.df_data_type, EEXE.df_spacing)
+            data_list, t_list, g_list = analyze_free_energy.preprocess_data(files_list, EEXE.temp, EEXE.df_data_type, EEXE.df_spacing)  # noqa: E501
 
             with open(f'{args.dir}/{EEXE.df_data_type}_data.pickle', 'wb') as handle:
                 pickle.dump(data_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         # 4-2. Calculate the free energy profile
-        state_ranges = [list(i) for i in EEXE.state_ranges]
-        f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
+        f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, EEXE.state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
 
         print('Plotting the full-range free energy profile ...')
         analyze_free_energy.plot_free_energy(f, f_err, f'{args.dir}/free_energy_profile.png')
@@ -430,6 +429,31 @@ def main():
             rmse_list = analyze_free_energy.calculate_df_rmse(estimators, EEXE.df_ref, EEXE.state_ranges)
             for i in range(EEXE.n_sim):
                 print(f'RMSE of the free energy profile for alchemical range {i} (states {EEXE.state_ranges[i][0]} to {EEXE.state_ranges[i][-1]}): {rmse_list[i]:.2f} kT')  # noqa: E501
+
+        # 4-3. Recalculate the free energy profile if subsampling_avg is True
+        if EEXE.subsampling_avg is True:
+            print('\nUsing averaged start index of the equilibrated data and the avearged statistic inefficiency to re-perform free energy calculations ...')  # noqa: E501
+            t_avg = int(np.mean(t_list)) + 1   # Using the ceiling function to be a little more conservative
+            g_avg = np.array(g_list).prod() ** (1/len(g_list))  # geometric mean
+            print(f'Averaged start index: {t_avg}')
+            print(f'Averaged statistical inefficiency: {g_avg:.2f}')
+
+            data_list, _, _ = analyze_free_energy.preprocess_data(files_list, EEXE.temp, EEXE.df_data_type, EEXE.df_spacing, t_avg, g_avg)  # noqa: E501
+            with open(f'{args.dir}/{EEXE.df_data_type}_data_avg_subsampling.pickle', 'wb') as handle:
+                pickle.dump(data_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+            f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, EEXE.state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
+            print('Plotting the full-range free energy profile ...')
+            analyze_free_energy.plot_free_energy(f, f_err, f'{args.dir}/free_energy_profile_avg_subsampling.png')
+
+            print('The full-range free energy profile averaged over all replicas:')
+            print(f"  {', '.join(f'{f[i]:.3f} +/- {f_err[i]:.3f} kT' for i in range(EEXE.n_tot))}")
+            print(f'The free energy difference between the coupled and decoupled states: {f[-1]:.3f} +/- {f_err[-1]:.3f} kT')  # noqa: E501
+
+            if EEXE.df_ref is not None:
+                rmse_list = analyze_free_energy.calculate_df_rmse(estimators, EEXE.df_ref, EEXE.state_ranges)
+                for i in range(EEXE.n_sim):
+                    print(f'RMSE of the free energy profile for alchemical range {i} (states {EEXE.state_ranges[i][0]} to {EEXE.state_ranges[i][-1]}): {rmse_list[i]:.2f} kT')  # noqa: E501
 
     # Section 4. Calculate the time spent in GROMACS (This could take a while.)
     t_wall_tot, t_sync, _ = utils.analyze_EEXE_time()

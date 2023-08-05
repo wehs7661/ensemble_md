@@ -325,6 +325,11 @@ include parameters for data analysis here.
   - :code:`free_energy`: (Optional, Default: :code:`False`)
       Whether to perform free energy calculations in data analysis or not. Note that free energy calculations 
       could be computationally expensive depending on the relevant settings.
+  - :code:`subsampling_avg`: (Optional, Default: :code:`False`)
+      Whether to take the arithmetic average of the truncation fractions and the geometric average of the
+      statistical inefficiencies over replicas when subsampling data for free energy calculations. For systems
+      where the sampling is challenging, the truncation fraction or statistical inefficiency may vary largely
+      across alchemical ranges, in which case this option could be useful.
   - :code:`df_spacing`: (Optional, Default: 1)
       The step to used in subsampling the DHDL data in free energy calculations.
   - :code:`df_ref`: (Optional, Default: :code:`None`)

@@ -170,6 +170,7 @@ class EnsembleEXE:
             "rm_cpt": True,
             "msm": False,
             "free_energy": False,
+            "subsampling_avg": False,
             "df_spacing": 1,
             "df_ref": None,
             "df_method": "MBAR",
@@ -241,7 +242,7 @@ class EnsembleEXE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['verbose', 'rm_cpt', 'w_combine', 'msm', 'free_energy']
+        params_bool = ['verbose', 'rm_cpt', 'w_combine', 'msm', 'free_energy', 'subsampling_avg']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")

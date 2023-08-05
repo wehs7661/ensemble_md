@@ -210,13 +210,11 @@ class Test_EnsembleEXE:
 
         params_dict['df_method'] = 'MBAR'
         EEXE = get_EEXE_instance(params_dict)
-        assert EEXE.get_u_nk is True
-        assert EEXE.get_dHdl is False
+        assert EEXE.df_data_type == 'u_nk'
 
         params_dict['df_method'] = 'BAR'
         EEXE = get_EEXE_instance(params_dict)
-        assert EEXE.get_u_nk is False
-        assert EEXE.get_dHdl is True
+        assert EEXE.df_data_type == 'dhdl'
 
         params_dict['grompp_args'] = {'-maxwarn': 1}
         params_dict['runtime_args'] = {'-nt': 16, '-ntomp': 8}

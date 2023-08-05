@@ -24,7 +24,7 @@ from ensemble_md.utils import utils  # noqa: E402
 from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 
-def preprocess_data(files_list, temp, data_type, spacing=1):
+def preprocess_data(files_list, temp, data_type, spacing=1, t=None, g=None):
     """
     This function preprocesses :math:`u_{nk}`/:math:`dH/dλ` data for all replicas in an EEXE simulation.
     For each replica, it reads in :math:`u_{nk}`/:math:`dH/dλ` data from all iterations, concatenate
@@ -39,15 +39,29 @@ def preprocess_data(files_list, temp, data_type, spacing=1):
         :code:`files[i]` should be the list of dhdl file names from all iterations of replica :code:`i`.
     temp : float
         The simulation temperature in Kelvin. We assume all replicas were performed at the same temperature.
+    data_type : str
+        The type of energy data to be procssed. Should be either :code:`'u_nk'` or :code:`'dhdl'`.
     spacing : int
         The spacing (number of data points) to consider when subsampling the data, which is assumed to
         be the same for all replicas.
+    t : int
+        The user-specified index that indicates the start of equilibrated data. If this parameter is not specified,
+        the function will estimate it using :code:`pymbar.timeseries.detect_equilibration`.
+    g : int
+        The user-specified index that indicates the start of equilibrated data. If this parameter is not specified,
+        the function will estimate it using :code:`pymbar.timeseries.detect_equilibration`.
 
     Returns
     -------
     preprocessed_data_all : pd.Dataframe
         A list of preprocessed :math:`u_{nk}`/:math:`dH/dλ` data for all replicas that can serve as the
         input to free energy estimators.
+    t_list : list
+        A list of indices indicating the start of equilibrated data for different replicas. This list will
+        be empty if the parameter :code:`t` is specified.
+    g_list : list
+        A list of statistical inefficiencies of the equilibrated data for different replicas. This list will
+        be empty if the parameter :code:`g` is specified.
     """
     if data_type == 'u_nk':
         extract_fn, convert_fn = extract_u_nk, subsampling.u_nk2series
@@ -56,8 +70,12 @@ def preprocess_data(files_list, temp, data_type, spacing=1):
     else:
         raise ValueError("Invalid data_type. Expected 'u_nk' or 'dhdl'.")
 
+    user_specified = None
+    if t is None or g is None:
+        user_specified = False
+
     n_sim = len(files_list)
-    preprocessed_data_all = []
+    preprocessed_data_all, t_list, g_list = [], [], []
     for i in range(n_sim):
         print(f'Reading dhdl files of alchemical range {i} ...')
         print(f'Collecting {data_type} data from all iterations ...')
@@ -67,21 +85,28 @@ def preprocess_data(files_list, temp, data_type, spacing=1):
         data = subsampling.slicing(data, step=spacing)
         data_series = subsampling.slicing(data_series, step=spacing)
 
-        print(f'Subsampling and decorrelating the concatenated {data_type} data ...')
-        t, statinef, Neff_max = detect_equilibration(data_series.values)
+        if user_specified is False:
+            print('Estimating the start index of the equilibrated data and the statistical inefficiency ...')
+            t, g, Neff_max = detect_equilibration(data_series.values)
+            t_list.append(t)
+            g_list.append(g)
+        else:
+            # we only need to estimate Neff_max here.
+            Neff_max = int((len(data_series.values) - t) / g)
 
+        print(f'Subsampling and decorrelating the concatenated {data_type} data ...')
         print(f'  Adopted spacing: {spacing: .0f}')
         print(f' {t / len(data_series) * 100: .1f}% of the {data_type} data was in the equilibrium region and therfore discarded.')  # noqa: E501
-        print(f'  Statistical inefficiency of {data_type}: {statinef: .1f}')
+        print(f'  Statistical inefficiency of {data_type}: {g: .1f}')
         print(f'  Number of effective samples: {Neff_max: .0f}\n')
 
         data_series_equil, data_equil = data_series[t:], data[t:]
-        indices = subsample_correlated_data(data_series_equil, g=statinef)
+        indices = subsample_correlated_data(data_series_equil, g=g)
         preprocessed_data = data_equil.iloc[indices]
 
         preprocessed_data_all.append(preprocessed_data)
 
-    return preprocessed_data_all
+    return preprocessed_data_all, t_list, g_list
 
 
 def _apply_estimators(data, df_method="MBAR"):
