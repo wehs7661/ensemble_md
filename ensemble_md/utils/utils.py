@@ -17,6 +17,7 @@ import datetime
 import collections
 import numpy as np
 from itertools import combinations
+from collections import OrderedDict
 from ensemble_md.utils import gmx_parser
 
 
@@ -73,7 +74,8 @@ class Logger:
 def compare_MDPs(mdp_list):
     """
     Given a list of MDP files, identify the parameters for which not all MDP
-    files have the same values. (Currently, this function is not used in the
+    files have the same values. Note that this function is not aware of the default
+    values of GROMACS parameters. (Currently, this function is not used in the
     workflow adopted in :code:`run_EEXE.py` but it might be useful in some places,
     so we decided to keep it.)
 
@@ -85,8 +87,11 @@ def compare_MDPs(mdp_list):
     compare_list = list(combinations(mdp_list, r=2))
     diff_params = []
     for i in range(len(compare_list)):
-        mdp_1 = gmx_parser.MDP(compare_list[i][0])
-        mdp_2 = gmx_parser.MDP(compare_list[i][1])
+        params_1 = gmx_parser.MDP(compare_list[i][0])
+        params_2 = gmx_parser.MDP(compare_list[i][1])
+
+        mdp_1 = OrderedDict([(k.replace('-', '_'), v) if type(v) != str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_1.items()])  # noqa: E501
+        mdp_2 = OrderedDict([(k.replace('-', '_'), v) if type(v) != str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_2.items()])  # noqa: E501
 
         # First figure out the union set of the parameters and exclude blanks and comments
         all_params = set(list(mdp_1.keys()) + list(mdp_2.keys()))

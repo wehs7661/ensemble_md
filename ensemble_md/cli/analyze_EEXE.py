@@ -409,7 +409,7 @@ def main():
                     data_list = pickle.load(handle)
 
         if data_list == []:
-            files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.sim)]
+            files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
             data_list, t_list, g_list = analyze_free_energy.preprocess_data(files_list, EEXE.temp, EEXE.df_data_type, EEXE.df_spacing)  # noqa: E501
 
             with open(f'{args.dir}/{EEXE.df_data_type}_data.pickle', 'wb') as handle:

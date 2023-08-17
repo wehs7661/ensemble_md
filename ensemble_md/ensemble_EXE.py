@@ -279,7 +279,7 @@ class EnsembleEXE:
                     raise ParameterError("The number of values specified for each key in 'mdp_args' should be the same as the number of replicas.")  # noqa: E501
 
         # Step 5: Reformat the input MDP file to replace all hypens with underscores.
-        self.reformat_MDP(self.mdp)
+        self.reformatted_mdp = EnsembleEXE.reformat_MDP(self.mdp)
 
         # Step 6: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
@@ -517,7 +517,8 @@ class EnsembleEXE:
         if self.reformatted_mdp is True:
             print("Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.")  # noqa: E501
 
-    def reformat_MDP(self, mdp_file):
+    @staticmethod
+    def reformat_MDP(mdp_file):
         """
         Reformats the input MDP file so that all hyphens in the parameter names are replaced by underscores.
         If the input MDP file contains hyphens in its parameter names, the class attribue :code:`self.reformatted`
@@ -525,20 +526,28 @@ class EnsembleEXE:
         written to the original file path of the file, while the original file will be renamed with a
         :code:`_backup` suffix. If the input MDP file is not reformatted, the function sets
         the class attribute :code:`self.reformatted_mdp` to :code:`False`.
+
+        Returns
+        -------
+        reformatted : bool
+            Whether the file was reformatted.
         """
         params = gmx_parser.MDP(mdp_file)
 
         odict = OrderedDict([(k.replace('-', '_'), v) for k, v in params.items()])
         params_new = gmx_parser.MDP(None, **odict)
+        reformatted = None
 
         if rank == 0:
             if params_new.keys() == params.keys():
-                self.reformatted_mdp = False  # no need to reformat the file
+                reformatted = False  # no need to reformat the file
             else:
-                self.reformatted_mdp = True
+                reformatted = True
                 new_name = mdp_file.split('.mdp')[0] + '_backup.mdp'
                 os.rename(mdp_file, new_name)
                 params_new.write(mdp_file)
+
+        return reformatted
 
     def initialize_MDP(self, idx):
         """
