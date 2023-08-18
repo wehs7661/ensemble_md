@@ -6,6 +6,7 @@ Ensemble Molecular Dynamics
 [![Documentation Status](https://readthedocs.org/projects/ensemble-md/badge/?version=latest)](https://ensemble-md.readthedocs.io/en/latest/?badge=latest)
 [![GitHub Actions Lint Status](https://github.com/wehs7661/ensemble_md/actions/workflows/lint.yaml/badge.svg)](https://github.com/wehs7661/ensemble_md/actions/workflows/lint.yaml)
 [![PyPI version](https://badge.fury.io/py/ensemble-md.svg)](https://badge.fury.io/py/ensemble-md)
+[![DOI](https://img.shields.io/badge/DOI-arxiv.org%2Fabs%2F2308.06938-green)](https://arxiv.org/abs/2308.06938)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-license.org/)
 [![Downloads](https://static.pepy.tech/badge/ensemble-md)](https://pepy.tech/project/ensemble-md)
 [![Twitter Follow](https://img.shields.io/twitter/follow/WeiTseHsu?style=social)](https://twitter.com/WeiTseHsu)
