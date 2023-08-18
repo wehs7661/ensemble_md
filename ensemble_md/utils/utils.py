@@ -90,8 +90,8 @@ def compare_MDPs(mdp_list):
         params_1 = gmx_parser.MDP(compare_list[i][0])
         params_2 = gmx_parser.MDP(compare_list[i][1])
 
-        mdp_1 = OrderedDict([(k.replace('-', '_'), v) if type(v) != str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_1.items()])  # noqa: E501
-        mdp_2 = OrderedDict([(k.replace('-', '_'), v) if type(v) != str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_2.items()])  # noqa: E501
+        mdp_1 = OrderedDict([(k.replace('-', '_'), v) if type(v) is str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_1.items()])  # noqa: E501
+        mdp_2 = OrderedDict([(k.replace('-', '_'), v) if type(v) is str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_2.items()])  # noqa: E501
 
         # First figure out the union set of the parameters and exclude blanks and comments
         all_params = set(list(mdp_1.keys()) + list(mdp_2.keys()))

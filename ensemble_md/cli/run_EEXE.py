@@ -218,10 +218,19 @@ def main():
                 if rank == 0:
                     for j in range(len(swap_list)):
                         print('\nModifying the coordinates of the following output GRO files ...')
+                        # gro_1 and gro_2 are the simlation outputs (that we want to back up) and the inputs to modify_coords  # noqa: E501
                         gro_1 = f'sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
                         gro_2 = f'sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
                         print(f'  - {gro_1}\n  - {gro_2}')
-                        EEXE.modify_coords_fn(gro_1, gro_2)  # the order should not matter
+
+                        # Now we rename gro_1 and gro_2 to back them up
+                        gro_1_backup = gro_1.split('.gro')[0] + '_backup.gro'
+                        gro_2_backup = gro_2.split('.gro')[0] + '_backup.gro'
+                        os.rename(gro_1, gro_1_backup)
+                        os.rename(gro_2, gro_2_backup)
+
+                        # Here we input gro_1_backup and gro_2_backup and modify_coords_fn will save the modified gro files as gro_1 and gro_2  # noqa: E501
+                        EEXE.modify_coords_fn(gro_1_backup, gro_2_backup)  # the order should not matter
 
         # 4-2. Run another ensemble of simulations
         EEXE.run_EEXE(i, swap_pattern)
