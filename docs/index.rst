@@ -34,6 +34,7 @@ the future.
 .. toctree::
    examples/run_EEXE
    examples/analyze_EEXE
+   examples/run_EEXE_modify_inputs
    :maxdepth: 2
    :caption: Tutorials:
 

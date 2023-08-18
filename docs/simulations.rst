@@ -109,7 +109,7 @@ can use functions defined :class:`ensemble_EXE` to develop their own workflow, o
 to the source code of the CLI :code:`run_EEXE`. As an example, a hands-on tutorial that uses this workflow (using the CLI :code:`run_EEXE`) can be found in 
 `Tutorial 1: Ensemble of expanded ensemble`_. 
 
-.. _`Tutorial 1: Ensemble of expanded ensemble`: examples/EEXE_tutorial.ipynb
+.. _`Tutorial 1: Ensemble of expanded ensemble`: examples/run_EEXE.ipynb
 
 
 Step 1: Set up parameters
@@ -251,7 +251,9 @@ include parameters for data analysis here.
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
         - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on the order of the input GRO files. 
         - The function must return :code:`None` (i.e., no return value). 
-        - The function must save the modified GRO file as :code:`confout.gro`. Note that in the CLI :code:`run_EEXE`, :code:`confout.gro` generated as the simulation output will be automatically backed up to prevent overwriting.
+        - The function must save the modified GRO file as :code:`confout.gro`. Specifically, if :code:`directory_A/output.gro` and :code:`directory_B/output.gro` are input, then :code:`directory_A/confout.gro` and :code:`directory_B/confout.gro` must be saved. (For more information, please visit `Tutorial 3: EEXE for multiple serial mutations`_.) Note that in the CLI :code:`run_EEXE`, :code:`confout.gro` generated as the simulation output will be automatically backed up (with a :code:`_backup` suffix) to prevent overwriting.
+
+.. _`Tutorial 3: EEXE for multiple serial mutations`: examples/run_EEXE_modify_inputs.ipynb
         
 .. _doc_EEXE_parameters:
 
