@@ -39,7 +39,7 @@ def extract_state_traj(dhdl):
     return traj
 
 
-def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True):
+def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True):
     """
     Stitches the state-space/CV-space trajectories for each starting configuration from DHDL files
     or PLUMED output files generated at different iterations.
@@ -49,7 +49,7 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True
     files : list
         A list of lists of file names of GROMACS DHDL files or general GROMACS XVG files or PLUMED ouptput files.
         Specifically, :code:`files[i]` should be a list containing the files of interest from all iterations in
-        replica :code:`i`.
+        replica :code:`i`. The files should be sorted naturally.
     rep_trajs : list
         A list of lists that represents the replica space trajectories for each starting configuration. For example,
         :code:`rep_trajs[0] = [0, 2, 3, 0, 1, ...]` means that starting configuration 0 transitioned to replica 2, then
@@ -117,7 +117,7 @@ def stitch_trajs(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True
     return trajs
 
 
-def stitch_trajs_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
+def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
     """
     Stitches the state-space/CV-space time series in the same replica/simulation folder.
     That is, the output time series is contributed by multiple different trajectories (initiated by
@@ -128,7 +128,7 @@ def stitch_trajs_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
     files : list
         A list of lists of file names of GROMACS DHDL files or general GROMACS XVG files
         or PLUMED output files. Specifically, :code:`files[i]` should be a list containing
-        the files of interest from all iterations in replica :code:`i`.
+        the files of interest from all iterations in replica :code:`i`. The files should be sorted naturally.
     shifts : list
         A list of values for shifting the state indices for each replica. The length of the list
         should be equal to the number of replicas. This is only needed when :code:`dhdl=True`.
@@ -173,6 +173,42 @@ def stitch_trajs_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
         np.save('state_trajs_for_sim.npy', trajs)
 
     return trajs
+
+
+def stitch_trajs(gmx_executable, files, rep_trajs):
+    """
+    Demuxes GROMACS trajectories from different replicas into individual continuous trajectories.
+
+    Parameters
+    ----------
+    gmx_executable : str
+        The path to the GROMACS executable.
+    files : list
+        A list of lists of file names of GROMACS XTC files. Specifically, :code:`files[i]` should be a list containing
+        the files of interest from all iterations in replica :code:`i`. The files should be sorted naturally.
+    rep_trajs : list
+        A list of lists that represents the replica space trajectories for each starting configuration. For example,
+        :code:`rep_trajs[0] = [0, 2, 3, 0, 1, ...]` means that starting configuration 0 transitioned to replica 2, then
+        3, 0, 1, in iterations 1, 2, 3, 4, ..., respectively.
+    """
+    n_sim = len(files)      # number of replicas
+    n_iter = len(files[0])  # number of iterations per replica
+
+    # First figure out which xtc files each starting configuration corresponds to
+    # files_sorted[i] contains the xtc files for starting configuration i sorted
+    # based on iteration indices
+    files_sorted = [[] for i in range(n_sim)]
+    for i in range(n_sim):
+        for j in range(n_iter):
+            files_sorted[i].append(files[rep_trajs[i][j]][j])
+
+    # Then, stitch the trajectories for each starting configuration
+    for i in range(n_sim):
+        print(f'Concatenating trajectories initiated by configuration {i} ...')
+        arguments = [gmx_executable, 'trjcat', '-f']
+        arguments.extend(files_sorted[i])
+        arguments.extend(['-o', f'traj_{i}.xtc'])
+        utils.run_gmx_cmd(arguments)
 
 
 def traj2transmtx(traj, N, normalize=True):

@@ -1241,7 +1241,8 @@ class EnsembleEXE:
 
         return weights, g_vec
 
-    def run_gmx_cmd(self, arguments):
+    @staticmethod
+    def run_gmx_cmd(arguments):
         """
         Run a GROMACS command as a subprocess
 
@@ -1321,7 +1322,7 @@ class EnsembleEXE:
         if rank == 0:
             print('Generating TPR files ...')
         if rank < self.n_sim:
-            returncode, stdout, stderr = self.run_gmx_cmd(args_list[rank])
+            returncode, stdout, stderr = EnsembleEXE.run_gmx_cmd(args_list[rank])
             if returncode != 0:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
 
@@ -1360,7 +1361,7 @@ class EnsembleEXE:
             print('Running EXE simulations ...')
         if rank < self.n_sim:
             os.chdir(f'sim_{rank}/iteration_{n}')
-            returncode, stdout, stderr = self.run_gmx_cmd(arguments)
+            returncode, stdout, stderr = EnsembleEXE.run_gmx_cmd(arguments)
             if returncode != 0:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
             if self.rm_cpt is True:
