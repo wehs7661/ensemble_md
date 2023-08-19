@@ -33,13 +33,16 @@ def extract_state_traj(dhdl):
     -------
     traj : list
         A list that represents that state-space trajectory
+    t : list
+        A list that represents the time series of the trajectory
     """
     traj = list(extract_dataframe(dhdl, headers=get_headers(dhdl))['Thermodynamic state'])
+    t = list(np.loadtxt(dhdl, comments=['#', '@'])[:, 0])
 
-    return traj
+    return traj, t
 
 
-def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save=True):
+def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save_npy=True, save_xvg=False):
     """
     Stitches the state-space/CV-space trajectories for each starting configuration from DHDL files
     or PLUMED output files generated at different iterations.
@@ -67,8 +70,11 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
     col_idx : int
         The index of the column to be extracted from the input files. This is only needed when :code:`dhdl=False`,
         By default, we extract the last column.
-    save : bool
+    save_npy : bool
         Whether to save the output trajectories as an NPY file.
+    save_xvg : bool
+        Whether to save the time series for each trajectory as an XVG file. The first column is the time and the
+        second column is the state index.
 
     Returns
     -------
@@ -94,27 +100,60 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
         for j in range(n_iter):
             if j == 0:
                 if dhdl:
-                    traj = extract_state_traj(files_sorted[i][j])
+                    traj, t = extract_state_traj(files_sorted[i][j])
                 else:
                     traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx]
+                    t = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, 0]  # only used if save_xvg is True
             else:
                 # Starting from the 2nd iteration, we get rid of the first time frame the first
                 # frame of iteration n+1 the is the same as the last frame of iteration n
                 if dhdl:
-                    traj = extract_state_traj(files_sorted[i][j])[1:]
+                    traj, t = extract_state_traj(files_sorted[i][j])[1:]
                 else:
                     traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx][1:]
+                    t = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, 0][1:]  # only used if save_xvg is True
 
             if dhdl:  # Trajectories of global alchemical indices will be generated.
                 shift_idx = rep_trajs[i][j]
                 traj = list(np.array(traj) + shifts[shift_idx])
             trajs[i].extend(traj)
 
-    # Save the trajectories as an NPY file if desired
-    if save is True:
-        np.save('state_trajs.npy', trajs)
+    if save_npy is True:
+        if dhdl:
+            np.save('state_trajs.npy', trajs)
+        else:
+            np.save('cv_trajs.npy', trajs)
+
+    if save_xvg is True:
+        # This is probably only useful for clustering analysis
+        convert_npy2xvg(trajs, t[1] - t[0])
 
     return trajs
+
+
+def convert_npy2xvg(trajs, dt):
+    """
+    Convert a :code:`state_trajs.npy` or :code:`cv_trajs.npy` file to :math:`N_{\text{rep}}` XVG files
+    that have two columns: time (ps) and state index.
+
+    Parameters
+    ----------
+    trajs : ndarray
+        The state-space or CV-space trajectories read from :code:`state_trajs.npy` or :code:`cv_trajs.npy`.
+    dt : float
+        The time interval between consecutive frames of the trajectories.
+    """
+    n_configs = len(trajs)
+    for i in range(n_configs):
+        traj = trajs[i]
+        t = np.arange(len(traj)) * dt
+        headers = ['This file was created by ensemble_md']
+        if 'int' in str(traj.dtype):
+            headers.extend(['Time (ps) v.s. State index'])
+            np.savetxt(f'traj_{i}.xvg', np.transpose([t, traj]), header='\n'.join(headers), fmt=['%-8.1f', '%4.0f'])
+        else:
+            headers.extend(['Time (ps) v.s. CV'])
+            np.savetxt(f'traj_{i}.xvg', np.transpose([t, traj]), header='\n'.join(headers), fmt=['%-8.1f', '%8.6f'])
 
 
 def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
@@ -157,7 +196,7 @@ def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=T
     for i in range(n_sim):
         for j in range(n_iter):
             if dhdl:
-                traj = extract_state_traj(files[i][j])
+                traj, _ = extract_state_traj(files[i][j])
             else:
                 traj = np.loadtxt(files[i][j], comments=['#', '@'])[:, col_idx]
 
@@ -204,7 +243,7 @@ def stitch_trajs(gmx_executable, files, rep_trajs):
 
     # Then, stitch the trajectories for each starting configuration
     for i in range(n_sim):
-        print(f'Concatenating trajectories initiated by configuration {i} ...')
+        print(f'Recovering the continuous trajectory {i} by concatenating the XTC files ...')
         arguments = [gmx_executable, 'trjcat', '-f']
         arguments.extend(files_sorted[i])
         arguments.extend(['-o', f'traj_{i}.xtc'])
