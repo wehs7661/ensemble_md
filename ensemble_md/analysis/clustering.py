@@ -47,13 +47,15 @@ def cluster_traj(gmx_executable, inputs, grps, method='linkage', cutoff=0.1, suf
         '-s', inputs['config'],
         '-o', outputs['nojump'],
         '-center', 'yes',
-        '-pbc', 'nojump'
+        '-pbc', 'nojump',
         '-drop', inputs['xvg'],
-        '-dropover', 0
+        '-dropover', '0'
     ]
     if inputs['index'] is not None:
         args.extend(['-n', inputs['index']])
-    run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
+    returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
+    if returncode != 0:
+        print(f'Error with return code: {returncode}):\n{stderr}')
 
     print('Centering the system ...')
     args = [
@@ -67,7 +69,9 @@ def cluster_traj(gmx_executable, inputs, grps, method='linkage', cutoff=0.1, suf
     ]
     if inputs['index'] is not None:
         args.extend(['-n', inputs['index']])
-    run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
+    returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
+    if returncode != 0:
+        print(f'Error with return code: {returncode}):\n{stderr}')
 
     print('Performing clustering analysis ...')
     args = [
@@ -78,17 +82,19 @@ def cluster_traj(gmx_executable, inputs, grps, method='linkage', cutoff=0.1, suf
         '-dist', outputs['rmsd-dist'],
         '-g', outputs['cluster-log'],
         '-cl', outputs['cluster-pdb'],
-        '-cutoff', cutoff,
+        '-cutoff', str(cutoff),
         '-method', method,
     ]
     if inputs['index'] is not None:
         args.extend(['-n', inputs['index']])
-    run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["output"]}\n')
+    returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["output"]}\n')
+    if returncode != 0:
+        print(f'Error with return code: {returncode}):\n{stderr}')
 
     rmsd_range, rmsd_avg, n_clusters = get_cluster_info(outputs['cluster-log'])
 
-    print(f'Range of RMSD values: {rmsd_range} nm')
-    print(f'Average RMSD: {rmsd_avg} nm')
+    print(f'Range of RMSD values: from {rmsd_range[0]:.3f} to {rmsd_range[1]:.3f} nm')
+    print(f'Average RMSD: {rmsd_avg:.3f} nm')
     print(f'Number of clusters: {n_clusters}')
 
     if n_clusters > 1:
@@ -101,20 +107,23 @@ def cluster_traj(gmx_executable, inputs, grps, method='linkage', cutoff=0.1, suf
         print(f'Time frames of the transitions (ps): {t_transitions}')
 
         print('Calculating the inter-medoid RMSD between the two biggest clusters ...')
+        # Note that we pass outputs['cluster-pdb'] to -s so that the first medoid will be used as the reference
         args = [
             gmx_executable, 'rms',
-            '-f', outputs['center'],
-            '-s', outputs['center'],  # so that the first medoid will be used as the reference
+            '-f', outputs['cluster-pdb'],
+            '-s', outputs['cluster-pdb'],
             '-o', outputs['rmsd'],
         ]
         if inputs['index'] is not None:
             args.extend(['-n', inputs['index']])
 
         # Here we simply assume same groups for least-squares fitting and RMSD calculation
-        run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["rmsd"]}\n')
+        returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["rmsd"]}\n')
+        if returncode != 0:
+            print(f'Error with return code: {returncode}):\n{stderr}')
 
-        rmsd = np.transpose(np.loadtxt(outputs['rmsd']), comments=['@', '#'])[1][1]  # inter-medoid RMSD
-        print('Inter-medoid RMSD between the two biggest clusters: ', rmsd)
+        rmsd = np.transpose(np.loadtxt(outputs['rmsd'], comments=['@', '#']))[1][1]  # inter-medoid RMSD
+        print(f'Inter-medoid RMSD between the two biggest clusters: {rmsd:.3f} nm')
 
 
 def get_cluster_members(cluster_log):
@@ -225,13 +234,13 @@ def get_cluster_info(cluster_log):
 
     rmsd_range = []
     for line in lines:
-        if 'The RMSE ranges from' in line:
+        if 'The RMSD ranges from' in line:
             rmsd_range.append(float(line.split('from')[-1].split('to')[0]))
             rmsd_range.append(float(line.split('from')[-1].split('to')[-1].split('nm')[0]))
         if 'Average RMSD' in line:
             rmsd_avg = float(line.split('is')[-1])
         if 'Found' in line:
             n_clusters = int(line.split()[1])
-        break
+            break
 
     return rmsd_range, rmsd_avg, n_clusters

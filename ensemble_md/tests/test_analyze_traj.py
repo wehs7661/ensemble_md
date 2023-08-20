@@ -30,6 +30,7 @@ def test_extract_state_traj():
     assert traj == state_list
     assert np.allclose(t, t_true)
 
+
 def test_stitch_trajs():
     pass
 
