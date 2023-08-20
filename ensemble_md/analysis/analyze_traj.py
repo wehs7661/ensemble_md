@@ -247,7 +247,9 @@ def stitch_trajs(gmx_executable, files, rep_trajs):
         arguments = [gmx_executable, 'trjcat', '-f']
         arguments.extend(files_sorted[i])
         arguments.extend(['-o', f'traj_{i}.xtc'])
-        utils.run_gmx_cmd(arguments)
+        returncode, stdout, stderr = utils.run_gmx_cmd(arguments)
+        if returncode != 0:
+            print(f'Error with return code: {returncode}):\n{stderr}')
 
 
 def traj2transmtx(traj, N, normalize=True):
