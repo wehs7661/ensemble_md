@@ -11,6 +11,7 @@
 Unit tests for the module analyze_traj.py.
 """
 import os
+import numpy as np
 from ensemble_md.analysis import analyze_traj
 
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -18,15 +19,16 @@ input_path = os.path.join(current_path, "data")
 
 
 def test_extract_state_traj():
-    traj = analyze_traj.extract_state_traj(os.path.join(input_path, 'dhdl/dhdl_0.xvg'))
+    traj, t = analyze_traj.extract_state_traj(os.path.join(input_path, 'dhdl/dhdl_0.xvg'))
     state_list = [
         0, 0, 3, 1, 4, 4, 5, 4, 5, 5,
         4, 4, 5, 4, 2, 4, 5, 2, 1, 2,
         3, 1, 2, 4, 1, 0, 2, 4, 3, 2,
         1, 3, 3, 4, 2, 3, 1, 1, 0, 1,
         2, 3, 1, 0, 1, 4, 3, 1, 3, 2, 5]
+    t_true = [0.02 * i + 3 for i in range(len(state_list))]
     assert traj == state_list
-
+    assert np.allclose(t, t_true)
 
 def test_stitch_trajs():
     pass

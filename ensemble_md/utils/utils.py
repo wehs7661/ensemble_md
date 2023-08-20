@@ -17,9 +17,6 @@ import datetime
 import subprocess
 import collections
 import numpy as np
-from itertools import combinations
-from collections import OrderedDict
-from ensemble_md.utils import gmx_parser
 
 
 class Logger:
@@ -72,15 +69,17 @@ class Logger:
         pass
 
 
-def run_gmx_cmd(arguments):
+def run_gmx_cmd(arguments, prompt_input=None):
     """
-    Run a GROMACS command as a subprocess
+    Runs a GROMACS command as a subprocess
 
     Parameters
     ----------
     arguments : list
         A list of arguments that compose of the GROMACS command to run, e.g.
         :code:`['gmx', 'mdrun', '-deffnm', 'sys']`.
+    prompt_input : str or None
+        The input to be passed to the GROMACS command when it prompts for input.
 
     Returns
     -------
@@ -93,52 +92,12 @@ def run_gmx_cmd(arguments):
 
     """
     try:
-        result = subprocess.run(arguments, capture_output=True, text=True, check=True)
+        result = subprocess.run(arguments, capture_output=True, text=True, input=prompt_input, check=True)
         return_code, stdout, stderr = result.returncode, result.stdout, None
     except subprocess.CalledProcessError as e:
         return_code, stdout, stderr = e.returncode, None, e.stderr
 
     return return_code, stdout, stderr
-
-
-def compare_MDPs(mdp_list):
-    """
-    Given a list of MDP files, identify the parameters for which not all MDP
-    files have the same values. Note that this function is not aware of the default
-    values of GROMACS parameters. (Currently, this function is not used in the
-    workflow adopted in :code:`run_EEXE.py` but it might be useful in some places,
-    so we decided to keep it.)
-
-    Returns
-    -------
-    diff_params : list
-        The list of parameters differing between the input MDP files.
-    """
-    compare_list = list(combinations(mdp_list, r=2))
-    diff_params = []
-    for i in range(len(compare_list)):
-        params_1 = gmx_parser.MDP(compare_list[i][0])
-        params_2 = gmx_parser.MDP(compare_list[i][1])
-
-        mdp_1 = OrderedDict([(k.replace('-', '_'), v) if type(v) is str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_1.items()])  # noqa: E501
-        mdp_2 = OrderedDict([(k.replace('-', '_'), v) if type(v) is str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_2.items()])  # noqa: E501
-
-        # First figure out the union set of the parameters and exclude blanks and comments
-        all_params = set(list(mdp_1.keys()) + list(mdp_2.keys()))
-        all_params = [p for p in all_params if not p.startswith(('B', 'C'))]
-
-        for p in all_params:
-            if p in diff_params:
-                pass  # already in the list, no need to compare again
-            else:
-                if p not in mdp_1 or p not in mdp_2:
-                    diff_params.append(p)
-                else:
-                    # the parameter is in both MDP files
-                    if mdp_1[p] != mdp_2[p]:
-                        diff_params.append(p)
-
-    return diff_params
 
 
 def format_time(t):

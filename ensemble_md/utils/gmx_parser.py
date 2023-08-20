@@ -15,6 +15,7 @@ import re
 import six
 import logging
 import warnings
+from itertools import combinations
 from collections import OrderedDict as odict
 
 from ensemble_md.utils import utils
@@ -383,3 +384,43 @@ class MDP(odict, FileUtils):
                         mdp.write("{k!s} = {v!s}\n".format(**vars()))
                     else:
                         mdp.write("{} = {}\n".format(k, " ".join(map(str, v))))
+
+
+def compare_MDPs(mdp_list):
+    """
+    Given a list of MDP files, identify the parameters for which not all MDP
+    files have the same values. Note that this function is not aware of the default
+    values of GROMACS parameters. (Currently, this function is not used in the
+    workflow adopted in :code:`run_EEXE.py` but it might be useful in some places,
+    so we decided to keep it.)
+
+    Returns
+    -------
+    diff_params : list
+        The list of parameters differing between the input MDP files.
+    """
+    compare_list = list(combinations(mdp_list, r=2))
+    diff_params = []
+    for i in range(len(compare_list)):
+        params_1 = MDP(compare_list[i][0])
+        params_2 = MDP(compare_list[i][1])
+
+        mdp_1 = odict([(k.replace('-', '_'), v) if type(v) is str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_1.items()])  # noqa: E501
+        mdp_2 = odict([(k.replace('-', '_'), v) if type(v) is str else (k.replace('-', '_'), v.replace('-', '_')) for k, v in params_2.items()])  # noqa: E501
+
+        # First figure out the union set of the parameters and exclude blanks and comments
+        all_params = set(list(mdp_1.keys()) + list(mdp_2.keys()))
+        all_params = [p for p in all_params if not p.startswith(('B', 'C'))]
+
+        for p in all_params:
+            if p in diff_params:
+                pass  # already in the list, no need to compare again
+            else:
+                if p not in mdp_1 or p not in mdp_2:
+                    diff_params.append(p)
+                else:
+                    # the parameter is in both MDP files
+                    if mdp_1[p] != mdp_2[p]:
+                        diff_params.append(p)
+
+    return diff_params
