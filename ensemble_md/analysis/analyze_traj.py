@@ -963,3 +963,98 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
         plt.savefig('swaps.png', dpi=600)
     else:
         plt.savefig(f'{swap_type}_swaps.png', dpi=600)
+
+
+def get_dg_evolution(log_file, start_state, end_state):
+    """
+    For weight-updating simulations, gets the time series of the weight
+    difference (:math:`Δg = g_2-g_1`) between the specified states.
+
+    Parameters
+    ----------
+    log_file : str
+        The log file name.
+    start_state : int
+        The index of the state (starting from 0) whose weight is :math:`g_1`.
+    end_state : int
+        The index of the state (starting from 0) whose weight is :math:`g_2`.
+
+    Returns
+    -------
+    dg : list
+        A list of :math:`Δg` values.
+    """
+    f = open(log_file, "r")
+    lines = f.readlines()
+    f.close()
+
+    n = -1
+    find_equil = False
+    dg = []
+    N_states = end_state - start_state + 1  # number of states for the range of insterest
+    for line in lines:
+        n += 1
+        if "Count   G(in kT)" in line:  # this line is lines[n]
+            w = []  # the list of weights at this time frame
+            for i in range(1, N_states + 1):
+                if "<<" in lines[n + i]:
+                    w.append(float(lines[n + i].split()[-3]))
+                else:
+                    w.append(float(lines[n + i].split()[-2]))
+
+            if find_equil is False:
+                dg.append(w[end_state] - w[start_state])
+
+        if "Weights have equilibrated" in line:
+            find_equil = True
+            w = [float(i) for i in lines[n - 2].split(':')[-1].split()]
+            dg.append(w[end_state] - w[start_state])
+            break
+
+    return dg
+
+
+def plot_dg_evolution(log_file, start_state, end_state, start_idx=0, end_idx=-1, dt_log=2):
+    """
+    For weight-updating simulations, plots the time series of the weight
+    difference (:math:`Δg = g_2-g_1`) between the specified states.
+
+    Parameters
+    ----------
+    log_file : str or list
+        The log file name or a list of log file names.
+    start_state : int
+        The index of the state (starting from 0) whose weight is :math:`g_1`.
+    end_state : int
+        The index of the state (starting from 0) whose weight is :math:`g_2`.
+    start_idx : int
+        The index of the first frame to be plotted.
+    end_idx : int
+        The index of the last frame to be plotted.
+    dt_log : float
+        The time interval between two consecutive frames in the log file. The
+        default is 2 ps.
+    """
+    if isinstance(log_file, str):
+        dg = get_dg_evolution(log_file, start_state, end_state)
+    else:
+        dg = []
+        for f in log_file:
+            dg += get_dg_evolution(f, start_state, end_state)
+
+    # Now we plot
+    dg = dg[start_idx:end_idx]
+    t = np.arange(len(dg)) * dt_log
+    plt.figure()
+    if max(t) >= 10000:
+        t = t / 1000
+        units = 'ns'
+    else:
+        units = 'ps'
+    plt.plot(t, dg)
+    plt.xlabel(f'Time ({units})')
+    plt.ylabel(r'$\Delta g$')
+    plt.grid()
+    plt.savefig('dg_evolution.png', dpi=600)
+
+    return dg
