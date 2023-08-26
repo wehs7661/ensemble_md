@@ -183,8 +183,10 @@ def main():
                 print('\nNote: No weight combination will be performed.')
                 weights = EEXE.histogram_correction(weights_avg, counts)
             else:
+                w_for_printing = EEXE.combine_weights(weights_avg)[1]
                 print('\nNote: No histogram correction will be performed.')
                 print('Note: No weight combination will be performed.')
+                print(f'The alchemical weights of all states: \n  {list(np.round(w_for_printing, decimals=3))}')
 
             # 3-5. Modify the MDP files and swap out the GRO files (if needed)
             # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
@@ -276,4 +278,4 @@ def main():
 
         print(f'\nTime elapsed: {utils.format_time(time.time() - t1)}')
 
-    sys.exit()
+    MPI.COMM_WORLD.Abort(0)

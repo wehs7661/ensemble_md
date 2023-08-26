@@ -393,15 +393,20 @@ def compare_MDPs(mdp_list, print_diff=False):
     workflow adopted in :code:`run_EEXE.py` but it might be useful in some places,
     so we decided to keep it.)
 
+    Parameters
+    ----------
+    mdp_list : list
+        A list of MDP files.
+    print_diff : bool
+        If :code:`True`, print to screen the parameters that are different among the MDP files
+        and the values of the parameters in the MDP files in a more readable format.
+
     Returns
     -------
     diff_params : dict
         A dictionary of parameters that are different among the MDP files.
         The keys are the parameter names and the values is a list of values of the
         parameters in the MDP files.
-    print_diff : bool
-        If :code:`True`, print to screen the parameters that are different among the MDP files
-        and the values of the parameters in the MDP files in a more readable format.
     """
     diff_params = {}
     for i in range(len(mdp_list)):
