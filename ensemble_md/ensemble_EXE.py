@@ -1229,7 +1229,7 @@ class EnsembleEXE:
 
         if self.verbose is True:
             w = np.round(weights, decimals=3).tolist()  # just for printing
-            print('\n  Modified weights:')
+            print('\n  Combined weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
 
