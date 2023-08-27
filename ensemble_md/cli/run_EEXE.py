@@ -216,8 +216,19 @@ def main():
             # This is the case where the weights are equilibrated in a weight-updating simulation.
             # As a remidner, EEXE.equil should be a list of 0 after extract_final_log_info in a
             # fixed-weight simulation, and a list of -1 for a weight-updating simulation with unequilibrated weights.
-            print('\nSimulation terminated: The weights have been equilibrated for all replicas.')
+            print('\nSimulation terminated: The weights have been equilibrated for all replicas.')  # this will only be printed in rank 0  # noqa: E501
+
+            # Note that EEXE.equil is avaiable for all ranks but only updated in rank 0. So the if condition here
+            # can only be satisfied in rank 0. We broadcast exit_loop to all ranks so that all ranks can exit the
+            # simulation at the same time, if the weights get equilibrated.
+            exit_loop = True
+            comm.bcast(exit_loop, root=0)
             break
+        else:
+            # Receive exit_loop from rank 0. If exit_loop is True, all ranks will exit the simulation.
+            exit_loop = comm.bcast(False, root=0)
+            if exit_loop:
+                break
 
         # Step 4: Perform another iteration
         # 4-1. Modify the coordinates of the output gro files if needed.
