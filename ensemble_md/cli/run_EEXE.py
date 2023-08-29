@@ -180,6 +180,8 @@ def main():
                         # Then only histogram correction will be performed
                         print('Note: Weight combination is deactivated because the weights are too noisy.')
                         weights = EEXE.histogram_correction(weights, counts)
+                        w_for_printing = EEXE.combine_weights(weights, print_weights=False)[1]
+                        print(f'The alchemical weights of all states (after histogram correction): \n  {list(np.round(w_for_printing, decimals=3))}')  # noqa: E501
                     else:
                         weights_preprocessed = EEXE.histogram_correction(weights_input, counts)
                         weights, g_vec = EEXE.combine_weights(weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
@@ -189,6 +191,8 @@ def main():
                     print('Note: No histogram correction will be performed.')
                     if weights_input is None:
                         print('Note: Weight combination is deactivated because the weights are too noisy.')
+                        w_for_printing = EEXE.combine_weights(weights, print_weights=False)[1]
+                        print(f'The alchemical weights of all states: \n  {list(np.round(w_for_printing, decimals=3))}')  # noqa: E501
                     else:
                         weights, g_vec = EEXE.combine_weights(weights_input)  # inverse-variance weighting seems worse
                         EEXE.g_vecs.append(g_vec)
@@ -196,8 +200,10 @@ def main():
                     # only perform histogram correction
                     print('Note: No weight combination will be performed.')
                     weights = EEXE.histogram_correction(weights_input, counts)
+                    w_for_printing = EEXE.combine_weights(weights, print_weights=False)[1]
+                    print(f'The alchemical weights of all states: \n  {list(np.round(w_for_printing, decimals=3))}')  # noqa: E501
                 else:
-                    w_for_printing = EEXE.combine_weights(weights)[1]
+                    w_for_printing = EEXE.combine_weights(weights, print_weights=False)[1]
                     print('Note: No histogram correction will be performed.')
                     print('Note: No weight combination will be performed.')
                     print(f'The alchemical weights of all states: \n  {list(np.round(w_for_printing, decimals=3))}')

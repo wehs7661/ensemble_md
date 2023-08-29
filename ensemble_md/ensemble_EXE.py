@@ -1216,7 +1216,7 @@ class EnsembleEXE:
 
         return weights_output
 
-    def combine_weights(self, weights, weights_err=None):
+    def combine_weights(self, weights, weights_err=None, print_weights=True):
         """
         Combine alchemical weights across multiple replicas. Note that if
         :code:`weights_err` is provided, inverse-variance weighting will be used.
@@ -1234,13 +1234,15 @@ class EnsembleEXE:
             A list of modified Wang-Landau weights of ALL simulations.
         g_vec : np.ndarray
             An array of alchemical weights of the whole range of states.
+        print_weights : bool
+            Whether to print the original and combined weights for each replica.
         """
         if self.verbose is True:
             print('Performing weight combination ...')
         else:
             print('Performing weight combination ...', end='')
 
-        if self.verbose is True:
+        if print_weights is True:
             w = np.round(weights, decimals=3).tolist()  # just for printing
             print('  Original weights:')
             for i in range(len(w)):
@@ -1275,7 +1277,7 @@ class EnsembleEXE:
                 weights[i] = self.equilibrated_weights[i]
         weights = np.round(weights, decimals=5).tolist()
 
-        if self.verbose is True:
+        if print_weights is True:
             w = np.round(weights, decimals=3).tolist()  # just for printing
             print('\n  Combined weights:')
             for i in range(len(w)):
