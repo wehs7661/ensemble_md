@@ -133,7 +133,7 @@ def format_time(t):
     return t_str
 
 
-def _autoconvert(s):
+def autoconvert(s):
     """
     Converts input to a numerical type if possible. Used for the MDP parser.
     Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
@@ -179,7 +179,7 @@ def _autoconvert(s):
     raise ValueError("Failed to autoconvert {0!r}".format(s))
 
 
-def _get_subplot_dimension(n_panels):
+def get_subplot_dimension(n_panels):
     """
     Gets the numbers of rows and columns in a subplot such that
     the arrangement of the .
@@ -234,6 +234,28 @@ def weighted_mean(vals, errs):
     err = np.sqrt(1 / np.sum(w))
 
     return mean, err
+
+
+def calc_rmse(data, ref):
+    """
+    Calculates the root mean square error (RMSE) of the given data
+    with respect to the reference data.
+
+    Parameters
+    ----------
+    data : list
+        A list of values to be compared with the reference data.
+    ref : list
+        A list of reference values.
+
+    Returns
+    -------
+    rmse : float
+        The root mean square error.
+    """
+    rmse = np.sqrt(np.mean((np.array(data) - np.array(ref)) ** 2))
+
+    return rmse
 
 
 def get_time_metrics(log):

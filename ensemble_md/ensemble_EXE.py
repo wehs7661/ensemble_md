@@ -39,7 +39,7 @@ class EnsembleEXE:
     an ensemble of expanded ensemble. Upon instantiation, all parameters in the YAML
     file will be assigned to an attribute in the class. In addition to these variables,
     below is a list of attributes of the class. (All the the attributes are assigned by
-    :obj:`_set_params` unless otherwise noted.)
+    :obj:`set_params` unless otherwise noted.)
 
     :ivar gmx_path: The absolute path of the GROMACS exectuable.
     :ivar gmx_version: The version of the GROMACS executable.
@@ -84,9 +84,9 @@ class EnsembleEXE:
 
     def __init__(self, yaml_file, analysis=False):
         self.yaml = yaml_file
-        self._set_params(analysis)
+        self.set_params(analysis)
 
-    def _set_params(self, analysis):
+    def set_params(self, analysis):
         """
         Sets up or reads in the user-defined parameters from a yaml file and an MDP template.
         This function is called to instantiate the class in the :code:`__init__` function of
@@ -765,15 +765,54 @@ class EnsembleEXE:
 
         # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
         # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
-        weight_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
-        weight_err = []
+        weights_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
+        weights_err = []
         for i in range(self.n_sim):
             if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
-                weight_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
+                weights_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
             else:
-                weight_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
+                weights_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
 
-        return weight_avg, weight_err
+        return weights_avg, weights_err
+
+    def prepare_weights(self, weights_avg, weights_final):
+        """
+        Prepared weights to be combined by the function :code:`combine_weights`.
+        For each replica, if the RMSE between the averaged weights and the final weights is
+        smaller than the cutoff specified in the input YAML file (the parameter :code:`rmse_cutoff`),
+        then the averaged weights will be chosen for the output (for the weight combination). Otherwise,
+        the final weights will be used.
+
+        Parameters
+        ----------
+        weights_avg : list
+            A list of lists of weights averaged since the last update of the Wang-Landau
+            incrementor. The length of the list should be the number of replicas.
+        weights_final : list
+            A list of lists of final weights of all simulations. The length of the list should
+            be the number of replicas.
+
+        Returns
+        -------
+        weights_output : list
+            A list of lists of weights to be combined.
+        """
+        rmse_list = [utils.calc_rmse(weights_avg[i], weights_final[i]) for i in range(self.n_sim)]
+
+        if self.w_combine == 'final':
+            weights_output = weights_final
+        elif self.w_combine == 'avg':
+            weights_output = []
+            for i in range(self.n_sim):
+                if rmse_list[i] < self.rmse_cutoff:
+                    print('Note: The time-averaged weights will be used for weight combination.')
+                    weights_output.append(weights_avg[i])
+                else:
+                    print('Note: The final weights will be used for weight combination, as the time-averaged weights still fluctuate too much.')  # noqa: E501
+                    weights_output.append(weights_final[i])
+        
+        return weights_output
+
 
     @staticmethod
     def identify_swappable_pairs(states, state_ranges, neighbor_exchange, add_swappables=None):
@@ -1241,7 +1280,7 @@ class EnsembleEXE:
 
         return weights, g_vec
 
-    def _run_grompp(self, n, swap_pattern):
+    def run_grompp(self, n, swap_pattern):
         """
         Prepares TPR files for the simulation ensemble using the GROMACS :code:`grompp` command.
 
@@ -1306,7 +1345,7 @@ class EnsembleEXE:
             if code_list != [0] * self.n_sim:
                 MPI.COMM_WORLD.Abort(1)   # Doesn't matter what non-zero returncode we put here as the code from GROMACS will be printed before this point anyway.  # noqa: E501
 
-    def _run_mdrun(self, n):
+    def run_mdrun(self, n):
         """
         Executes GROMACS mdrun commands in parallel.
 
@@ -1373,14 +1412,14 @@ class EnsembleEXE:
             print(iter_str + '\n' + '=' * (len(iter_str) - 1))
 
         # 1st synchronizing point for all MPI processes: To make sure ranks other than 0 will not start executing
-        # _run_grompp earlier and mess up the order of printing.
+        # run_grompp earlier and mess up the order of printing.
         comm.barrier()
 
         # Generating all required TPR files simultaneously, then run all simulations simultaneously.
-        # No synchronizing point is needed between _run_grompp and _run_mdrun, since once rank i finishes _run_grompp,
-        # it should run _run_mdrun in the same working directory, so there won't be any I/O error.
-        self._run_grompp(n, swap_pattern)
-        self._run_mdrun(n)
+        # No synchronizing point is needed between run_grompp and run_mdrun, since once rank i finishes run_grompp,
+        # it should run run_mdrun in the same working directory, so there won't be any I/O error.
+        self.run_grompp(n, swap_pattern)
+        self.run_mdrun(n)
 
         # 2nd synchronizaing point for all MPI processes: To make sure no rank will start getting to the next
         # iteration earlier than the others. For example, if rank 0 finishes the mdrun command earlier, we don't

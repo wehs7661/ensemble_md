@@ -161,18 +161,21 @@ def main():
                 weights = copy.deepcopy(weights_)
                 swap_pattern, swap_list = EEXE.get_swapping_pattern(dhdl_files, states_, weights_)  # swap_list will only be used for modify_coords  # noqa: E501
 
-                # 3-3. Calculate the weights averaged since the last update of the Wang-Landau incrementor.
-                # Note that the averaged weights are used for histogram correction/weight combination.
-                # For calculating the acceptance ratio (inside get_swapping_pattern), final weights should be used.
+                # 3-3. Perform histogram correction/weight combination
+                if wl_delta != [None for i in range(EEXE.n_sim)]:  # weight-updating
+                    print(f'\nCurrent Wang-Landau incrementors: {wl_delta}')
+                
+                # (1) First we prepare the weights to be combined. For each replica, weights to be combined
+                # could be either the final weights or the weights averaged since the last update of the
+                # Wang-Landau incrementor. See the function `prepare_weights` for details.
+                # Note that although averaged weights are sometimes used for histogram correction/weight combination,
+                # the final weights are always used for calculating the acceptance ratio.
                 if EEXE.N_cutoff != -1 or EEXE.w_combine is True:
                     # Only when histogram correction/weight combination is needed.
                     weights_avg, weights_err = EEXE.get_averaged_weights(log_files)
 
-                # 3-4. Perform histogram correction/weight combination
-                # Note that we never use final weights but averaged weights here.
+                # (2) Now we perform histogram correction/weight combination.
                 # The product of this step should always be named as "weights" to be used in update_MDP
-                if wl_delta != [None for i in range(EEXE.n_sim)]:  # weight-updating
-                    print(f'\nCurrent Wang-Landau incrementors: {wl_delta}')
                 if EEXE.N_cutoff != -1 and EEXE.w_combine is True:
                     # perform both
                     weights_avg = EEXE.histogram_correction(weights_avg, counts)
