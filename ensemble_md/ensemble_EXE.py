@@ -39,7 +39,7 @@ class EnsembleEXE:
     an ensemble of expanded ensemble. Upon instantiation, all parameters in the YAML
     file will be assigned to an attribute in the class. In addition to these variables,
     below is a list of attributes of the class. (All the the attributes are assigned by
-    :obj:`set_params` unless otherwise noted.)
+    :obj:`_set_params` unless otherwise noted.)
 
     :ivar gmx_path: The absolute path of the GROMACS exectuable.
     :ivar gmx_version: The version of the GROMACS executable.
@@ -84,9 +84,9 @@ class EnsembleEXE:
 
     def __init__(self, yaml_file, analysis=False):
         self.yaml = yaml_file
-        self.set_params(analysis)
+        self._set_params(analysis)
 
-    def set_params(self, analysis):
+    def _set_params(self, analysis):
         """
         Sets up or reads in the user-defined parameters from a yaml file and an MDP template.
         This function is called to instantiate the class in the :code:`__init__` function of
@@ -1241,7 +1241,7 @@ class EnsembleEXE:
 
         return weights, g_vec
 
-    def run_grompp(self, n, swap_pattern):
+    def _run_grompp(self, n, swap_pattern):
         """
         Prepares TPR files for the simulation ensemble using the GROMACS :code:`grompp` command.
 
@@ -1306,7 +1306,7 @@ class EnsembleEXE:
             if code_list != [0] * self.n_sim:
                 MPI.COMM_WORLD.Abort(1)   # Doesn't matter what non-zero returncode we put here as the code from GROMACS will be printed before this point anyway.  # noqa: E501
 
-    def run_mdrun(self, n):
+    def _run_mdrun(self, n):
         """
         Executes GROMACS mdrun commands in parallel.
 
@@ -1373,14 +1373,14 @@ class EnsembleEXE:
             print(iter_str + '\n' + '=' * (len(iter_str) - 1))
 
         # 1st synchronizing point for all MPI processes: To make sure ranks other than 0 will not start executing
-        # run_grompp earlier and mess up the order of printing.
+        # _run_grompp earlier and mess up the order of printing.
         comm.barrier()
 
         # Generating all required TPR files simultaneously, then run all simulations simultaneously.
-        # No synchronizing point is needed between run_grompp and run_mdrun, since once rank i finishes run_grompp,
-        # it should run run_mdrun in the same working directory, so there won't be any I/O error.
-        self.run_grompp(n, swap_pattern)
-        self.run_mdrun(n)
+        # No synchronizing point is needed between _run_grompp and _run_mdrun, since once rank i finishes _run_grompp,
+        # it should run _run_mdrun in the same working directory, so there won't be any I/O error.
+        self._run_grompp(n, swap_pattern)
+        self._run_mdrun(n)
 
         # 2nd synchronizaing point for all MPI processes: To make sure no rank will start getting to the next
         # iteration earlier than the others. For example, if rank 0 finishes the mdrun command earlier, we don't
