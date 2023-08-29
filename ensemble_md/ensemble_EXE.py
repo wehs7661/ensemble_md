@@ -1336,7 +1336,12 @@ class EnsembleEXE:
             if returncode != 0:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')
             if self.rm_cpt is True:
-                os.remove('state.cpt')
+                # if the simulation went wrong, there would be no checkpoint file
+                try:
+                    os.remove('state.cpt')
+                except Exception:
+                    print('\n--------------------------------------------------------------------------\n')
+                    MPI.COMM_WORLD.Abort(1)
             os.chdir('../../')
 
         # gather return codes at rank 0
