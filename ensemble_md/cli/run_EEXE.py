@@ -153,7 +153,7 @@ def main():
                 # Note after `get_swapping_pattern`, `states_` and `weights_` won't be necessarily
                 # since they are updated by `get_swapping_pattern`. (Even if the function does not explicitly
                 # returns `states_` and `weights_`, `states_` and `weights_` can still be different after
-                # the use of the function.) Therefore, here we create copyes for `states_` and `weights_`
+                # the use of the function.) Therefore, here we create copies for `states_` and `weights_`
                 # before the use of `get_swapping_pattern`, so we can use them in `histogram_correction`,
                 # `combine_weights` and `update_MDP`.
                 states = copy.deepcopy(states_)
@@ -162,11 +162,9 @@ def main():
 
                 # 3-3. Perform histogram correction/weight combination
                 if wl_delta != [None for i in range(EEXE.n_sim)]:  # weight-updating
-                    print(f'\nCurrent Wang-Landau incrementors: {wl_delta}')
+                    print(f'\nCurrent Wang-Landau incrementors: {wl_delta}\n')
 
-                # (1) First we prepare the weights to be combined. For each replica, weights to be combined
-                # could be either the final weights or the weights averaged since the last update of the
-                # Wang-Landau incrementor. See the function `prepare_weights` for details.
+                # (1) First we prepare the weights to be combined.
                 # Note that although averaged weights are sometimes used for histogram correction/weight combination,
                 # the final weights are always used for calculating the acceptance ratio.
                 if EEXE.N_cutoff != -1 or EEXE.w_combine is not None:
@@ -178,21 +176,29 @@ def main():
                 # The product of this step should always be named as "weights" to be used in update_MDP
                 if EEXE.N_cutoff != -1 and EEXE.w_combine is not None:
                     # perform both
-                    weights_preprocessed = EEXE.histogram_correction(weights_input, counts)
-                    weights, g_vec = EEXE.combine_weights(weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
-                    EEXE.g_vecs.append(g_vec)
+                    if weights_input is None:
+                        # Then only histogram correction will be performed
+                        print('Note: Weight combination is deactivated because the weights are too noisy.')
+                        weights = EEXE.histogram_correction(weights, counts)
+                    else:
+                        weights_preprocessed = EEXE.histogram_correction(weights_input, counts)
+                        weights, g_vec = EEXE.combine_weights(weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
+                        EEXE.g_vecs.append(g_vec)
                 elif EEXE.N_cutoff == -1 and EEXE.w_combine is not None:
                     # only perform weight combination
-                    print('\nNote: No histogram correction will be performed.')
-                    weights, g_vec = EEXE.combine_weights(weights_input)  # inverse-variance weighting seems worse
-                    EEXE.g_vecs.append(g_vec)
+                    print('Note: No histogram correction will be performed.')
+                    if weights_input is None:
+                        print('Note: Weight combination is deactivated because the weights are too noisy.')
+                    else:
+                        weights, g_vec = EEXE.combine_weights(weights_input)  # inverse-variance weighting seems worse
+                        EEXE.g_vecs.append(g_vec)
                 elif EEXE.N_cutoff != -1 and EEXE.w_combine is None:
                     # only perform histogram correction
-                    print('\nNote: No weight combination will be performed.')
+                    print('Note: No weight combination will be performed.')
                     weights = EEXE.histogram_correction(weights_input, counts)
                 else:
                     w_for_printing = EEXE.combine_weights(weights)[1]
-                    print('\nNote: No histogram correction will be performed.')
+                    print('Note: No histogram correction will be performed.')
                     print('Note: No weight combination will be performed.')
                     print(f'The alchemical weights of all states: \n  {list(np.round(w_for_printing, decimals=3))}')
 

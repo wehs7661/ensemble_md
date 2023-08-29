@@ -287,16 +287,18 @@ include parameters for data analysis here.
 
         - :code:`None`: No weight combination.
         - :code:`final`: Combine the final weights.
-        - :code:`avg`: Combine the weights averaged over from last time the Wang-Landau incrementor was updated. Notably, the time-averaged weights tend to be very noisy at the beginning of the simulation and can drive the combined weights in a bad direction. Therefore, we recommend specifying the parameter :code:`rmse_cutoff` to only use the time-averaged weights when the weights are not changing too much. For more details, check the description of the parameter :code:`rmse_cutoff` below.
+        - :code:`avg`: Combine the weights averaged over from last time the Wang-Landau incrementor was updated.
  
       For more details about weight combination, please refer to :ref:`doc_w_schemes`.
   
   - :code:`rmse_cutoff`: (Optional, Default: :code:`None`)
-      The cutoff for the root-mean-square error (RMSE) between the weights at the end of the current iteration 
+      The cutoff for the root-mean-square error (RMSE) between the weights of the current iteration 
       and the weights averaged over from the last time the Wang-Landau incrementor was updated.
-      For each replica, the time-averaged weights will be used in weight combination only if the RMSE is smaller than the cutoff.
-      Otherwise, the final weights will still be used. If this parameter is not specified, then time-averaged weights will always be used, which could be problematic
-      since time-averaged weights tend to be very noisy at the beginning of the simulation. Note that this parameter is only meanful when :code:`w_combine` is set to :code:`avg`.
+      For each replica, the RMSE between the averaged weights and the current weights will be calculated.
+      When :code:`rmse_cutoff` is specified, weight combination will be performed only if the maximum RMSE across all replicas
+      is smaller than the cutoff. Otherwise, weight combination is deactivated (even if :code:`w_combine` is specified)
+      because a larger RMSE indicates that the weights are noisy and should not be combined.
+      The default value is infinity, which means that weight combination will always be performed if :code:`w_combine` is specified.
       The units of the cutoff are :math:`k_B T`.
   - :code:`N_cutoff`: (Optional, Default: 1000)
       The histogram cutoff. -1 means that no histogram correction will be performed.

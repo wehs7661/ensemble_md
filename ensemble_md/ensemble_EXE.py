@@ -160,7 +160,7 @@ class EnsembleEXE:
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
             "w_combine": None,
-            "rmse_cutoff": None,
+            "rmse_cutoff": np.inf,
             "N_cutoff": 1000,
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
@@ -205,11 +205,11 @@ class EnsembleEXE:
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
-        if self.w_combine == 'avg' and self.rmse_cutoff is None:
-            self.warnings.append('Warning: We recommend setting rmse_cutoff when w_combine is set to "avg".')
+        if self.w_combine is not None and self.rmse_cutoff == np.inf:
+            self.warnings.append('Warning: We recommend setting rmse_cutoff when w_combine is used.')
 
-        if self.rmse_cutoff is not None:
-            if type(self.rmse_cutoff) is not float:
+        if self.rmse_cutoff != np.inf:
+            if type(self.rmse_cutoff) is not float and type(self.rmse_cutoff) is not int:
                 raise ParameterError("The parameter 'rmse_cutoff' should be a float.")
 
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
@@ -223,11 +223,9 @@ class EnsembleEXE:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap', 'rmse_cutoff']  # positive parameters
         if self.nst_sim is not None:
             params_pos.append('nst_sim')
-        if self.rmse_cutoff is not None:
-            params_pos.append('rmse_cutoff')
         for i in params_pos:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
@@ -750,82 +748,6 @@ class EnsembleEXE:
 
         return wl_delta, weights, counts
 
-    def get_averaged_weights(self, log_files):
-        """
-        For each replica, calculate the averaged weights (and the associated error) from the time series
-        of the weights since the previous update of the Wang-Landau incrementor.
-
-        Parameters
-        ----------
-        log_files : list
-            A list of file paths to GROMACS LOG files of different replicas.
-
-        Returned
-        --------
-        weights_avg : list
-            A list of lists of weights averaged since the last update of the Wang-Landau
-            incrementor. The length of the list should be the number of replicas.
-        weights_err : list
-            A list of lists of errors corresponding to the values in :code:`weights_avg`.
-        """
-        for i in range(self.n_sim):
-            weights, _, wl_delta, _ = gmx_parser.parse_log(log_files[i])
-            if self.current_wl_delta[i] == wl_delta:
-                self.updating_weights[i] += weights  # expand the list
-            else:
-                self.current_wl_delta[i] = wl_delta
-                self.updating_weights[i] = weights
-
-        # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
-        # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
-        weights_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
-        weights_err = []
-        for i in range(self.n_sim):
-            if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
-                weights_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
-            else:
-                weights_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
-
-        return weights_avg, weights_err
-
-    def prepare_weights(self, weights_avg, weights_final):
-        """
-        Prepared weights to be combined by the function :code:`combine_weights`.
-        For each replica, if the RMSE between the averaged weights and the final weights is
-        smaller than the cutoff specified in the input YAML file (the parameter :code:`rmse_cutoff`),
-        then the averaged weights will be chosen for the output (for the weight combination). Otherwise,
-        the final weights will be used.
-
-        Parameters
-        ----------
-        weights_avg : list
-            A list of lists of weights averaged since the last update of the Wang-Landau
-            incrementor. The length of the list should be the number of replicas.
-        weights_final : list
-            A list of lists of final weights of all simulations. The length of the list should
-            be the number of replicas.
-
-        Returns
-        -------
-        weights_output : list
-            A list of lists of weights to be combined.
-        """
-        rmse_list = [utils.calc_rmse(weights_avg[i], weights_final[i]) for i in range(self.n_sim)]
-
-        if self.w_combine == 'final':
-            weights_output = weights_final
-        elif self.w_combine == 'avg':
-            weights_output = []
-            for i in range(self.n_sim):
-                if rmse_list[i] < self.rmse_cutoff:
-                    print('Note: The time-averaged weights will be used for weight combination.')
-                    weights_output.append(weights_avg[i])
-                else:
-                    print('Note: The final weights will be used for weight combination, as the time-averaged weights still fluctuate too much.')  # noqa: E501
-                    weights_output.append(weights_final[i])
-
-        return weights_output
-
     @staticmethod
     def identify_swappable_pairs(states, state_ranges, neighbor_exchange, add_swappables=None):
         """
@@ -1219,6 +1141,81 @@ class EnsembleEXE:
 
         return weights
 
+    def get_averaged_weights(self, log_files):
+        """
+        For each replica, calculate the averaged weights (and the associated error) from the time series
+        of the weights since the previous update of the Wang-Landau incrementor.
+
+        Parameters
+        ----------
+        log_files : list
+            A list of file paths to GROMACS LOG files of different replicas.
+
+        Returned
+        --------
+        weights_avg : list
+            A list of lists of weights averaged since the last update of the Wang-Landau
+            incrementor. The length of the list should be the number of replicas.
+        weights_err : list
+            A list of lists of errors corresponding to the values in :code:`weights_avg`.
+        """
+        for i in range(self.n_sim):
+            weights, _, wl_delta, _ = gmx_parser.parse_log(log_files[i])
+            if self.current_wl_delta[i] == wl_delta:
+                self.updating_weights[i] += weights  # expand the list
+            else:
+                self.current_wl_delta[i] = wl_delta
+                self.updating_weights[i] = weights
+
+        # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
+        # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
+        weights_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
+        weights_err = []
+        for i in range(self.n_sim):
+            if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
+                weights_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
+            else:
+                weights_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
+
+        return weights_avg, weights_err
+
+    def prepare_weights(self, weights_avg, weights_final):
+        """
+        Prepared weights to be combined by the function :code:`combine_weights`.
+        For each replica, the RMSE between the averaged weights and the final weights is calculated. If the
+        maximum of the RMSEs of all replicas is smaller than the cutoff specified in the input YAML file
+        (the parameter :code:`rmse_cutoff`), either final weights or time-averaged weights will be used
+        (depending on the value of the parameter :code:`w_combine`). Otherwise, :code:`None` will be returned,
+        which will lead to deactivation of weight combination in the CLI :code:`run_EEXE`.
+
+        Parameters
+        ----------
+        weights_avg : list
+            A list of lists of weights averaged since the last update of the Wang-Landau
+            incrementor. The length of the list should be the number of replicas.
+        weights_final : list
+            A list of lists of final weights of all simulations. The length of the list should
+            be the number of replicas.
+
+        Returns
+        -------
+        weights_output : list
+            A list of lists of weights to be combined.
+        """
+        rmse_list = [utils.calc_rmse(weights_avg[i], weights_final[i]) for i in range(self.n_sim)]
+        rmse_str = ', '.join([f'{i:.2f}' for i in rmse_list])
+        print(f'RMSE between the final weights and time-averaged weights for each replica: {rmse_str} kT')
+        if np.max(rmse_list) < self.rmse_cutoff:
+            # Weight combination will be activated
+            if self.w_combine == 'final':
+                weights_output = weights_final
+            elif self.w_combine == 'avg':
+                weights_output = weights_avg
+        else:
+            weights_output = None
+
+        return weights_output
+
     def combine_weights(self, weights, weights_err=None):
         """
         Combine alchemical weights across multiple replicas. Note that if
@@ -1229,7 +1226,7 @@ class EnsembleEXE:
         Parameters
         ----------
         weights : list
-            A list of Wang-Landau weights of ALL simulations
+            A list of Wang-Landau weights of ALL simulations.
 
         Returns
         -------
