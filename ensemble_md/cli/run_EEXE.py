@@ -180,10 +180,13 @@ def main():
                         # Then only histogram correction will be performed
                         print('Note: Weight combination is deactivated because the weights are too noisy.')
                         weights = EEXE.histogram_correction(weights, counts)
-                        w_for_printing = EEXE.combine_weights(weights, print_weights=False)[1]
-                        print(f'The alchemical weights of all states (after histogram correction): \n  {list(np.round(w_for_printing, decimals=3))}')  # noqa: E501
+                        _ = EEXE.combine_weights(weights, print_weights=False)[1]  # just to print the combiend weights
                     else:
                         weights_preprocessed = EEXE.histogram_correction(weights_input, counts)
+                        if EEXE.verbose is True:
+                            print('Performing weight combination ...')
+                        else:
+                            print('Performing weight combination ...', end='')
                         weights, g_vec = EEXE.combine_weights(weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
                         EEXE.g_vecs.append(g_vec)
                 elif EEXE.N_cutoff == -1 and EEXE.w_combine is not None:
@@ -191,22 +194,23 @@ def main():
                     print('Note: No histogram correction will be performed.')
                     if weights_input is None:
                         print('Note: Weight combination is deactivated because the weights are too noisy.')
-                        w_for_printing = EEXE.combine_weights(weights, print_weights=False)[1]
-                        print(f'The alchemical weights of all states: \n  {list(np.round(w_for_printing, decimals=3))}')  # noqa: E501
+                        _ = EEXE.combine_weights(weights, print_weights=False)[1]  # just to print the combined weights
                     else:
+                        if EEXE.verbose is True:
+                            print('Performing weight combination ...')
+                        else:
+                            print('Performing weight combination ...', end='')
                         weights, g_vec = EEXE.combine_weights(weights_input)  # inverse-variance weighting seems worse
                         EEXE.g_vecs.append(g_vec)
                 elif EEXE.N_cutoff != -1 and EEXE.w_combine is None:
                     # only perform histogram correction
                     print('Note: No weight combination will be performed.')
                     weights = EEXE.histogram_correction(weights_input, counts)
-                    w_for_printing = EEXE.combine_weights(weights, print_weights=False)[1]
-                    print(f'The alchemical weights of all states: \n  {list(np.round(w_for_printing, decimals=3))}')  # noqa: E501
+                    _ = EEXE.combine_weights(weights, print_weights=False)[1]  # just to print the combined weights
                 else:
-                    w_for_printing = EEXE.combine_weights(weights, print_weights=False)[1]
                     print('Note: No histogram correction will be performed.')
                     print('Note: No weight combination will be performed.')
-                    print(f'The alchemical weights of all states: \n  {list(np.round(w_for_printing, decimals=3))}')
+                    _ = EEXE.combine_weights(weights, print_weights=False)[1]  # just to print the combiend weights
 
                 # 3-5. Modify the MDP files and swap out the GRO files (if needed)
                 # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501

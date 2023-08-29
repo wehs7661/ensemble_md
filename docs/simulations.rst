@@ -367,7 +367,8 @@ include parameters for data analysis here.
 -------------------------------
 For convenience, here is a template of the input YAML file, with each optional parameter specified with the default and required 
 parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e. :code:`None`).
-
+Note that the default value :code:`None` for the parameter :code:`rmse_cutoff` will be converted to
+infinity internally.
 
 .. code-block:: yaml
 

@@ -1237,11 +1237,6 @@ class EnsembleEXE:
         print_weights : bool
             Whether to print the original and combined weights for each replica.
         """
-        if self.verbose is True:
-            print('Performing weight combination ...')
-        else:
-            print('Performing weight combination ...', end='')
-
         if print_weights is True:
             w = np.round(weights, decimals=3).tolist()  # just for printing
             print('  Original weights:')
