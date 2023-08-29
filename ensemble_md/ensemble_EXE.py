@@ -159,7 +159,8 @@ class EnsembleEXE:
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
-            "w_combine": False,
+            "w_combine": None,
+            "rmse_cutoff": None,
             "N_cutoff": 1000,
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
@@ -195,11 +196,21 @@ class EnsembleEXE:
         if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
+        if self.w_combine not in [None, 'final', 'avg']:
+            raise ParameterError("The specified type of weight to be combined is not available. Available options include 'final' and 'avg'.")  # noqa: E501
+
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
 
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
+
+        if self.w_combine == 'avg' and self.rmse_cutoff is None:
+            self.warnings.append('Warning: We recommend setting rmse_cutoff when w_combine is set to "avg".')
+
+        if self.rmse_cutoff is not None:
+            if type(self.rmse_cutoff) is not float:
+                raise ParameterError("The parameter 'rmse_cutoff' should be a float.")
 
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.nst_sim is not None:
@@ -215,6 +226,8 @@ class EnsembleEXE:
         params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
         if self.nst_sim is not None:
             params_pos.append('nst_sim')
+        if self.rmse_cutoff is not None:
+            params_pos.append('rmse_cutoff')
         for i in params_pos:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
@@ -242,7 +255,7 @@ class EnsembleEXE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['verbose', 'rm_cpt', 'w_combine', 'msm', 'free_energy', 'subsampling_avg']
+        params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
@@ -305,11 +318,11 @@ class EnsembleEXE:
             self.equilibrated_weights = [None for i in range(self.n_sim)]
 
         if self.fixed_weights is True:
-            if self.N_cutoff != -1 or self.w_combine is not False:
+            if self.N_cutoff != -1 or self.w_combine is not None:
                 self.warnings.append('Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
                 # In the case that the warning is ignored, enforce the defaults.
                 self.N_cutoff = -1
-                self.w_combine = False
+                self.w_combine = None
 
         if 'lmc_seed' in self.template and self.template['lmc_seed'] != -1:
             self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
@@ -483,7 +496,7 @@ class EnsembleEXE:
         print(f"Verbose log file: {self.verbose}")
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
-        print(f"Whether to perform weight combination: {self.w_combine}")
+        print(f"Type of weights to be combined: {self.w_combine}")
         print(f"Histogram cutoff: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
         print(f"Number of iterations: {self.n_iter}")
@@ -810,9 +823,8 @@ class EnsembleEXE:
                 else:
                     print('Note: The final weights will be used for weight combination, as the time-averaged weights still fluctuate too much.')  # noqa: E501
                     weights_output.append(weights_final[i])
-        
-        return weights_output
 
+        return weights_output
 
     @staticmethod
     def identify_swappable_pairs(states, state_ranges, neighbor_exchange, add_swappables=None):
@@ -1280,7 +1292,7 @@ class EnsembleEXE:
 
         return weights, g_vec
 
-    def run_grompp(self, n, swap_pattern):
+    def _run_grompp(self, n, swap_pattern):
         """
         Prepares TPR files for the simulation ensemble using the GROMACS :code:`grompp` command.
 
@@ -1345,7 +1357,7 @@ class EnsembleEXE:
             if code_list != [0] * self.n_sim:
                 MPI.COMM_WORLD.Abort(1)   # Doesn't matter what non-zero returncode we put here as the code from GROMACS will be printed before this point anyway.  # noqa: E501
 
-    def run_mdrun(self, n):
+    def _run_mdrun(self, n):
         """
         Executes GROMACS mdrun commands in parallel.
 
@@ -1412,14 +1424,14 @@ class EnsembleEXE:
             print(iter_str + '\n' + '=' * (len(iter_str) - 1))
 
         # 1st synchronizing point for all MPI processes: To make sure ranks other than 0 will not start executing
-        # run_grompp earlier and mess up the order of printing.
+        # _run_grompp earlier and mess up the order of printing.
         comm.barrier()
 
         # Generating all required TPR files simultaneously, then run all simulations simultaneously.
-        # No synchronizing point is needed between run_grompp and run_mdrun, since once rank i finishes run_grompp,
-        # it should run run_mdrun in the same working directory, so there won't be any I/O error.
-        self.run_grompp(n, swap_pattern)
-        self.run_mdrun(n)
+        # No synchronizing point is needed between _run_grompp and _run_mdrun, since once rank i finishes _run_grompp,
+        # it should run _run_mdrun in the same working directory, so there won't be any I/O error.
+        self._run_grompp(n, swap_pattern)
+        self._run_mdrun(n)
 
         # 2nd synchronizaing point for all MPI processes: To make sure no rank will start getting to the next
         # iteration earlier than the others. For example, if rank 0 finishes the mdrun command earlier, we don't

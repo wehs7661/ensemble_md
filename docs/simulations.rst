@@ -282,9 +282,22 @@ include parameters for data analysis here.
   - :code:`acceptance`: (Optional, Default: :code:`metropolis`)
       The Monte Carlo method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
       For more details, please refer to :ref:`doc_acceptance`.
-  - :code:`w_combine`: (Optional, Default: :code:`False`)
-      Whether to combine weights across multiple replicas for an weight-updating EEXE simulations. 
-      For more details, please refer to :ref:`doc_w_schemes`.
+  - :code:`w_combine`: (Optional, Default: :code:`None`)
+      The type of weights to be combined across multiple replicas in a weight-updating EEXE simulation. The following options are available:
+
+        - :code:`None`: No weight combination.
+        - :code:`final`: Combine the final weights.
+        - :code:`avg`: Combine the weights averaged over from last time the Wang-Landau incrementor was updated. Notably, the time-averaged weights tend to be very noisy at the beginning of the simulation and can drive the combined weights in a bad direction. Therefore, we recommend specifying the parameter :code:`rmse_cutoff` to only use the time-averaged weights when the weights are not changing too much. For more details, check the description of the parameter :code:`rmse_cutoff` below.
+ 
+      For more details about weight combination, please refer to :ref:`doc_w_schemes`.
+  
+  - :code:`rmse_cutoff`: (Optional, Default: :code:`None`)
+      The cutoff for the root-mean-square error (RMSE) between the weights at the end of the current iteration 
+      and the weights averaged over from the last time the Wang-Landau incrementor was updated.
+      For each replica, the time-averaged weights will be used in weight combination only if the RMSE is smaller than the cutoff.
+      Otherwise, the final weights will still be used. If this parameter is not specified, then time-averaged weights will always be used, which could be problematic
+      since time-averaged weights tend to be very noisy at the beginning of the simulation. Note that this parameter is only meanful when :code:`w_combine` is set to :code:`avg`.
+      The units of the cutoff are :math:`k_B T`.
   - :code:`N_cutoff`: (Optional, Default: 1000)
       The histogram cutoff. -1 means that no histogram correction will be performed.
   - :code:`n_ex`: (Optional, Default: 1)
@@ -373,7 +386,8 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     add_swappables: null
     proposal: 'exhaustive'
     acceptance: 'metropolis' 
-    w_combine: False
+    w_combine: null
+    rmse_cutoff: null
     N_cutoff: 1000
     n_ex: 1
     mdp_args: null

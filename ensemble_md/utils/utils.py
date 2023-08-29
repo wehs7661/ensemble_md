@@ -133,7 +133,7 @@ def format_time(t):
     return t_str
 
 
-def autoconvert(s):
+def _autoconvert(s):
     """
     Converts input to a numerical type if possible. Used for the MDP parser.
     Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
@@ -179,7 +179,7 @@ def autoconvert(s):
     raise ValueError("Failed to autoconvert {0!r}".format(s))
 
 
-def get_subplot_dimension(n_panels):
+def _get_subplot_dimension(n_panels):
     """
     Gets the numbers of rows and columns in a subplot such that
     the arrangement of the .

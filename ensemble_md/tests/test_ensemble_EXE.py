@@ -169,7 +169,7 @@ class Test_EnsembleEXE:
         # 2. Check the default values of the parameters not specified in params.yaml
         assert EEXE.proposal == "exhaustive"
         assert EEXE.acceptance == "metropolis"
-        assert EEXE.w_combine is False
+        assert EEXE.w_combine is None
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_ex == 'N^3'
         assert EEXE.verbose is True
@@ -270,7 +270,7 @@ class Test_EnsembleEXE:
         L += "Verbose log file: True\n"
         L += "Proposal scheme: exhaustive\n"
         L += "Acceptance scheme for swapping simulations: metropolis\n"
-        L += "Whether to perform weight combination: False\n"
+        L += "Type of weights to be combined: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of attempted swaps in one exchange interval: N^3\n"
         L += "Length of each replica: 1.0 ps\nFrequency for checkpointing: 100 iterations\n"
