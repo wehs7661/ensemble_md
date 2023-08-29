@@ -312,7 +312,7 @@ class MDP(odict, FileUtils):
 
     def _transform(self, value):
         if self.autoconvert:
-            return utils.autoconvert(value)
+            return utils._autoconvert(value)
         else:
             return value.rstrip()
 

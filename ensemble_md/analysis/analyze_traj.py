@@ -390,7 +390,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_pre
     x_range = [np.min(x), np.max(x)]
     y_range = [-0.2, np.max(trajs) + 0.2]
     n_configs = len(trajs)
-    n_rows, n_cols = utils.get_subplot_dimension(n_configs)
+    n_rows, n_cols = utils._get_subplot_dimension(n_configs)
     _, ax = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(2.5 * n_cols, 2.5 * n_rows))
     for i in range(n_configs):
         plt.subplot(n_rows, n_cols, i + 1)
@@ -537,7 +537,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
         plt.tight_layout()
         plt.savefig(f'{fig_name}', dpi=600)
     else:
-        n_rows, n_cols = utils.get_subplot_dimension(n_configs)
+        n_rows, n_cols = utils._get_subplot_dimension(n_configs)
         _, ax = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(4 * n_cols, 3 * n_rows))
         for i in range(n_configs):
             plt.subplot(n_rows, n_cols, i + 1)

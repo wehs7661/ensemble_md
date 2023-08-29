@@ -55,31 +55,31 @@ def test_format_time():
 
 def test_autoconvert():
     # Test non-string input
-    assert utils.autoconvert(42) == 42
+    assert utils._autoconvert(42) == 42
 
     # Test string input that can be converted to int
-    assert utils.autoconvert("42") == 42
+    assert utils._autoconvert("42") == 42
 
     # Test string input that can be converted to float
-    assert utils.autoconvert("3.14159") == 3.14159
+    assert utils._autoconvert("3.14159") == 3.14159
 
     # Test string input that can be converted to a numpy array of ints
-    assert utils.autoconvert("1 2 3") == [1, 2, 3]
+    assert utils._autoconvert("1 2 3") == [1, 2, 3]
 
     # Test string input that can be converted to a numpy array of floats
-    assert utils.autoconvert("1.0 2.0 3.0") == [1.0, 2.0, 3.0]
+    assert utils._autoconvert("1.0 2.0 3.0") == [1.0, 2.0, 3.0]
 
 
 def test_get_subplot_dimension():
-    assert utils.get_subplot_dimension(1) == (1, 1)
-    assert utils.get_subplot_dimension(2) == (1, 2)
-    assert utils.get_subplot_dimension(3) == (2, 2)
-    assert utils.get_subplot_dimension(4) == (2, 2)
-    assert utils.get_subplot_dimension(5) == (2, 3)
-    assert utils.get_subplot_dimension(6) == (2, 3)
-    assert utils.get_subplot_dimension(7) == (3, 3)
-    assert utils.get_subplot_dimension(8) == (3, 3)
-    assert utils.get_subplot_dimension(9) == (3, 3)
+    assert utils._get_subplot_dimension(1) == (1, 1)
+    assert utils._get_subplot_dimension(2) == (1, 2)
+    assert utils._get_subplot_dimension(3) == (2, 2)
+    assert utils._get_subplot_dimension(4) == (2, 2)
+    assert utils._get_subplot_dimension(5) == (2, 3)
+    assert utils._get_subplot_dimension(6) == (2, 3)
+    assert utils._get_subplot_dimension(7) == (3, 3)
+    assert utils._get_subplot_dimension(8) == (3, 3)
+    assert utils._get_subplot_dimension(9) == (3, 3)
 
 
 def test_weighted_mean():
