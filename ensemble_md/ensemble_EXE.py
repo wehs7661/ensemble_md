@@ -1230,7 +1230,7 @@ class EnsembleEXE:
 
         Returns
         -------
-        weights : list
+        weights_modified : list
             A list of modified Wang-Landau weights of ALL simulations.
         g_vec : np.ndarray
             An array of alchemical weights of the whole range of states.
@@ -1243,7 +1243,7 @@ class EnsembleEXE:
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
 
-        # Method based on weight differences (the original g-diff)
+        # Calculate adjacent weight differences and g_vec
         dg_vec = []
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
         if weights_err is not None:
@@ -1265,16 +1265,17 @@ class EnsembleEXE:
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
 
         # Determine the vector of alchemical weights for each replica
+        weights_modified = np.zeros_like(weights)
         for i in range(self.n_sim):
             if self.equil[i] == -1:  # unequilibrated
-                weights[i] = list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0])
+                weights_modified[i] = list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0])
             else:
-                weights[i] = self.equilibrated_weights[i]
-        weights = np.round(weights, decimals=5).tolist()
+                weights_modified[i] = self.equilibrated_weights[i]
+        weights_modified = np.round(weights_modified, decimals=5).tolist()
 
         if print_weights is True:
-            w = np.round(weights, decimals=3).tolist()  # just for printing
-            print('\n  Combined weights:')
+            w = np.round(weights_modified, decimals=3).tolist()  # just for printing
+            print('\n  Modified weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
 
@@ -1284,7 +1285,7 @@ class EnsembleEXE:
         else:
             print(f'\n  The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
 
-        return weights, g_vec
+        return weights_modified, g_vec
 
     def _run_grompp(self, n, swap_pattern):
         """
