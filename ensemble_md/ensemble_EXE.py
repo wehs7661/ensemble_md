@@ -1268,10 +1268,9 @@ class EnsembleEXE:
         weights_modified = np.zeros_like(weights)
         for i in range(self.n_sim):
             if self.equil[i] == -1:  # unequilibrated
-                weights_modified[i] = list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0])
+                weights_modified[i] = list(g_vec[i * self.s: i * self.s + self.n_sub] - g_vec[i * self.s: i * self.s + self.n_sub][0])  # noqa: E501
             else:
                 weights_modified[i] = self.equilibrated_weights[i]
-        weights_modified = np.round(weights_modified, decimals=5).tolist()
 
         if print_weights is True:
             w = np.round(weights_modified, decimals=3).tolist()  # just for printing
