@@ -282,9 +282,24 @@ include parameters for data analysis here.
   - :code:`acceptance`: (Optional, Default: :code:`metropolis`)
       The Monte Carlo method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
       For more details, please refer to :ref:`doc_acceptance`.
-  - :code:`w_combine`: (Optional, Default: :code:`False`)
-      Whether to combine weights across multiple replicas for an weight-updating EEXE simulations. 
-      For more details, please refer to :ref:`doc_w_schemes`.
+  - :code:`w_combine`: (Optional, Default: :code:`None`)
+      The type of weights to be combined across multiple replicas in a weight-updating EEXE simulation. The following options are available:
+
+        - :code:`None`: No weight combination.
+        - :code:`final`: Combine the final weights.
+        - :code:`avg`: Combine the weights averaged over from last time the Wang-Landau incrementor was updated.
+ 
+      For more details about weight combination, please refer to :ref:`doc_w_schemes`.
+  
+  - :code:`rmse_cutoff`: (Optional, Default: :code:`None`)
+      The cutoff for the root-mean-square error (RMSE) between the weights of the current iteration 
+      and the weights averaged over from the last time the Wang-Landau incrementor was updated.
+      For each replica, the RMSE between the averaged weights and the current weights will be calculated.
+      When :code:`rmse_cutoff` is specified, weight combination will be performed only if the maximum RMSE across all replicas
+      is smaller than the cutoff. Otherwise, weight combination is deactivated (even if :code:`w_combine` is specified)
+      because a larger RMSE indicates that the weights are noisy and should not be combined.
+      The default value is infinity, which means that weight combination will always be performed if :code:`w_combine` is specified.
+      The units of the cutoff are :math:`k_B T`.
   - :code:`N_cutoff`: (Optional, Default: 1000)
       The histogram cutoff. -1 means that no histogram correction will be performed.
   - :code:`n_ex`: (Optional, Default: 1)
@@ -352,7 +367,8 @@ include parameters for data analysis here.
 -------------------------------
 For convenience, here is a template of the input YAML file, with each optional parameter specified with the default and required 
 parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e. :code:`None`).
-
+Note that the default value :code:`None` for the parameter :code:`rmse_cutoff` will be converted to
+infinity internally.
 
 .. code-block:: yaml
 
@@ -373,7 +389,8 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
     add_swappables: null
     proposal: 'exhaustive'
     acceptance: 'metropolis' 
-    w_combine: False
+    w_combine: null
+    rmse_cutoff: null
     N_cutoff: 1000
     n_ex: 1
     mdp_args: null

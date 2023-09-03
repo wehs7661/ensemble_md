@@ -169,7 +169,7 @@ class Test_EnsembleEXE:
         # 2. Check the default values of the parameters not specified in params.yaml
         assert EEXE.proposal == "exhaustive"
         assert EEXE.acceptance == "metropolis"
-        assert EEXE.w_combine is False
+        assert EEXE.w_combine is None
         assert EEXE.N_cutoff == 1000
         assert EEXE.n_ex == 'N^3'
         assert EEXE.verbose is True
@@ -270,7 +270,7 @@ class Test_EnsembleEXE:
         L += "Verbose log file: True\n"
         L += "Proposal scheme: exhaustive\n"
         L += "Acceptance scheme for swapping simulations: metropolis\n"
-        L += "Whether to perform weight combination: False\n"
+        L += "Type of weights to be combined: None\n"
         L += "Histogram cutoff: 1000\nNumber of replicas: 4\nNumber of iterations: 10\n"
         L += "Number of attempted swaps in one exchange interval: N^3\n"
         L += "Length of each replica: 1.0 ps\nFrequency for checkpointing: 100 iterations\n"
@@ -626,7 +626,7 @@ class Test_EnsembleEXE:
         errors = [[0, 0.1, 0.15, 0.1], [0, 0.12, 0.1, 0.12], [0, 0.12, 0.15, 0.1]]
         w_2, g_vec_2 = EEXE.combine_weights(weights, errors)
         assert np.allclose(w_2, [
-            [0, 2.1, 3.86141, 3.45417],
-            [0, 1.76141, 1.35417, 2.71437],
-            [0, -0.40723, 0.95296, 1.95296]])
+            [0, 2.1, 3.86140725, 3.45417313],
+            [0, 1.76140725, 1.35417313, 2.71436889],
+            [0, -0.40723412, 0.95296164, 1.95296164]])
         assert np.allclose(list(g_vec_2), [0, 2.1, 3.861407249466951, 3.4541731330165306, 4.814368891580968, 5.814368891580968])  # noqa: E501

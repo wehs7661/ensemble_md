@@ -236,6 +236,28 @@ def weighted_mean(vals, errs):
     return mean, err
 
 
+def calc_rmse(data, ref):
+    """
+    Calculates the root mean square error (RMSE) of the given data
+    with respect to the reference data.
+
+    Parameters
+    ----------
+    data : list
+        A list of values to be compared with the reference data.
+    ref : list
+        A list of reference values.
+
+    Returns
+    -------
+    rmse : float
+        The root mean square error.
+    """
+    rmse = np.sqrt(np.mean((np.array(data) - np.array(ref)) ** 2))
+
+    return rmse
+
+
 def get_time_metrics(log):
     """
     Gets the time-based metrics from a log file, including the core time (s),

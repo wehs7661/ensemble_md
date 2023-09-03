@@ -39,7 +39,7 @@ class EnsembleEXE:
     an ensemble of expanded ensemble. Upon instantiation, all parameters in the YAML
     file will be assigned to an attribute in the class. In addition to these variables,
     below is a list of attributes of the class. (All the the attributes are assigned by
-    :obj:`_set_params` unless otherwise noted.)
+    :obj:`set_params` unless otherwise noted.)
 
     :ivar gmx_path: The absolute path of the GROMACS exectuable.
     :ivar gmx_version: The version of the GROMACS executable.
@@ -84,9 +84,9 @@ class EnsembleEXE:
 
     def __init__(self, yaml_file, analysis=False):
         self.yaml = yaml_file
-        self._set_params(analysis)
+        self.set_params(analysis)
 
-    def _set_params(self, analysis):
+    def set_params(self, analysis):
         """
         Sets up or reads in the user-defined parameters from a yaml file and an MDP template.
         This function is called to instantiate the class in the :code:`__init__` function of
@@ -159,7 +159,8 @@ class EnsembleEXE:
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
-            "w_combine": False,
+            "w_combine": None,
+            "rmse_cutoff": np.inf,
             "N_cutoff": 1000,
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
@@ -195,11 +196,21 @@ class EnsembleEXE:
         if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis', 'metropolis-eq', 'metropolis_eq']:
             raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
 
+        if self.w_combine not in [None, 'final', 'avg']:
+            raise ParameterError("The specified type of weight to be combined is not available. Available options include 'final' and 'avg'.")  # noqa: E501
+
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
 
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
+
+        if self.w_combine is not None and self.rmse_cutoff == np.inf:
+            self.warnings.append('Warning: We recommend setting rmse_cutoff when w_combine is used.')
+
+        if self.rmse_cutoff != np.inf:
+            if type(self.rmse_cutoff) is not float and type(self.rmse_cutoff) is not int:
+                raise ParameterError("The parameter 'rmse_cutoff' should be a float.")
 
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.nst_sim is not None:
@@ -212,7 +223,7 @@ class EnsembleEXE:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap', 'rmse_cutoff']  # positive parameters
         if self.nst_sim is not None:
             params_pos.append('nst_sim')
         for i in params_pos:
@@ -242,7 +253,7 @@ class EnsembleEXE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['verbose', 'rm_cpt', 'w_combine', 'msm', 'free_energy', 'subsampling_avg']
+        params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
@@ -305,11 +316,11 @@ class EnsembleEXE:
             self.equilibrated_weights = [None for i in range(self.n_sim)]
 
         if self.fixed_weights is True:
-            if self.N_cutoff != -1 or self.w_combine is not False:
+            if self.N_cutoff != -1 or self.w_combine is not None:
                 self.warnings.append('Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
                 # In the case that the warning is ignored, enforce the defaults.
                 self.N_cutoff = -1
-                self.w_combine = False
+                self.w_combine = None
 
         if 'lmc_seed' in self.template and self.template['lmc_seed'] != -1:
             self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
@@ -483,7 +494,7 @@ class EnsembleEXE:
         print(f"Verbose log file: {self.verbose}")
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
-        print(f"Whether to perform weight combination: {self.w_combine}")
+        print(f"Type of weights to be combined: {self.w_combine}")
         print(f"Histogram cutoff: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
         print(f"Number of iterations: {self.n_iter}")
@@ -736,44 +747,6 @@ class EnsembleEXE:
                     self.equilibrated_weights[i] = result[0][-1]
 
         return wl_delta, weights, counts
-
-    def get_averaged_weights(self, log_files):
-        """
-        For each replica, calculate the averaged weights (and the associated error) from the time series
-        of the weights since the previous update of the Wang-Landau incrementor.
-
-        Parameters
-        ----------
-        log_files : list
-            A list of file paths to GROMACS LOG files of different replicas.
-
-        Returned
-        --------
-        weights_avg : list
-            A list of lists of weights averaged since the last update of the Wang-Landau
-            incrementor. The length of the list should be the number of replicas.
-        weights_err : list
-            A list of lists of errors corresponding to the values in :code:`weights_avg`.
-        """
-        for i in range(self.n_sim):
-            weights, _, wl_delta, _ = gmx_parser.parse_log(log_files[i])
-            if self.current_wl_delta[i] == wl_delta:
-                self.updating_weights[i] += weights  # expand the list
-            else:
-                self.current_wl_delta[i] = wl_delta
-                self.updating_weights[i] = weights
-
-        # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
-        # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
-        weight_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
-        weight_err = []
-        for i in range(self.n_sim):
-            if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
-                weight_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
-            else:
-                weight_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
-
-        return weight_avg, weight_err
 
     @staticmethod
     def identify_swappable_pairs(states, state_ranges, neighbor_exchange, add_swappables=None):
@@ -1168,7 +1141,82 @@ class EnsembleEXE:
 
         return weights
 
-    def combine_weights(self, weights, weights_err=None):
+    def get_averaged_weights(self, log_files):
+        """
+        For each replica, calculate the averaged weights (and the associated error) from the time series
+        of the weights since the previous update of the Wang-Landau incrementor.
+
+        Parameters
+        ----------
+        log_files : list
+            A list of file paths to GROMACS LOG files of different replicas.
+
+        Returned
+        --------
+        weights_avg : list
+            A list of lists of weights averaged since the last update of the Wang-Landau
+            incrementor. The length of the list should be the number of replicas.
+        weights_err : list
+            A list of lists of errors corresponding to the values in :code:`weights_avg`.
+        """
+        for i in range(self.n_sim):
+            weights, _, wl_delta, _ = gmx_parser.parse_log(log_files[i])
+            if self.current_wl_delta[i] == wl_delta:
+                self.updating_weights[i] += weights  # expand the list
+            else:
+                self.current_wl_delta[i] = wl_delta
+                self.updating_weights[i] = weights
+
+        # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
+        # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
+        weights_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
+        weights_err = []
+        for i in range(self.n_sim):
+            if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
+                weights_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
+            else:
+                weights_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
+
+        return weights_avg, weights_err
+
+    def prepare_weights(self, weights_avg, weights_final):
+        """
+        Prepared weights to be combined by the function :code:`combine_weights`.
+        For each replica, the RMSE between the averaged weights and the final weights is calculated. If the
+        maximum of the RMSEs of all replicas is smaller than the cutoff specified in the input YAML file
+        (the parameter :code:`rmse_cutoff`), either final weights or time-averaged weights will be used
+        (depending on the value of the parameter :code:`w_combine`). Otherwise, :code:`None` will be returned,
+        which will lead to deactivation of weight combination in the CLI :code:`run_EEXE`.
+
+        Parameters
+        ----------
+        weights_avg : list
+            A list of lists of weights averaged since the last update of the Wang-Landau
+            incrementor. The length of the list should be the number of replicas.
+        weights_final : list
+            A list of lists of final weights of all simulations. The length of the list should
+            be the number of replicas.
+
+        Returns
+        -------
+        weights_output : list
+            A list of lists of weights to be combined.
+        """
+        rmse_list = [utils.calc_rmse(weights_avg[i], weights_final[i]) for i in range(self.n_sim)]
+        rmse_str = ', '.join([f'{i:.2f}' for i in rmse_list])
+        print(f'RMSE between the final weights and time-averaged weights for each replica: {rmse_str} kT')
+        if np.max(rmse_list) < self.rmse_cutoff:
+            # Weight combination will be activated
+            if self.w_combine == 'final':
+                weights_output = weights_final
+            elif self.w_combine == 'avg':
+                weights_output = weights_avg
+        else:
+            weights_output = None
+
+        return weights_output
+
+    def combine_weights(self, weights, weights_err=None, print_weights=True):
         """
         Combine alchemical weights across multiple replicas. Note that if
         :code:`weights_err` is provided, inverse-variance weighting will be used.
@@ -1178,27 +1226,24 @@ class EnsembleEXE:
         Parameters
         ----------
         weights : list
-            A list of Wang-Landau weights of ALL simulations
+            A list of Wang-Landau weights of ALL simulations.
 
         Returns
         -------
-        weights : list
+        weights_modified : list
             A list of modified Wang-Landau weights of ALL simulations.
         g_vec : np.ndarray
             An array of alchemical weights of the whole range of states.
+        print_weights : bool
+            Whether to print the original and combined weights for each replica.
         """
-        if self.verbose is True:
-            print('Performing weight combination ...')
-        else:
-            print('Performing weight combination ...', end='')
-
-        if self.verbose is True:
+        if print_weights is True:
             w = np.round(weights, decimals=3).tolist()  # just for printing
             print('  Original weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
 
-        # Method based on weight differences (the original g-diff)
+        # Calculate adjacent weight differences and g_vec
         dg_vec = []
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
         if weights_err is not None:
@@ -1220,16 +1265,16 @@ class EnsembleEXE:
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
 
         # Determine the vector of alchemical weights for each replica
+        weights_modified = np.zeros_like(weights)
         for i in range(self.n_sim):
             if self.equil[i] == -1:  # unequilibrated
-                weights[i] = list(g_vec[i: i + self.n_sub] - g_vec[i: i + self.n_sub][0])
+                weights_modified[i] = list(g_vec[i * self.s: i * self.s + self.n_sub] - g_vec[i * self.s: i * self.s + self.n_sub][0])  # noqa: E501
             else:
-                weights[i] = self.equilibrated_weights[i]
-        weights = np.round(weights, decimals=5).tolist()
+                weights_modified[i] = self.equilibrated_weights[i]
 
-        if self.verbose is True:
-            w = np.round(weights, decimals=3).tolist()  # just for printing
-            print('\n  Combined weights:')
+        if print_weights is True:
+            w = np.round(weights_modified, decimals=3).tolist()  # just for printing
+            print('\n  Modified weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
 
@@ -1239,7 +1284,7 @@ class EnsembleEXE:
         else:
             print(f'\n  The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
 
-        return weights, g_vec
+        return weights_modified, g_vec
 
     def _run_grompp(self, n, swap_pattern):
         """
