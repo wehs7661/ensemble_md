@@ -146,7 +146,7 @@ def main():
                 dhdl_files = [f'sim_{j}/iteration_{i - 1}/dhdl.xvg' for j in range(EEXE.n_sim)]
                 log_files = [f'sim_{j}/iteration_{i - 1}/md.log' for j in range(EEXE.n_sim)]
                 states_ = EEXE.extract_final_dhdl_info(dhdl_files)
-                wl_delta, weights_, counts = EEXE.extract_final_log_info(log_files)
+                wl_delta, weights_, counts_ = EEXE.extract_final_log_info(log_files)
                 print()
 
                 # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
@@ -158,6 +158,7 @@ def main():
                 # `combine_weights` and `update_MDP`.
                 states = copy.deepcopy(states_)
                 weights = copy.deepcopy(weights_)
+                counts = copy.deepcopy(counts_)
                 swap_pattern, swap_list = EEXE.get_swapping_pattern(dhdl_files, states_, weights_)  # swap_list will only be used for modify_coords  # noqa: E501
 
                 # 3-3. Perform weight correction/weight combination
@@ -180,37 +181,37 @@ def main():
                         # Then only weight correction will be performed
                         print('Note: Weight combination is deactivated because the weights are too noisy.')
                         weights = EEXE.weight_correction(weights, counts)
-                        _ = EEXE.combine_weights(weights, print_weights=False)[1]  # just to print the combiend weights
+                        _ = EEXE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
                     else:
                         weights_preprocessed = EEXE.weight_correction(weights_input, counts)
                         if EEXE.verbose is True:
                             print('Performing weight combination ...')
                         else:
                             print('Performing weight combination ...', end='')
-                        weights, g_vec = EEXE.combine_weights(weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
+                        counts, weights, g_vec = EEXE.combine_weights(counts_, weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
                         EEXE.g_vecs.append(g_vec)
                 elif EEXE.N_cutoff == -1 and EEXE.w_combine is not None:
                     # only perform weight combination
                     print('Note: No weight correction will be performed.')
                     if weights_input is None:
                         print('Note: Weight combination is deactivated because the weights are too noisy.')
-                        _ = EEXE.combine_weights(weights, print_weights=False)[1]  # just to print the combined weights
+                        _ = EEXE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                     else:
                         if EEXE.verbose is True:
                             print('Performing weight combination ...')
                         else:
                             print('Performing weight combination ...', end='')
-                        weights, g_vec = EEXE.combine_weights(weights_input)  # inverse-variance weighting seems worse
+                        counts, weights, g_vec = EEXE.combine_weights(counts_, weights_input)  # inverse-variance weighting seems worse  # noqa: E501
                         EEXE.g_vecs.append(g_vec)
                 elif EEXE.N_cutoff != -1 and EEXE.w_combine is None:
                     # only perform weight correction
                     print('Note: No weight combination will be performed.')
                     weights = EEXE.histogram_correction(weights_input, counts)
-                    _ = EEXE.combine_weights(weights, print_weights=False)[1]  # just to print the combined weights
+                    _ = EEXE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                 else:
                     print('Note: No weight correction will be performed.')
                     print('Note: No weight combination will be performed.')
-                    _ = EEXE.combine_weights(weights, print_weights=False)[1]  # just to print the combiend weights
+                    _ = EEXE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
 
                 # 3-5. Modify the MDP files and swap out the GRO files (if needed)
                 # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
