@@ -1257,6 +1257,15 @@ class EnsembleEXE:
         dg_vec, N_ratio_vec = [], []  # alchemical weight differences and histogram count ratios for the whole range
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
         N_ratio_adjacent = [list(np.array(hist[i][1:]) / np.array(hist[i][:-1])) for i in range(len(hist))]
+
+        # Below we deal with the case where the sampling is poor or the WL incrementor just got updated such that
+        # the histogram counts are 0 for some states, in which case we simply skip histogram correction.
+        contains_nan = any(np.isnan(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by 0/0  # noqa: E501
+        contains_inf = any(np.isinf(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by x/0, where x is a finite number  # noqa: E501
+        skip_hist_correction = contains_nan or contains_inf
+        if skip_hist_correction:
+            print('\n  Histogram correction is skipped because the histogram counts are 0 for some states.')
+
         if weights_err is not None:
             dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
 
@@ -1277,7 +1286,12 @@ class EnsembleEXE:
         dg_vec.insert(0, 0)
         N_ratio_vec.insert(0, hist[0][0])
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
-        N_vec = np.array([int(np.ceil(np.prod(N_ratio_vec[:(i + 1)]))) for i in range(len(N_ratio_vec))])
+        if skip_hist_correction is False:
+            # When skip_hist_correction is True, previous lines for calculating N_ratio_vec or N_ratio_list will
+            # still not error out so it's fine to not add the conditional statement like here, since we will
+            # have hist_modified = hist at the end anyway. However, if skip_hist_correction, things like
+            # int(np.nan) will lead to an error, so we put an if condition here.
+            N_vec = np.array([int(np.ceil(np.prod(N_ratio_vec[:(i + 1)]))) for i in range(len(N_ratio_vec))])
 
         # Determine the vector of alchemical weights and histogram counts for each replica
         weights_modified = np.zeros_like(weights)
@@ -1287,16 +1301,20 @@ class EnsembleEXE:
                 weights_modified[i] = list(g_vec[i * self.s: i * self.s + self.n_sub] - g_vec[i * self.s: i * self.s + self.n_sub][0])  # noqa: E501
             else:
                 weights_modified[i] = self.equilibrated_weights[i]
-        hist_modified = [list(N_vec[self.state_ranges[i]]) for i in range(self.n_sim)]
+        if skip_hist_correction is False:
+            hist_modified = [list(N_vec[self.state_ranges[i]]) for i in range(self.n_sim)]
+        else:
+            hist_modified = hist
 
         if print_values is True:
             w = np.round(weights_modified, decimals=3).tolist()  # just for printing
             print('\n  Modified weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
-            print('\n  Modified histogram counts:')
-            for i in range(len(hist_modified)):
-                print(f'    Rep {i}: {hist_modified[i]}')
+            if skip_hist_correction is False:
+                print('\n  Modified histogram counts:')
+                for i in range(len(hist_modified)):
+                    print(f'    Rep {i}: {hist_modified[i]}')
 
         if self.verbose is False:
             print(' DONE')
