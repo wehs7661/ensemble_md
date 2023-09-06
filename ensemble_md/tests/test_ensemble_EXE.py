@@ -99,7 +99,7 @@ class Test_EnsembleEXE:
 
         # 5. Non-negative parameters
         check_param_error(params_dict, 'n_ex', "The parameter 'n_ex' should be non-negative.", -1)
-        check_param_error(params_dict, 'N_cutoff', "The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.", -5)  # noqa: E501
+        check_param_error(params_dict, 'N_cutoff', "The parameter 'N_cutoff' should be non-negative unless no weight correction is needed, i.e. N_cutoff = -1.", -5)  # noqa: E501
 
         # 6. String parameters
         check_param_error(params_dict, 'mdp', "The parameter 'mdp' should be a string.", 3, 'ensemble_md/tests/data/expanded.mdp')  # noqa: E501
@@ -144,7 +144,7 @@ class Test_EnsembleEXE:
         params_dict['N_cutoff'] = 1000
         EEXE = get_EEXE_instance(params_dict)
 
-        warning_1 = 'Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.'  # noqa: E501
+        warning_1 = 'Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.'  # noqa: E501
         warning_2 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
         warning_3 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
         assert warning_1 in EEXE.warnings
@@ -580,15 +580,15 @@ class Test_EnsembleEXE:
         assert swap_bool_2 is False
         assert swap_bool_3 is True
 
-    def test_historgam_correction(self, params_dict):
+    def test_weight_correction(self, params_dict):
         EEXE = get_EEXE_instance(params_dict)
 
-        # Case 1: Perform histogram correction (N_cutoff reached)
+        # Case 1: Perform weight correction (N_cutoff reached)
         EEXE.N_cutoff = 5000
         EEXE.verbose = False  # just to increase code coverage
         weights_1 = [[0, 10.304, 20.073, 29.364]]
         counts_1 = [[31415, 45701, 55457, 59557]]
-        weights_1 = EEXE.histogram_correction(weights_1, counts_1)
+        weights_1 = EEXE.weight_correction(weights_1, counts_1)
         assert np.allclose(weights_1, [
             [
                 0,
@@ -598,11 +598,11 @@ class Test_EnsembleEXE:
             ]
         ])  # noqa: E501
 
-        # Case 2: Perform histogram correction (N_cutoff not reached by both N_k and N_{k-1})
+        # Case 2: Perform weight correction (N_cutoff not reached by both N_k and N_{k-1})
         EEXE.verbose = True
         weights_2 = [[0, 10.304, 20.073, 29.364]]
         counts_2 = [[3141, 4570, 5545, 5955]]
-        weights_2 = EEXE.histogram_correction(weights_2, counts_2)
+        weights_2 = EEXE.weight_correction(weights_2, counts_2)
         assert np.allclose(weights_2, [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]])
 
     def test_combine_weights(self, params_dict):
