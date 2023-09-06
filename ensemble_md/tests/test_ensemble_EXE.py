@@ -605,7 +605,10 @@ class Test_EnsembleEXE:
         weights_2 = EEXE.weight_correction(weights_2, counts_2)
         assert np.allclose(weights_2, [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]])
 
-    def test_combine_weights(self, params_dict):
+    def test_combine_weights_1(self, params_dict):
+        """
+        Here we just test the combined weights, so the values of hist does not matter. 
+        """
         EEXE = get_EEXE_instance(params_dict)
         EEXE.n_tot = 6
         EEXE.n_sub = 4
@@ -613,9 +616,10 @@ class Test_EnsembleEXE:
         EEXE.n_sim = 3
         EEXE.state_ranges = [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5]]
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
+        hist = [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]]
 
         EEXE.w_combine = True
-        w_1, g_vec_1 = EEXE.combine_weights(weights)
+        _, w_1, g_vec_1 = EEXE.combine_weights(hist, weights)
         assert np.allclose(w_1, [
             [0, 2.1, 3.9, 3.5],
             [0, 1.8, 1.4, 2.75],
@@ -624,9 +628,26 @@ class Test_EnsembleEXE:
 
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
         errors = [[0, 0.1, 0.15, 0.1], [0, 0.12, 0.1, 0.12], [0, 0.12, 0.15, 0.1]]
-        w_2, g_vec_2 = EEXE.combine_weights(weights, errors)
+        _, w_2, g_vec_2 = EEXE.combine_weights(hist, weights, errors)
         assert np.allclose(w_2, [
             [0, 2.1, 3.86140725, 3.45417313],
             [0, 1.76140725, 1.35417313, 2.71436889],
             [0, -0.40723412, 0.95296164, 1.95296164]])
         assert np.allclose(list(g_vec_2), [0, 2.1, 3.861407249466951, 3.4541731330165306, 4.814368891580968, 5.814368891580968])  # noqa: E501
+
+    def test_combine_weights_2(self, params_dict):
+        """
+        Here we just test the modified histograms, so the values of weights does not matter. 
+        """
+        EEXE = get_EEXE_instance(params_dict)
+        EEXE.n_tot = 6
+        EEXE.n_sub = 5
+        EEXE.s = 1
+        EEXE.n_sim = 2
+        EEXE.state_ranges = [[0, 1, 2, 3, 4], [1, 2, 3, 4, 5]]
+        weights = [[0, 2.1, 4.0, 3.7, 5], [0, 1.7, 1.2, 2.6, 4]]
+        hist = [[416, 332, 130, 71, 61], [303, 181, 123, 143, 260]]
+        
+        EEXE.w_combine = True
+        hist_modified, _, _ = EEXE.combine_weights(hist, weights)
+        assert hist_modified == [[416, 332, 161, 98, 98], [332, 161, 98, 98, 178]]
