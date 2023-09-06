@@ -237,7 +237,7 @@ class EnsembleEXE:
             raise ParameterError("The parameter 's' should be non-negative.")
 
         if self.N_cutoff < 0 and self.N_cutoff != -1:
-            raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
+            raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no weight correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
 
         params_str = ['gro', 'top', 'mdp', 'gmx_executable']
         # First check if self.gro and self.top are lists and check their lengths
@@ -317,7 +317,7 @@ class EnsembleEXE:
 
         if self.fixed_weights is True:
             if self.N_cutoff != -1 or self.w_combine is not None:
-                self.warnings.append('Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
+                self.warnings.append('Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
                 # In the case that the warning is ignored, enforce the defaults.
                 self.N_cutoff = -1
                 self.w_combine = None
@@ -1096,7 +1096,7 @@ class EnsembleEXE:
                     print("  Swap rejected! ")
         return swap_bool
 
-    def histogram_correction(self, weights, counts):
+    def weight_correction(self, weights, counts):
         """
         Corrects the lambda weights based on the histogram counts. Namely,
         :math:`g_k' = g_k + ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
@@ -1119,9 +1119,9 @@ class EnsembleEXE:
             An updated list of lists of corected weights.
         """
         if self.verbose is True:
-            print("\nPerforming histogram correction for the lambda weights ...")
+            print("\nPerforming weight correction for the lambda weights ...")
         else:
-            print("\nPerforming histogram correction for the lambda weights ...", end="")
+            print("\nPerforming weight correction for the lambda weights ...", end="")
 
         for i in range(len(weights)):  # loop over the replicas
             if self.verbose is True:
