@@ -15,6 +15,7 @@ import sys
 import copy
 import yaml
 import random
+import warnings
 import importlib
 import subprocess
 import numpy as np
@@ -1256,7 +1257,10 @@ class EnsembleEXE:
         # Calculate adjacent weight differences and g_vec
         dg_vec, N_ratio_vec = [], []  # alchemical weight differences and histogram count ratios for the whole range
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
-        N_ratio_adjacent = [list(np.array(hist[i][1:]) / np.array(hist[i][:-1])) for i in range(len(hist))]
+        # Suppress the specific warning here
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            N_ratio_adjacent = [list(np.array(hist[i][1:]) / np.array(hist[i][:-1])) for i in range(len(hist))]
 
         # Below we deal with the case where the sampling is poor or the WL incrementor just got updated such that
         # the histogram counts are 0 for some states, in which case we simply skip histogram correction.
