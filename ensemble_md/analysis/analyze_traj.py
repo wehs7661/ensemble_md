@@ -965,15 +965,76 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
         plt.savefig(f'{swap_type}_swaps.png', dpi=600)
 
 
-def get_dg_evolution(log_file, start_state, end_state):
+def get_g_evolution(log_files, N_states, avg_frac=0):
+    """
+    For weight-updating simulations, gets the time series of the alchemical
+    weights of all states.
+
+    Parameters
+    ----------
+    log_files : list
+        The list of log file names.
+    N_states : int
+        The total number of states in the whole alchemical range.
+    avg_frac : float
+        The fraction of the last part of the simulation to be averaged. The
+        default is 0, which means no averaging.
+
+
+    Returns
+    -------
+    g_vecs_all : list
+        The alchemical weights of all states as a function of time.
+        It should be a list of lists.
+    g_vecs_avg : list
+        The alchemical weights of all states averaged over the last part of
+        the simulation. If :code:`avg_frac` is 0, :code:`None` will be returned.
+    """
+    g_vecs_all = []
+    for log_file in log_files:
+        f = open(log_file, "r")
+        lines = f.readlines()
+        f.close()
+
+        n = -1
+        find_equil = False
+        for line in lines:
+            n += 1
+            if "Count   G(in kT)" in line:  # this line is lines[n]
+                w = []  # the list of weights at this time frame
+                for i in range(1, N_states + 1):
+                    if "<<" in lines[n + i]:
+                        w.append(float(lines[n + i].split()[-3]))
+                    else:
+                        w.append(float(lines[n + i].split()[-2]))
+
+                if find_equil is False:
+                    g_vecs_all.append(w)
+
+            if "Weights have equilibrated" in line:
+                find_equil = True
+                w = [float(i) for i in lines[n - 2].split(':')[-1].split()]
+                g_vecs_all.append(w)
+                break
+
+    if avg_frac != 0:
+        n_avg = int(avg_frac * len(g_vecs_all))
+        g_vecs_avg = np.mean(g_vecs_all[-n_avg:], axis=0)
+    else:
+        g_vecs_avg = None
+
+    return g_vecs_all, g_vecs_avg
+
+
+def get_dg_evolution(log_files, start_state, end_state):
     """
     For weight-updating simulations, gets the time series of the weight
     difference (:math:`Δg = g_2-g_1`) between the specified states.
 
     Parameters
     ----------
-    log_file : str
-        The log file name.
+    log_files : list
+        The list of log file names.
     start_state : int
         The index of the state (starting from 0) whose weight is :math:`g_1`.
     end_state : int
@@ -984,45 +1045,22 @@ def get_dg_evolution(log_file, start_state, end_state):
     dg : list
         A list of :math:`Δg` values.
     """
-    f = open(log_file, "r")
-    lines = f.readlines()
-    f.close()
-
-    n = -1
-    find_equil = False
-    dg = []
     N_states = end_state - start_state + 1  # number of states for the range of insterest
-    for line in lines:
-        n += 1
-        if "Count   G(in kT)" in line:  # this line is lines[n]
-            w = []  # the list of weights at this time frame
-            for i in range(1, N_states + 1):
-                if "<<" in lines[n + i]:
-                    w.append(float(lines[n + i].split()[-3]))
-                else:
-                    w.append(float(lines[n + i].split()[-2]))
-
-            if find_equil is False:
-                dg.append(w[end_state] - w[start_state])
-
-        if "Weights have equilibrated" in line:
-            find_equil = True
-            w = [float(i) for i in lines[n - 2].split(':')[-1].split()]
-            dg.append(w[end_state] - w[start_state])
-            break
+    g_vecs = get_g_evolution(log_files, N_states)
+    dg = [g_vecs[i][end_state] - g_vecs[i][start_state] for i in range(len(g_vecs))]
 
     return dg
 
 
-def plot_dg_evolution(log_file, start_state, end_state, start_idx=0, end_idx=-1, dt_log=2):
+def plot_dg_evolution(log_files, start_state, end_state, start_idx=0, end_idx=-1, dt_log=2):
     """
     For weight-updating simulations, plots the time series of the weight
     difference (:math:`Δg = g_2-g_1`) between the specified states.
 
     Parameters
     ----------
-    log_file : str or list
-        The log file name or a list of log file names.
+    log_files : list
+        The list of log file names.
     start_state : int
         The index of the state (starting from 0) whose weight is :math:`g_1`.
     end_state : int
@@ -1035,12 +1073,7 @@ def plot_dg_evolution(log_file, start_state, end_state, start_idx=0, end_idx=-1,
         The time interval between two consecutive frames in the log file. The
         default is 2 ps.
     """
-    if isinstance(log_file, str):
-        dg = get_dg_evolution(log_file, start_state, end_state)
-    else:
-        dg = []
-        for f in log_file:
-            dg += get_dg_evolution(f, start_state, end_state)
+    dg = get_dg_evolution(log_files, start_state, end_state)
 
     # Now we plot
     dg = dg[start_idx:end_idx]

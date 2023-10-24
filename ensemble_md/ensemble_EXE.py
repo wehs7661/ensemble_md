@@ -15,6 +15,7 @@ import sys
 import copy
 import yaml
 import random
+import warnings
 import importlib
 import subprocess
 import numpy as np
@@ -237,7 +238,7 @@ class EnsembleEXE:
             raise ParameterError("The parameter 's' should be non-negative.")
 
         if self.N_cutoff < 0 and self.N_cutoff != -1:
-            raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no histogram correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
+            raise ParameterError("The parameter 'N_cutoff' should be non-negative unless no weight correction is needed, i.e. N_cutoff = -1.")  # noqa: E501
 
         params_str = ['gro', 'top', 'mdp', 'gmx_executable']
         # First check if self.gro and self.top are lists and check their lengths
@@ -317,7 +318,7 @@ class EnsembleEXE:
 
         if self.fixed_weights is True:
             if self.N_cutoff != -1 or self.w_combine is not None:
-                self.warnings.append('Warning: The histogram correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
+                self.warnings.append('Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
                 # In the case that the warning is ignored, enforce the defaults.
                 self.N_cutoff = -1
                 self.w_combine = None
@@ -1096,7 +1097,7 @@ class EnsembleEXE:
                     print("  Swap rejected! ")
         return swap_bool
 
-    def histogram_correction(self, weights, counts):
+    def weight_correction(self, weights, counts):
         """
         Corrects the lambda weights based on the histogram counts. Namely,
         :math:`g_k' = g_k + ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
@@ -1119,9 +1120,9 @@ class EnsembleEXE:
             An updated list of lists of corected weights.
         """
         if self.verbose is True:
-            print("\nPerforming histogram correction for the lambda weights ...")
+            print("\nPerforming weight correction for the lambda weights ...")
         else:
-            print("\nPerforming histogram correction for the lambda weights ...", end="")
+            print("\nPerforming weight correction for the lambda weights ...", end="")
 
         for i in range(len(weights)):  # loop over the replicas
             if self.verbose is True:
@@ -1216,67 +1217,108 @@ class EnsembleEXE:
 
         return weights_output
 
-    def combine_weights(self, weights, weights_err=None, print_weights=True):
+    def combine_weights(self, hist, weights, weights_err=None, print_values=True):
         """
-        Combine alchemical weights across multiple replicas. Note that if
-        :code:`weights_err` is provided, inverse-variance weighting will be used.
+        Combine alchemical weights across multiple replicas and adjusts the histogram counts
+        corerspondingly. Note that if :code:`weights_err` is provided, inverse-variance weighting will be used.
         Care must be taken since inverse-variance weighting can lead to slower
         convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for mor details.)
 
         Parameters
         ----------
+        hist : list
+            A list of lists of histogram counts of ALL simulations.
         weights : list
-            A list of Wang-Landau weights of ALL simulations.
+            A list of lists alchemical weights of ALL simulations.
+        weights_err : list, optional
+            A list of lists of errors corresponding to the values in :code:`weights`.
+        print_values : bool, optional
+            Whether to print the histograms and weights for each replica before and
+            after weight combinationfor each replica.
 
         Returns
         -------
+        hist_modified : list
+            A list of modified histogram counts of ALL simulations.
         weights_modified : list
             A list of modified Wang-Landau weights of ALL simulations.
         g_vec : np.ndarray
             An array of alchemical weights of the whole range of states.
-        print_weights : bool
-            Whether to print the original and combined weights for each replica.
         """
-        if print_weights is True:
+        if print_values is True:
             w = np.round(weights, decimals=3).tolist()  # just for printing
             print('  Original weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
+            print('\n  Original histogram counts:')
+            for i in range(len(hist)):
+                print(f'    Rep {i}: {hist[i]}')
 
         # Calculate adjacent weight differences and g_vec
-        dg_vec = []
+        dg_vec, N_ratio_vec = [], []  # alchemical weight differences and histogram count ratios for the whole range
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
+        # Suppress the specific warning here
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            N_ratio_adjacent = [list(np.array(hist[i][1:]) / np.array(hist[i][:-1])) for i in range(len(hist))]
+
+        # Below we deal with the case where the sampling is poor or the WL incrementor just got updated such that
+        # the histogram counts are 0 for some states, in which case we simply skip histogram correction.
+        contains_nan = any(np.isnan(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by 0/0  # noqa: E501
+        contains_inf = any(np.isinf(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by x/0, where x is a finite number  # noqa: E501
+        skip_hist_correction = contains_nan or contains_inf
+        if skip_hist_correction:
+            print('\n  Histogram correction is skipped because the histogram counts are 0 for some states.')
+
         if weights_err is not None:
             dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
 
         for i in range(self.n_tot - 1):
-            dg_list, dg_err_list = [], []
+            dg_list, dg_err_list, N_ratio_list = [], [], []
             for j in range(len(self.state_ranges)):
                 if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
                     idx = self.state_ranges[j].index(i)
                     dg_list.append(dg_adjacent[j][idx])
+                    N_ratio_list.append(N_ratio_adjacent[j][idx])
                     if weights_err is not None:
                         dg_err_list.append(dg_adjacent_err[j][idx])
             if weights_err is None:
                 dg_vec.append(np.mean(dg_list))
             else:
                 dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
+            N_ratio_vec.append(np.prod(N_ratio_list) ** (1 / len(N_ratio_list)))  # geometric mean
         dg_vec.insert(0, 0)
+        N_ratio_vec.insert(0, hist[0][0])
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
+        if skip_hist_correction is False:
+            # When skip_hist_correction is True, previous lines for calculating N_ratio_vec or N_ratio_list will
+            # still not error out so it's fine to not add the conditional statement like here, since we will
+            # have hist_modified = hist at the end anyway. However, if skip_hist_correction, things like
+            # int(np.nan) will lead to an error, so we put an if condition here.
+            N_vec = np.array([int(np.ceil(np.prod(N_ratio_vec[:(i + 1)]))) for i in range(len(N_ratio_vec))])
 
-        # Determine the vector of alchemical weights for each replica
+        # Determine the vector of alchemical weights and histogram counts for each replica
         weights_modified = np.zeros_like(weights)
         for i in range(self.n_sim):
+            hist_modified = []
             if self.equil[i] == -1:  # unequilibrated
                 weights_modified[i] = list(g_vec[i * self.s: i * self.s + self.n_sub] - g_vec[i * self.s: i * self.s + self.n_sub][0])  # noqa: E501
             else:
                 weights_modified[i] = self.equilibrated_weights[i]
+        if skip_hist_correction is False:
+            hist_modified = [list(N_vec[self.state_ranges[i]]) for i in range(self.n_sim)]
+        else:
+            hist_modified = hist
 
-        if print_weights is True:
+        if print_values is True:
             w = np.round(weights_modified, decimals=3).tolist()  # just for printing
             print('\n  Modified weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
+            if skip_hist_correction is False:
+                print('\n  Modified histogram counts:')
+                for i in range(len(hist_modified)):
+                    print(f'    Rep {i}: {hist_modified[i]}')
 
         if self.verbose is False:
             print(' DONE')
@@ -1284,7 +1326,7 @@ class EnsembleEXE:
         else:
             print(f'\n  The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
 
-        return weights_modified, g_vec
+        return hist_modified, weights_modified, g_vec
 
     def _run_grompp(self, n, swap_pattern):
         """
