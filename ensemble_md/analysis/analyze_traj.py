@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :obj:`.analyze_traj` module provides methods for analyzing trajectories in EEXE.
+The :obj:`.analyze_traj` module provides methods for analyzing trajectories in REXEE.
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -256,7 +256,7 @@ def traj2transmtx(traj, N, normalize=True):
     """
     Computes the transition matrix given a trajectory. For example, if a state-space
     trajectory from a EXE or HREX simulation given, a state transition matrix is returned.
-    If a trajectory showing transitions between replicas in a EEXE simulation is given,
+    If a trajectory showing transitions between replicas in a REXEE simulation is given,
     a replica transition matrix is returned.
 
     Parameters
@@ -444,7 +444,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
         A list of state index time series either from different continuous trajectories or from different
         alchemical ranges (i.e. from different simulation folders).
     state_ranges : list
-        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.EnsembleEXE`.)
+        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.ReplicaExchangeEE`.)
     fig_name : str
         The file name of the png file to be saved (with the extension).
     stack : bool
@@ -573,7 +573,7 @@ def calculate_hist_rmse(hist_data, state_ranges):
     hist_data : list
         The histogram data of the state index for each trajectory.
     state_ranges : list
-        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.EnsembleEXE`.)
+        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`.ReplicaExchangeEE`.)
 
     Returns
     -------
@@ -770,7 +770,7 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
     g_vecs : np.array
         The alchemical weights of all states as a function of iteration index. The shape should
         be (n_iterations, n_states). Such an array can be directly read from :code:`g_vecs.npy`
-        saved by :code:`run_EEXE`.
+        saved by :code:`run_REXEE`.
     refs : np.array
         The reference values of the alchemical weights.
     refs_err : list or np.array
@@ -822,16 +822,16 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
         plt.savefig('g_vecs_rmse.png', dpi=600)
 
 
-def get_swaps(EEXE_log='run_EEXE_log.txt'):
+def get_swaps(REXEE_log='run_REXEE_log.txt'):
     """
     For each replica, identifies the states where exchanges were proposed and accepted.
     (Todo: We should be able to only use :code:`rep_trajs.npy` and :code:`state_trajs.npy`
-    instead of parsing the EEXE log file to reach the same goal.)
+    instead of parsing the REXEE log file to reach the same goal.)
 
     Parameters
     ----------
-    EEXE_log : str
-        The output log file of the EEXE simulation.
+    REXEE_log : str
+        The output log file of the REXEE simulation.
 
     Returns
     -------
@@ -846,7 +846,7 @@ def get_swaps(EEXE_log='run_EEXE_log.txt'):
         keys being the global state indices and values being the number of
         accepted swaps that occurred in the state indicated by the key.
     """
-    f = open(EEXE_log, 'r')
+    f = open(REXEE_log, 'r')
     lines = f.readlines()
     f.close()
 

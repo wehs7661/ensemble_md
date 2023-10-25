@@ -2,13 +2,12 @@
 
 1. Basic idea
 =============
-Ensemble of expanded ensemble (EEXE) integrates the core principles of replica exchange 
-molecular dynamics (REMD) and expanded ensemble (EXE).  Specifically, an ensemble of 
-expanded ensembles includes multiple non-interacting, parallel expanded ensemble simulations 
+Replica exchange of expanded ensemble (REXEE) integrates the core principles of replica exchange 
+molecular dynamics (REMD) and expanded ensemble (EXE).  Specifically, a REXEE simulation includes multiple non-interacting, parallel expanded ensemble simulations 
 that collectively sample a number of alchemical states spanning between the coupled state 
 (:math:`\lambda=0`) and the uncoupled state (:math:`\lambda=1`). Each expanded ensemble 
 samples a subset of these states such that the range of its allowed alchemical states 
-overlaps with that of the adjacent replicas. In EEXE, the exchange of coordinates/alchemical 
+overlaps with that of the adjacent replicas. In REXEE, the exchange of coordinates/alchemical 
 states occurs at a specified frequency, which is beneficial for allowing better mixing 
 in the alchemical space given sufficiently long simulation time, properly specified parameters 
 and highly parallelizable computing architectures. 
@@ -401,10 +400,10 @@ sampling different alchemical ranges would have different references. Therefore,
 
 2.4. How is swapping performed?
 -------------------------------
-As implied in :ref:`doc_basic_idea`, in an EEXE simulation, we could either choose to swap configurations
+As implied in :ref:`doc_basic_idea`, in an REXEE simulation, we could either choose to swap configurations
 (via swapping GRO files) or replicas (via swapping MDP files). In this package, we chose the former when
-implementing the EEXE algorithm. Specifically, in the CLI :code:`run_EEXE`, the function :obj:`.get_swapping_pattern`
-is called once for each iteration and returns a list :code:`swap_pattern` that informs :code:`run_EEXE` how
+implementing the REXEE algorithm. Specifically, in the CLI :code:`run_REXEE`, the function :obj:`.get_swapping_pattern`
+is called once for each iteration and returns a list :code:`swap_pattern` that informs :code:`run_REXEE` how
 the GRO files should be swapped. (To better understand the list :code:`swap_pattern`, see the docstring of
 the function :obj:`.get_swapping_pattern`.) Internally, the function :obj:`.get_swapping_pattern` not only swaps
 the list :code:`swap_pattern` when an attempted move is accepted, but also swaps elements in lists that contains
@@ -419,7 +418,7 @@ in the list of states. Check the source code of :obj :`.get_swapping_pattern` if
 3.1. Basic idea
 ---------------
 To leverage the stastics of the states collected from multiple replicas, we recommend 
-combining the alchemical weights of these states across replicas during an weight-updating EEXE simulation.
+combining the alchemical weights of these states across replicas during an weight-updating REXEE simulation.
 Ideally, the modified weights should facilitate the convergence of the alchemical weights in expanded ensemble, 
 which in the limit of inifinite simulation time correspond to dimensionless free energies of the alchemical states. 
 The modified weights also directly influence the the accpetance ratio, hence the convergence of the simulation
@@ -539,5 +538,5 @@ To deal with this, the user can choose to specify :code:`N_cutoff` in the input 
 correction will performed only when :math:`\text{argmin}(N_k, N_{k-1})` is larger than the cutoff. Also, this histogram correction 
 should always be carried out before weight combination. This method is implemented in :obj:`.histogram_correction`.
 
-4. Parameter space of EEXE
+4. Parameter space of REXEE
 ===========================

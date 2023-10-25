@@ -1,7 +1,7 @@
 1. An overview
 ==============
-Automated data analysis of an EEXE simulation is allowed by the CLI :code:`analyze_EEXE`, which
-share the same input YAML file as the CLI :code:`run_EEXE`. Relevant parameters specified in the YAML
+Automated data analysis of an REXEE simulation is allowed by the CLI :code:`analyze_REXEE`, which
+share the same input YAML file as the CLI :code:`run_REXEE`. Relevant parameters specified in the YAML
 file for data analysis can be found in this section: :ref:`doc_analysis_params`.
 
 - Analysis based on transitions between replicas

@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :obj:`.analyze_matrix` module provides methods for analyzing matrices obtained from EEXE.
+The :obj:`.analyze_matrix` module provides methods for analyzing matrices obtained from REXEE.
 """
 import numpy as np
 import seaborn as sns
@@ -175,7 +175,7 @@ def split_transmtx(trans_mtx, n_sim, n_sub):
     trans_mtx : np.ndarray
         The input state transition matrix to split
     n_sim : int
-        The number of replicas in EEXE.
+        The number of replicas in REXEE.
     n_sub : int
         The number of states for each replica.
 

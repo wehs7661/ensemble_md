@@ -8,7 +8,8 @@
 #                                                                  #
 ####################################################################
 """
-The :obj:`.analyze_free_energy` module provides functions for performing free energy calculations for EEXE simulations.
+The :obj:`.analyze_free_energy` module provides functions for performing free energy
+calculations for REXEE simulations.
 """
 import alchemlyb
 import numpy as np
@@ -26,7 +27,7 @@ from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 def preprocess_data(files_list, temp, data_type, spacing=1, t=None, g=None):
     """
-    This function preprocesses :math:`u_{nk}`/:math:`dH/dλ` data for all replicas in an EEXE simulation.
+    This function preprocesses :math:`u_{nk}`/:math:`dH/dλ` data for all replicas in an REXEE simulation.
     For each replica, it reads in :math:`u_{nk}`/:math:`dH/dλ` data from all iterations, concatenate
     them, remove the equilibrium region and and decorrelate the concatenated data. Notably,
     the data preprocessing protocol is basically the same as the one adopted in
@@ -116,7 +117,7 @@ def _apply_estimators(data, df_method="MBAR"):
     Parameters
     ----------
     data : pd.Dataframe
-        A list of dHdl or u_nk dataframes obtained from all replicas of the EEXE simulation of interest.
+        A list of dHdl or u_nk dataframes obtained from all replicas of the REXEE simulation of interest.
         Preferrably, the dHdl or u_nk data should be preprocessed by the function proprocess_data.
     df_method : str
         The selected free energy estimator. Options include "MBAR", "BAR" and "TI".
@@ -222,13 +223,13 @@ def _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagate
 def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='propagate', n_bootstrap=None, seed=None):
     """
     Caculates the averaged free energy profile with the chosen method given dHdl or u_nk data obtained from
-    all replicas of the EEXE simulation of interest. Available methods include TI, BAR, and MBAR. TI
+    all replicas of the REXEE simulation of interest. Available methods include TI, BAR, and MBAR. TI
     requires dHdl data while the other two require u_nk data.
 
     Parameters
     ----------
     data : pd.Dataframe
-        A list of dHdl or u_nk dataframes obtained from all replicas of the EEXE simulation of interest.
+        A list of dHdl or u_nk dataframes obtained from all replicas of the REXEE simulation of interest.
         Preferrably, the dHdl or u_nk data should be preprocessed by the function proprocess_data.
     state_ranges : list
         A list of lists of intergers that represents the alchemical states that can be sampled by different replicas.

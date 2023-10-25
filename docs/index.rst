@@ -24,7 +24,7 @@ the future.
 .. toctree::
    simulations
    :maxdepth: 2
-   :caption: Launching EEXE simulations:
+   :caption: Launching REXEE simulations:
 
 .. toctree::
    analysis
@@ -32,9 +32,9 @@ the future.
    :caption: Data analysis:
    
 .. toctree::
-   examples/run_EEXE
-   examples/analyze_EEXE
-   examples/run_EEXE_modify_inputs
+   examples/run_REXEE
+   examples/analyze_REXEE
+   examples/run_REXEE_modify_inputs
    :maxdepth: 2
    :caption: Tutorials:
 
