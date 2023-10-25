@@ -8,7 +8,8 @@
 #                                                                  #
 ####################################################################
 """
-The :obj:`.analyze_free_energy` module provides functions for performing free energy calculations for REXEE simulations.
+The :obj:`.analyze_free_energy` module provides functions for performing free energy
+calculations for REXEE simulations.
 """
 import alchemlyb
 import numpy as np

@@ -38,11 +38,11 @@ rank = comm.Get_rank()
 class ReplicaExchangeEE:
     """
     This class provides a variety of functions useful for setting up and running
-    replica exchange (REX) of expanded ensemble (EE), or REXEE simulations. 
-    Upon instantiation, all parameters in the YAML
-    file will be assigned to an attribute in the class. In addition to these variables,
-    below is a list of attributes of the class. (All the the attributes are assigned by
-    :obj:`set_params` unless otherwise noted.)
+    replica exchange (REX) of expanded ensemble (EE), or REXEE simulations.
+    Upon instantiation, all parameters in the YAML file will be assigned to an
+    attribute in the class. In addition to these variables, below is a list of
+    attributes of the class. (All the the attributes are assigned by :obj:`set_params`
+    unless otherwise noted.)
 
     :ivar gmx_path: The absolute path of the GROMACS exectuable.
     :ivar gmx_version: The version of the GROMACS executable.
@@ -931,12 +931,13 @@ class ReplicaExchangeEE:
 
                     # Theoretically, in an REXEE simulation, we could either choose to swap configurations (via
                     # swapping GRO files) or replicas (via swapping MDP files). In ensemble_md package, we chose the
-                    # former when implementing the REXEE algorithm. Specifically, in the CLI `run_REXEE`, `swap_pattern`
-                    # is used to swap the GRO files. Therefore, when an attempted swap is accetped and `swap_pattern`
-                    # is updated, we also need to update the variables `shifts`, `weights`, `dhdl_files`,
-                    # `state_ranges`, `self.configs` but not anything else. Otherwise, incorrect results will be
-                    # produced. To better understand this, one can refer to our unit test for get_swapping_pattern
-                    # and calc_prob_acc, set checkpoints and examine why the variables should/should not be updated.
+                    # former when implementing the REXEE algorithm. Specifically, in the CLI `run_REXEE`,
+                    # `swap_pattern` is used to swap the GRO files. Therefore, when an attempted swap is accetped and
+                    # `swap_pattern` is updated, we also need to update the variables `shifts`, `weights`,
+                    # `dhdl_files`, `state_ranges`, `self.configs` but not anything else. Otherwise, incorrect results
+                    # will be produced. To better understand this, one can refer to our unit test for
+                    # get_swapping_pattern and calc_prob_acc, set checkpoints and examine why the variables
+                    # should/should not be updated.
 
                     if swap_bool is True:
                         swap_list.append(swap)

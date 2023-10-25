@@ -202,7 +202,7 @@ class Test_ReplicaExchangeEE:
             [1, 2, 3, 4, 5, 6],
             [2, 3, 4, 5, 6, 7],
             [3, 4, 5, 6, 7, 8], ]
-        assert REXEE.equil == [-1, -1, -1, -1]  # will be zeros right after the first iteration if the weights are fixed
+        assert REXEE.equil == [-1, -1, -1, -1]  # will be zeros after the first iteration if the weights are fixed
         assert REXEE.n_rejected == 0
         assert REXEE.n_swap_attempts == 0
         assert REXEE.n_empty_swappable == 0
