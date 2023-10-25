@@ -289,9 +289,9 @@ def get_time_metrics(log):
     return t_metrics
 
 
-def analyze_EEXE_time(log_files=None):
+def analyze_REXEE_time(log_files=None):
     """
-    Perform simple data analysis on the wall times and performances of all iterations of an EEXE simulation.
+    Perform simple data analysis on the wall times and performances of all iterations of an REXEE simulation.
 
     Parameters
     ----------
@@ -301,7 +301,7 @@ def analyze_EEXE_time(log_files=None):
     Returns
     -------
     t_wall_tot : float
-        The total wall time GROMACS spent to finish all iterations for the EEXE simulation.
+        The total wall time GROMACS spent to finish all iterations for the REXEE simulation.
     t_sync : float
         The total time spent in synchronizing all replicas, which is the sum of the differences
         between the longest and the shortest time elapsed to finish a iteration.
