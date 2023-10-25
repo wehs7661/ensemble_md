@@ -12,23 +12,23 @@ import random
 import argparse
 import numpy as np
 import pandas as pd
-from ensemble_md.ensemble_EXE import EnsembleEXE
+from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
 
 
 def initialize(args):
     parser = argparse.ArgumentParser(
-        description='This code explores the parameter space of homogenous EEXE to help you figure \
+        description='This code explores the parameter space of homogenous REXEE to help you figure \
                 out all possible combinations of the number of replicas, the number of \
                 states in each replica, and the number of overlapping states, and the total number states.')
     parser.add_argument('-N',
                         '--N',
                         required=True,
                         type=int,
-                        help='The total number of states of the EEXE simulation.')
+                        help='The total number of states of the REXEE simulation.')
     parser.add_argument('-r',
                         '--r',
                         type=int,
-                        help='The number of replicas that compose the EEXE simulation.')
+                        help='The number of replicas that compose the REXEE simulation.')
     parser.add_argument('-n',
                         '--n',
                         type=int,
@@ -54,9 +54,9 @@ def initialize(args):
     return args_parse
 
 
-def solv_EEXE_diophantine(N, constraint=False):
+def solv_REXEE_diophantine(N, constraint=False):
     """
-    Solves the general nonlinear Diophantine equation associated with the homogeneous EEXE
+    Solves the general nonlinear Diophantine equation associated with the homogeneous REXEE
     parameters. Specifically, given the total number of states :math:`N` and the number of replicas
     r, the states for each replica n and the state shift s can be expressed as:
     n = N + (r-1)(t-1), and s = 1 - t, with the range of t being either the following:
@@ -66,7 +66,7 @@ def solv_EEXE_diophantine(N, constraint=False):
     Parameters
     ----------
     N : int
-        The total number of states of the homogeneous EEXE of interesst.
+        The total number of states of the homogeneous REXEE of interesst.
     constraint : bool
         Whether to apply additional constraints such that n-s <= 1/2n.
 
@@ -115,7 +115,7 @@ def estimate_swapless_rate(state_ranges, N=1000000):
     n = 0  # number of times of not having any swappable pairs
     for i in range(N):
         rands = [random.choice(state_ranges[i]) for i in range(len(state_ranges))]
-        swappables = EnsembleEXE.identify_swappable_pairs(rands, state_ranges, False)
+        swappables = ReplicaExchangeEE.identify_swappable_pairs(rands, state_ranges, False)
         if swappables == []:
             n += 1
 
@@ -125,18 +125,18 @@ def estimate_swapless_rate(state_ranges, N=1000000):
 
 
 def main():
-    # For now, we only consider homogenous EEXE simulations
+    # For now, we only consider homogenous REXEE simulations
     args = initialize(sys.argv[1:])
-    print('Exploration of the EEXE parameter space')
+    print('Exploration of the REXEE parameter space')
     print('=======================================')
-    print('[ EEXE parameters of interest ]')
+    print('[ REXEE parameters of interest ]')
     print('- N: The total number of states')
     print('- r: The number of replicas')
     print('- n: The number of states for each replica')
     print('- s: The state shift between adjacent replicas')
 
     # Enuerate all possible combinations of (N, r, n, s) even if any of r, n, s is given - it's easy/fast anyway.
-    soln_all = solv_EEXE_diophantine(args.N, constraint=args.cnst)
+    soln_all = solv_REXEE_diophantine(args.N, constraint=args.cnst)
 
     # Now filter the solutions
     if args.r is not None:

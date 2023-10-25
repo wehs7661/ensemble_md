@@ -29,7 +29,7 @@ from ensemble_md.analysis import analyze_traj  # noqa: E402
 from ensemble_md.analysis import analyze_matrix  # noqa: E402
 from ensemble_md.analysis import msm_analysis  # noqa: E402
 from ensemble_md.analysis import analyze_free_energy  # noqa: E402
-from ensemble_md.ensemble_EXE import EnsembleEXE  # noqa: E402
+from ensemble_md.replica_exchange_EE import ReplicaExchangeEE  # noqa: E402
 from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 
@@ -41,13 +41,13 @@ def initialize(args):
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The input YAML file used to run the EEXE simulation. (Default: params.yaml)')
+                        help='The input YAML file used to run the REXEE simulation. (Default: params.yaml)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
-                        default='analyze_EEXE_log.txt',
-                        help='The output log file that contains the analysis results of EEXE. \
-                            (Default: analyze_EEXE_log.txt)')
+                        default='analyze_REXEE_log.txt',
+                        help='The output log file that contains the analysis results of REXEE. \
+                            (Default: analyze_REXEE_log.txt)')
     parser.add_argument('-rt',
                         '--rep_trajs',
                         type=str,
@@ -101,15 +101,15 @@ def main():
     print(f'Current time: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}')
     print(f'Command line: {" ".join(sys.argv)}')
 
-    EEXE = EnsembleEXE(args.yaml)
-    EEXE.print_params(params_analysis=True)
+    REXEE = ReplicaExchangeEE(args.yaml)
+    REXEE.print_params(params_analysis=True)
 
-    for i in EEXE.warnings:
+    for i in REXEE.warnings:
         print()
         print(f'{i}')
         print()
 
-    if len(EEXE.warnings) > args.maxwarn:
+    if len(REXEE.warnings) > args.maxwarn:
         raise ParameterError(
             f"The execution failed due to warning(s) about parameter spcificaiton. Consider setting maxwarn in the input YAML file if you want to ignore them.")  # noqa: E501, F541
 
@@ -130,12 +130,12 @@ def main():
 
     # 1-1. Plot the replica-sapce trajectory
     print('1-1. Plotting transitions between alchemical ranges ...')
-    dt_swap = EEXE.nst_sim * EEXE.dt    # dt for swapping replicas
+    dt_swap = REXEE.nst_sim * REXEE.dt    # dt for swapping replicas
     analyze_traj.plot_rep_trajs(rep_trajs, f'{args.dir}/rep_trajs.png', dt_swap)
 
     # 1-2. Plot the replica-space transition matrix
     print('1-2. Plotting the replica-space transition matrix (considering all continuous trajectories) ...')
-    counts = [analyze_traj.traj2transmtx(rep_trajs[i], EEXE.n_sim, normalize=False) for i in range(len(rep_trajs))]
+    counts = [analyze_traj.traj2transmtx(rep_trajs[i], REXEE.n_sim, normalize=False) for i in range(len(rep_trajs))]
     reps_mtx = np.sum(counts, axis=0)  # First sum up the counts. This should be symmetric if n_ex=1. Otherwise it might not be. # noqa: E501
     reps_mtx /= np.sum(reps_mtx, axis=1)[:, None]   # and then normalize each row
     analyze_matrix.plot_matrix(reps_mtx, f'{args.dir}/rep_transmtx_allconfigs.png')
@@ -155,16 +155,16 @@ def main():
     else:
         # This may take a while.
         print('2-1. Stitching trajectories for each starting configuration from dhdl files ...')
-        dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
-        shifts = np.arange(EEXE.n_sim) * EEXE.s
+        dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(REXEE.n_sim)]
+        shifts = np.arange(REXEE.n_sim) * REXEE.s
         state_trajs = analyze_traj.stitch_time_series(dhdl_files, rep_trajs, shifts=shifts, save_npy=True, save_xvg=True)  # length: the number of replicas  # noqa: E501
 
     # 2-2. Plot the state-space trajectory
     print('\n2-2. Plotting transitions between different alchemical states ...')
-    dt_traj = EEXE.dt * EEXE.template['nstdhdl']  # in ps
+    dt_traj = REXEE.dt * REXEE.template['nstdhdl']  # in ps
     analyze_traj.plot_state_trajs(
         state_trajs,
-        EEXE.state_ranges,
+        REXEE.state_ranges,
         f'{args.dir}/state_trajs.png',
         dt_traj
     )
@@ -173,10 +173,10 @@ def main():
     print('\n2-3. Plotting the histograms of the state index for different trajectories ...')
     hist_data = analyze_traj.plot_state_hist(
         state_trajs,
-        EEXE.state_ranges,
+        REXEE.state_ranges,
         f'{args.dir}/state_hist.png'
     )
-    rmse = analyze_traj.calculate_hist_rmse(hist_data, EEXE.state_ranges)
+    rmse = analyze_traj.calculate_hist_rmse(hist_data, REXEE.state_ranges)
     print(f'The RMSE of accumulated histogram counts of the state index: {rmse:.0f}')
 
     # 2-4. Stitch the time series of state index for different alchemical ranges
@@ -186,15 +186,15 @@ def main():
     else:
         # This may take a while.
         print('2-4. Stitching time series of state index for each alchemical range ...')
-        dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
-        shifts = np.arange(EEXE.n_sim) * EEXE.s
+        dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(REXEE.n_sim)]
+        shifts = np.arange(REXEE.n_sim) * REXEE.s
         state_trajs_for_sim = analyze_traj.stitch_time_series_for_sim(dhdl_files, shifts)
 
     # 2-5. Plot the time series of state index for different alchemical ranges
     print('\n2-5. Plotting the time series of state index for different alchemical ranges ...')
     analyze_traj.plot_state_trajs(
         state_trajs_for_sim,
-        EEXE.state_ranges,
+        REXEE.state_ranges,
         f'{args.dir}/state_trajs_for_sim.png',
         title_prefix='Alchemical range'
     )
@@ -203,7 +203,7 @@ def main():
     print('\n2-6. Plotting the histograms of state index for different alchemical ranges')
     analyze_traj.plot_state_hist(
         state_trajs_for_sim,
-        EEXE.state_ranges,
+        REXEE.state_ranges,
         f'{args.dir}/state_hist_for_sim.png',
         prefix='Alchemical range',
         subplots=True
@@ -212,8 +212,8 @@ def main():
     # 2-7. Plot the overall state transition matrices calculated from the state-space trajectories
     print('\n2-7. Plotting the overall state transition matrices from different trajectories ...')
     mtx_list = []
-    for i in range(EEXE.n_sim):
-        mtx = analyze_traj.traj2transmtx(state_trajs[i], EEXE.n_tot)
+    for i in range(REXEE.n_sim):
+        mtx = analyze_traj.traj2transmtx(state_trajs[i], REXEE.n_tot)
         mtx_list.append(mtx)
         analyze_matrix.plot_matrix(mtx, f'{args.dir}/traj_{i}_state_transmtx.png')
 
@@ -223,7 +223,7 @@ def main():
     spectral_gaps = [results[i][0] if None not in results else None for i in range(len(results))]
     eig_vals = [results[i][1] if None not in results else None for i in range(len(results))]
     if None not in spectral_gaps:
-        for i in range(EEXE.n_sim):
+        for i in range(REXEE.n_sim):
             print(f'   - Trajectory {i}: {spectral_gaps[i]:.3f} (λ_1: {eig_vals[i][0]:.5f}, λ_2: {eig_vals[i][1]:.5f})')  # noqa: E501
         print(f'   - Average of the above: {np.mean(spectral_gaps):.3f} (std: {np.std(spectral_gaps, ddof=1):.3f})')
 
@@ -233,21 +233,21 @@ def main():
     if any([x is None for x in pi_list]):
         pass  # None is in the list
     else:
-        for i in range(EEXE.n_sim):
+        for i in range(REXEE.n_sim):
             print(f'   - Trajectory {i}: {", ".join([f"{j:.3f}" for j in pi_list[i].reshape(-1)])}')
         if len({len(i) for i in pi_list}) == 1:  # all lists in pi_list have the same length
             print(f'   - Average of the above: {", ".join([f"{i:.3f}" for i in np.mean(pi_list, axis=0).reshape(-1)])}')  # noqa: E501
 
     # 2-10. Calculate the state index correlation time for each trajectory (this step is more time-consuming one)
     print('\n2-10. Calculating the state index correlation time ...')
-    tau_list = [(pymbar.timeseries.statistical_inefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(EEXE.n_sim)]  # noqa: E501
-    for i in range(EEXE.n_sim):
+    tau_list = [(pymbar.timeseries.statistical_inefficiency(state_trajs[i], fast=True) - 1) / 2 * dt_traj for i in range(REXEE.n_sim)]  # noqa: E501
+    for i in range(REXEE.n_sim):
         print(f'   - Trajectory {i}: {tau_list[i]:.1f} ps')
     print(f'   - Average of the above: {np.mean(tau_list):.1f} ps (std: {np.std(tau_list, ddof=1):.1f} ps)')
 
     # 2-11. Calculate transit times for each trajectory
     print('\n2-11. Plotting the average transit times ...')
-    t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, EEXE.n_tot, dt=dt_traj, folder=args.dir)  # noqa: E501
+    t_0k_list, t_k0_list, t_roundtrip_list, units = analyze_traj.plot_transit_time(state_trajs, REXEE.n_tot, dt=dt_traj, folder=args.dir)  # noqa: E501
     meta_list = [t_0k_list, t_k0_list, t_roundtrip_list]
     t_names = [
         '\n   - Average transit time from states 0 to k',
@@ -267,7 +267,7 @@ def main():
     if np.sum(np.isnan([np.mean(i) for i in t_list])) != 0:
         poor_sampling = True
 
-    if EEXE.msm is True:
+    if REXEE.msm is True:
         section_idx += 1
 
         # Section 3. Analysis based on Markov state models
@@ -275,7 +275,7 @@ def main():
 
         # 3-1. Plot the implied timescale as a function of lag time
         print('\n3-1. Plotting the implied timescale as a function of lag time for all trajectories ...')
-        lags = np.arange(EEXE.lag_spacing, EEXE.lag_max + EEXE.lag_spacing, EEXE.lag_spacing)
+        lags = np.arange(REXEE.lag_spacing, REXEE.lag_max + REXEE.lag_spacing, REXEE.lag_spacing)
         # lags could also be None and decided automatically. Could consider using that.
         ts_list = msm_analysis.plot_its(state_trajs, lags, fig_name=f'{args.dir}/implied_timescales.png', dt=dt_traj, units='ps')  # noqa: E501
 
@@ -289,7 +289,7 @@ def main():
         # 3-3. Build a Bayesian MSM and perform a CK test for each trajectory to validate the models
         print('\n3-3. Building Bayesian MSMs for the state-space trajectory for each trajectory ...')
         print('     Performing a Chapman-Kolmogorov test on each trajectory ...')
-        models = [pyemma.msm.bayesian_markov_model(state_trajs[i], chosen_lags[i], dt_traj=f'{dt_traj} ps', show_progress=False) for i in range(EEXE.n_sim)]  # noqa: E501
+        models = [pyemma.msm.bayesian_markov_model(state_trajs[i], chosen_lags[i], dt_traj=f'{dt_traj} ps', show_progress=False) for i in range(REXEE.n_sim)]  # noqa: E501
 
         for i in range(len(models)):
             print(f'     Plotting the CK-test results for trajectory {i} ...')
@@ -300,7 +300,7 @@ def main():
             # not be counted as involved in the transition matrix (i.e. not in the active set). To check the
             # active states, use models[i].active_set. If the system sampled all states frequently,
             # models[i].active_set should be equal to np.unique(state_trajs[i]) and both lengths should be
-            # EEXE.n_tot. I'm not sure why the attribute nstates_full is not always EEXE.n_tot but is less
+            # REXEE.n_tot. I'm not sure why the attribute nstates_full is not always REXEE.n_tot but is less
             # relevant here.
             cktest = models[i].cktest(nsets=nsets, mlags=mlags, show_progress=False)
             pyemma.plots.plot_cktest(cktest, dt=dt_traj, units='ps')
@@ -309,7 +309,7 @@ def main():
 
         # Additionally, check if the sampling is poor for each trajectory
         for i in range(len(models)):
-            if models[i].nstates != EEXE.n_tot:
+            if models[i].nstates != REXEE.n_tot:
                 print(f'     Note: The sampling of trajectory {i} was poor.')
 
         # 3-4. Plot the state transition matrices estimated with the specified lag times in MSMs
@@ -318,13 +318,13 @@ def main():
         mtx_list_modified = []  # just for plotting (if all trajs sampled the fulle range frequently, this will be the same as mtx_list)  # noqa: E501
         for i in range(len(mtx_list)):
             # check if each mtx in mtx_list spans the full alchemical range. (If the system did not visit
-            # certain states, the dimension will be less than EEXE.n_tot * EEXE.n_tot. In this case, we
+            # certain states, the dimension will be less than REXEE.n_tot * REXEE.n_tot. In this case, we
             # add rows and columns of 0. Note that the modified matrix will not be a transition matrix,
             # so this is only for plotting. For later analysis such as spectral gap calculation, we
             # will just use the unmodified matrices.
-            if mtx_list[i].shape != (EEXE.n_tot, EEXE.n_tot):  # add rows and columns of 0
+            if mtx_list[i].shape != (REXEE.n_tot, REXEE.n_tot):  # add rows and columns of 0
                 sampled = models[i].active_set
-                missing = list(set(range(EEXE.n_tot)) - set(sampled))  # states not visited
+                missing = list(set(range(REXEE.n_tot)) - set(sampled))  # states not visited
 
                 # figure out which end we should stack rows/columns to
                 n_1 = sum(missing > max(sampled))   # add rows/columns to the end of large state indices
@@ -348,7 +348,7 @@ def main():
         print('     Saving transmtx.npy (plotted transition matrices)...')
         np.save(f'{args.dir}/transmtx.npy', mtx_list_modified)
 
-        for i in range(EEXE.n_sim):
+        for i in range(REXEE.n_sim):
             analyze_matrix.plot_matrix(mtx_list[i], f'{args.dir}/traj_{i}_state_transmtx_msm.png')
         analyze_matrix.plot_matrix(avg_mtx, f'{args.dir}/state_transmtx_avg_msm.png')
 
@@ -363,13 +363,13 @@ def main():
         # 3-5. Calculate the spectral gap from the transition matrix of each trajectory
         print('\n3-5. Calculating the spectral gap of the state transition matrices obtained from MSMs ...')
         spectral_gaps, eig_vals = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]
-        for i in range(EEXE.n_sim):
+        for i in range(REXEE.n_sim):
             print(f'       - Trajectory {i}: {spectral_gaps[i]:.3f}')
 
         # 3-6. Calculate the stationary distribution for each trajectory
         print('\n3-6. Calculating the stationary distributions from the transition matrices obtained from MSMs ...')
         pi_list = [m.pi for m in models]
-        for i in range(EEXE.n_sim):
+        for i in range(REXEE.n_sim):
             print(f'       - Trajectory {i}: {", ".join([f"{j:.3f}" for j in pi_list[i]])}')
         if len({len(i) for i in pi_list}) == 1:  # all lists in pi_list have the same length
             print(f'       - Average of the above: {", ".join([f"{i:.3f}" for i in np.mean(pi_list, axis=0)])}')
@@ -379,16 +379,16 @@ def main():
         # note that it's not m.mfpt(min(m.active_set), max(m.active_set)) as the input to mfpt should be indices
         # though sometimes these two could be same.
         mfpt_list = [m.mfpt(0, m.nstates - 1) for m in models]
-        for i in range(EEXE.n_sim):
+        for i in range(REXEE.n_sim):
             print(f'       - Trajectory {i}: {mfpt_list[i]:.1f} ps')
         print(f'       - Average of the above: {np.mean(mfpt_list):.1f} ps (std: {np.std(mfpt_list, ddof=1):.1f} ps)')
 
         # 3-8. Calculate the state index correlation time for each trajectory
         print('\n3-8. Plotting the state index correlation times for all trajectories ...')
-        msm_analysis.plot_acf(models, EEXE.n_tot, f'{args.dir}/state_ACF.png')
+        msm_analysis.plot_acf(models, REXEE.n_tot, f'{args.dir}/state_ACF.png')
 
     # Section 4 (or Section 3). Free energy calculations
-    if EEXE.free_energy is True:
+    if REXEE.free_energy is True:
         if poor_sampling is True:
             print('\nFree energy calculation is not performed since the sampling appears poor.')
             sys.exit()
@@ -397,7 +397,7 @@ def main():
 
         # 4-1. Subsampling the data
         data_list = []   # either a list of u_nk or a list of dhdl
-        if EEXE.df_data_type == 'u_nk':
+        if REXEE.df_data_type == 'u_nk':
             if os.path.isfile(f'{args.dir}/u_nk_data.pickle') is True:
                 print('Loading the preprocessed data u_nk ...')
                 with open(f'{args.dir}/u_nk_data.pickle', 'rb') as handle:
@@ -409,54 +409,54 @@ def main():
                     data_list = pickle.load(handle)
 
         if data_list == []:
-            files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(EEXE.n_sim)]
-            data_list, t_list, g_list = analyze_free_energy.preprocess_data(files_list, EEXE.temp, EEXE.df_data_type, EEXE.df_spacing)  # noqa: E501
+            files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(REXEE.n_sim)]
+            data_list, t_list, g_list = analyze_free_energy.preprocess_data(files_list, REXEE.temp, REXEE.df_data_type, REXEE.df_spacing)  # noqa: E501
 
-            with open(f'{args.dir}/{EEXE.df_data_type}_data.pickle', 'wb') as handle:
+            with open(f'{args.dir}/{REXEE.df_data_type}_data.pickle', 'wb') as handle:
                 pickle.dump(data_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         # 4-2. Calculate the free energy profile
-        f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, EEXE.state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
+        f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, REXEE.state_ranges, REXEE.df_method, REXEE.err_method, REXEE.n_bootstrap, REXEE.seed)  # noqa: E501
 
         print('Plotting the full-range free energy profile ...')
         analyze_free_energy.plot_free_energy(f, f_err, f'{args.dir}/free_energy_profile.png')
 
         print('The full-range free energy profile averaged over all replicas:')
-        print(f"  {', '.join(f'{f[i]:.3f} +/- {f_err[i]:.3f} kT' for i in range(EEXE.n_tot))}")
+        print(f"  {', '.join(f'{f[i]:.3f} +/- {f_err[i]:.3f} kT' for i in range(REXEE.n_tot))}")
         print(f'The free energy difference between the coupled and decoupled states: {f[-1]:.3f} +/- {f_err[-1]:.3f} kT')  # noqa: E501
 
-        if EEXE.df_ref is not None:
-            rmse_list = analyze_free_energy.calculate_df_rmse(estimators, EEXE.df_ref, EEXE.state_ranges)
-            for i in range(EEXE.n_sim):
-                print(f'RMSE of the free energy profile for alchemical range {i} (states {EEXE.state_ranges[i][0]} to {EEXE.state_ranges[i][-1]}): {rmse_list[i]:.2f} kT')  # noqa: E501
+        if REXEE.df_ref is not None:
+            rmse_list = analyze_free_energy.calculate_df_rmse(estimators, REXEE.df_ref, REXEE.state_ranges)
+            for i in range(REXEE.n_sim):
+                print(f'RMSE of the free energy profile for alchemical range {i} (states {REXEE.state_ranges[i][0]} to {REXEE.state_ranges[i][-1]}): {rmse_list[i]:.2f} kT')  # noqa: E501
 
         # 4-3. Recalculate the free energy profile if subsampling_avg is True
-        if EEXE.subsampling_avg is True:
+        if REXEE.subsampling_avg is True:
             print('\nUsing averaged start index of the equilibrated data and the avearged statistic inefficiency to re-perform free energy calculations ...')  # noqa: E501
             t_avg = int(np.mean(t_list)) + 1   # Using the ceiling function to be a little more conservative
             g_avg = np.array(g_list).prod() ** (1/len(g_list))  # geometric mean
             print(f'Averaged start index: {t_avg}')
             print(f'Averaged statistical inefficiency: {g_avg:.2f}')
 
-            data_list, _, _ = analyze_free_energy.preprocess_data(files_list, EEXE.temp, EEXE.df_data_type, EEXE.df_spacing, t_avg, g_avg)  # noqa: E501
-            with open(f'{args.dir}/{EEXE.df_data_type}_data_avg_subsampling.pickle', 'wb') as handle:
+            data_list, _, _ = analyze_free_energy.preprocess_data(files_list, REXEE.temp, REXEE.df_data_type, REXEE.df_spacing, t_avg, g_avg)  # noqa: E501
+            with open(f'{args.dir}/{REXEE.df_data_type}_data_avg_subsampling.pickle', 'wb') as handle:
                 pickle.dump(data_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-            f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, EEXE.state_ranges, EEXE.df_method, EEXE.err_method, EEXE.n_bootstrap, EEXE.seed)  # noqa: E501
+            f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, REXEE.state_ranges, REXEE.df_method, REXEE.err_method, REXEE.n_bootstrap, REXEE.seed)  # noqa: E501
             print('Plotting the full-range free energy profile ...')
             analyze_free_energy.plot_free_energy(f, f_err, f'{args.dir}/free_energy_profile_avg_subsampling.png')
 
             print('The full-range free energy profile averaged over all replicas:')
-            print(f"  {', '.join(f'{f[i]:.3f} +/- {f_err[i]:.3f} kT' for i in range(EEXE.n_tot))}")
+            print(f"  {', '.join(f'{f[i]:.3f} +/- {f_err[i]:.3f} kT' for i in range(REXEE.n_tot))}")
             print(f'The free energy difference between the coupled and decoupled states: {f[-1]:.3f} +/- {f_err[-1]:.3f} kT')  # noqa: E501
 
-            if EEXE.df_ref is not None:
-                rmse_list = analyze_free_energy.calculate_df_rmse(estimators, EEXE.df_ref, EEXE.state_ranges)
-                for i in range(EEXE.n_sim):
-                    print(f'RMSE of the free energy profile for alchemical range {i} (states {EEXE.state_ranges[i][0]} to {EEXE.state_ranges[i][-1]}): {rmse_list[i]:.2f} kT')  # noqa: E501
+            if REXEE.df_ref is not None:
+                rmse_list = analyze_free_energy.calculate_df_rmse(estimators, REXEE.df_ref, REXEE.state_ranges)
+                for i in range(REXEE.n_sim):
+                    print(f'RMSE of the free energy profile for alchemical range {i} (states {REXEE.state_ranges[i][0]} to {REXEE.state_ranges[i][-1]}): {rmse_list[i]:.2f} kT')  # noqa: E501
 
     # Section 4. Calculate the time spent in GROMACS (This could take a while.)
-    t_wall_tot, t_sync, _ = utils.analyze_EEXE_time()
+    t_wall_tot, t_sync, _ = utils.analyze_REXEE_time()
     print(f'\nTotal wall time GROMACS spent to finish all iterations: {utils.format_time(t_wall_tot)}')
     print(f'Total time spent in syncrhonizing all replicas: {utils.format_time(t_sync)}')
 
