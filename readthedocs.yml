@@ -9,6 +9,4 @@ python:
   install:
     - requirements: docs/requirements.txt
 
-conda:
-  environment: docs/environment.yml
 
