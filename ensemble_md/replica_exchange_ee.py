@@ -8,7 +8,8 @@
 #                                                                  #
 ####################################################################
 """
-The :obj:`.ensemble_EXE` module provides functions for setting up and ensemble of expanded ensemble.
+The :obj:`.replica_exchange_EE` module provides functions for setting up and
+replica exchange and expanded ensemble (REXEE) simulations.
 """
 import os
 import sys
@@ -105,9 +106,9 @@ class ReplicaExchangeEE:
         each of the parameters specified in the YAML file. For a full list of the parameters that
         can be specified in the YAML file, please refer to :ref:`doc_parameters`.
 
-        :param yaml_file: The file name of the YAML file for specifying the parameters for EEXE.
+        :param yaml_file: The file name of the YAML file for specifying the parameters for REXEE.
         :type yaml_file: str
-        :param analysis: Whether the instantiation of the class is for data analysis of EEXE simulations.
+        :param analysis: Whether the instantiation of the class is for data analysis of REXEE simulations.
             The default is :code:`False`
         :type analysis: bool
 
@@ -292,7 +293,7 @@ class ReplicaExchangeEE:
                     raise ParameterError("The number of values specified for each key in 'mdp_args' should be the same as the number of replicas.")  # noqa: E501
 
         # Step 5: Reformat the input MDP file to replace all hypens with underscores.
-        self.reformatted_mdp = EnsembleEXE.reformat_MDP(self.mdp)
+        self.reformatted_mdp = ReplicaExchangeEE.reformat_MDP(self.mdp)
 
         # Step 6: Read in parameters from the MDP template
         self.template = gmx_parser.MDP(self.mdp)
@@ -343,7 +344,7 @@ class ReplicaExchangeEE:
 
         if self.template['nstexpanded'] % self.template['nstdhdl'] != 0:
             raise ParameterError(
-                'In EEXE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
+                'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
 
         if self.mdp_args is not None:
             if 'lmc_seed' in self.mdp_args and -1 not in self.mdp_args['lmc_seed']:
@@ -365,7 +366,7 @@ class ReplicaExchangeEE:
 
             if 'nstexpanded' in self.mdp_args and 'nstdhdl' in self.mdp_args and sum(np.array(self.mdp_args['nstexpanded']) % np.array(self.mdp_args['nstdhdl'])) != 0:  # noqa: E501
                 raise ParameterError(
-                    'In EEXE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
+                    'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
 
         if 'pull' in self.template and self.template['pull'] == 'yes':
             pull_ncoords = self.template['pull_ncoords']
@@ -403,7 +404,7 @@ class ReplicaExchangeEE:
         self.n_sub = self.n_tot - self.s * (self.n_sim - 1)
         if self.n_sub < 1:
             raise ParameterError(
-                f"There must be at least two states for each replica (current value: {self.n_sub}). The current specified configuration (n_tot={self.n_tot}, n_sim={self.n_sim}, s={self.s}) does not work for EEXE.")  # noqa: E501
+                f"There must be at least two states for each replica (current value: {self.n_sub}). The current specified configuration (n_tot={self.n_tot}, n_sim={self.n_sim}, s={self.s}) does not work for REXEE.")  # noqa: E501
 
         # 7-5. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
@@ -513,7 +514,7 @@ class ReplicaExchangeEE:
                 print(f"  - {i}: {self.mdp_args[i]}")
         else:
             print(f"MDP parameters differing across replicas: {self.mdp_args}")
-        print("Alchemical ranges of each replica in EEXE:")
+        print("Alchemical ranges of each replica in REXEE:")
         for i in range(self.n_sim):
             print(f"  - Replica {i}: States {self.state_ranges[i]}")
 
@@ -839,10 +840,10 @@ class ReplicaExchangeEE:
         sample configurations 0, 2, 1, 3, respectively, where configurations 0, 1, 2, 3 here are defined as whatever
         configurations are in replicas 0, 1, 2, 3 in the CURRENT iteration (not iteration 0), respectively.
 
-        Notably, when this function is called (e.g. once every iteration in an EEXE simulation), the output
+        Notably, when this function is called (e.g. once every iteration in an REXEE simulation), the output
         list :code:`swap_pattern` is always initialized as :code:`[0, 1, 2, 3, ...]` and gets updated once every
         attempted swap. This is different from the attribute :code:`configs`, which is only initialized at the
-        very beginning of the entire EEXE simulation (iteration 0), though :code:`configs` also gets updated with
+        very beginning of the entire REXEE simulation (iteration 0), though :code:`configs` also gets updated with
         :code:`swap_pattern` once every attempted swap in this function.
 
         Parameters
@@ -883,7 +884,7 @@ class ReplicaExchangeEE:
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         state_ranges = copy.deepcopy(self.state_ranges)
         states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges
-        swappables = EnsembleEXE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
+        swappables = ReplicaExchangeEE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
 
         # Note that if there is only 1 swappable pair, then it will still be the only swappable pair
         # after an attempted swap is accepted. Therefore, there is no need to perform multiple swaps or re-identify
@@ -911,7 +912,7 @@ class ReplicaExchangeEE:
                 if self.proposal == 'exhaustive':
                     n_ex_exhaustive += 1
 
-                swap = EnsembleEXE.propose_swap(swappables)
+                swap = ReplicaExchangeEE.propose_swap(swappables)
                 print(f'\nProposed swap: {swap}')
                 if swap == []:
                     self.n_empty_swappable += 1
@@ -928,9 +929,9 @@ class ReplicaExchangeEE:
                         prob_acc = self.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
                         swap_bool = self.accept_or_reject(prob_acc)
 
-                    # Theoretically, in an EEXE simulation, we could either choose to swap configurations (via
+                    # Theoretically, in an REXEE simulation, we could either choose to swap configurations (via
                     # swapping GRO files) or replicas (via swapping MDP files). In ensemble_md package, we chose the
-                    # former when implementing the EEXE algorithm. Specifically, in the CLI `run_EEXE`, `swap_pattern`
+                    # former when implementing the REXEE algorithm. Specifically, in the CLI `run_REXEE`, `swap_pattern`
                     # is used to swap the GRO files. Therefore, when an attempted swap is accetped and `swap_pattern`
                     # is updated, we also need to update the variables `shifts`, `weights`, `dhdl_files`,
                     # `state_ranges`, `self.configs` but not anything else. Otherwise, incorrect results will be
@@ -951,7 +952,7 @@ class ReplicaExchangeEE:
                         if n_ex > 1 and self.proposal == 'multiple':  # must be multiple swaps
                             # After state_ranges have been updated, we re-identify the swappable pairs.
                             # Notably, states_copy (instead of states) should be used. (They could be different.)
-                            swappables = EnsembleEXE.identify_swappable_pairs(states_copy, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
+                            swappables = ReplicaExchangeEE.identify_swappable_pairs(states_copy, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
                             print(f"  New swappable pairs: {swappables}")
                     else:
                         # In this case, there is no need to update the swappables
@@ -993,7 +994,7 @@ class ReplicaExchangeEE:
             substracted by :code:`shifts` should be the local state indices of the last sampled states
             in :code:`dhdl_files[0]`, :code:`dhdl_files[1]`, ... (which importantly, are not necessarily
             :code:`dhdl_0.xvg`, :code:`dhdl_1.xvg`, ...). If multiple swaps are not used, then
-            this should always be :code:`list(EEXE.s * np.arange(EEXE.n_sim))`.
+            this should always be :code:`list(REXEE.s * np.arange(REXEE.n_sim))`.
         weights : list
             A list of lists of final weights of ALL simulations. Typiecally generated by
             :obj:`.extract_final_log_info`. :code:`weights[i]` and :code:`dhdl_files[i]` should correspond to
@@ -1188,7 +1189,7 @@ class ReplicaExchangeEE:
         maximum of the RMSEs of all replicas is smaller than the cutoff specified in the input YAML file
         (the parameter :code:`rmse_cutoff`), either final weights or time-averaged weights will be used
         (depending on the value of the parameter :code:`w_combine`). Otherwise, :code:`None` will be returned,
-        which will lead to deactivation of weight combination in the CLI :code:`run_EEXE`.
+        which will lead to deactivation of weight combination in the CLI :code:`run_REXEE`.
 
         Parameters
         ----------
@@ -1441,9 +1442,9 @@ class ReplicaExchangeEE:
             if code_list != [0] * self.n_sim:
                 MPI.COMM_WORLD.Abort(1)   # Doesn't matter what non-zero returncode we put here as the code from GROMACS will be printed before this point anyway.  # noqa: E501
 
-    def run_EEXE(self, n, swap_pattern=None):
+    def run_REXEE(self, n, swap_pattern=None):
         """
-        Perform one iteration in the EEXE simulation, which includes generating the
+        Perform one iteration in the REXEE simulation, which includes generating the
         TPR files using the GROMACS grompp :code:`command` and running the expanded ensemble simulations
         in parallel using GROMACS :code:`mdrun` command. The GROMACS commands are launched by as subprocesses.
         The function assumes that the GROMACS executable is available.
