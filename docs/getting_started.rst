@@ -2,8 +2,8 @@
 ===============
 :code:`ensemble_md` is a Python package that provides methods for setting up, 
 running, and analyzing GROMACS simulation ensembles. The current implementation is
-mainly for synchronous ensemble of expanded ensemble (EEXE), but we will develop
-methods like asynchronous EEXE, or ensemble of alchemical metadynamics in the future.
+mainly for synchronous replica exchange (REX) of expanded ensemble (EE), abbreviated as
+REXEE. In the future, we will develop methods like asynchronous REXEE, or multi-topology REXEE.
 In the current implementation, the module :code:`subprocess`
 is used to launch GROMACS commands, but we will switch to `SCALE-MS`_ for this purpose
 in the future when possible.

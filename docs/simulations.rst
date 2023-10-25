@@ -2,26 +2,26 @@
 
 1. Command-line interface (CLI)
 ===============================
-:code:`ensemble_md` provides three command-line interfaces (CLI), including :code:`explore_EEXE`, :code:`run_EEXE` and :code:`analyze_EEXE`.
-:code:`explore_EEXE` helps the user to figure out possible combinations of EEXE parameters, while :code:`run_EEXE` and :code:`analyze_EEXE`
-can be used to perform and analyze EEXE simulations, respectively. Below we provide more details about each of these CLIs.
+:code:`ensemble_md` provides three command-line interfaces (CLI), including :code:`explore_REXEE`, :code:`run_REXEE` and :code:`analyze_REXEE`.
+:code:`explore_REXEE` helps the user to figure out possible combinations of REXEE parameters, while :code:`run_REXEE` and :code:`analyze_REXEE`
+can be used to perform and analyze REXEE simulations, respectively. Below we provide more details about each of these CLIs.
 
-1.1. CLI :code:`explore_EEXE`
+1.1. CLI :code:`explore_REXEE`
 -----------------------------
-Here is the help message of :code:`explore_EEXE`:
+Here is the help message of :code:`explore_REXEE`:
 
 ::
 
-    usage: explore_EEXE [-h] -N N [-r R] [-n N] [-s S] [-c] [-e]
+    usage: explore_REXEE [-h] -N N [-r R] [-n N] [-s S] [-c] [-e]
 
-    This code explores the parameter space of homogenous EEXE to help you figure out all
+    This code explores the parameter space of homogenous REXEE to help you figure out all
     possible combinations of the number of replicas, the number of states in each replica,
     and the number of overlapping states, and the total number states.
 
     optional arguments:
       -h, --help      show this help message and exit
-      -N N, --N N     The total number of states of the EEXE simulation.
-      -r R, --r R     The number of replicas that compose the EEXE simulation.
+      -N N, --N N     The total number of states of the REXEE simulation.
+      -r R, --r R     The number of replicas that compose the REXEE simulation.
       -n N, --n N     The number of states for each replica.
       -s S, --s S     The state shift between adjacent replicas.
       -c, --cnst      Whether the apply the constraint such that the number of overlapping
@@ -31,19 +31,19 @@ Here is the help message of :code:`explore_EEXE`:
                       pairs for each solution.
 
 
-1.2. CLI :code:`run_EEXE`
+1.2. CLI :code:`run_REXEE`
 -------------------------
-Here is the help message of :code:`run_EEXE`:
+Here is the help message of :code:`run_REXEE`:
 
 ::
 
-    usage: run_EEXE [-h] [-y YAML] [-c CKPT] [-g G_VECS] [-o OUTPUT] [-m MAXWARN]
+    usage: run_REXEE [-h] [-y YAML] [-c CKPT] [-g G_VECS] [-o OUTPUT] [-m MAXWARN]
 
-    This code runs an ensemble of expanded ensemble given necessary inputs.
+    This code runs a REXEE simulation given necessary inputs.
 
     optional arguments:
     -h, --help            show this help message and exit
-    -y YAML, --yaml YAML  The input YAML file that contains EEXE parameters. (Default:
+    -y YAML, --yaml YAML  The input YAML file that contains REXEE parameters. (Default:
                             params.yaml)
     -c CKPT, --ckpt CKPT  The NPY file containing the replica-space trajectories. This file
                             is a necessary checkpoint file for extending the simulaiton.
@@ -55,40 +55,40 @@ Here is the help message of :code:`run_EEXE`:
                             g_vecs.npy)
     -o OUTPUT, --output OUTPUT
                             The output file for logging how replicas interact with each
-                            other. (Default: run_EEXE_log.txt)
+                            other. (Default: run_REXEE_log.txt)
     -m MAXWARN, --maxwarn MAXWARN
                             The maximum number of warnings in parameter specification to be
                             ignored.
 
-In our current implementation, it is assumed that all replicas of an EEXE simulations are performed in
-parallel using MPI. Naturally, performing an EEXE simulation using :code:`run_EEXE` requires a command-line interface
+In our current implementation, it is assumed that all replicas of an REXEE simulations are performed in
+parallel using MPI. Naturally, performing an REXEE simulation using :code:`run_REXEE` requires a command-line interface
 to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, on a 128-core node
-in a cluster, one may use :code:`mpirun -np 4 run_EEXE` (or :code:`mpiexec -n 4 run_EEXE`) to run an EEXE simulation composed of 4
+in a cluster, one may use :code:`mpirun -np 4 run_REXEE` (or :code:`mpiexec -n 4 run_REXEE`) to run an REXEE simulation composed of 4
 replicas with 4 MPI processes. Note that in this case, it is often recommended to explicitly specify
 more details about resources allocated for each replica. For example, one can specifies :code:`{'-nt': 32}`
-for the EEXE parameter `runtime_args` (specified in the input YAML file, see :ref:`doc_EEXE_parameters`),
+for the REXEE parameter `runtime_args` (specified in the input YAML file, see :ref:`doc_REXEE_parameters`),
 so each of the 4 replicas will use 32 threads (assuming thread-MPI GROMACS), taking the full advantage
 of 128 cores.
 
-1.3. CLI :code:`analyze_EEXE`
+1.3. CLI :code:`analyze_REXEE`
 -----------------------------
-Finally, here is the help message of :code:`analyze_EEXE`:
+Finally, here is the help message of :code:`analyze_REXEE`:
 
 ::
 
-    usage: analyze_EEXE [-h] [-y YAML] [-o OUTPUT] [-rt REP_TRAJS] [-st STATE_TRAJS]
+    usage: analyze_REXEE [-h] [-y YAML] [-o OUTPUT] [-rt REP_TRAJS] [-st STATE_TRAJS]
                         [-d DIR] [-m MAXWARN]
 
-    This code analyzes an ensemble of expanded ensemble. Note that the template MDP file
+    This code analyzes a REXEE simulation. Note that the template MDP file
     specified in the YAML file needs to be available in the working directory.
 
     optional arguments:
     -h, --help            show this help message and exit
-    -y YAML, --yaml YAML  The input YAML file used to run the EEXE simulation. (Default:
+    -y YAML, --yaml YAML  The input YAML file used to run the REXEE simulation. (Default:
                             params.yaml)
     -o OUTPUT, --output OUTPUT
-                            The output log file that contains the analysis results of EEXE.
-                            (Default: analyze_EEXE_log.txt)
+                            The output log file that contains the analysis results of REXEE.
+                            (Default: analyze_REXEE_log.txt)
     -rt REP_TRAJS, --rep_trajs REP_TRAJS
                             The NPY file containing the replica-space trajectory. (Default:
                             rep_trajs.npy)
@@ -103,45 +103,45 @@ Finally, here is the help message of :code:`analyze_EEXE`:
 
 2. Recommended workflow
 =======================
-In this section, we introduce the workflow adopted by the CLI :code:`run_EEXE` that can be used to 
-launch EEXE simulations. While this workflow is made as flexible as possible, interested users
-can use functions defined :class:`ensemble_EXE` to develop their own workflow, or consider contributing
-to the source code of the CLI :code:`run_EEXE`. As an example, a hands-on tutorial that uses this workflow (using the CLI :code:`run_EEXE`) can be found in 
-`Tutorial 1: Ensemble of expanded ensemble`_. 
+In this section, we introduce the workflow adopted by the CLI :code:`run_REXEE` that can be used to 
+launch REXEE simulations. While this workflow is made as flexible as possible, interested users
+can use functions defined :class:`ReplicaExchangeEE` to develop their own workflow, or consider contributing
+to the source code of the CLI :code:`run_REXEE`. As an example, a hands-on tutorial that uses this workflow (using the CLI :code:`run_REXEE`) can be found in 
+`Tutorial 1: Launching a REXEE simulation`_. 
 
-.. _`Tutorial 1: Ensemble of expanded ensemble`: examples/run_EEXE.ipynb
+.. _`Tutorial 1: Launching a REXEE simulation`: examples/run_REXEE.ipynb
 
 
 Step 1: Set up parameters
 -------------------------
-To run an ensemble of expanded ensemble in GROMACS using :code:`run_EEXE.py`, one at 
+To run a REXEE simulation in GROMACS using :code:`run_REXEE.py`, one at 
 least needs to following four files:
 
 * One GRO file of the system of interest
 * One TOP file of the system of interest
 * One MDP template for customizing different MDP files for different replicas. 
-* One YAML file that specify the EEXE-relevant parameters.
+* One YAML file that specify the REXEE-relevant parameters.
 
 Currently, we only allow all replicas to be initiated with the same configuration represented 
 by the single GRO file, but the user should also be able to initialize different replicas with different 
 configurations (represented by multiple GRO files) in the near future. Also, the MDP template should contain parameters 
 common across all replicas and define the coupling parmaeters for all possible intermediate states,
 so that we can cusotmize different MDP files by defining a subset of alchemical states in different 
-replicas. For EEXE simulations, some MDP parameters need additional care to be taken, which we describe in
-:ref:`doc_mdp_params`. Importantly, to extend an EEXE simulation, one needs to additionally provide the following
+replicas. For REXEE simulations, some MDP parameters need additional care to be taken, which we describe in
+:ref:`doc_mdp_params`. Importantly, to extend an REXEE simulation, one needs to additionally provide the following
 two checkpoint files:
 
-* One NPY file containing the replica-space trajectories of different configurations saved by the previous run of EEXE simulation with a default name as :code:`rep_trajs.npy`.
-* One NPY file containing the timeseries of the whole-range alchemical weights saved by the previous run of EEXE simulation with a default name as :code:`g_vecs.npy`.
+* One NPY file containing the replica-space trajectories of different configurations saved by the previous run of REXEE simulation with a default name as :code:`rep_trajs.npy`.
+* One NPY file containing the timeseries of the whole-range alchemical weights saved by the previous run of REXEE simulation with a default name as :code:`g_vecs.npy`.
 
-In :code:`run_EEXE.py`, the class :class:`.EnsembleEXE` is instantiated with the given YAML file, where
+In :code:`run_REXEE.py`, the class :class:`.ReplicaExchangeEE` is instantiated with the given YAML file, where
 the user needs to specify how the replicas should be set up or interact with each 
 other during the simulation ensemble. Check :ref:`doc_parameters` for more details.
 
 Step 2: Run the 1st iteration
 -----------------------------
 With all the input files/parameters set up in the previous run, one can use run the first iteration,
-using :obj:`.run_EEXE`, which uses :code:`subprocess.run` to launch GROMACS :code:`grompp`
+using :obj:`.run_REXEE`, which uses :code:`subprocess.run` to launch GROMACS :code:`grompp`
 and :code:`mdrun` commands in parallel.
 
 Step 3: Set up the new iteration
@@ -210,62 +210,62 @@ iterations (:code:`n_iterations`) is reached.
 3. Input YAML parameters
 ========================
 In the current implementation of the algorithm, 28 parameters can be specified in the input YAML file.
-Note that the two CLIs :code:`run_EEXE` and :code:`analyze_EEXE` share the same input YAML file, so we also
+Note that the two CLIs :code:`run_REXEE` and :code:`analyze_REXEE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
 3.1. GROMACS executable
 -----------------------
 
   - :code:`gmx_executable`: (Optional, Default: :code:`gmx_mpi`)
-      The GROMACS executable to be used to run the EEXE simulation. The value could be as simple as :code:`gmx`
+      The GROMACS executable to be used to run the REXEE simulation. The value could be as simple as :code:`gmx`
       or :code:`gmx_mpi` if the exeutable has been sourced. Otherwise, the full path of the executable (e.g.
       :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
-      Note that EEXE only works with MPI-enabled GROMACS. 
+      Note that REXEE only works with MPI-enabled GROMACS. 
 
 3.2. Input files
 ----------------
 
   - :code:`gro`: (Required)
-      The input system configuration in the form of GRO file(s) used to initiate the EEXE simulation. If only one GRO file is specified,
+      The input system configuration in the form of GRO file(s) used to initiate the REXEE simulation. If only one GRO file is specified,
       it will be used to initiate all the replicas. If multiple GRO files are specified (using the YAML syntax),
       the number of GRO files has to be the same as the number of replicas. 
   - :code:`top`: (Required)
-      The input system topology in the form of TOP file(s) used to initiate the EEXE simulation. If only one TOP file is specified,
+      The input system topology in the form of TOP file(s) used to initiate the REXEE simulation. If only one TOP file is specified,
       it will be used to initiate all the replicas. If multiple TOP files are specified (using the YAML syntax),
       the number of TOP files has to be the same as the number of replicas. In the case where multiple TOP and GRO files are specified,
       the i-th TOP file corresponds to the i-th GRO file.
   - :code:`mdp`: (Required)
-      The input MDP file used to initiate the EEXE simulation. Specifically, this input MDP file will serve as a template for
+      The input MDP file used to initiate the REXEE simulation. Specifically, this input MDP file will serve as a template for
       customizing MDP files for all replicas. Therefore, the MDP template must have the whole range of :math:`λ` values. 
-      and the corresponding weights (in fixed-weight simulations). This holds for EEXE simulations for multiple serial mutations as well.
-      For example, in an EEXE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if
+      and the corresponding weights (in fixed-weight simulations). This holds for REXEE simulations for multiple serial mutations as well.
+      For example, in an REXEE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if
       exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Notably, unlike
       the parameters :code:`gro` and :code:`top`, only one MDP file can be specified for the parameter :code:`mdp`. If you wish to use
       different parameters for different replicas, please use the parameter :code:`mdp_args`.
   - :code:`modify_coords`: (Optional, Default: :code:`None`)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
-      before the coordinate exchange, which is generally required in EEXE simulations for multiple serial mutations.
-      For the CLI :code:`run_EEXE` to work, here is the predefined contract for the module/function based on the assumptions :code:`run_EEXE` makes.
+      before the coordinate exchange, which is generally required in REXEE simulations for multiple serial mutations.
+      For the CLI :code:`run_REXEE` to work, here is the predefined contract for the module/function based on the assumptions :code:`run_REXEE` makes.
       Modules/functions not obeying the contract are unlikely to work.
 
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
         - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on the order of the input GRO files. 
         - The function must return :code:`None` (i.e., no return value). 
-        - The function must save the modified GRO file as :code:`confout.gro`. Specifically, if :code:`directory_A/output.gro` and :code:`directory_B/output.gro` are input, then :code:`directory_A/confout.gro` and :code:`directory_B/confout.gro` must be saved. (For more information, please visit `Tutorial 3: EEXE for multiple serial mutations`_.) Note that in the CLI :code:`run_EEXE`, :code:`confout.gro` generated as the simulation output will be automatically backed up (with a :code:`_backup` suffix) to prevent overwriting.
+        - The function must save the modified GRO file as :code:`confout.gro`. Specifically, if :code:`directory_A/output.gro` and :code:`directory_B/output.gro` are input, then :code:`directory_A/confout.gro` and :code:`directory_B/confout.gro` must be saved. (For more information, please visit `Tutorial 3: REXEE for multiple serial mutations`_.) Note that in the CLI :code:`run_REXEE`, :code:`confout.gro` generated as the simulation output will be automatically backed up (with a :code:`_backup` suffix) to prevent overwriting.
 
-.. _`Tutorial 3: EEXE for multiple serial mutations`: examples/run_EEXE_modify_inputs.ipynb
+.. _`Tutorial 3: REXEE for multiple serial mutations`: examples/run_REXEE_modify_inputs.ipynb
         
-.. _doc_EEXE_parameters:
+.. _doc_REXEE_parameters:
 
-3.3. EEXE parameters
+3.3. REXEE parameters
 --------------------
 
   - :code:`n_sim`: (Required)
       The number of replica simulations.
   - :code:`n_iter`: (Required)
-      The number of iterations. In an EEXE simulation, one iteration means one exchange attempt. Notably, this can be used to extend the EEXE simulation.
-      For example, if one finishes an EEXE simulation with 10 iterations (with :code:`n_iter=10`) and wants to continue the simulation from iteration 11 to 30,
-      setting :code:`n_iter` in the next execution of :code:`run_EEXE` should suffice.
+      The number of iterations. In an REXEE simulation, one iteration means one exchange attempt. Notably, this can be used to extend the REXEE simulation.
+      For example, if one finishes an REXEE simulation with 10 iterations (with :code:`n_iter=10`) and wants to continue the simulation from iteration 11 to 30,
+      setting :code:`n_iter` in the next execution of :code:`run_REXEE` should suffice.
   - :code:`s`: (Required)
       The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
   - :code:`nst_sim`: (Optional, Default: :code:`nsteps` in the template MDP file)
@@ -274,7 +274,7 @@ include parameters for data analysis here.
   - :code:`add_swappables`: (Optional, Default: :code:`None`)
       A list of lists that additionally consider states (in global indices) that can be swapped. For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that
       if a replica samples state 4, it can be swapped with another replica that samples state 5 and vice versa. The same logic applies to states 14 and 15. 
-      This could be useful for EEXE simulations for multiple serial mutations, where we enforce exchanges between states 4 and 5 (and 14 and 15) and perform
+      This could be useful for REXEE simulations for multiple serial mutations, where we enforce exchanges between states 4 and 5 (and 14 and 15) and perform
       coordinate manipulation.
   - :code:`proposal`: (Optional, Default: :code:`exhaustive`)
       The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`exhaustive`, :code:`neighboring`, and :code:`multiple`.
@@ -283,7 +283,7 @@ include parameters for data analysis here.
       The Monte Carlo method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
       For more details, please refer to :ref:`doc_acceptance`.
   - :code:`w_combine`: (Optional, Default: :code:`None`)
-      The type of weights to be combined across multiple replicas in a weight-updating EEXE simulation. The following options are available:
+      The type of weights to be combined across multiple replicas in a weight-updating REXEE simulation. The following options are available:
 
         - :code:`None`: No weight combination.
         - :code:`final`: Combine the final weights.
@@ -310,7 +310,7 @@ include parameters for data analysis here.
       always be a list of length of the number of replicas. For example, :code:`{'ref_p': [1.0, 1.01, 1.02, 1.03]}` means that the
       MDP parameter :code:`ref_p` will be set as 1.0 bar, 1.01 bar, 1.02 bar, and 1.03 bar for replicas 0, 1, 2, and 3, respectively.
       Note that while this feature allows high flexibility in parameter specification, not all parameters are suitable to be
-      varied across replicas. For example, varying :code:`nsteps` across replicas for synchronous EEXE simulations does not make sense. 
+      varied across replicas. For example, varying :code:`nsteps` across replicas for synchronous REXEE simulations does not make sense. 
       Additionally, this feature is a work in progress and differing :code:`ref_t` or :code:`dt` across replicas might cause issues. 
   - :code:`grompp_args`: (Optional: Default: :code:`None`)
       Additional arguments to be appended to the GROMACS :code:`grompp` command provided in a dictionary.
@@ -329,7 +329,7 @@ include parameters for data analysis here.
       The frequency for checkpointing in the number of iterations.
   - :code:`rm_cpt`: (Optional, Default: :code:`True`)
       Whether the GROMACS checkpoint file (:code:`state.cpt`) from each iteration should be deleted.
-      Normally we don't need CPT files for EEXE simulations (even for extension) so we recommend just
+      Normally we don't need CPT files for REXEE simulations (even for extension) so we recommend just
       deleting the CPT files (which could save a lot of space if you perform a huge number of iterations).
       If you wish to keep them, specify this parameter as :code:`False`.
   
@@ -338,7 +338,7 @@ include parameters for data analysis here.
 3.5. Data analysis
 ------------------
   - :code:`msm`: (Optional, Default: :code:`False`)
-      Whether to build Markov state models (MSMs) for the EEXE simulation and perform relevant analysis.
+      Whether to build Markov state models (MSMs) for the REXEE simulation and perform relevant analysis.
   - :code:`free_energy`: (Optional, Default: :code:`False`)
       Whether to perform free energy calculations in data analysis or not. Note that free energy calculations 
       could be computationally expensive depending on the relevant settings.
@@ -381,7 +381,7 @@ infinity internally.
     mdp:
     modify_coords: null
 
-    # Section 3: EEXE parameters
+    # Section 3: REXEE parameters
     n_sim:
     n_iter:
     s:
@@ -418,10 +418,10 @@ infinity internally.
 =======================
 As mentioned above, a template MDP file should have all the parameters that will be shared
 across all replicas. It should also define the coupling parameters for the whole range of
-states so that different MDP files can be customized for different replicas. For an EEXE simulation
-launched by the CLI :code:`run_EEXE`, any GROMACS MDP parameter that could potentially lead to issues
-in the EEXE simulation will raise a warning. If the number of warnings is larger than the value
-specified for the flag `-m`/`--maxwarn` in the CLI :code:`run_EEXE`, the simulation will error
+states so that different MDP files can be customized for different replicas. For an REXEE simulation
+launched by the CLI :code:`run_REXEE`, any GROMACS MDP parameter that could potentially lead to issues
+in the REXEE simulation will raise a warning. If the number of warnings is larger than the value
+specified for the flag `-m`/`--maxwarn` in the CLI :code:`run_REXEE`, the simulation will error
 out. To avoid warnings arised from MDP specification, we need to take extra care for the following
 MDP parameters:
 
@@ -435,12 +435,12 @@ MDP parameters:
   of the simulation can be correctly parsed from the LOG file.
 - The MDP parameter :code:`nstdhdl` must be a factor of the YAML parameter :code:`nst_sim` so that the time series
   of the state index can be correctly parsed from the DHDL file.
-- In EEXE, the MDP parameter :code:`nstdhdl` must be a factor of the MDP parameter :code:`nstexpanded`, or
+- In REXEE, the MDP parameter :code:`nstdhdl` must be a factor of the MDP parameter :code:`nstexpanded`, or
   the calculation of the acceptance ratio may be wrong. 
 - Be careful with the pull code specification if you want to apply a distance restraint between two pull groups.
-  Specifically, in an EEXE simulation, all iterations should use the same reference distance. Otherwise, poor sampling
-  can be observed in a fixed-weight EEXE simulation and the equilibration time may be much longer for a weight-updating
-  EEXE simulation. To ensure the same reference distance across all iterations in an EEXE simulation, consider the
+  Specifically, in an REXEE simulation, all iterations should use the same reference distance. Otherwise, poor sampling
+  can be observed in a fixed-weight REXEE simulation and the equilibration time may be much longer for a weight-updating
+  REXEE simulation. To ensure the same reference distance across all iterations in an REXEE simulation, consider the
   following scenarios:
     - If you would like to use the COM distance between the pull groups in the input GRO file as the reference distance
       for all the iterations (whatever that value is), then specify :code:`pull_coord1_start = yes` with

@@ -24,7 +24,7 @@ from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
 
 def initialize(args):
     parser = argparse.ArgumentParser(
-        description='This code runs an ensemble of expanded ensemble given necessary inputs.')
+        description='This code runs a REXEE simulation given necessary inputs.')
     parser.add_argument('-y',
                         '--yaml',
                         type=str,
@@ -99,7 +99,7 @@ def main():
                 MDP = REXEE.initialize_MDP(i)
                 MDP.write(f"sim_{i}/iteration_0/expanded.mdp", skipempty=True)
 
-        # 2-2. Run the first ensemble of simulations
+        # 2-2. Run the first set of simulations
         REXEE.run_REXEE(0)
 
     else:
@@ -280,7 +280,7 @@ def main():
                     print(f'\nAn error occurred on rank 0:\n{traceback.format_exc()}')
                     MPI.COMM_WORLD.Abort(1)
 
-        # 4-2. Run another ensemble of simulations
+        # 4-2. Run another set of simulations
         REXEE.run_REXEE(i, swap_pattern)
 
         # 4-3. Save data

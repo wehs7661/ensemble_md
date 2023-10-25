@@ -35,7 +35,7 @@ from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 def initialize(args):
     parser = argparse.ArgumentParser(
-        description='This code analyzes an ensemble of expanded ensemble. Note that the template MDP\
+        description='This code analyzes a REXEE simulation. Note that the template MDP\
                 file specified in the YAML file needs to be available in the working directory.')
     parser.add_argument('-y',
                         '--yaml',
