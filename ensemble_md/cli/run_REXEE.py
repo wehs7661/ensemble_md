@@ -159,7 +159,7 @@ def main():
                 states = copy.deepcopy(states_)
                 weights = copy.deepcopy(weights_)
                 counts = copy.deepcopy(counts_)
-                swap_pattern, swap_list = REXEE.get_swapping_pattern(dhdl_files, states_, weights_)  # swap_list will only be used for modify_coords  # noqa: E501
+                swap_pattern, swap_list = REXEE.get_swapping_pattern(dhdl_files, states_)  # swap_list will only be used for modify_coords  # noqa: E501
 
                 # 3-3. Perform weight correction/weight combination
                 if wl_delta != [None for i in range(REXEE.n_sim)]:  # weight-updating

@@ -83,7 +83,7 @@ class Test_ReplicaExchangeEE:
 
         # 2. Available options
         check_param_error(params_dict, 'proposal', "The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.", 'cool', 'multiple')  # set as multiple for later tests for n_ex # noqa: E501
-        check_param_error(params_dict, 'acceptance', "The specified acceptance scheme is not available. Available options include 'same-state', 'metropolis', and 'metropolis-eq'.")  # noqa: E501
+        check_param_error(params_dict, 'acceptance', "The specified acceptance scheme is not available. Available options include 'same-state' and 'metropolis'.")  # noqa: E501
         check_param_error(params_dict, 'df_method', "The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
         check_param_error(params_dict, 'err_method', "The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
@@ -422,19 +422,14 @@ class Test_ReplicaExchangeEE:
     def test_get_swapping_pattern(self, params_dict):
         # weights are obtained from the log files in data/log, where the last states are 5, 2, 2, 8 (global indices)
         # state_ranges are: 0-5, 1-6, ..., 3-8
-        weights = [
-            [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
-            [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
-            [0, 0.66431, 1.25475, 1.24443, 0.59472, 0.70726],   # the 4th prob was ajusted (from 0.24443) to tweak prob_acc  # noqa: E501
-            [0, 0.09620, 1.59937, -4.31679, -22.89436, -28.08701]]
         dhdl_files = [os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(4)]
 
         # Case 1: Empty swap list
         REXEE = get_REXEE_instance(params_dict)
         REXEE.verbose = False
         states = [0, 6, 7, 8]  # No swappable pairs
-        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
-        pattern_1, swap_list_1 = REXEE.get_swapping_pattern(f, states, w)
+        f = copy.deepcopy(dhdl_files)
+        pattern_1, swap_list_1 = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_empty_swappable == 1
         assert REXEE.n_swap_attempts == 0
         assert REXEE.n_rejected == 0
@@ -447,8 +442,8 @@ class Test_ReplicaExchangeEE:
         REXEE.verbose = True
         REXEE.proposal = 'single'  # n_ex will be set to 1 automatically.
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
-        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
-        pattern_2, swap_list_2 = REXEE.get_swapping_pattern(f, states, w)
+        f = copy.deepcopy(dhdl_files)
+        pattern_2, swap_list_2 = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 1
         assert REXEE.n_rejected == 0
         assert pattern_2 == [0, 2, 1, 3]
@@ -458,9 +453,9 @@ class Test_ReplicaExchangeEE:
         random.seed(0)
         REXEE = get_REXEE_instance(params_dict)
         REXEE.proposal = 'neighboring'  # n_ex will be set to 1 automatically.
-        states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (1, 2)], swap = (1, 2), accept
-        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
-        pattern_3, swap_list_3 = REXEE.get_swapping_pattern(f, states, w)
+        states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
+        f = copy.deepcopy(dhdl_files)
+        pattern_3, swap_list_3 = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 1
         assert REXEE.n_rejected == 0
         assert pattern_3 == [0, 2, 1, 3]
@@ -471,8 +466,8 @@ class Test_ReplicaExchangeEE:
         REXEE = get_REXEE_instance(params_dict)
         REXEE.proposal = 'exhaustive'
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
-        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
-        pattern_4_1, swap_list_4_1 = REXEE.get_swapping_pattern(f, states, w)
+        f = copy.deepcopy(dhdl_files)
+        pattern_4_1, swap_list_4_1 = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 1
         assert REXEE.n_rejected == 0
         assert pattern_4_1 == [0, 2, 1, 3]
@@ -483,13 +478,15 @@ class Test_ReplicaExchangeEE:
         REXEE = get_REXEE_instance(params_dict)
         REXEE.proposal = 'exhaustive'
         states = [4, 2, 4, 3]  # swappable pairs: [(0, 1), (0, 2), (0, 3), (1, 2), (2, 3)]; swap 1: (2, 3), accepted; swap 2: (0, 1), accept  # noqa: E501
-        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
-        pattern_4_2, swap_list_4_2 = REXEE.get_swapping_pattern(f, states, w)
+        f = copy.deepcopy(dhdl_files)
+        pattern_4_2, swap_list_4_2 = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 2   # \Delta is negative for both swaps -> both accepted
         assert REXEE.n_rejected == 0
         assert pattern_4_2 == [1, 0, 3, 2]
         assert swap_list_4_2 == [(2, 3), (0, 1)]
 
+        """
+        We will deprecate multiple swaps anyway
         # Case 5-1: Multiple swaps (proposal = 'multiple', n_ex = 5)
         print('test 5-1')
         random.seed(0)
@@ -497,8 +494,8 @@ class Test_ReplicaExchangeEE:
         REXEE.n_ex = 5
         REXEE.proposal = 'multiple'
         states = [3, 1, 4, 6]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], first swap = (0, 2), accept
-        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
-        pattern_5_1, swap_list_5_1 = REXEE.get_swapping_pattern(f, states, w)
+        f = copy.deepcopy(dhdl_files)
+        pattern_5_1, swap_list_5_1 = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 5
         assert REXEE.n_rejected == 4
         assert pattern_5_1 == [2, 1, 0, 3]
@@ -509,63 +506,48 @@ class Test_ReplicaExchangeEE:
         random.seed(0)
         REXEE = get_REXEE_instance(params_dict)
         states = [0, 2, 3, 8]  # The only swappable pair is [(1, 2)] --> accept
-        w, f = copy.deepcopy(weights), copy.deepcopy(dhdl_files)
-        pattern_5_2, swap_list_5_2 = REXEE.get_swapping_pattern(f, states, w)
+        f = copy.deepcopy(dhdl_files)
+        pattern_5_2, swap_list_5_2 = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 1  # since there is only 1 swappable pair
         assert REXEE.n_rejected == 0
         assert pattern_5_2 == [0, 2, 1, 3]
         assert swap_list_5_2 == [(1, 2)]
+        """
 
     def test_calc_prob_acc(self, capfd, params_dict):
+        # k = 1.380649e-23; NA = 6.0221408e23; T = 298; kT = k * NA * T / 1000 = 2.4777098766670016
         REXEE = get_REXEE_instance(params_dict)
         # REXEE.state_ranges = [[0, 1, 2, 3, 4, 5], [1, 2, 3, 4, 5, 6], ..., [3, 4, 5, 6, 7, 8]]
         states = [5, 2, 2, 8]
         shifts = [0, 1, 2, 3]
-        weights = [
-            [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
-            [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
-            [0, 0.66431, 1.25475, 0.24443, 0.59472, 0.70726],
-            [0, 0.09620, 1.59937, -4.31679, -22.89436, -28.08701]]
         dhdl_files = [os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(4)]
 
         # Test 1: Same-state swapping (True)
         swap = (1, 2)
         REXEE.acceptance = "same_state"
-        prob_acc_1 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
+        prob_acc_1 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         assert prob_acc_1 == 1
 
         # Test 2: Same-state swapping (False)
         swap = (0, 2)
-        prob_acc_2 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
+        prob_acc_2 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         assert prob_acc_2 == 0
 
-        # Test 3: Metropolis-eq
-        swap = (0, 2)
-        REXEE.acceptance = "metropolis-eq"
-        prob_acc_3 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
-        assert prob_acc_3 == 1    # Delta U = (-9.1366697 + 4.9963939)/2.478956208925815 ~ -1.67 kT
-
-        # Test 4: Metropolis
-        swap = (0, 2)
+        # Test 3-1: Metropolis, test 1
+        swap = (0, 1)
         REXEE.acceptance = "metropolis"
-        prob_acc_4 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
+        prob_acc_3_1 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         out, err = capfd.readouterr()
-        # dH ~-1.67 kT as calculated above, dg = (2.55736 - 6.13408) + (0.24443 - 0) ~ -3.33229 kT
-        # dU - dg ~ 1.66212 kT, so p_acc ~ 0.189 ...
-        assert prob_acc_4 == pytest.approx(0.18989559074633955)   # check this number again
-        assert 'U^i_n - U^i_m = -3.69 kT, U^j_m - U^j_n = 2.02 kT, Total dU: -1.67 kT' in out
-        assert 'g^i_n - g^i_m = -3.58 kT, g^j_m - g^j_n = 0.24 kT, Total dg: -3.33 kT' in out
+        # dU = (-9.1366697  + 11.0623788)/2.4777098766670016 ~ 0.7772 kT, so p_acc = 0.45968522728859024
+        assert prob_acc_3_1 == pytest.approx(0.45968522728859024)
+        assert 'U^i_n - U^i_m = -3.69 kT, U^j_m - U^j_n = 4.46 kT, Total dU: 0.78 kT' in out
 
-        # Test 5: Additional test: the case where one swap of (0, 2) has been accepted already.
-        # Given another same swap of (0, 2), dU and dg in this case should be equal opposites of the oens in Case 4.
-        # And the acceptance ratio should be 1.
+        # Test 3-2: Metropolis, test 2
         swap = (0, 2)
-        states = [2, 2, 5, 8]
-        prob_acc_5 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts, weights)
+        prob_acc_3_2 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         out, err = capfd.readouterr()
-        assert prob_acc_5 == 1
-        assert 'U^i_n - U^i_m = 3.69 kT, U^j_m - U^j_n = -2.02 kT, Total dU: 1.67 kT' in out
-        assert 'g^i_n - g^i_m = 3.58 kT, g^j_m - g^j_n = -0.24 kT, Total dg: 3.33 kT' in out
+        # dU = (-9.1366697 + 4.9963939)/2.4777098766670016 ~ -1.6710 kT, so p_acc = 1
+        assert prob_acc_3_2 == 1
 
     def test_accept_or_reject(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
