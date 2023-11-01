@@ -1,16 +1,20 @@
 .. _doc_basic_idea:
 
+.. note:: This page is still a work in progress. Please refer to our paper for more details before this page is completed.
+
 1. Basic idea
 =============
-Replica exchange of expanded ensemble (REXEE) integrates the core principles of replica exchange 
-molecular dynamics (REMD) and expanded ensemble (EXE).  Specifically, a REXEE simulation includes multiple non-interacting, parallel expanded ensemble simulations 
-that collectively sample a number of alchemical states spanning between the coupled state 
-(:math:`\lambda=0`) and the uncoupled state (:math:`\lambda=1`). Each expanded ensemble 
-samples a subset of these states such that the range of its allowed alchemical states 
-overlaps with that of the adjacent replicas. In REXEE, the exchange of coordinates/alchemical 
-states occurs at a specified frequency, which is beneficial for allowing better mixing 
-in the alchemical space given sufficiently long simulation time, properly specified parameters 
-and highly parallelizable computing architectures. 
+Replica exchange of expanded ensemble (REXEE) integrates the core principles of replica exchange (REX)
+and expanded ensemble (EE) methods.  Specifically, a REXEE simulation includes multiple
+replicas of EE simulations in parallel and periodically exchanges coordinates
+between replicas. Each replica samples a different but overlapping range of alchemical 
+intermediate states to collectively sample the space bwteen the coupled (:math:`\lambda=0`)
+and decoupled states (:math:`\lambda=1`). Naturally, the REXEE method decorrelates
+the number of replicas from the number of states, allowing sampling a large number of intermediate
+states with significantly fewer replicas than those required in the Hamiltonian replica exchange (HREX)
+and other similar methods. By parallelizing replicas, the REXEE method also reduces
+the simulation wall time compared to the EE method. More importantly, such parallelism sets the
+stage for wider applications, such as relative free energy calculations for multi-topology transformations.
 
 Mathematically, we first consider a simulation ensemble that consists of :math:`M` non-interacting replicas 
 of the expanded ensemble simulations all at the same constant temperature :math:`T`. We assume 
@@ -203,7 +207,7 @@ end and there won't be a new pair drawn. In greater detail, this scheme can be d
 -----------------------
 In the current implementation, 3 acceptance schemes are available to be specified 
 in the input YAML file (e.g. :code:`params.yaml`) via the option :code:`acceptance`, including :code:`same-state`/:code:`same_state`, 
-:code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. In our implementation, 
+and :code:`metropolis`. In our implementation, 
 relevant methods include :obj:`.propose_swaps`, :obj:`.calc_prob_acc`, and :obj:`.accept_or_reject`.
 Below we elaborate the details of each of the swapping schemes.
 
@@ -236,20 +240,6 @@ where
 
 In theory, this swapping scheme should obey the detailed balance condition, as derived 
 in :ref:`doc_basic_idea`.
-
-2.2.3. Equilibrated Metropolis swapping
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In the limit of inifite simulation length, the alchemical weights of a certain 
-alchemical (e.g. :math:`m` or :math:`n`) should be indepedent of the configuration
-(e.g. :math:`i` or :math:`j`) being sampled, i.e. :math:`g^i_n=g^i_m` and :math:`g^j_n=g^j_m`. 
-At this limit, where the weights are equilibrated, the expression of :math:`\Delta` in the
-standard Metropolis swapping scheme reduces to the following:
-
-.. math::
-  \Delta = \beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)]
-
-Notably, this scheme does not consider the difference in the alchemical weights, which can 
-be non-zero frequently, so this swapping scheme does not strictly obey the detailed balance condition.
 
 2.3. Calculation of Δ in Metropolis-based acceptance schemes
 ------------------------------------------------------------

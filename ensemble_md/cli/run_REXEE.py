@@ -159,7 +159,7 @@ def main():
                 states = copy.deepcopy(states_)
                 weights = copy.deepcopy(weights_)
                 counts = copy.deepcopy(counts_)
-                swap_pattern, swap_list = REXEE.get_swapping_pattern(dhdl_files, states_, weights_)  # swap_list will only be used for modify_coords  # noqa: E501
+                swap_pattern, swap_list = REXEE.get_swapping_pattern(dhdl_files, states_)  # swap_list will only be used for modify_coords  # noqa: E501
 
                 # 3-3. Perform weight correction/weight combination
                 if wl_delta != [None for i in range(REXEE.n_sim)]:  # weight-updating
@@ -206,7 +206,7 @@ def main():
                 elif REXEE.N_cutoff != -1 and REXEE.w_combine is None:
                     # only perform weight correction
                     print('Note: No weight combination will be performed.')
-                    weights = REXEE.histogram_correction(weights_input, counts)
+                    weights = REXEE.weights_correction(weights_input, counts)
                     _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                 else:
                     print('Note: No weight correction will be performed.')
