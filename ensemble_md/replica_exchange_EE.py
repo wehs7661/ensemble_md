@@ -1149,35 +1149,6 @@ class ReplicaExchangeEE:
 
         return weights_avg, weights_err
 
-    def prepare_weights(self, weights_avg, weights_final):
-        """
-        Prepared weights to be combined by the function :code:`combine_weights`.
-
-        Parameters
-        ----------
-        weights_avg : list
-            A list of lists of weights averaged since the last update of the Wang-Landau
-            incrementor. The length of the list should be the number of replicas.
-        weights_final : list
-            A list of lists of final weights of all simulations. The length of the list should
-            be the number of replicas.
-
-        Returns
-        -------
-        weights_output : list
-            A list of lists of weights to be combined.
-        """
-        rmse_list = [utils.calc_rmse(weights_avg[i], weights_final[i]) for i in range(self.n_sim)]
-        rmse_str = ', '.join([f'{i:.2f}' for i in rmse_list])
-        print(f'RMSE between the final weights and time-averaged weights for each replica: {rmse_str} kT')
-
-        if self.w_combine is True:
-            weights_output = weights_avg
-        else:
-            weights_output = None
-
-        return weights_output
-
     def combine_weights(self, hist, weights, weights_err=None, print_values=True):
         """
         Combine alchemical weights across multiple replicas and adjusts the histogram counts

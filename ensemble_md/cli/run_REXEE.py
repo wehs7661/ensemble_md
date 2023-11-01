@@ -165,52 +165,47 @@ def main():
                 if wl_delta != [None for i in range(REXEE.n_sim)]:  # weight-updating
                     print(f'\nCurrent Wang-Landau incrementors: {wl_delta}\n')
 
-                # (1) First we prepare the weights to be combined.
+                # (1) First we prepare the time-averaged weights to be combined, if needed.
                 # Note that although averaged weights are sometimes used for weight correction/weight combination,
                 # the final weights are always used for calculating the acceptance ratio.
                 if REXEE.N_cutoff != -1 or REXEE.w_combine is not None:
                     # Only when weight correction/weight combination is needed.
                     weights_avg, weights_err = REXEE.get_averaged_weights(log_files)
-                    weights_input = REXEE.prepare_weights(weights_avg, weights)  # weights_input is for weight combination  # noqa: E501
+
+                    # Calculate the RMSE between the averaged weights and the final weights by the way.
+                    rmse_list = [utils.calc_rmse(weights_avg[i], weights[i]) for i in range(REXEE.n_sim)]
+                    rmse_str = ', '.join([f'{i:.2f}' for i in rmse_list])
+                    print(f'RMSE between the final weights and time-averaged weights for each replica: {rmse_str} kT')
 
                 # (2) Now we perform weight correction/weight combination.
                 # The product of this step should always be named as "weights" to be used in update_MDP
-                if REXEE.N_cutoff != -1 and REXEE.w_combine is not None:
-                    # perform both
-                    if weights_input is None:
-                        # Then only weight correction will be performed
-                        print('Note: Weight combination is deactivated because the weights are too noisy.')
-                        weights = REXEE.weight_correction(weights, counts)
-                        _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
+                if REXEE.N_cutoff != -1 and REXEE.w_combine is True:
+                    # Perform both weight correction and weight combination
+                    weights_preprocessed = REXEE.weight_correction(weights_avg, counts)
+                    if REXEE.verbose is True:
+                        print('Performing weight combination ...')
                     else:
-                        weights_preprocessed = REXEE.weight_correction(weights_input, counts)
-                        if REXEE.verbose is True:
-                            print('Performing weight combination ...')
-                        else:
-                            print('Performing weight combination ...', end='')
-                        counts, weights, g_vec = REXEE.combine_weights(counts_, weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
-                        REXEE.g_vecs.append(g_vec)
-                elif REXEE.N_cutoff == -1 and REXEE.w_combine is not None:
-                    # only perform weight combination
+                        print('Performing weight combination ...', end='')
+                    counts, weights, g_vec = REXEE.combine_weights(counts_, weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
+                    REXEE.g_vecs.append(g_vec)
+                elif REXEE.N_cutoff == -1 and REXEE.w_combine is True:
+                    # Only perform weight combination
                     print('Note: No weight correction will be performed.')
-                    if weights_input is None:
-                        print('Note: Weight combination is deactivated because the weights are too noisy.')
-                        _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
+                    if REXEE.verbose is True:
+                        print('Performing weight combination ...')
                     else:
-                        if REXEE.verbose is True:
-                            print('Performing weight combination ...')
-                        else:
-                            print('Performing weight combination ...', end='')
-                        counts, weights, g_vec = REXEE.combine_weights(counts_, weights_input)  # inverse-variance weighting seems worse  # noqa: E501
-                        REXEE.g_vecs.append(g_vec)
-                elif REXEE.N_cutoff != -1 and REXEE.w_combine is None:
-                    # only perform weight correction
+                        print('Performing weight combination ...', end='')
+                    counts, weights, g_vec = REXEE.combine_weights(counts_, weights_avg)
+                    REXEE.g_vecs.append(g_vec)
+                elif REXEE.N_cutoff != -1 and REXEE.w_combine is False:
+                    # Only perform weight correction
                     print('Note: No weight combination will be performed.')
-                    weights = REXEE.weights_correction(weights_input, counts)
+                    weights = REXEE.weights_correction(weights_avg, counts)
                     _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                 else:
                     print('Note: No weight correction will be performed.')
                     print('Note: No weight combination will be performed.')
+                    # Note that in this case, the final weights will be used in the next iteration.
                     _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
 
                 # 3-5. Modify the MDP files and swap out the GRO files (if needed)
