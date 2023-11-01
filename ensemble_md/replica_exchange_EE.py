@@ -163,7 +163,6 @@ class ReplicaExchangeEE:
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
             "w_combine": None,
-            "rmse_cutoff": np.inf,
             "N_cutoff": 1000,
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
@@ -208,13 +207,6 @@ class ReplicaExchangeEE:
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
-        if self.w_combine is not None and self.rmse_cutoff == np.inf:
-            self.warnings.append('Warning: We recommend setting rmse_cutoff when w_combine is used.')
-
-        if self.rmse_cutoff != np.inf:
-            if type(self.rmse_cutoff) is not float and type(self.rmse_cutoff) is not int:
-                raise ParameterError("The parameter 'rmse_cutoff' should be a float.")
-
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.nst_sim is not None:
             params_int.append('nst_sim')
@@ -226,7 +218,7 @@ class ReplicaExchangeEE:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap', 'rmse_cutoff']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
         if self.nst_sim is not None:
             params_pos.append('nst_sim')
         for i in params_pos:
@@ -1163,11 +1155,6 @@ class ReplicaExchangeEE:
     def prepare_weights(self, weights_avg, weights_final):
         """
         Prepared weights to be combined by the function :code:`combine_weights`.
-        For each replica, the RMSE between the averaged weights and the final weights is calculated. If the
-        maximum of the RMSEs of all replicas is smaller than the cutoff specified in the input YAML file
-        (the parameter :code:`rmse_cutoff`), either final weights or time-averaged weights will be used
-        (depending on the value of the parameter :code:`w_combine`). Otherwise, :code:`None` will be returned,
-        which will lead to deactivation of weight combination in the CLI :code:`run_REXEE`.
 
         Parameters
         ----------
@@ -1186,12 +1173,11 @@ class ReplicaExchangeEE:
         rmse_list = [utils.calc_rmse(weights_avg[i], weights_final[i]) for i in range(self.n_sim)]
         rmse_str = ', '.join([f'{i:.2f}' for i in rmse_list])
         print(f'RMSE between the final weights and time-averaged weights for each replica: {rmse_str} kT')
-        if np.max(rmse_list) < self.rmse_cutoff:
-            # Weight combination will be activated
-            if self.w_combine == 'final':
-                weights_output = weights_final
-            elif self.w_combine == 'avg':
-                weights_output = weights_avg
+
+        if self.w_combine == 'final':
+            weights_output = weights_final
+        elif self.w_combine == 'avg':
+            weights_output = weights_avg
         else:
             weights_output = None
 
