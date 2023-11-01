@@ -164,7 +164,7 @@ class ReplicaExchangeEE:
             "acceptance": "metropolis",
             "w_combine": False,
             "N_cutoff": 1000,
-            "n_ex": 'N^3',   # only active for multiple swaps.
+            # "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
             "mdp_args": None,
             "grompp_args": None,
@@ -192,8 +192,8 @@ class ReplicaExchangeEE:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
         # Step 4: Check if the parameters in the YAML file are well-defined
-        if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'multiple']:
-            raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.")  # noqa: E501
+        if self.proposal not in [None, 'single', 'neighboring', 'exhaustive']:  # deprecated option: multiple
+            raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', and 'exhaustive'.")  # noqa: E501
 
         if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis']:
             raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state' and 'metropolis'.")  # noqa: E501
@@ -207,8 +207,10 @@ class ReplicaExchangeEE:
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.nst_sim is not None:
             params_int.append('nst_sim')
+        """
         if self.n_ex != 'N^3':  # no need to add "and self.proposal == 'multiple' since if multiple swaps are not used, n_ex=1"  # noqa: E501
             params_int.append('n_ex')
+        """
         if self.seed is not None:
             params_int.append('seed')
         for i in params_int:
@@ -222,8 +224,10 @@ class ReplicaExchangeEE:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
 
+        """
         if self.n_ex != 'N^3' and self.n_ex < 0:
             raise ParameterError("The parameter 'n_ex' should be non-negative.")
+        """
 
         if self.s < 0:
             raise ParameterError("The parameter 's' should be non-negative.")
@@ -490,13 +494,13 @@ class ReplicaExchangeEE:
         print(f"Histogram cutoff: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
         print(f"Number of iterations: {self.n_iter}")
-        print(f"Number of attempted swaps in one exchange interval: {self.n_ex}")
         print(f"Length of each replica: {self.dt * self.nst_sim} ps")
         print(f"Frequency for checkpointing: {self.n_ckpt} iterations")
         print(f"Total number of states: {self.n_tot}")
         print(f"Additionally defined swappable states: {self.add_swappables}")
         print(f"Additional grompp arguments: {self.grompp_args}")
         print(f"Additional runtime arguments: {self.runtime_args}")
+        # print(f"Number of attempted swaps in one exchange interval: {self.n_ex}")
         if self.mdp_args is not None and len(self.mdp_args.keys()) > 1:
             print("MDP parameters differing across replicas:")
             for i in self.mdp_args.keys():
@@ -853,18 +857,19 @@ class ReplicaExchangeEE:
             A list of tuples showing the accepted swaps.
         """
         swap_list = []
-        if self.proposal != 'multiple':
-            if self.proposal == 'exhaustive':
-                n_ex = int(np.floor(self.n_sim / 2))  # This is the maximum, not necessarily the number that will always be reached.  # noqa
-                n_ex_exhaustive = 0    # The actual number of swaps atttempted.
-            else:
-                n_ex = 1  # single swap or neighboring swap
+        if self.proposal == 'exhaustive':
+            n_ex = int(np.floor(self.n_sim / 2))  # This is the maximum, not necessarily the number that will always be reached.  # noqa
+            n_ex_exhaustive = 0    # The actual number of swaps atttempted.
         else:
-            # multiple swaps
-            if self.n_ex == 'N^3':
-                n_ex = self.n_tot ** 3
-            else:
-                n_ex = self.n_ex
+            n_ex = 1  # single swap or neighboring swap
+
+        """
+        # multiple swaps
+        if self.n_ex == 'N^3':
+            n_ex = self.n_tot ** 3
+        else:
+            n_ex = self.n_ex
+        """
 
         shifts = list(self.s * np.arange(self.n_sim))
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
@@ -936,11 +941,13 @@ class ReplicaExchangeEE:
                         state_ranges[swap[0]], state_ranges[swap[1]] = state_ranges[swap[1]], state_ranges[swap[0]]
                         self.configs[swap[0]], self.configs[swap[1]] = self.configs[swap[1]], self.configs[swap[0]]
 
+                        """
                         if n_ex > 1 and self.proposal == 'multiple':  # must be multiple swaps
                             # After state_ranges have been updated, we re-identify the swappable pairs.
                             # Notably, states_copy (instead of states) should be used. (They could be different.)
                             swappables = ReplicaExchangeEE.identify_swappable_pairs(states_copy, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
                             print(f"  New swappable pairs: {swappables}")
+                        """
                     else:
                         # In this case, there is no need to update the swappables
                         pass
