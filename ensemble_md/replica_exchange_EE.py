@@ -1200,7 +1200,7 @@ class ReplicaExchangeEE:
     def combine_weights(self, hist, weights, weights_err=None, print_values=True):
         """
         Combine alchemical weights across multiple replicas and adjusts the histogram counts
-        corerspondingly. Note that if :code:`weights_err` is provided, inverse-variance weighting will be used.
+        correspondingly. Note that if :code:`weights_err` is provided, inverse-variance weighting will be used.
         Care must be taken since inverse-variance weighting can lead to slower
         convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for mor details.)
 

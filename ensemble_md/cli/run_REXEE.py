@@ -206,7 +206,7 @@ def main():
                 elif REXEE.N_cutoff != -1 and REXEE.w_combine is None:
                     # only perform weight correction
                     print('Note: No weight combination will be performed.')
-                    weights = REXEE.histogram_correction(weights_input, counts)
+                    weights = REXEE.weights_correction(weights_input, counts)
                     _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                 else:
                     print('Note: No weight correction will be performed.')
