@@ -162,7 +162,7 @@ class ReplicaExchangeEE:
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
-            "w_combine": None,
+            "w_combine": False,
             "N_cutoff": 1000,
             "n_ex": 'N^3',   # only active for multiple swaps.
             "verbose": True,
@@ -197,9 +197,6 @@ class ReplicaExchangeEE:
 
         if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis']:
             raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state' and 'metropolis'.")  # noqa: E501
-
-        if self.w_combine not in [None, 'final', 'avg']:
-            raise ParameterError("The specified type of weight to be combined is not available. Available options include 'final' and 'avg'.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
@@ -248,7 +245,7 @@ class ReplicaExchangeEE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg']
+        params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg', 'w_combine']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
@@ -311,11 +308,11 @@ class ReplicaExchangeEE:
             self.equilibrated_weights = [None for i in range(self.n_sim)]
 
         if self.fixed_weights is True:
-            if self.N_cutoff != -1 or self.w_combine is not None:
+            if self.N_cutoff != -1 or self.w_combine is True:
                 self.warnings.append('Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
                 # In the case that the warning is ignored, enforce the defaults.
                 self.N_cutoff = -1
-                self.w_combine = None
+                self.w_combine = False
 
         if 'lmc_seed' in self.template and self.template['lmc_seed'] != -1:
             self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
@@ -489,7 +486,7 @@ class ReplicaExchangeEE:
         print(f"Verbose log file: {self.verbose}")
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
-        print(f"Type of weights to be combined: {self.w_combine}")
+        print(f"Whether to perform weight combination: {self.w_combine}")
         print(f"Histogram cutoff: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
         print(f"Number of iterations: {self.n_iter}")
@@ -1174,9 +1171,7 @@ class ReplicaExchangeEE:
         rmse_str = ', '.join([f'{i:.2f}' for i in rmse_list])
         print(f'RMSE between the final weights and time-averaged weights for each replica: {rmse_str} kT')
 
-        if self.w_combine == 'final':
-            weights_output = weights_final
-        elif self.w_combine == 'avg':
+        if self.w_combine is True:
             weights_output = weights_avg
         else:
             weights_output = None
