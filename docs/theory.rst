@@ -1,5 +1,7 @@
 .. _doc_basic_idea:
 
+.. note:: This page is still a work in progress. Please refer to our paper for more details before this page is completed.
+
 1. Basic idea
 =============
 Replica exchange of expanded ensemble (REXEE) integrates the core principles of replica exchange (REX)
