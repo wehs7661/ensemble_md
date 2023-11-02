@@ -493,7 +493,9 @@ class ReplicaExchangeEE:
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
         print(f"Whether to perform weight combination: {self.w_combine}")
-        print(f"Histogram cutoff: {self.N_cutoff}")
+        print(f"Type of means for weight combination: {self.w_mean_type}")
+        print(f"Whether to perform histogram correction: {self.hist_corr}")
+        print(f"Histogram cutoff for weight correction: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
         print(f"Number of iterations: {self.n_iter}")
         print(f"Length of each replica: {self.dt * self.nst_sim} ps")
@@ -1179,8 +1181,8 @@ class ReplicaExchangeEE:
         # (1) Print the original histogram counts
         if print_values is True:
             print('  Original histogram counts:')
-            for i in range(len(self.hist)):
-                print(f'    Rep {i}: {self.hist[i]}')
+            for i in range(len(hist)):
+                print(f'    Rep {i}: {hist[i]}')
 
         # (2) Calculate adjacent weight differences and g_vec
         N_ratio_vec = []  # N_{k-1}/N_k for the whole range
