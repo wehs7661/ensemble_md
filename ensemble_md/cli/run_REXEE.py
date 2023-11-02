@@ -181,7 +181,12 @@ def main():
                 # The product of this step should always be named as "weights" to be used in update_MDP
                 if REXEE.N_cutoff != -1 and REXEE.w_combine is True:
                     # Perform both weight correction and weight combination
+                    if REXEE.verbose is True:
+                        print('Performing weight correction ...')
+                    else:
+                        print('Performing weight correction ...', end='')
                     weights_preprocessed = REXEE.weight_correction(weights_avg, counts)
+                    
                     if REXEE.verbose is True:
                         print('Performing weight combination ...')
                     else:
@@ -216,6 +221,10 @@ def main():
                 elif REXEE.N_cutoff != -1 and REXEE.w_combine is False:
                     # Only perform weight correction
                     print('Note: No weight combination will be performed.')
+                    if REXEE.verbose is True:
+                        print('Performing weight correction ...')
+                    else:
+                        print('Performing weight correction ...', end='')
                     weights = REXEE.weights_correction(weights_avg, counts)
                     _ = REXEE.combine_weights(weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                 else:

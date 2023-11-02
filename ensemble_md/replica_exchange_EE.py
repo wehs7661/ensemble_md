@@ -163,6 +163,7 @@ class ReplicaExchangeEE:
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
             "w_combine": False,
+            "w_mean_type": 'simple',
             "N_cutoff": 1000,
             "hist_corr": False,
             "verbose": True,
@@ -1134,11 +1135,7 @@ class ReplicaExchangeEE:
         weights : list
             An updated list of lists of corected weights.
         """
-        if self.verbose is True:
-            print("\nPerforming weight correction for the lambda weights ...")
-        else:
-            print("\nPerforming weight correction for the lambda weights ...", end="")
-
+        skip_correction = False
         for i in range(len(weights)):  # loop over the replicas
             if self.verbose is True:
                 print(f"  Counts of rep {i}:\t\t{counts[i]}")
@@ -1148,8 +1145,11 @@ class ReplicaExchangeEE:
                 if counts[i][j - 1] != 0 and counts[i][j - 1] != 0:
                     if np.min([counts[i][j - 1], counts[i][j]]) > self.N_cutoff:
                         weights[i][j] += np.log(counts[i][j - 1] / counts[i][j])
+                    else:
+                        skip_correction = True
+                        print('Weight correction was deactivated because neither N_{k-1} or N_k is larger than the histogram cutoff.')  # noqa: E501
 
-            if self.verbose is True:
+            if self.verbose is True and skip_correction is False:
                 print(f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n')
 
         if self.verbose is False:
