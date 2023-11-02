@@ -1184,6 +1184,7 @@ class ReplicaExchangeEE:
         g_vec : np.ndarray
             An array of alchemical weights of the whole range of states.
         """
+        # (1) Print the original weights and histogram counts
         if print_values is True:
             w = np.round(weights, decimals=3).tolist()  # just for printing
             print('  Original weights:')
@@ -1193,21 +1194,14 @@ class ReplicaExchangeEE:
             for i in range(len(hist)):
                 print(f'    Rep {i}: {hist[i]}')
 
-        # Calculate adjacent weight differences and g_vec
+        # (2) Calculate adjacent weight differences and g_vec
+        # Note that N_ratio_vec and other similar variables are only used in histogram corrections
         dg_vec, N_ratio_vec = [], []  # alchemical weight differences and histogram count ratios for the whole range
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
-        # Suppress the specific warning here
-        with warnings.catch_warnings():
+        
+        with warnings.catch_warnings():  # Suppress the specific warning here
             warnings.simplefilter("ignore", category=RuntimeWarning)
             N_ratio_adjacent = [list(np.array(hist[i][1:]) / np.array(hist[i][:-1])) for i in range(len(hist))]
-
-        # Below we deal with the case where the sampling is poor or the WL incrementor just got updated such that
-        # the histogram counts are 0 for some states, in which case we simply skip histogram correction.
-        contains_nan = any(np.isnan(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by 0/0  # noqa: E501
-        contains_inf = any(np.isinf(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by x/0, where x is a finite number  # noqa: E501
-        skip_hist_correction = contains_nan or contains_inf
-        if skip_hist_correction:
-            print('\n  Histogram correction is skipped because the histogram counts are 0 for some states.')
 
         if weights_err is not None:
             dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
@@ -1229,14 +1223,8 @@ class ReplicaExchangeEE:
         dg_vec.insert(0, 0)
         N_ratio_vec.insert(0, hist[0][0])
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
-        if skip_hist_correction is False:
-            # When skip_hist_correction is True, previous lines for calculating N_ratio_vec or N_ratio_list will
-            # still not error out so it's fine to not add the conditional statement like here, since we will
-            # have hist_modified = hist at the end anyway. However, if skip_hist_correction, things like
-            # int(np.nan) will lead to an error, so we put an if condition here.
-            N_vec = np.array([int(np.ceil(np.prod(N_ratio_vec[:(i + 1)]))) for i in range(len(N_ratio_vec))])
-
-        # Determine the vector of alchemical weights and histogram counts for each replica
+        
+        # (3) Determine the vector of alchemical weights and histogram counts for each replica
         weights_modified = np.zeros_like(weights)
         for i in range(self.n_sim):
             hist_modified = []
@@ -1244,11 +1232,29 @@ class ReplicaExchangeEE:
                 weights_modified[i] = list(g_vec[i * self.s: i * self.s + self.n_sub] - g_vec[i * self.s: i * self.s + self.n_sub][0])  # noqa: E501
             else:
                 weights_modified[i] = self.equilibrated_weights[i]
+
+        # (4) Perform histogram correction        
+        # Below we first deal with the case where the sampling is poor or the WL incrementor just got updated such that
+        # the histogram counts are 0 for some states, in which case we simply skip histogram correction.
+        contains_nan = any(np.isnan(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by 0/0  # noqa: E501
+        contains_inf = any(np.isinf(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by x/0, where x is a finite number  # noqa: E501
+        skip_hist_correction = contains_nan or contains_inf
+        if skip_hist_correction:
+            print('\n  Histogram correction is skipped because the histogram counts are 0 for some states.')
+        
+        if skip_hist_correction is False:
+            # When skip_hist_correction is True, previous lines for calculating N_ratio_vec or N_ratio_list will
+            # still not error out so it's fine to not add the conditional statement like here, since we will
+            # have hist_modified = hist at the end anyway. However, if skip_hist_correction, things like
+            # int(np.nan) will lead to an error, so we put an if condition here.
+            N_vec = np.array([int(np.ceil(np.prod(N_ratio_vec[:(i + 1)]))) for i in range(len(N_ratio_vec))])
+
         if skip_hist_correction is False:
             hist_modified = [list(N_vec[self.state_ranges[i]]) for i in range(self.n_sim)]
         else:
             hist_modified = hist
 
+        # (5) Print the modified weights and histogram counts
         if print_values is True:
             w = np.round(weights_modified, decimals=3).tolist()  # just for printing
             print('\n  Modified weights:')
