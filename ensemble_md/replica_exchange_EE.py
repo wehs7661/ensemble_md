@@ -876,7 +876,7 @@ class ReplicaExchangeEE:
         shifts = list(self.s * np.arange(self.n_sim))
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         state_ranges = copy.deepcopy(self.state_ranges)
-        states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges
+        # states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges --> was needed for the multiple exchange proposal scheme  # noqa: E501
         swappables = ReplicaExchangeEE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
 
         # Note that if there is only 1 swappable pair, then it will still be the only swappable pair
@@ -1198,13 +1198,13 @@ class ReplicaExchangeEE:
         N_ratio_vec.insert(0, hist[0][0])
 
         # (3) Check if the histogram counts are 0 for some states, if so, the histogram correction will be skipped.
-        # Zero histogram counts can happen when the sampling is poor or the WL incrementor just got updated 
+        # Zero histogram counts can happen when the sampling is poor or the WL incrementor just got updated
         contains_nan = any(np.isnan(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by 0/0  # noqa: E501
         contains_inf = any(np.isinf(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by x/0, where x is a finite number  # noqa: E501
         skip_hist_correction = contains_nan or contains_inf
         if skip_hist_correction:
             print('\n  Histogram correction is skipped because the histogram counts are 0 for some states.')
-        
+
         # (4) Perform histogram correction if it is not skipped
         if skip_hist_correction is False:
             print('\n  Performing histogram correction ...')
@@ -1261,7 +1261,7 @@ class ReplicaExchangeEE:
         # (2) Calculate adjacent weight differences and g_vec
         dg_vec = []  # alchemical weight differences for the whole range
         dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
-        
+
         if weights_err is not None:
             dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
 
@@ -1280,7 +1280,7 @@ class ReplicaExchangeEE:
 
         dg_vec.insert(0, 0)
         g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
-        
+
         # (3) Determine the vector of alchemical weights for each replica
         weights_modified = np.zeros_like(weights)
         for i in range(self.n_sim):

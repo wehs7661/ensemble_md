@@ -186,12 +186,17 @@ def main():
                     else:
                         print('Performing weight correction ...', end='')
                     weights_preprocessed = REXEE.weight_correction(weights_avg, counts)
-                    
+
                     if REXEE.verbose is True:
                         print('Performing weight combination ...')
                     else:
                         print('Performing weight combination ...', end='')
-                    weights, g_vec = REXEE.combine_weights(weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
+                    if REXEE.w_mean_type == 'simple':
+                        weights, g_vec = REXEE.combine_weights(weights_preprocessed)  # simple means
+                    else:
+                        # Note that here weights_err are acutally not the uncertainties for weights_prepocessed
+                        # but weights_avg ... We might need to disable this feature in the future.
+                        weights, g_vec = REXEE.combine_weights(weights_preprocessed, weights_err)  # inverse-variance weighting  # noqa: E501
                     REXEE.g_vecs.append(g_vec)
 
                     # Check if histogram correction is needed after weight combination
@@ -208,7 +213,10 @@ def main():
                         print('Performing weight combination ...')
                     else:
                         print('Performing weight combination ...', end='')
-                    weights, g_vec = REXEE.combine_weights(weights_avg)
+                    if REXEE.w_mean_type == 'simple':
+                        weights, g_vec = REXEE.combine_weights(weights_avg)  # simple means
+                    else:
+                        weights, g_vec = REXEE.combine_weights(weights_avg, weights_err)  # inverse-variance weighting
                     REXEE.g_vecs.append(g_vec)
 
                     # Check if histogram correction is needed after weight combination
