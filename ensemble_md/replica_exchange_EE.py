@@ -164,7 +164,7 @@ class ReplicaExchangeEE:
             "acceptance": "metropolis",
             "w_combine": False,
             "N_cutoff": 1000,
-            # "n_ex": 'N^3',   # only active for multiple swaps.
+            "hist_corr": False,
             "verbose": True,
             "mdp_args": None,
             "grompp_args": None,
@@ -180,6 +180,7 @@ class ReplicaExchangeEE:
             "err_method": "propagate",
             "n_bootstrap": 50,
             "seed": None,
+            # "n_ex": 'N^3',   # only active for multiple swaps.
         }
         for i in optional_args:
             if hasattr(self, i) is False or getattr(self, i) is None:
@@ -1073,6 +1074,44 @@ class ReplicaExchangeEE:
                     print("  Swap rejected! ")
         return swap_bool
 
+    def get_averaged_weights(self, log_files):
+        """
+        For each replica, calculate the averaged weights (and the associated error) from the time series
+        of the weights since the previous update of the Wang-Landau incrementor.
+
+        Parameters
+        ----------
+        log_files : list
+            A list of file paths to GROMACS LOG files of different replicas.
+
+        Returned
+        --------
+        weights_avg : list
+            A list of lists of weights averaged since the last update of the Wang-Landau
+            incrementor. The length of the list should be the number of replicas.
+        weights_err : list
+            A list of lists of errors corresponding to the values in :code:`weights_avg`.
+        """
+        for i in range(self.n_sim):
+            weights, _, wl_delta, _ = gmx_parser.parse_log(log_files[i])
+            if self.current_wl_delta[i] == wl_delta:
+                self.updating_weights[i] += weights  # expand the list
+            else:
+                self.current_wl_delta[i] = wl_delta
+                self.updating_weights[i] = weights
+
+        # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
+        # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
+        weights_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
+        weights_err = []
+        for i in range(self.n_sim):
+            if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
+                weights_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
+            else:
+                weights_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
+
+        return weights_avg, weights_err
+
     def weight_correction(self, weights, counts):
         """
         Corrects the lambda weights based on the histogram counts. Namely,
@@ -1118,131 +1157,57 @@ class ReplicaExchangeEE:
 
         return weights
 
-    def get_averaged_weights(self, log_files):
+    def histogram_correction(self, hist, print_values=True):
         """
-        For each replica, calculate the averaged weights (and the associated error) from the time series
-        of the weights since the previous update of the Wang-Landau incrementor.
-
-        Parameters
-        ----------
-        log_files : list
-            A list of file paths to GROMACS LOG files of different replicas.
-
-        Returned
-        --------
-        weights_avg : list
-            A list of lists of weights averaged since the last update of the Wang-Landau
-            incrementor. The length of the list should be the number of replicas.
-        weights_err : list
-            A list of lists of errors corresponding to the values in :code:`weights_avg`.
-        """
-        for i in range(self.n_sim):
-            weights, _, wl_delta, _ = gmx_parser.parse_log(log_files[i])
-            if self.current_wl_delta[i] == wl_delta:
-                self.updating_weights[i] += weights  # expand the list
-            else:
-                self.current_wl_delta[i] = wl_delta
-                self.updating_weights[i] = weights
-
-        # shape of self.updating_weights is (n_sim, n_points, n_states), but n_points can be different
-        # for different replicas, which will error out np.mean(self.updating_weights, axis=1)
-        weights_avg = [np.mean(self.updating_weights[i], axis=0).tolist() for i in range(self.n_sim)]
-        weights_err = []
-        for i in range(self.n_sim):
-            if len(self.updating_weights[i]) == 1:  # this would lead to a RunTime Warning and nan
-                weights_err.append([0] * self.n_sub)  # in `weighted_mean``, a simple average will be returned.
-            else:
-                weights_err.append(np.std(self.updating_weights[i], axis=0, ddof=1).tolist())
-
-        return weights_avg, weights_err
-
-    def combine_weights(self, hist, weights, weights_err=None, print_values=True):
-        """
-        Combine alchemical weights across multiple replicas and adjusts the histogram counts
-        correspondingly. Note that if :code:`weights_err` is provided, inverse-variance weighting will be used.
-        Care must be taken since inverse-variance weighting can lead to slower
-        convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for mor details.)
+        Adjust the histogram counts. Specifically, the ratio of corrected histogram counts
+        for adjancent states is the geometric mean of the ratio of the original histogram counts
+        for the same states. Note, however, if the histogram counts are 0 for some states, the
+        histogram correction will be skipped and the original histogram counts will be returned.
 
         Parameters
         ----------
         hist : list
             A list of lists of histogram counts of ALL simulations.
-        weights : list
-            A list of lists alchemical weights of ALL simulations.
-        weights_err : list, optional
-            A list of lists of errors corresponding to the values in :code:`weights`.
         print_values : bool, optional
-            Whether to print the histograms and weights for each replica before and
-            after weight combinationfor each replica.
+            Whether to print the histograms for each replica before and after histogram correction.
 
         Returns
         -------
         hist_modified : list
-            A list of modified histogram counts of ALL simulations.
-        weights_modified : list
-            A list of modified Wang-Landau weights of ALL simulations.
-        g_vec : np.ndarray
-            An array of alchemical weights of the whole range of states.
+            A list of lists of modified histogram counts of ALL simulations.
         """
-        # (1) Print the original weights and histogram counts
+        # (1) Print the original histogram counts
         if print_values is True:
-            w = np.round(weights, decimals=3).tolist()  # just for printing
-            print('  Original weights:')
-            for i in range(len(w)):
-                print(f'    Rep {i}: {w[i]}')
-            print('\n  Original histogram counts:')
-            for i in range(len(hist)):
-                print(f'    Rep {i}: {hist[i]}')
+            print('  Original histogram counts:')
+            for i in range(len(self.hist)):
+                print(f'    Rep {i}: {self.hist[i]}')
 
         # (2) Calculate adjacent weight differences and g_vec
-        # Note that N_ratio_vec and other similar variables are only used in histogram corrections
-        dg_vec, N_ratio_vec = [], []  # alchemical weight differences and histogram count ratios for the whole range
-        dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
-        
+        N_ratio_vec = []  # N_{k-1}/N_k for the whole range
         with warnings.catch_warnings():  # Suppress the specific warning here
             warnings.simplefilter("ignore", category=RuntimeWarning)
             N_ratio_adjacent = [list(np.array(hist[i][1:]) / np.array(hist[i][:-1])) for i in range(len(hist))]
 
-        if weights_err is not None:
-            dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
-
         for i in range(self.n_tot - 1):
-            dg_list, dg_err_list, N_ratio_list = [], [], []
+            N_ratio_list = []
             for j in range(len(self.state_ranges)):
                 if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
                     idx = self.state_ranges[j].index(i)
-                    dg_list.append(dg_adjacent[j][idx])
                     N_ratio_list.append(N_ratio_adjacent[j][idx])
-                    if weights_err is not None:
-                        dg_err_list.append(dg_adjacent_err[j][idx])
-            if weights_err is None:
-                dg_vec.append(np.mean(dg_list))
-            else:
-                dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
             N_ratio_vec.append(np.prod(N_ratio_list) ** (1 / len(N_ratio_list)))  # geometric mean
-        dg_vec.insert(0, 0)
         N_ratio_vec.insert(0, hist[0][0])
-        g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
-        
-        # (3) Determine the vector of alchemical weights and histogram counts for each replica
-        weights_modified = np.zeros_like(weights)
-        for i in range(self.n_sim):
-            hist_modified = []
-            if self.equil[i] == -1:  # unequilibrated
-                weights_modified[i] = list(g_vec[i * self.s: i * self.s + self.n_sub] - g_vec[i * self.s: i * self.s + self.n_sub][0])  # noqa: E501
-            else:
-                weights_modified[i] = self.equilibrated_weights[i]
 
-        # (4) Perform histogram correction        
-        # Below we first deal with the case where the sampling is poor or the WL incrementor just got updated such that
-        # the histogram counts are 0 for some states, in which case we simply skip histogram correction.
+        # (3) Check if the histogram counts are 0 for some states, if so, the histogram correction will be skipped.
+        # Zero histogram counts can happen when the sampling is poor or the WL incrementor just got updated 
         contains_nan = any(np.isnan(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by 0/0  # noqa: E501
         contains_inf = any(np.isinf(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by x/0, where x is a finite number  # noqa: E501
         skip_hist_correction = contains_nan or contains_inf
         if skip_hist_correction:
             print('\n  Histogram correction is skipped because the histogram counts are 0 for some states.')
         
+        # (4) Perform histogram correction if it is not skipped
         if skip_hist_correction is False:
+            print('\n  Performing histogram correction ...')
             # When skip_hist_correction is True, previous lines for calculating N_ratio_vec or N_ratio_list will
             # still not error out so it's fine to not add the conditional statement like here, since we will
             # have hist_modified = hist at the end anyway. However, if skip_hist_correction, things like
@@ -1252,18 +1217,84 @@ class ReplicaExchangeEE:
         if skip_hist_correction is False:
             hist_modified = [list(N_vec[self.state_ranges[i]]) for i in range(self.n_sim)]
         else:
-            hist_modified = hist
+            hist_modified = hist  # the original input histogram
 
-        # (5) Print the modified weights and histogram counts
+        # (5) Print the modified histogram counts
+        if print_values is True:
+            print('\n  Modified histogram counts:')
+            for i in range(len(hist_modified)):
+                print(f'    Rep {i}: {hist_modified[i]}')
+
+        return hist_modified
+
+    def combine_weights(self, weights, weights_err=None, print_values=True):
+        """
+        Combine alchemical weights across multiple replicas. Note that if
+        :code:`weights_err` is provided, inverse-variance weighting will be used.
+        Care must be taken since inverse-variance weighting can lead to slower
+        convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for mor details.)
+
+        Parameters
+        ----------
+        weights : list
+            A list of lists alchemical weights of ALL simulations.
+        weights_err : list, optional
+            A list of lists of errors corresponding to the values in :code:`weights`.
+        print_values : bool, optional
+            Whether to print the weights for each replica before and
+            after weight combination for each replica.
+
+        Returns
+        -------
+        weights_modified : list
+            A list of modified Wang-Landau weights of ALL simulations.
+        g_vec : np.ndarray
+            An array of alchemical weights of the whole range of states.
+        """
+        # (1) Print the original weights
+        if print_values is True:
+            w = np.round(weights, decimals=3).tolist()  # just for printing
+            print('  Original weights:')
+            for i in range(len(w)):
+                print(f'    Rep {i}: {w[i]}')
+
+        # (2) Calculate adjacent weight differences and g_vec
+        dg_vec = []  # alchemical weight differences for the whole range
+        dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
+        
+        if weights_err is not None:
+            dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
+
+        for i in range(self.n_tot - 1):
+            dg_list, dg_err_list = [], []
+            for j in range(len(self.state_ranges)):
+                if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
+                    idx = self.state_ranges[j].index(i)
+                    dg_list.append(dg_adjacent[j][idx])
+                    if weights_err is not None:
+                        dg_err_list.append(dg_adjacent_err[j][idx])
+            if weights_err is None:
+                dg_vec.append(np.mean(dg_list))
+            else:
+                dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
+
+        dg_vec.insert(0, 0)
+        g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
+        
+        # (3) Determine the vector of alchemical weights for each replica
+        weights_modified = np.zeros_like(weights)
+        for i in range(self.n_sim):
+            if self.equil[i] == -1:  # unequilibrated
+                weights_modified[i] = list(g_vec[i * self.s: i * self.s + self.n_sub] - g_vec[i * self.s: i * self.s + self.n_sub][0])  # noqa: E501
+            else:
+                weights_modified[i] = self.equilibrated_weights[i]
+
+        # (4) Print the modified weights
         if print_values is True:
             w = np.round(weights_modified, decimals=3).tolist()  # just for printing
             print('\n  Modified weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
-            if skip_hist_correction is False:
-                print('\n  Modified histogram counts:')
-                for i in range(len(hist_modified)):
-                    print(f'    Rep {i}: {hist_modified[i]}')
 
         if self.verbose is False:
             print(' DONE')
@@ -1271,7 +1302,7 @@ class ReplicaExchangeEE:
         else:
             print(f'\n  The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
 
-        return hist_modified, weights_modified, g_vec
+        return weights_modified, g_vec
 
     def _run_grompp(self, n, swap_pattern):
         """

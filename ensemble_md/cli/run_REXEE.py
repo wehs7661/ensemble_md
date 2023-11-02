@@ -186,8 +186,16 @@ def main():
                         print('Performing weight combination ...')
                     else:
                         print('Performing weight combination ...', end='')
-                    counts, weights, g_vec = REXEE.combine_weights(counts_, weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
+                    weights, g_vec = REXEE.combine_weights(weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
                     REXEE.g_vecs.append(g_vec)
+
+                    # Check if histogram correction is needed after weight combination
+                    if REXEE.hist_corr is True:
+                        print('Performing histogram correction ...')
+                        counts = REXEE.histogram_correction(counts_)
+                    else:
+                        print('Note: No histogram correction will be performed.')
+
                 elif REXEE.N_cutoff == -1 and REXEE.w_combine is True:
                     # Only perform weight combination
                     print('Note: No weight correction will be performed.')
@@ -195,18 +203,26 @@ def main():
                         print('Performing weight combination ...')
                     else:
                         print('Performing weight combination ...', end='')
-                    counts, weights, g_vec = REXEE.combine_weights(counts_, weights_avg)
+                    weights, g_vec = REXEE.combine_weights(weights_avg)
                     REXEE.g_vecs.append(g_vec)
+
+                    # Check if histogram correction is needed after weight combination
+                    if REXEE.hist_corr is True:
+                        print('Performing histogram correction ...')
+                        counts = REXEE.histogram_correction(counts_)
+                    else:
+                        print('Note: No histogram correction will be performed.')
+
                 elif REXEE.N_cutoff != -1 and REXEE.w_combine is False:
                     # Only perform weight correction
                     print('Note: No weight combination will be performed.')
                     weights = REXEE.weights_correction(weights_avg, counts)
-                    _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
+                    _ = REXEE.combine_weights(weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                 else:
                     print('Note: No weight correction will be performed.')
                     print('Note: No weight combination will be performed.')
                     # Note that in this case, the final weights will be used in the next iteration.
-                    _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
+                    _ = REXEE.combine_weights(weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
 
                 # 3-5. Modify the MDP files and swap out the GRO files (if needed)
                 # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
