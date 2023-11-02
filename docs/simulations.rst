@@ -279,9 +279,6 @@ include parameters for data analysis here.
   - :code:`proposal`: (Optional, Default: :code:`exhaustive`)
       The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`neighboring`, and :code:`exhaustive`.
       For more details, please refer to :ref:`doc_proposal`.
-  - :code:`acceptance`: (Optional, Default: :code:`metropolis`)
-      The Monte Carlo method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
-      For more details, please refer to :ref:`doc_acceptance`.
   - :code:`w_combine`: (Optional, Default: :code:`False`)
       Whether to perform weight combination or not. Note that weights averaged over from the last time the Wang-Landau incrementor was updated (instead of 
       final weights) will be used for weight combination. For more details about weight combination, please refer to :ref:`doc_w_schemes`.
@@ -375,7 +372,6 @@ infinity internally.
     nst_sim: null
     add_swappables: null
     proposal: 'exhaustive'
-    acceptance: 'metropolis' 
     w_combine: False
     w_mean_type: 'simple'
     N_cutoff: 1000

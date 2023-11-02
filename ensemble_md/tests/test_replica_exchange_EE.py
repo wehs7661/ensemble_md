@@ -83,7 +83,6 @@ class Test_ReplicaExchangeEE:
 
         # 2. Available options
         check_param_error(params_dict, 'proposal', "The specified proposal scheme is not available. Available options include 'single', 'neighboring', and 'exhaustive'.", 'cool', 'exhaustive')  # noqa: E501
-        check_param_error(params_dict, 'acceptance', "The specified acceptance scheme is not available. Available options include 'same-state' and 'metropolis'.")  # noqa: E501
         check_param_error(params_dict, 'df_method', "The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
         check_param_error(params_dict, 'err_method', "The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
@@ -166,7 +165,6 @@ class Test_ReplicaExchangeEE:
 
         # 2. Check the default values of the parameters not specified in params.yaml
         assert REXEE.proposal == "exhaustive"
-        assert REXEE.acceptance == "metropolis"
         assert REXEE.w_combine is False
         assert REXEE.N_cutoff == 1000
         assert REXEE.verbose is True
@@ -266,7 +264,6 @@ class Test_ReplicaExchangeEE:
         L += "Simulation inputs: ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/expanded.mdp\n"  # noqa: E501
         L += "Verbose log file: True\n"
         L += "Proposal scheme: exhaustive\n"
-        L += "Acceptance scheme for swapping simulations: metropolis\n"
         L += "Whether to perform weight combination: False\n"
         L += "Type of means for weight combination: simple\n"
         L += "Whether to perform histogram correction: False\n"
@@ -492,32 +489,20 @@ class Test_ReplicaExchangeEE:
         shifts = [0, 1, 2, 3]
         dhdl_files = [os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(4)]
 
-        # Test 1: Same-state swapping (True)
-        swap = (1, 2)
-        REXEE.acceptance = "same_state"
-        prob_acc_1 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
-        assert prob_acc_1 == 1
-
-        # Test 2: Same-state swapping (False)
-        swap = (0, 2)
-        prob_acc_2 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
-        assert prob_acc_2 == 0
-
-        # Test 3-1: Metropolis, test 1
+        # Test 1
         swap = (0, 1)
-        REXEE.acceptance = "metropolis"
-        prob_acc_3_1 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
+        prob_acc_1 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         out, err = capfd.readouterr()
         # dU = (-9.1366697  + 11.0623788)/2.4777098766670016 ~ 0.7772 kT, so p_acc = 0.45968522728859024
-        assert prob_acc_3_1 == pytest.approx(0.45968522728859024)
+        assert prob_acc_1 == pytest.approx(0.45968522728859024)
         assert 'U^i_n - U^i_m = -3.69 kT, U^j_m - U^j_n = 4.46 kT, Total dU: 0.78 kT' in out
 
-        # Test 3-2: Metropolis, test 2
+        # Test 2
         swap = (0, 2)
-        prob_acc_3_2 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
+        prob_acc_2 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         out, err = capfd.readouterr()
         # dU = (-9.1366697 + 4.9963939)/2.4777098766670016 ~ -1.6710 kT, so p_acc = 1
-        assert prob_acc_3_2 == 1
+        assert prob_acc_2 == 1
 
     def test_accept_or_reject(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)

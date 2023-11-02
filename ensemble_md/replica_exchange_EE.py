@@ -116,13 +116,8 @@ class ReplicaExchangeEE:
 
               - If a required parameter is not specified in the YAML file.
               - If a specified parameter is not recognizable.
-              - If a specified weight combining scheme is not available.
-              - If a specified acceptance scheme is not available.
-              - If a specified free energy estimator is not available.
-              - If a specified method for error estimation is not available.
-              - If an integer parameter is not an integer.
-              - If a positive parameter is not positive.
-              - If a non-negative parameter is negative.
+              - If a specified option is not available for a parameter.
+              - If the data type or range (e.g., positive or negative) of a parameter is not correct.
               - If an invalid MDP file is detected.
         """
         self.warnings = []  # Store warnings, if any.
@@ -161,7 +156,6 @@ class ReplicaExchangeEE:
             "modify_coords": None,
             "nst_sim": None,
             "proposal": 'exhaustive',
-            "acceptance": "metropolis",
             "w_combine": False,
             "w_mean_type": 'simple',
             "N_cutoff": 1000,
@@ -196,9 +190,6 @@ class ReplicaExchangeEE:
         # Step 4: Check if the parameters in the YAML file are well-defined
         if self.proposal not in [None, 'single', 'neighboring', 'exhaustive']:  # deprecated option: multiple
             raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', and 'exhaustive'.")  # noqa: E501
-
-        if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis']:
-            raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state' and 'metropolis'.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
@@ -491,7 +482,6 @@ class ReplicaExchangeEE:
         print(f'Simulation inputs: {gro_str}, {top_str}, {self.mdp}')
         print(f"Verbose log file: {self.verbose}")
         print(f"Proposal scheme: {self.proposal}")
-        print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
         print(f"Whether to perform weight combination: {self.w_combine}")
         print(f"Type of means for weight combination: {self.w_mean_type}")
         print(f"Whether to perform histogram correction: {self.hist_corr}")
@@ -999,45 +989,37 @@ class ReplicaExchangeEE:
         prob_acc : float
             The acceptance ratio.
         """
-        if self.acceptance == "same_state" or self.acceptance == "same-state":
-            if states[swap[0]] == states[swap[1]]:  # same state, swap!
-                prob_acc = 1  # This must lead to an output of swap_bool = True from the function accept_or_reject
-            else:
-                prob_acc = 0  # This must lead to an output of swap_bool = False from the function accept_or_reject
+        if self.verbose is True:
+            print("  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...")
+        f0, f1 = dhdl_files[swap[0]], dhdl_files[swap[1]]
+        h0, h1 = get_headers(f0), get_headers(f1)
+        data_0, data_1 = (
+            extract_dataframe(f0, headers=h0).iloc[-1],
+            extract_dataframe(f1, headers=h1).iloc[-1],
+        )
 
-        else:  # i.e. must be metropolis, which requires the calculation of dU
-            # Now we calculate dU
-            if self.verbose is True:
-                print("  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...")
-            f0, f1 = dhdl_files[swap[0]], dhdl_files[swap[1]]
-            h0, h1 = get_headers(f0), get_headers(f1)
-            data_0, data_1 = (
-                extract_dataframe(f0, headers=h0).iloc[-1],
-                extract_dataframe(f1, headers=h1).iloc[-1],
+        # \Delta H to all states at the last time frame
+        # Notably, the can be regarded as H for each state since the reference state will have a value of 0 anyway.
+        dhdl_0 = data_0[-self.n_sub:]
+        dhdl_1 = data_1[-self.n_sub:]
+
+        # Old local index, which will only be used in "metropolis"
+        old_state_0 = states[swap[0]] - shifts[swap[0]]
+        old_state_1 = states[swap[1]] - shifts[swap[1]]
+
+        # New local index. Note that states are global indices, so we shift them back to the local ones
+        new_state_0 = states[swap[1]] - shifts[swap[0]]  # new state index (local index in simulation swap[0])
+        new_state_1 = states[swap[0]] - shifts[swap[1]]  # new state index (local index in simulation swap[1])
+
+        dU_0 = (dhdl_0[new_state_0] - dhdl_0[old_state_0]) / self.kT  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state  # noqa: E501
+        dU_1 = (dhdl_1[new_state_1] - dhdl_1[old_state_1]) / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state  # noqa: E501
+        dU = dU_0 + dU_1
+        if self.verbose is True:
+            print(
+                f"  U^i_n - U^i_m = {dU_0:.2f} kT, U^j_m - U^j_n = {dU_1:.2f} kT, Total dU: {dU:.2f} kT"
             )
 
-            # \Delta H to all states at the last time frame
-            # Notably, the can be regarded as H for each state since the reference state will have a value of 0 anyway.
-            dhdl_0 = data_0[-self.n_sub:]
-            dhdl_1 = data_1[-self.n_sub:]
-
-            # Old local index, which will only be used in "metropolis"
-            old_state_0 = states[swap[0]] - shifts[swap[0]]
-            old_state_1 = states[swap[1]] - shifts[swap[1]]
-
-            # New local index. Note that states are global indices, so we shift them back to the local ones
-            new_state_0 = states[swap[1]] - shifts[swap[0]]  # new state index (local index in simulation swap[0])
-            new_state_1 = states[swap[0]] - shifts[swap[1]]  # new state index (local index in simulation swap[1])
-
-            dU_0 = (dhdl_0[new_state_0] - dhdl_0[old_state_0]) / self.kT  # U^{i}_{n} - U^{i}_{m}, i.e. \Delta U (kT) to the new state  # noqa: E501
-            dU_1 = (dhdl_1[new_state_1] - dhdl_1[old_state_1]) / self.kT  # U^{j}_{m} - U^{j}_{n}, i.e. \Delta U (kT) to the new state  # noqa: E501
-            dU = dU_0 + dU_1
-            if self.verbose is True:
-                print(
-                    f"  U^i_n - U^i_m = {dU_0:.2f} kT, U^j_m - U^j_n = {dU_1:.2f} kT, Total dU: {dU:.2f} kT"
-                )
-
-            prob_acc = min(1, np.exp(-dU))
+        prob_acc = min(1, np.exp(-dU))
 
         return prob_acc
 
