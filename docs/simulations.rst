@@ -277,34 +277,21 @@ include parameters for data analysis here.
       This could be useful for REXEE simulations for multiple serial mutations, where we enforce exchanges between states 4 and 5 (and 14 and 15) and perform
       coordinate manipulation.
   - :code:`proposal`: (Optional, Default: :code:`exhaustive`)
-      The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`exhaustive`, :code:`neighboring`, and :code:`multiple`.
+      The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`neighboring`, and :code:`exhaustive`.
       For more details, please refer to :ref:`doc_proposal`.
   - :code:`acceptance`: (Optional, Default: :code:`metropolis`)
       The Monte Carlo method for swapping simulations. Available options include :code:`same-state`/:code:`same_state`, :code:`metropolis`, and :code:`metropolis-eq`/:code:`metropolis_eq`. 
       For more details, please refer to :ref:`doc_acceptance`.
-  - :code:`w_combine`: (Optional, Default: :code:`None`)
-      The type of weights to be combined across multiple replicas in a weight-updating REXEE simulation. The following options are available:
-
-        - :code:`None`: No weight combination.
-        - :code:`final`: Combine the final weights.
-        - :code:`avg`: Combine the weights averaged over from last time the Wang-Landau incrementor was updated.
- 
-      For more details about weight combination, please refer to :ref:`doc_w_schemes`.
-  
-  - :code:`rmse_cutoff`: (Optional, Default: :code:`None`)
-      The cutoff for the root-mean-square error (RMSE) between the weights of the current iteration 
-      and the weights averaged over from the last time the Wang-Landau incrementor was updated.
-      For each replica, the RMSE between the averaged weights and the current weights will be calculated.
-      When :code:`rmse_cutoff` is specified, weight combination will be performed only if the maximum RMSE across all replicas
-      is smaller than the cutoff. Otherwise, weight combination is deactivated (even if :code:`w_combine` is specified)
-      because a larger RMSE indicates that the weights are noisy and should not be combined.
-      The default value is infinity, which means that weight combination will always be performed if :code:`w_combine` is specified.
-      The units of the cutoff are :math:`k_B T`.
+  - :code:`w_combine`: (Optional, Default: :code:`False`)
+      Whether to perform weight combination or not. Note that weights averaged over from the last time the Wang-Landau incrementor was updated (instead of 
+      final weights) will be used for weight combination. For more details about weight combination, please refer to :ref:`doc_w_schemes`.
+  - :code:`w_mean_type`: (Optional, Default: code:`simple`)
+      The type of mean to use when combining weights. Available options include :code:`simple` and :code:`weighted`.
+      For the later case, inverse-variance weighted means are used. 
   - :code:`N_cutoff`: (Optional, Default: 1000)
-      The histogram cutoff. -1 means that no histogram correction will be performed.
-  - :code:`n_ex`: (Optional, Default: 1)
-      The number of attempts swap during an exchange interval. This option is only relevant if the option :code:`proposal` is :code:`multiple`.
-      Otherwise, this option is ignored. For more details, please refer to :ref:`doc_multiple_swaps`.
+      The histogram cutoff for weight corrections. -1 means that no histogram correction will be performed.
+  - :code:`hist_corr` (Optional, Default: :code:`False`)
+      Whether to perform histogram correction. 
   - :code:`mdp_args`: (Optional, Default: :code:`None`)
       MDP parameters differing across replicas provided in a dictionary. For each key in the dictionary, the value should
       always be a list of length of the number of replicas. For example, :code:`{'ref_p': [1.0, 1.01, 1.02, 1.03]}` means that the
@@ -389,10 +376,10 @@ infinity internally.
     add_swappables: null
     proposal: 'exhaustive'
     acceptance: 'metropolis' 
-    w_combine: null
-    rmse_cutoff: null
+    w_combine: False
+    w_mean_type: 'simple'
     N_cutoff: 1000
-    n_ex: 1
+    hist_corr: False
     mdp_args: null
     grompp_args: null
     runtime_args: null

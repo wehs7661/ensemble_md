@@ -165,53 +165,81 @@ def main():
                 if wl_delta != [None for i in range(REXEE.n_sim)]:  # weight-updating
                     print(f'\nCurrent Wang-Landau incrementors: {wl_delta}\n')
 
-                # (1) First we prepare the weights to be combined.
+                # (1) First we prepare the time-averaged weights to be combined, if needed.
                 # Note that although averaged weights are sometimes used for weight correction/weight combination,
                 # the final weights are always used for calculating the acceptance ratio.
                 if REXEE.N_cutoff != -1 or REXEE.w_combine is not None:
                     # Only when weight correction/weight combination is needed.
                     weights_avg, weights_err = REXEE.get_averaged_weights(log_files)
-                    weights_input = REXEE.prepare_weights(weights_avg, weights)  # weights_input is for weight combination  # noqa: E501
+
+                    # Calculate the RMSE between the averaged weights and the final weights by the way.
+                    rmse_list = [utils.calc_rmse(weights_avg[i], weights[i]) for i in range(REXEE.n_sim)]
+                    rmse_str = ', '.join([f'{i:.2f}' for i in rmse_list])
+                    print(f'RMSE between the final weights and time-averaged weights for each replica: {rmse_str} kT')
 
                 # (2) Now we perform weight correction/weight combination.
                 # The product of this step should always be named as "weights" to be used in update_MDP
-                if REXEE.N_cutoff != -1 and REXEE.w_combine is not None:
-                    # perform both
-                    if weights_input is None:
-                        # Then only weight correction will be performed
-                        print('Note: Weight combination is deactivated because the weights are too noisy.')
-                        weights = REXEE.weight_correction(weights, counts)
-                        _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
+                if REXEE.N_cutoff != -1 and REXEE.w_combine is True:
+                    # Perform both weight correction and weight combination
+                    if REXEE.verbose is True:
+                        print('Performing weight correction ...')
                     else:
-                        weights_preprocessed = REXEE.weight_correction(weights_input, counts)
-                        if REXEE.verbose is True:
-                            print('Performing weight combination ...')
-                        else:
-                            print('Performing weight combination ...', end='')
-                        counts, weights, g_vec = REXEE.combine_weights(counts_, weights_preprocessed)  # inverse-variance weighting seems worse  # noqa: E501
-                        REXEE.g_vecs.append(g_vec)
-                elif REXEE.N_cutoff == -1 and REXEE.w_combine is not None:
-                    # only perform weight combination
+                        print('Performing weight correction ...', end='')
+                    weights_preprocessed = REXEE.weight_correction(weights_avg, counts)
+
+                    if REXEE.verbose is True:
+                        print('Performing weight combination ...')
+                    else:
+                        print('Performing weight combination ...', end='')
+                    if REXEE.w_mean_type == 'simple':
+                        weights, g_vec = REXEE.combine_weights(weights_preprocessed)  # simple means
+                    else:
+                        # Note that here weights_err are acutally not the uncertainties for weights_prepocessed
+                        # but weights_avg ... We might need to disable this feature in the future.
+                        weights, g_vec = REXEE.combine_weights(weights_preprocessed, weights_err)  # inverse-variance weighting  # noqa: E501
+                    REXEE.g_vecs.append(g_vec)
+
+                    # Check if histogram correction is needed after weight combination
+                    if REXEE.hist_corr is True:
+                        print('Performing histogram correction ...')
+                        counts = REXEE.histogram_correction(counts_)
+                    else:
+                        print('Note: No histogram correction will be performed.')
+
+                elif REXEE.N_cutoff == -1 and REXEE.w_combine is True:
+                    # Only perform weight combination
                     print('Note: No weight correction will be performed.')
-                    if weights_input is None:
-                        print('Note: Weight combination is deactivated because the weights are too noisy.')
-                        _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
+                    if REXEE.verbose is True:
+                        print('Performing weight combination ...')
                     else:
-                        if REXEE.verbose is True:
-                            print('Performing weight combination ...')
-                        else:
-                            print('Performing weight combination ...', end='')
-                        counts, weights, g_vec = REXEE.combine_weights(counts_, weights_input)  # inverse-variance weighting seems worse  # noqa: E501
-                        REXEE.g_vecs.append(g_vec)
-                elif REXEE.N_cutoff != -1 and REXEE.w_combine is None:
-                    # only perform weight correction
+                        print('Performing weight combination ...', end='')
+                    if REXEE.w_mean_type == 'simple':
+                        weights, g_vec = REXEE.combine_weights(weights_avg)  # simple means
+                    else:
+                        weights, g_vec = REXEE.combine_weights(weights_avg, weights_err)  # inverse-variance weighting
+                    REXEE.g_vecs.append(g_vec)
+
+                    # Check if histogram correction is needed after weight combination
+                    if REXEE.hist_corr is True:
+                        print('Performing histogram correction ...')
+                        counts = REXEE.histogram_correction(counts_)
+                    else:
+                        print('Note: No histogram correction will be performed.')
+
+                elif REXEE.N_cutoff != -1 and REXEE.w_combine is False:
+                    # Only perform weight correction
                     print('Note: No weight combination will be performed.')
-                    weights = REXEE.weights_correction(weights_input, counts)
-                    _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
+                    if REXEE.verbose is True:
+                        print('Performing weight correction ...')
+                    else:
+                        print('Performing weight correction ...', end='')
+                    weights = REXEE.weights_correction(weights_avg, counts)
+                    _ = REXEE.combine_weights(weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                 else:
                     print('Note: No weight correction will be performed.')
                     print('Note: No weight combination will be performed.')
-                    _ = REXEE.combine_weights(counts_, weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
+                    # Note that in this case, the final weights will be used in the next iteration.
+                    _ = REXEE.combine_weights(weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
 
                 # 3-5. Modify the MDP files and swap out the GRO files (if needed)
                 # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501

@@ -162,10 +162,10 @@ class ReplicaExchangeEE:
             "nst_sim": None,
             "proposal": 'exhaustive',
             "acceptance": "metropolis",
-            "w_combine": None,
-            "rmse_cutoff": np.inf,
+            "w_combine": False,
+            "w_mean_type": 'simple',
             "N_cutoff": 1000,
-            "n_ex": 'N^3',   # only active for multiple swaps.
+            "hist_corr": False,
             "verbose": True,
             "mdp_args": None,
             "grompp_args": None,
@@ -181,6 +181,7 @@ class ReplicaExchangeEE:
             "err_method": "propagate",
             "n_bootstrap": 50,
             "seed": None,
+            # "n_ex": 'N^3',   # only active for multiple swaps.
         }
         for i in optional_args:
             if hasattr(self, i) is False or getattr(self, i) is None:
@@ -193,14 +194,11 @@ class ReplicaExchangeEE:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
         # Step 4: Check if the parameters in the YAML file are well-defined
-        if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'multiple']:
-            raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'multiple'.")  # noqa: E501
+        if self.proposal not in [None, 'single', 'neighboring', 'exhaustive']:  # deprecated option: multiple
+            raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', and 'exhaustive'.")  # noqa: E501
 
         if self.acceptance not in [None, 'same-state', 'same_state', 'metropolis']:
             raise ParameterError("The specified acceptance scheme is not available. Available options include 'same-state' and 'metropolis'.")  # noqa: E501
-
-        if self.w_combine not in [None, 'final', 'avg']:
-            raise ParameterError("The specified type of weight to be combined is not available. Available options include 'final' and 'avg'.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
@@ -208,33 +206,30 @@ class ReplicaExchangeEE:
         if self.err_method not in [None, 'propagate', 'bootstrap']:
             raise ParameterError("The specified method for error estimation is not available. Available options include 'propagate', and 'bootstrap'.")  # noqa: E501
 
-        if self.w_combine is not None and self.rmse_cutoff == np.inf:
-            self.warnings.append('Warning: We recommend setting rmse_cutoff when w_combine is used.')
-
-        if self.rmse_cutoff != np.inf:
-            if type(self.rmse_cutoff) is not float and type(self.rmse_cutoff) is not int:
-                raise ParameterError("The parameter 'rmse_cutoff' should be a float.")
-
         params_int = ['n_sim', 'n_iter', 's', 'N_cutoff', 'df_spacing', 'n_ckpt', 'n_bootstrap']  # integer parameters  # noqa: E501
         if self.nst_sim is not None:
             params_int.append('nst_sim')
+        """
         if self.n_ex != 'N^3':  # no need to add "and self.proposal == 'multiple' since if multiple swaps are not used, n_ex=1"  # noqa: E501
             params_int.append('n_ex')
+        """
         if self.seed is not None:
             params_int.append('seed')
         for i in params_int:
             if type(getattr(self, i)) != int:
                 raise ParameterError(f"The parameter '{i}' should be an integer.")
 
-        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap', 'rmse_cutoff']  # positive parameters
+        params_pos = ['n_sim', 'n_iter', 'n_ckpt', 'df_spacing', 'n_bootstrap']  # positive parameters
         if self.nst_sim is not None:
             params_pos.append('nst_sim')
         for i in params_pos:
             if getattr(self, i) <= 0:
                 raise ParameterError(f"The parameter '{i}' should be positive.")
 
+        """
         if self.n_ex != 'N^3' and self.n_ex < 0:
             raise ParameterError("The parameter 'n_ex' should be non-negative.")
+        """
 
         if self.s < 0:
             raise ParameterError("The parameter 's' should be non-negative.")
@@ -256,7 +251,7 @@ class ReplicaExchangeEE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
 
-        params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg']
+        params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg', 'w_combine']
         for i in params_bool:
             if type(getattr(self, i)) != bool:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
@@ -319,11 +314,11 @@ class ReplicaExchangeEE:
             self.equilibrated_weights = [None for i in range(self.n_sim)]
 
         if self.fixed_weights is True:
-            if self.N_cutoff != -1 or self.w_combine is not None:
+            if self.N_cutoff != -1 or self.w_combine is True:
                 self.warnings.append('Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.')  # noqa: E501
                 # In the case that the warning is ignored, enforce the defaults.
                 self.N_cutoff = -1
-                self.w_combine = None
+                self.w_combine = False
 
         if 'lmc_seed' in self.template and self.template['lmc_seed'] != -1:
             self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
@@ -497,17 +492,19 @@ class ReplicaExchangeEE:
         print(f"Verbose log file: {self.verbose}")
         print(f"Proposal scheme: {self.proposal}")
         print(f"Acceptance scheme for swapping simulations: {self.acceptance}")
-        print(f"Type of weights to be combined: {self.w_combine}")
-        print(f"Histogram cutoff: {self.N_cutoff}")
+        print(f"Whether to perform weight combination: {self.w_combine}")
+        print(f"Type of means for weight combination: {self.w_mean_type}")
+        print(f"Whether to perform histogram correction: {self.hist_corr}")
+        print(f"Histogram cutoff for weight correction: {self.N_cutoff}")
         print(f"Number of replicas: {self.n_sim}")
         print(f"Number of iterations: {self.n_iter}")
-        print(f"Number of attempted swaps in one exchange interval: {self.n_ex}")
         print(f"Length of each replica: {self.dt * self.nst_sim} ps")
         print(f"Frequency for checkpointing: {self.n_ckpt} iterations")
         print(f"Total number of states: {self.n_tot}")
         print(f"Additionally defined swappable states: {self.add_swappables}")
         print(f"Additional grompp arguments: {self.grompp_args}")
         print(f"Additional runtime arguments: {self.runtime_args}")
+        # print(f"Number of attempted swaps in one exchange interval: {self.n_ex}")
         if self.mdp_args is not None and len(self.mdp_args.keys()) > 1:
             print("MDP parameters differing across replicas:")
             for i in self.mdp_args.keys():
@@ -864,23 +861,24 @@ class ReplicaExchangeEE:
             A list of tuples showing the accepted swaps.
         """
         swap_list = []
-        if self.proposal != 'multiple':
-            if self.proposal == 'exhaustive':
-                n_ex = int(np.floor(self.n_sim / 2))  # This is the maximum, not necessarily the number that will always be reached.  # noqa
-                n_ex_exhaustive = 0    # The actual number of swaps atttempted.
-            else:
-                n_ex = 1  # single swap or neighboring swap
+        if self.proposal == 'exhaustive':
+            n_ex = int(np.floor(self.n_sim / 2))  # This is the maximum, not necessarily the number that will always be reached.  # noqa
+            n_ex_exhaustive = 0    # The actual number of swaps atttempted.
         else:
-            # multiple swaps
-            if self.n_ex == 'N^3':
-                n_ex = self.n_tot ** 3
-            else:
-                n_ex = self.n_ex
+            n_ex = 1  # single swap or neighboring swap
+
+        """
+        # multiple swaps
+        if self.n_ex == 'N^3':
+            n_ex = self.n_tot ** 3
+        else:
+            n_ex = self.n_ex
+        """
 
         shifts = list(self.s * np.arange(self.n_sim))
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         state_ranges = copy.deepcopy(self.state_ranges)
-        states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges
+        # states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges --> was needed for the multiple exchange proposal scheme  # noqa: E501
         swappables = ReplicaExchangeEE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
 
         # Note that if there is only 1 swappable pair, then it will still be the only swappable pair
@@ -947,11 +945,13 @@ class ReplicaExchangeEE:
                         state_ranges[swap[0]], state_ranges[swap[1]] = state_ranges[swap[1]], state_ranges[swap[0]]
                         self.configs[swap[0]], self.configs[swap[1]] = self.configs[swap[1]], self.configs[swap[0]]
 
+                        """
                         if n_ex > 1 and self.proposal == 'multiple':  # must be multiple swaps
                             # After state_ranges have been updated, we re-identify the swappable pairs.
                             # Notably, states_copy (instead of states) should be used. (They could be different.)
                             swappables = ReplicaExchangeEE.identify_swappable_pairs(states_copy, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
                             print(f"  New swappable pairs: {swappables}")
+                        """
                     else:
                         # In this case, there is no need to update the swappables
                         pass
@@ -1077,51 +1077,6 @@ class ReplicaExchangeEE:
                     print("  Swap rejected! ")
         return swap_bool
 
-    def weight_correction(self, weights, counts):
-        """
-        Corrects the lambda weights based on the histogram counts. Namely,
-        :math:`g_k' = g_k + ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
-        are the lambda weight after and before the correction, respectively.
-        Notably, in any of the following situations, we don't do any correction.
-
-        - Either :math:`N_{k-1}` or :math:`N_k` is 0.
-        - Either :math:`N_{k-1}` or :math:`N_k` is smaller than the histogram cutoff.
-
-        Parameters
-        ----------
-        weights : list
-            A list of lists of weights (of ALL simulations) to be corrected.
-        counts : list
-            A list of lists of counts (of ALL simulations).
-
-        Return
-        ------
-        weights : list
-            An updated list of lists of corected weights.
-        """
-        if self.verbose is True:
-            print("\nPerforming weight correction for the lambda weights ...")
-        else:
-            print("\nPerforming weight correction for the lambda weights ...", end="")
-
-        for i in range(len(weights)):  # loop over the replicas
-            if self.verbose is True:
-                print(f"  Counts of rep {i}:\t\t{counts[i]}")
-                print(f'  Original weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}')
-
-            for j in range(1, len(weights[i])):  # loop over the alchemical states
-                if counts[i][j - 1] != 0 and counts[i][j - 1] != 0:
-                    if np.min([counts[i][j - 1], counts[i][j]]) > self.N_cutoff:
-                        weights[i][j] += np.log(counts[i][j - 1] / counts[i][j])
-
-            if self.verbose is True:
-                print(f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n')
-
-        if self.verbose is False:
-            print(' Done')
-
-        return weights
-
     def get_averaged_weights(self, log_files):
         """
         For each replica, calculate the averaged weights (and the associated error) from the time series
@@ -1160,145 +1115,188 @@ class ReplicaExchangeEE:
 
         return weights_avg, weights_err
 
-    def prepare_weights(self, weights_avg, weights_final):
+    def weight_correction(self, weights, counts):
         """
-        Prepared weights to be combined by the function :code:`combine_weights`.
-        For each replica, the RMSE between the averaged weights and the final weights is calculated. If the
-        maximum of the RMSEs of all replicas is smaller than the cutoff specified in the input YAML file
-        (the parameter :code:`rmse_cutoff`), either final weights or time-averaged weights will be used
-        (depending on the value of the parameter :code:`w_combine`). Otherwise, :code:`None` will be returned,
-        which will lead to deactivation of weight combination in the CLI :code:`run_REXEE`.
+        Corrects the lambda weights based on the histogram counts. Namely,
+        :math:`g_k' = g_k + ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
+        are the lambda weight after and before the correction, respectively.
+        Notably, in any of the following situations, we don't do any correction.
+
+        - Either :math:`N_{k-1}` or :math:`N_k` is 0.
+        - Either :math:`N_{k-1}` or :math:`N_k` is smaller than the histogram cutoff.
 
         Parameters
         ----------
-        weights_avg : list
-            A list of lists of weights averaged since the last update of the Wang-Landau
-            incrementor. The length of the list should be the number of replicas.
-        weights_final : list
-            A list of lists of final weights of all simulations. The length of the list should
-            be the number of replicas.
+        weights : list
+            A list of lists of weights (of ALL simulations) to be corrected.
+        counts : list
+            A list of lists of counts (of ALL simulations).
 
-        Returns
-        -------
-        weights_output : list
-            A list of lists of weights to be combined.
+        Return
+        ------
+        weights : list
+            An updated list of lists of corected weights.
         """
-        rmse_list = [utils.calc_rmse(weights_avg[i], weights_final[i]) for i in range(self.n_sim)]
-        rmse_str = ', '.join([f'{i:.2f}' for i in rmse_list])
-        print(f'RMSE between the final weights and time-averaged weights for each replica: {rmse_str} kT')
-        if np.max(rmse_list) < self.rmse_cutoff:
-            # Weight combination will be activated
-            if self.w_combine == 'final':
-                weights_output = weights_final
-            elif self.w_combine == 'avg':
-                weights_output = weights_avg
-        else:
-            weights_output = None
+        skip_correction = False
+        for i in range(len(weights)):  # loop over the replicas
+            if self.verbose is True:
+                print(f"  Counts of rep {i}:\t\t{counts[i]}")
+                print(f'  Original weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}')
 
-        return weights_output
+            for j in range(1, len(weights[i])):  # loop over the alchemical states
+                if counts[i][j - 1] != 0 and counts[i][j - 1] != 0:
+                    if np.min([counts[i][j - 1], counts[i][j]]) > self.N_cutoff:
+                        weights[i][j] += np.log(counts[i][j - 1] / counts[i][j])
+                    else:
+                        skip_correction = True
+                        print('Weight correction was deactivated because neither N_{k-1} or N_k is larger than the histogram cutoff.')  # noqa: E501
 
-    def combine_weights(self, hist, weights, weights_err=None, print_values=True):
+            if self.verbose is True and skip_correction is False:
+                print(f'  Corrected weights of rep {i}:\t{[float(f"{k:.3f}") for k in weights[i]]}\n')
+
+        if self.verbose is False:
+            print(' Done')
+
+        return weights
+
+    def histogram_correction(self, hist, print_values=True):
         """
-        Combine alchemical weights across multiple replicas and adjusts the histogram counts
-        correspondingly. Note that if :code:`weights_err` is provided, inverse-variance weighting will be used.
-        Care must be taken since inverse-variance weighting can lead to slower
-        convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for mor details.)
+        Adjust the histogram counts. Specifically, the ratio of corrected histogram counts
+        for adjancent states is the geometric mean of the ratio of the original histogram counts
+        for the same states. Note, however, if the histogram counts are 0 for some states, the
+        histogram correction will be skipped and the original histogram counts will be returned.
 
         Parameters
         ----------
         hist : list
             A list of lists of histogram counts of ALL simulations.
-        weights : list
-            A list of lists alchemical weights of ALL simulations.
-        weights_err : list, optional
-            A list of lists of errors corresponding to the values in :code:`weights`.
         print_values : bool, optional
-            Whether to print the histograms and weights for each replica before and
-            after weight combinationfor each replica.
+            Whether to print the histograms for each replica before and after histogram correction.
 
         Returns
         -------
         hist_modified : list
-            A list of modified histogram counts of ALL simulations.
-        weights_modified : list
-            A list of modified Wang-Landau weights of ALL simulations.
-        g_vec : np.ndarray
-            An array of alchemical weights of the whole range of states.
+            A list of lists of modified histogram counts of ALL simulations.
         """
+        # (1) Print the original histogram counts
         if print_values is True:
-            w = np.round(weights, decimals=3).tolist()  # just for printing
-            print('  Original weights:')
-            for i in range(len(w)):
-                print(f'    Rep {i}: {w[i]}')
-            print('\n  Original histogram counts:')
+            print('  Original histogram counts:')
             for i in range(len(hist)):
                 print(f'    Rep {i}: {hist[i]}')
 
-        # Calculate adjacent weight differences and g_vec
-        dg_vec, N_ratio_vec = [], []  # alchemical weight differences and histogram count ratios for the whole range
-        dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
-        # Suppress the specific warning here
-        with warnings.catch_warnings():
+        # (2) Calculate adjacent weight differences and g_vec
+        N_ratio_vec = []  # N_{k-1}/N_k for the whole range
+        with warnings.catch_warnings():  # Suppress the specific warning here
             warnings.simplefilter("ignore", category=RuntimeWarning)
             N_ratio_adjacent = [list(np.array(hist[i][1:]) / np.array(hist[i][:-1])) for i in range(len(hist))]
 
-        # Below we deal with the case where the sampling is poor or the WL incrementor just got updated such that
-        # the histogram counts are 0 for some states, in which case we simply skip histogram correction.
+        for i in range(self.n_tot - 1):
+            N_ratio_list = []
+            for j in range(len(self.state_ranges)):
+                if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
+                    idx = self.state_ranges[j].index(i)
+                    N_ratio_list.append(N_ratio_adjacent[j][idx])
+            N_ratio_vec.append(np.prod(N_ratio_list) ** (1 / len(N_ratio_list)))  # geometric mean
+        N_ratio_vec.insert(0, hist[0][0])
+
+        # (3) Check if the histogram counts are 0 for some states, if so, the histogram correction will be skipped.
+        # Zero histogram counts can happen when the sampling is poor or the WL incrementor just got updated
         contains_nan = any(np.isnan(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by 0/0  # noqa: E501
         contains_inf = any(np.isinf(value) for sublist in N_ratio_adjacent for value in sublist)  # can be caused by x/0, where x is a finite number  # noqa: E501
         skip_hist_correction = contains_nan or contains_inf
         if skip_hist_correction:
             print('\n  Histogram correction is skipped because the histogram counts are 0 for some states.')
 
-        if weights_err is not None:
-            dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
-
-        for i in range(self.n_tot - 1):
-            dg_list, dg_err_list, N_ratio_list = [], [], []
-            for j in range(len(self.state_ranges)):
-                if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
-                    idx = self.state_ranges[j].index(i)
-                    dg_list.append(dg_adjacent[j][idx])
-                    N_ratio_list.append(N_ratio_adjacent[j][idx])
-                    if weights_err is not None:
-                        dg_err_list.append(dg_adjacent_err[j][idx])
-            if weights_err is None:
-                dg_vec.append(np.mean(dg_list))
-            else:
-                dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
-            N_ratio_vec.append(np.prod(N_ratio_list) ** (1 / len(N_ratio_list)))  # geometric mean
-        dg_vec.insert(0, 0)
-        N_ratio_vec.insert(0, hist[0][0])
-        g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
+        # (4) Perform histogram correction if it is not skipped
         if skip_hist_correction is False:
+            print('\n  Performing histogram correction ...')
             # When skip_hist_correction is True, previous lines for calculating N_ratio_vec or N_ratio_list will
             # still not error out so it's fine to not add the conditional statement like here, since we will
             # have hist_modified = hist at the end anyway. However, if skip_hist_correction, things like
             # int(np.nan) will lead to an error, so we put an if condition here.
             N_vec = np.array([int(np.ceil(np.prod(N_ratio_vec[:(i + 1)]))) for i in range(len(N_ratio_vec))])
 
-        # Determine the vector of alchemical weights and histogram counts for each replica
+        if skip_hist_correction is False:
+            hist_modified = [list(N_vec[self.state_ranges[i]]) for i in range(self.n_sim)]
+        else:
+            hist_modified = hist  # the original input histogram
+
+        # (5) Print the modified histogram counts
+        if print_values is True:
+            print('\n  Modified histogram counts:')
+            for i in range(len(hist_modified)):
+                print(f'    Rep {i}: {hist_modified[i]}')
+
+        return hist_modified
+
+    def combine_weights(self, weights, weights_err=None, print_values=True):
+        """
+        Combine alchemical weights across multiple replicas. Note that if
+        :code:`weights_err` is provided, inverse-variance weighting will be used.
+        Care must be taken since inverse-variance weighting can lead to slower
+        convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for mor details.)
+
+        Parameters
+        ----------
+        weights : list
+            A list of lists alchemical weights of ALL simulations.
+        weights_err : list, optional
+            A list of lists of errors corresponding to the values in :code:`weights`.
+        print_values : bool, optional
+            Whether to print the weights for each replica before and
+            after weight combination for each replica.
+
+        Returns
+        -------
+        weights_modified : list
+            A list of modified Wang-Landau weights of ALL simulations.
+        g_vec : np.ndarray
+            An array of alchemical weights of the whole range of states.
+        """
+        # (1) Print the original weights
+        if print_values is True:
+            w = np.round(weights, decimals=3).tolist()  # just for printing
+            print('  Original weights:')
+            for i in range(len(w)):
+                print(f'    Rep {i}: {w[i]}')
+
+        # (2) Calculate adjacent weight differences and g_vec
+        dg_vec = []  # alchemical weight differences for the whole range
+        dg_adjacent = [list(np.diff(weights[i])) for i in range(len(weights))]
+
+        if weights_err is not None:
+            dg_adjacent_err = [[np.sqrt(weights_err[i][j] ** 2 + weights_err[i][j + 1] ** 2) for j in range(len(weights_err[i]) - 1)] for i in range(len(weights_err))]  # noqa: E501
+
+        for i in range(self.n_tot - 1):
+            dg_list, dg_err_list = [], []
+            for j in range(len(self.state_ranges)):
+                if i in self.state_ranges[j] and i + 1 in self.state_ranges[j]:
+                    idx = self.state_ranges[j].index(i)
+                    dg_list.append(dg_adjacent[j][idx])
+                    if weights_err is not None:
+                        dg_err_list.append(dg_adjacent_err[j][idx])
+            if weights_err is None:
+                dg_vec.append(np.mean(dg_list))
+            else:
+                dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
+
+        dg_vec.insert(0, 0)
+        g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
+
+        # (3) Determine the vector of alchemical weights for each replica
         weights_modified = np.zeros_like(weights)
         for i in range(self.n_sim):
-            hist_modified = []
             if self.equil[i] == -1:  # unequilibrated
                 weights_modified[i] = list(g_vec[i * self.s: i * self.s + self.n_sub] - g_vec[i * self.s: i * self.s + self.n_sub][0])  # noqa: E501
             else:
                 weights_modified[i] = self.equilibrated_weights[i]
-        if skip_hist_correction is False:
-            hist_modified = [list(N_vec[self.state_ranges[i]]) for i in range(self.n_sim)]
-        else:
-            hist_modified = hist
 
+        # (4) Print the modified weights
         if print_values is True:
             w = np.round(weights_modified, decimals=3).tolist()  # just for printing
             print('\n  Modified weights:')
             for i in range(len(w)):
                 print(f'    Rep {i}: {w[i]}')
-            if skip_hist_correction is False:
-                print('\n  Modified histogram counts:')
-                for i in range(len(hist_modified)):
-                    print(f'    Rep {i}: {hist_modified[i]}')
 
         if self.verbose is False:
             print(' DONE')
@@ -1306,7 +1304,7 @@ class ReplicaExchangeEE:
         else:
             print(f'\n  The alchemical weights of all states: \n  {list(np.round(g_vec, decimals=3))}')
 
-        return hist_modified, weights_modified, g_vec
+        return weights_modified, g_vec
 
     def _run_grompp(self, n, swap_pattern):
         """
