@@ -968,7 +968,9 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
 def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False):
     """
     For weight-updating simulations, gets the time series of the alchemical
-    weights of all states.
+    weights of all states. Note that this funciton is only suitable for analyzing
+    either a single expanded ensemble simulation or a replica in a REXEE simulation
+    (given all the log files for the replica).
 
     Parameters
     ----------
@@ -997,13 +999,13 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
         is :code:`False`, :code:`None` will be returned.
     """
     g_vecs_all = []
+    idx_updates = []  # the indices of the data points corresponding to the updates of wl-delta
     for log_file in log_files:
         f = open(log_file, "r")
         lines = f.readlines()
         f.close()
 
         n = -1
-        idx_updates = []  # the indices of the data points corresponding to the updates of wl-delta
         find_equil = False
         for line in lines:
             n += 1
@@ -1191,4 +1193,5 @@ def get_delta_w_updates(log_file, plot=False):
         plt.ylabel(r'Wang-Landau incrementor ($k_{B}T$)')
         plt.grid()
         plt.savefig('delta_updates.png', dpi=600)
+
     return t_updates, delta_updates, equil
