@@ -1025,8 +1025,15 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
 
             if "Weights have equilibrated" in line:
                 find_equil = True
-                w = [float(i) for i in lines[n - 2].split(':')[-1].split()]
-                g_vecs_all.append(w)
+                # Usually, the line two lines above "Weights have been equilibrated" is the line
+                # "Step xxx: weights are now: xxx", but there could be exceptions, in which case
+                # we just do not append anything since the last fixed weights should have been alreayd appended.
+                # The exception happens when the change of the WL incrmentor and happened at the time when
+                # the log file is written, in which case one WL incrementor below than the cutoff will be printed,
+                # leading to different formats of the log file where "weights are now" is not in lines[n-2].
+                if "weights are now:" in lines[n-2]:
+                    w = [float(i) for i in lines[n - 2].split(':')[-1].split()]
+                    g_vecs_all.append(w)
                 break
 
     if avg_from_last_update is True:
