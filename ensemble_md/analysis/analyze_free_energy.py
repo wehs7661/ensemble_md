@@ -157,9 +157,9 @@ def _calculate_df_adjacent(estimators):
     Returns
     -------
     df_adjacent : list
-        A list of free energy differences between adjacent states for all replicas.
+        A list of lists free energy differences between adjacent states for all replicas.
     df_err_adjacent : list
-        A list of uncertainties corresponding to the values of df_adjacent.
+        A list of lists of uncertainties corresponding to the values of :code:`df_adjacent`.
     """
     n_sim = len(estimators)
     df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
@@ -168,31 +168,32 @@ def _calculate_df_adjacent(estimators):
     return df_adjacent, df_err_adjacent
 
 
-def _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagated_err=True):
+def _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type):
     """
-    An internal function that calculates a list of free energy differences between states i and i + 1.
-    For free energy differences obtained from multiple replicas, an average weighted over all involved
-    replicas is reported.
+    An internal function that combines the free energy differences between adjacent states
+    in different state ranges using either simple means or inverse-variance weighted means.
+    Specifically, if :code:`df_err_adjacent` is :code:`None`, simple means will be used.
+    Otherwise, inverse-variance weighted means will be used.
 
     Parameters
     ----------
     df_adjacent : list
-        A list of free energy differences between adjacent states for all replicas.
+        A list of lists free energy differences between adjacent states for all replicas.
     df_err_adjacent : list
-        A list of uncertainties corresponding to the values of df_adjacent.
+        A list of lists of uncertainties corresponding to the values of :code:`df_adjacent`.
     state_ranges : list
         A list of lists of intergers that represents the alchemical states that can be sampled by different replicas.
-    propagated_err : bool
-        Whether to calculate the propagated error when taking the weighted averages for the free energy
-        differences that can be obtained from multiple replicas. If False is specified, :code:`df_err`
-        returned will be :code:`None`.
+    err_type : str
+        How the error of the combined free energy differences should be calculated. Available options include
+        "propagate" and "std". Note that the option "propagate" is only available when :code:`df_err_adjacent`
+        is not :code:`None`.
 
     Returns
     -------
     df : list
-        A list of free energy differences between states i and i + 1.
+        A list of free energy differences between states i and i + 1 for the entire state range.
     df_err : list
-        A list of uncertainties of the free energy differences.
+        A list of uncertainties of the free energy differences for the entire state range.
     overlap_bool : list
         overlap_bool[i] = True means that the i-th free energy difference (i.e. df[i]) was available
         in multiple replicas.
@@ -207,15 +208,23 @@ def _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagate
             if i in state_ranges[j] and i + 1 in state_ranges[j]:
                 idx = state_ranges[j].index(i)
                 df_list.append(df_adjacent[j][idx])
-                df_err_list.append(df_err_adjacent[j][idx])
+                if df_err_adjacent is not None:
+                    df_err_list.append(df_err_adjacent[j][idx])
         overlap_bool.append(len(df_list) > 1)
 
-        mean, error = utils.weighted_mean(df_list, df_err_list)
+        if df_err_adjacent is None:
+            # simple means and std will be used
+            mean, error = np.mean(df_list), np.std(df_list, ddof=1)
+        else:
+            # inverse-variance weighted means and propagated error will be used
+            mean, error = utils.weighted_mean(df_list, df_err_list)
+
+            if err_type == 'std':
+                # overwrite the error calculated above
+                error = np.std(df_list, ddof=1)
+
         df.append(mean)
         df_err.append(error)
-
-    if propagated_err is False:
-        df_err = None
 
     return df, df_err, overlap_bool
 
@@ -259,7 +268,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     n_tot = state_ranges[-1][-1] + 1
     estimators = _apply_estimators(data, df_method)
     df_adjacent, df_err_adjacent = _calculate_df_adjacent(estimators)
-    df, df_err, overlap_bool = _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagated_err=True)
+    df, df_err, overlap_bool = _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, propagated_err=True)
 
     if err_method == 'bootstrap':
         if seed is not None:
@@ -272,7 +281,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
             sampled_data = [sampled_data_all[i].iloc[b * len(data[i]):(b + 1) * len(data[i])] for i in range(n_sim)]
             bootstrap_estimators = _apply_estimators(sampled_data, df_method)
             df_adjacent, df_err_adjacent = _calculate_df_adjacent(bootstrap_estimators)
-            df_sampled, _, overlap_bool = _calculate_weighted_df(df_adjacent, df_err_adjacent, state_ranges, propagated_err=False)  # noqa: E501
+            df_sampled, _, overlap_bool = _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, propagated_err=False)  # noqa: E501
             df_bootstrap.append(df_sampled)
         error_bootstrap = np.std(df_bootstrap, axis=0, ddof=1)
 
