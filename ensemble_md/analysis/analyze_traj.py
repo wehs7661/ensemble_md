@@ -42,7 +42,7 @@ def extract_state_traj(dhdl):
     return traj, t
 
 
-def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save_npy=True, save_xvg=False):
+def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, save_npy=True):
     """
     Stitches the state-space/CV-space trajectories for each starting configuration from DHDL files
     or PLUMED output files generated at different iterations.
@@ -72,9 +72,6 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
         By default, we extract the last column.
     save_npy : bool
         Whether to save the output trajectories as an NPY file.
-    save_xvg : bool
-        Whether to save the time series for each trajectory as an XVG file. The first column is the time and the
-        second column is the state index.
 
     Returns
     -------
@@ -111,7 +108,6 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
                     traj, t = extract_state_traj(files_sorted[i][j])[1:]
                 else:
                     traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx][1:]
-                    t = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, 0][1:]  # only used if save_xvg is True
 
             if dhdl:  # Trajectories of global alchemical indices will be generated.
                 shift_idx = rep_trajs[i][j]
@@ -124,14 +120,10 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
         else:
             np.save('cv_trajs.npy', trajs)
 
-    if save_xvg is True:
-        # This is probably only useful for clustering analysis
-        convert_npy2xvg(trajs, t[1] - t[0])
-
     return trajs
 
 
-def convert_npy2xvg(trajs, dt):
+def convert_npy2xvg(trajs, dt, subsampling=1):
     """
     Convert a :code:`state_trajs.npy` or :code:`cv_trajs.npy` file to :math:`N_{\text{rep}}` XVG files
     that have two columns: time (ps) and state index.
@@ -141,7 +133,9 @@ def convert_npy2xvg(trajs, dt):
     trajs : ndarray
         The state-space or CV-space trajectories read from :code:`state_trajs.npy` or :code:`cv_trajs.npy`.
     dt : float
-        The time interval between consecutive frames of the trajectories.
+        The time interval (in ps) between consecutive frames of the trajectories.
+    subsampling : int
+        The stride for subsampling the time series. The default is 1.
     """
     n_configs = len(trajs)
     for i in range(n_configs):
@@ -150,10 +144,10 @@ def convert_npy2xvg(trajs, dt):
         headers = ['This file was created by ensemble_md']
         if 'int' in str(traj.dtype):
             headers.extend(['Time (ps) v.s. State index'])
-            np.savetxt(f'traj_{i}.xvg', np.transpose([t, traj]), header='\n'.join(headers), fmt=['%-8.1f', '%4.0f'])
+            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%4.0f'])  # noqa: E501
         else:
             headers.extend(['Time (ps) v.s. CV'])
-            np.savetxt(f'traj_{i}.xvg', np.transpose([t, traj]), header='\n'.join(headers), fmt=['%-8.1f', '%8.6f'])
+            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%8.6f'])  # noqa: E501
 
 
 def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
