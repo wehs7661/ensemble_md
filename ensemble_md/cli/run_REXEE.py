@@ -168,7 +168,7 @@ def main():
                 # (1) First we prepare the time-averaged weights to be combined, if needed.
                 # Note that although averaged weights are sometimes used for weight correction/weight combination,
                 # the final weights are always used for calculating the acceptance ratio.
-                if REXEE.N_cutoff != -1 or REXEE.w_combine is not None:
+                if REXEE.N_cutoff != -1 or REXEE.w_combine is True:
                     # Only when weight correction/weight combination is needed.
                     weights_avg, weights_err = REXEE.get_averaged_weights(log_files)
 

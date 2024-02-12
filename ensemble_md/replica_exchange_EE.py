@@ -595,7 +595,8 @@ class ReplicaExchangeEE:
             headers = get_headers(pullx_file)
             for i in range(len(self.set_ref_dist)):
                 if self.set_ref_dist[i] is True:
-                    dist = list(extract_dataframe(pullx_file, headers=headers)[f'{i+1}'])[0]
+                    # dist = list(extract_dataframe(pullx_file, headers=headers)[f'{i+1}'])[0]
+                    dist = np.loadtxt(pullx_file, comments=['#', '@'])[0][1]
                     self.ref_dist.append(dist)
 
     def update_MDP(self, new_template, sim_idx, iter_idx, states, wl_delta, weights, counts=None):
