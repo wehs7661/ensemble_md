@@ -268,7 +268,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
     n_tot = state_ranges[-1][-1] + 1
     estimators = _apply_estimators(data, df_method)
     df_adjacent, df_err_adjacent = _calculate_df_adjacent(estimators)
-    df, df_err, overlap_bool = _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, propagated_err=True)
+    df, df_err, overlap_bool = _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type='propagate')
 
     if err_method == 'bootstrap':
         if seed is not None:
@@ -281,7 +281,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
             sampled_data = [sampled_data_all[i].iloc[b * len(data[i]):(b + 1) * len(data[i])] for i in range(n_sim)]
             bootstrap_estimators = _apply_estimators(sampled_data, df_method)
             df_adjacent, df_err_adjacent = _calculate_df_adjacent(bootstrap_estimators)
-            df_sampled, _, overlap_bool = _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, propagated_err=False)  # noqa: E501
+            df_sampled, _, overlap_bool = _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type='propagate')  # doesn't matter what value err_type here is # noqa: E501
             df_bootstrap.append(df_sampled)
         error_bootstrap = np.std(df_bootstrap, axis=0, ddof=1)
 

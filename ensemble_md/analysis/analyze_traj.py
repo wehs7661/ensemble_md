@@ -105,7 +105,8 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
                 # Starting from the 2nd iteration, we get rid of the first time frame the first
                 # frame of iteration n+1 the is the same as the last frame of iteration n
                 if dhdl:
-                    traj, t = extract_state_traj(files_sorted[i][j])[1:]
+                    traj, t = extract_state_traj(files_sorted[i][j])
+                    traj, t = traj[1:], t[1:]
                 else:
                     traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx][1:]
 
