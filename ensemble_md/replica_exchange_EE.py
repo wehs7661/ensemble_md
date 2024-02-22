@@ -592,7 +592,6 @@ class ReplicaExchangeEE:
         if hasattr(self, 'set_ref_dist'):
             self.ref_dist = []
             pullx_file = 'sim_0/iteration_0/pullx.xvg'
-            headers = get_headers(pullx_file)
             for i in range(len(self.set_ref_dist)):
                 if self.set_ref_dist[i] is True:
                     # dist = list(extract_dataframe(pullx_file, headers=headers)[f'{i+1}'])[0]

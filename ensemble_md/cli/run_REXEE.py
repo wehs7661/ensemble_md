@@ -241,7 +241,7 @@ def main():
                     # Note that in this case, the final weights will be used in the next iteration.
                     _ = REXEE.combine_weights(weights, print_values=False)[1]  # just to print the combiend weights  # noqa: E501
 
-                # 3-5. Modify the MDP files and swap out the GRO files (if needed)
+                # 3-4. Modify the MDP files and swap out the GRO files (if needed)
                 # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
                 # Note we use states (copy of states_) instead of states_ in update_MDP.
                 for j in list(range(REXEE.n_sim)):

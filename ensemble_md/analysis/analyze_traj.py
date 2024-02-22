@@ -633,6 +633,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     t_0k_avg, t_k0_avg, t_roundtrip_avg = [], [], []
 
     sci = False  # whether to use scientific notation in the y-axis in the plot
+    t_max = 0  # the maximum time across trajectories --> just for decideing the units
     for i in range(len(trajs)):
         traj = trajs[i]
         last_visited = None   # last visited end
@@ -674,7 +675,10 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                 t_k0 = list(np.array(t_k0) * dt)  # units: ps
                 t_roundtrip = list(np.array(t_roundtrip) * dt)  # units: ps
                 if len(t_0k) + len(t_k0) + len(t_roundtrip) > 0:  # i.e. not all are empty
-                    if np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
+                    if np.max([t_0k, t_k0, t_roundtrip]) > t_max:
+                        t_max = np.max([t_0k, t_k0, t_roundtrip])
+
+                    if t_max >= 10000:
                         units = 'ns'
                         t_0k = list(np.array(t_0k) / 1000)   # units: ns
                         t_k0 = list(np.array(t_k0) / 1000)   # units: ns
