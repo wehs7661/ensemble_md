@@ -410,7 +410,7 @@ def main():
 
         if data_list == []:
             files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(REXEE.n_sim)]
-            data_list, t_list, g_list = analyze_free_energy.preprocess_data(files_list, REXEE.temp, REXEE.df_data_type, REXEE.df_spacing)  # noqa: E501
+            data_list, t_idx_list, g_list = analyze_free_energy.preprocess_data(files_list, REXEE.temp, REXEE.df_data_type, REXEE.df_spacing)  # noqa: E501
 
             with open(f'{args.dir}/{REXEE.df_data_type}_data.pickle', 'wb') as handle:
                 pickle.dump(data_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -432,8 +432,9 @@ def main():
 
         # 4-3. Recalculate the free energy profile if subsampling_avg is True
         if REXEE.subsampling_avg is True:
+            # TODO: This does not work in the case where there is a pickle file since t_idx_list and g_list are not pickled. One can just delete the pickle file to rerun the analysis though.  # noqa: E501
             print('\nUsing averaged start index of the equilibrated data and the avearged statistic inefficiency to re-perform free energy calculations ...')  # noqa: E501
-            t_avg = int(np.mean(t_list)) + 1   # Using the ceiling function to be a little more conservative
+            t_avg = int(np.mean(t_idx_list)) + 1   # Using the ceiling function to be a little more conservative
             g_avg = np.array(g_list).prod() ** (1/len(g_list))  # geometric mean
             print(f'Averaged start index: {t_avg}')
             print(f'Averaged statistical inefficiency: {g_avg:.2f}')
