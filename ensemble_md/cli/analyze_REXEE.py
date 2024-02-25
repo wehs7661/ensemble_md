@@ -88,7 +88,6 @@ def main():
     sys.stdout = utils.Logger(logfile=args.output)
     sys.stderr = utils.Logger(logfile=args.output)
     section_idx = 0
-    poor_sampling = None
 
     rc('font', **{
         'family': 'sans-serif',
@@ -264,9 +263,6 @@ def main():
                 print(f'     - Trajectory {j} ({len(t_list[j])} events): {np.mean(t_list[j]):.2f} {units}')
         print(f'     - Average of the above: {np.mean([np.mean(i) for i in t_list]):.2f} {units} (std: {np.std([np.mean(i) for i in t_list], ddof=1):.2f} {units})')  # noqa: E501
 
-    if np.sum(np.isnan([np.mean(i) for i in t_list])) != 0:
-        poor_sampling = True
-
     if REXEE.msm is True:
         section_idx += 1
 
@@ -389,9 +385,6 @@ def main():
 
     # Section 4 (or Section 3). Free energy calculations
     if REXEE.free_energy is True:
-        if poor_sampling is True:
-            print('\nFree energy calculation is not performed since the sampling appears poor.')
-            sys.exit()
         section_idx += 1
         print(f'\n[ Section {section_idx}. Free energy calculations ]')
 
