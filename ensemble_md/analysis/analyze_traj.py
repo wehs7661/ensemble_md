@@ -979,7 +979,8 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
         The total number of states in the whole alchemical range.
     avg_frac : float
         The fraction of the last part of the simulation to be averaged. The
-        default is 0, which means no averaging.
+        default is 0, which means no averaging. Note that this parameter is
+        ignored if :code:`avg_from_last_update` is :code:`True`.
     avg_from_last_update : bool
         Whether to average from the last update of wl-delta. If False, the
         averaging will be from the beginning of the simulation.

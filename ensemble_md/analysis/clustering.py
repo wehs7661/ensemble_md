@@ -28,12 +28,11 @@ def cluster_traj(gmx_executable, inputs, grps, method='linkage', cutoff=0.1, suf
         The suffix for the output files. The default is :code:`None`, which means no suffix will be added.
     """
     # First check if all specified groups are present in the index file
-    if inputs['index'] is not None:
-        with open(inputs['index'], 'r') as f:
-            content = f.read()
-        for key in grps:
-            if grps[key] not in content:
-                raise ValueError(f'The group {grps[key]} is not present in the index file.')
+    with open(inputs['index'], 'r') as f:
+        content = f.read()
+    for key in grps:
+        if grps[key] not in content:
+            raise ValueError(f'The group {grps[key]} is not present in the index file.')
 
     outputs = {
         'nojump': 'nojump.xtc',
