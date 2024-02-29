@@ -394,19 +394,22 @@ def main():
             if os.path.isfile(f'{args.dir}/u_nk_data.pickle') is True:
                 print('Loading the preprocessed data u_nk ...')
                 with open(f'{args.dir}/u_nk_data.pickle', 'rb') as handle:
-                    data_list = pickle.load(handle)
+                    data_all = pickle.load(handle)
+                    data_list, t_idx_list, g_list = data_all[0], data_all[1], data_all[2]
         else:  # should always be 'dhdl'
             if os.path.isfile(f'{args.dir}/dHdl_data.pickle') is True:
                 print('Loading the preprocessed data dHdl ...')
                 with open(f'{args.dir}/dHdl_data.pickle', 'rb') as handle:
-                    data_list = pickle.load(handle)
+                    data_all = pickle.load(handle)
+                    data_list, t_idx_list, g_list = data_all[0], data_all[1], data_all[2]
 
         if data_list == []:
             files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(REXEE.n_sim)]
             data_list, t_idx_list, g_list = analyze_free_energy.preprocess_data(files_list, REXEE.temp, REXEE.df_data_type, REXEE.df_spacing)  # noqa: E501
-
+            
+            data_all = [data_list, t_idx_list, g_list]
             with open(f'{args.dir}/{REXEE.df_data_type}_data.pickle', 'wb') as handle:
-                pickle.dump(data_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(data_all, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
         # 4-2. Calculate the free energy profile
         f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, REXEE.state_ranges, REXEE.df_method, REXEE.err_method, REXEE.n_bootstrap, REXEE.seed)  # noqa: E501
@@ -432,9 +435,10 @@ def main():
             print(f'Averaged start index: {t_avg}')
             print(f'Averaged statistical inefficiency: {g_avg:.2f}')
 
-            data_list, _, _ = analyze_free_energy.preprocess_data(files_list, REXEE.temp, REXEE.df_data_type, REXEE.df_spacing, t_avg, g_avg)  # noqa: E501
+            data_list, t_idx_list, g_list = analyze_free_energy.preprocess_data(files_list, REXEE.temp, REXEE.df_data_type, REXEE.df_spacing, t_avg, g_avg)  # noqa: E501
+            data_all = [data_list, t_idx_list, g_list]
             with open(f'{args.dir}/{REXEE.df_data_type}_data_avg_subsampling.pickle', 'wb') as handle:
-                pickle.dump(data_list, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(data_all, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
             f, f_err, estimators = analyze_free_energy.calculate_free_energy(data_list, REXEE.state_ranges, REXEE.df_method, REXEE.err_method, REXEE.n_bootstrap, REXEE.seed)  # noqa: E501
             print('Plotting the full-range free energy profile ...')
