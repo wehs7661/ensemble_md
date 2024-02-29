@@ -75,94 +75,104 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         for key in outputs:
             outputs[key] = outputs[key].replace('.', f'_{suffix}.')
 
-    print('Eliminating jumps across periodic boundaries for the input trajectory ...')
-    args = [
-        gmx_executable, 'trjconv',
-        '-f', inputs['traj'],
-        '-s', inputs['config'],
-        '-n', inputs['index'],
-        '-o', outputs['nojump'],
-        '-center', 'yes',
-        '-pbc', 'nojump',
-    ]
-
-    if coupled_only:
-        if inputs['xvg'] is None:
-            raise ValueError('The parameter "coupled_only" is set to True but no XVG file is provided.')
-        args.extend([
-            '-drop', inputs['xvg'],
-            '-dropover', '0'
-        ])
-
-    returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
-    if returncode != 0:
-        print(f'Error with return code: {returncode}):\n{stderr}')
-
-    print('Centering the system ...')
-    args = [
-        gmx_executable, 'trjconv',
-        '-f', outputs['nojump'],
-        '-s', inputs['config'],
-        '-n', inputs['index'],
-        '-o', outputs['center'],
-        '-center', 'yes',
-        '-pbc', 'mol',
-        '-ur', 'compact',
-    ]
-    returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
-    if returncode != 0:
-        print(f'Error with return code: {returncode}):\n{stderr}')
-
-    print('Performing clustering analysis ...')
-    args = [
-        gmx_executable, 'cluster',
-        '-f', outputs['center'],
-        '-s', inputs['config'],
-        '-n', inputs['index'],
-        '-o', outputs['rmsd-clust'],
-        '-dist', outputs['rmsd-dist'],
-        '-g', outputs['cluster-log'],
-        '-cl', outputs['cluster-pdb'],
-        '-cutoff', str(cutoff),
-        '-method', method,
-    ]
-    returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["output"]}\n')
-    if returncode != 0:
-        print(f'Error with return code: {returncode}):\n{stderr}')
-
-    rmsd_range, rmsd_avg, n_clusters = get_cluster_info(outputs['cluster-log'])
-
-    print(f'Range of RMSD values: from {rmsd_range[0]:.3f} to {rmsd_range[1]:.3f} nm')
-    print(f'Average RMSD: {rmsd_avg:.3f} nm')
-    print(f'Number of clusters: {n_clusters}')
-
-    if n_clusters > 1:
-        clusters, sizes = get_cluster_members(outputs['cluster-log'])
-        for i in range(1, n_clusters + 1):
-            print(f'  - Cluster {i} accounts for {sizes[i] * 100:.2f}% of the total configurations.')
-
-        n_transitions, t_transitions = count_transitions(clusters)
-        print(f'Number of transitions between the two biggest clusters: {n_transitions}')
-        print(f'Time frames of the transitions (ps): {t_transitions}')
-
-        print('Calculating the inter-medoid RMSD between the two biggest clusters ...')
-        # Note that we pass outputs['cluster-pdb'] to -s so that the first medoid will be used as the reference
+    # Check if there is any fully coupled state in the trajectory
+    lambda_data = np.transpose(np.loadtxt(inputs['xvg'], comments=['#', '@']))[1]
+    if coupled_only is True and 0 not in lambda_data:
+        print('Terminating clustering analysis since no fully decoupled state is present in the input trajectory while coupled_only is set to True.')  # noqa: E501
+    else:
+        # Either coupled_only is False or coupled_only is True but there are coupled configurations. 
+        print('Eliminating jumps across periodic boundaries for the input trajectory ...')
         args = [
-            gmx_executable, 'rms',
-            '-f', outputs['cluster-pdb'],
-            '-s', outputs['cluster-pdb'],
-            '-o', outputs['rmsd'],
+            gmx_executable, 'trjconv',
+            '-f', inputs['traj'],
+            '-s', inputs['config'],
+            '-n', inputs['index'],
+            '-o', outputs['nojump'],
+            '-center', 'yes',
+            '-pbc', 'nojump',
         ]
-        if inputs['index'] is not None:
-            args.extend(['-n', inputs['index']])
 
-        # Here we simply assume same groups for least-squares fitting and RMSD calculation
-        returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["rmsd"]}\n')
+        if coupled_only:
+            if inputs['xvg'] is None:
+                raise ValueError('The parameter "coupled_only" is set to True but no XVG file is provided.')
+            args.extend([
+                '-drop', inputs['xvg'],
+                '-dropover', '0'
+            ])
+
+        returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
         if returncode != 0:
             print(f'Error with return code: {returncode}):\n{stderr}')
 
-        rmsd = np.transpose(np.loadtxt(outputs['rmsd'], comments=['@', '#']))[1][1]  # inter-medoid RMSD
-        print(f'Inter-medoid RMSD between the two biggest clusters: {rmsd:.3f} nm')
+        print('Centering the system ...')
+        args = [
+            gmx_executable, 'trjconv',
+            '-f', outputs['nojump'],
+            '-s', inputs['config'],
+            '-n', inputs['index'],
+            '-o', outputs['center'],
+            '-center', 'yes',
+            '-pbc', 'mol',
+            '-ur', 'compact',
+        ]
+        returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
+        if returncode != 0:
+            print(f'Error with return code: {returncode}):\n{stderr}')
+
+        if coupled_only is True:
+            N_coupled = np.count_nonzero(lambda_data==0)
+            print(f'Number of fully coupled configurations: {N_coupled}')
+
+        print('Performing clustering analysis ...')
+        args = [
+            gmx_executable, 'cluster',
+            '-f', outputs['center'],
+            '-s', inputs['config'],
+            '-n', inputs['index'],
+            '-o', outputs['rmsd-clust'],
+            '-dist', outputs['rmsd-dist'],
+            '-g', outputs['cluster-log'],
+            '-cl', outputs['cluster-pdb'],
+            '-cutoff', str(cutoff),
+            '-method', method,
+        ]
+        returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["output"]}\n')
+        if returncode != 0:
+            print(f'Error with return code: {returncode}):\n{stderr}')
+
+        rmsd_range, rmsd_avg, n_clusters = get_cluster_info(outputs['cluster-log'])
+
+        print(f'Range of RMSD values: from {rmsd_range[0]:.3f} to {rmsd_range[1]:.3f} nm')
+        print(f'Average RMSD: {rmsd_avg:.3f} nm')
+        print(f'Number of clusters: {n_clusters}')
+
+        if n_clusters > 1:
+            clusters, sizes = get_cluster_members(outputs['cluster-log'])
+            for i in range(1, n_clusters + 1):
+                print(f'  - Cluster {i} accounts for {sizes[i] * 100:.2f}% of the total configurations.')
+
+            n_transitions, t_transitions = count_transitions(clusters)
+            print(f'Number of transitions between the two biggest clusters: {n_transitions}')
+            print(f'Time frames of the transitions (ps): {t_transitions}')
+
+            print('Calculating the inter-medoid RMSD between the two biggest clusters ...')
+            # Note that we pass outputs['cluster-pdb'] to -s so that the first medoid will be used as the reference
+            args = [
+                gmx_executable, 'rms',
+                '-f', outputs['cluster-pdb'],
+                '-s', outputs['cluster-pdb'],
+                '-o', outputs['rmsd'],
+            ]
+            if inputs['index'] is not None:
+                args.extend(['-n', inputs['index']])
+
+            # Here we simply assume same groups for least-squares fitting and RMSD calculation
+            returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["rmsd"]}\n')
+            if returncode != 0:
+                print(f'Error with return code: {returncode}):\n{stderr}')
+
+            rmsd = np.transpose(np.loadtxt(outputs['rmsd'], comments=['@', '#']))[1][1]  # inter-medoid RMSD
+            print(f'Inter-medoid RMSD between the two biggest clusters: {rmsd:.3f} nm')
 
 
 def get_cluster_info(cluster_log):
