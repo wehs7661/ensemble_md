@@ -406,7 +406,7 @@ def main():
         if data_list == []:
             files_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(REXEE.n_sim)]
             data_list, t_idx_list, g_list = analyze_free_energy.preprocess_data(files_list, REXEE.temp, REXEE.df_data_type, REXEE.df_spacing)  # noqa: E501
-            
+
             data_all = [data_list, t_idx_list, g_list]
             with open(f'{args.dir}/{REXEE.df_data_type}_data.pickle', 'wb') as handle:
                 pickle.dump(data_all, handle, protocol=pickle.HIGHEST_PROTOCOL)

@@ -22,7 +22,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         The path to the GROMACS executable.
     inputs : dict
         A dictionary that contains the different input files required for the clustering analysis.
-        The dictionary must have the following four keys: :code:`traj` (input trajectory file in 
+        The dictionary must have the following four keys: :code:`traj` (input trajectory file in
         XTC or TRR format), :code:`config` (the configuration file in TPR or GRO format),
         :code:`xvg` (a GROMACS XVG file), and :code:`index` (an index/NDX file), with the values
         being the paths. Note that the value of the key :code:`index` can be :code:`None`, in which
@@ -80,7 +80,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
     if coupled_only is True and 0 not in lambda_data:
         print('Terminating clustering analysis since no fully decoupled state is present in the input trajectory while coupled_only is set to True.')  # noqa: E501
     else:
-        # Either coupled_only is False or coupled_only is True but there are coupled configurations. 
+        # Either coupled_only is False or coupled_only is True but there are coupled configurations.
         print('Eliminating jumps across periodic boundaries for the input trajectory ...')
         args = [
             gmx_executable, 'trjconv',
@@ -120,7 +120,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
             print(f'Error with return code: {returncode}):\n{stderr}')
 
         if coupled_only is True:
-            N_coupled = np.count_nonzero(lambda_data==0)
+            N_coupled = np.count_nonzero(lambda_data == 0)
             print(f'Number of fully coupled configurations: {N_coupled}')
 
         print('Performing clustering analysis ...')
