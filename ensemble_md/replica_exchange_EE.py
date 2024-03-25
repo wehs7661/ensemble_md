@@ -600,7 +600,7 @@ class ReplicaExchangeEE:
         Gets the reference distance(s) to use starting from the second iteration if distance restraint(s) are used.
         Specifically, a reference distance determined here is the initial COM distance between the pull groups
         in the input GRO file. This function initializes the attribute :code:`ref_dist`.
-        
+
         Parameter
         ---------
         pullx_file : str
@@ -920,7 +920,7 @@ class ReplicaExchangeEE:
 
                 swap = ReplicaExchangeEE.propose_swap(swappables)
                 print(f'\nProposed swap: {swap}')
-                if swap == []:  # the same as len(swappables) == 0, self.proposal must not be exhaustive if this line is reached.
+                if swap == []:  # the same as len(swappables) == 0, self.proposal must not be exhaustive if this line is reached.  # noqa: E501
                     self.n_empty_swappable += 1
                     print('No swap is proposed because there is no swappable pair at all.')
                     break  # no need to re-identify swappable pairs and draw new samples
@@ -1332,7 +1332,7 @@ class ReplicaExchangeEE:
                 else:
                     gro = f"{self.gro}"
             else:
-                gro = f"{self.working_dir}/sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
+                gro = f"{self.working_dir}/sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files  # noqa: E501
 
             if isinstance(self.top, list):
                 top = f"{self.top[i]}"

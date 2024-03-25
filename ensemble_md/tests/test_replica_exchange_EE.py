@@ -460,7 +460,7 @@ class Test_ReplicaExchangeEE:
         REXEE.equil = [-1, 1, 0, -1]  # i.e., the 3rd replica will use fixed weights in the next iteration
         MDP_1 = REXEE.update_MDP(
             new_template, 2, iter_idx, states, wl_delta, weights)  # third replica
-        
+
         REXEE.get_ref_dist('ensemble_md/tests/data/pullx.xvg')  # so that we can test the pull code
         MDP_2 = REXEE.update_MDP(
             new_template, 3, iter_idx, states, wl_delta, weights, counts)  # fourth replica
@@ -662,7 +662,6 @@ class Test_ReplicaExchangeEE:
         assert REXEE.n_rejected == 0
         assert pattern_4_3 == [0, 2, 1, 3]
         assert swap_list_4_3 == [(1, 2)]
-
 
     def test_calc_prob_acc(self, capfd, params_dict):
         # k = 1.380649e-23; NA = 6.0221408e23; T = 298; kT = k * NA * T / 1000 = 2.4777098766670016

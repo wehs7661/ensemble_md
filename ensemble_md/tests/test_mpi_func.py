@@ -23,6 +23,7 @@ input_path = os.path.join(current_path, "data")
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
+
 @pytest.fixture
 def params_dict():
     """
@@ -59,6 +60,40 @@ def get_REXEE_instance(input_dict, yml_file='params.yaml'):
     return REXEE
 
 
+def get_gmx_cmd_from_output(output):
+    """
+    Given a GROMACS output file like a LOG file or `mdout.mdp`, extract the GROMACS command that was run.
+
+    Parameters
+    ----------
+    output : str
+        The path to the GROMACS output file.
+
+    Returns
+    -------
+    cmd : str
+        The GROMACS command that was run.
+    flags : dict
+        The flags and values that were used in the GROMACS command.
+    """
+    f = open(output, 'r')
+    lines = f.readlines()
+    f.close()
+    n = -1
+    for l in lines:  # noqa: E741
+        n += 1
+        if l.startswith('Command line'):
+            cmd = lines[n+1].strip()
+
+    flags = {}
+    cmd_split = cmd.split(' ')
+    for i in range(len(cmd_split)):
+        if cmd_split[i].startswith('-'):
+            flags[cmd_split[i]] = cmd_split[i+1]
+
+    return cmd, flags
+
+
 @pytest.mark.mpi
 def test_run_grompp(params_dict):
     params_dict['grompp_args'] = {'-maxwarn': '1'}
@@ -80,4 +115,17 @@ def test_run_grompp(params_dict):
         for i in range(params_dict['n_sim']):
             assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_0/sys_EE.tpr') is True
             assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_0/mdout.mdp') is True
+
+            # Here we check if the command executed was what we expected
+            mdp = f'{REXEE.working_dir}/sim_{i}/iteration_0/mdout.mdp'
+            gro = params_dict['gro']
+            top = params_dict['top']
+            tpr = f'{REXEE.working_dir}/sim_{i}/iteration_0/sys_EE.tpr'
+            mdout = f'{REXEE.working_dir}/sim_{i}/iteration_0/mdout.mdp'
+            cmd = f'{REXEE.check_gmx_executable} -f {mdp} -c {gro} -p {top} -o {tpr} -po {mdout} -maxwarn 1'
+            assert get_gmx_cmd_from_output(mdout)[0] == cmd
+
             shutil.rmtree(f'{REXEE.working_dir}/sim_{i}')
+
+    # Case 2: Other iterations, i.e., n != 0
+    # More to come ...
