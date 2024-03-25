@@ -4,7 +4,7 @@ jobs:
   test:
     machine:
       # Note that ubuntu with versions later than 2022 triggers an interative prompt that gets CI stuck
-      image: ubuntu-2204:edge
+      image: ubuntu-2004:202107-02
     environment:
       PYTHON_VERSION: "3.8"
     steps:
@@ -57,7 +57,7 @@ jobs:
             pip3 install pytest-mpi
             pip3 install pytest-cov
             pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
-            mpirun -np 4 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/test_mpi.py --with-mpi
+            mpirun -np 4 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/test_mpi_func.py --with-mpi
 
       - run:
           name: CodeCov
