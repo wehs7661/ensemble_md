@@ -56,6 +56,7 @@ jobs:
             pip3 install pytest 
             pip3 install pytest-cov
             pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
+            mpirun -np 4 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/test_mpi.py --with-mpi
 
       - run:
           name: CodeCov
