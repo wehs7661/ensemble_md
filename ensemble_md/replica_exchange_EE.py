@@ -268,12 +268,21 @@ class ReplicaExchangeEE:
                         raise ParameterError("Each number specified in 'add_swappables' should be a non-negative integer.")  # noqa: E501
 
         if self.mdp_args is not None:
+            # Note that mdp_args is a dictionary including MDP parameters DIFFERING across replicas.
+            # The value of each key should be a list of length n_sim.
+            for val in self.mdp_args.values():
+                if not isinstance(val, list):
+                    raise ParameterError("The values specified in 'mdp_args' should be lists.")
+
+                if len(set(val)) == 1:
+                    raise ParameterError("MDP parameters set by 'mdp_args' should differ across at least two replicas.")  # noqa: E501
+
             for key in self.mdp_args.keys():
                 if not isinstance(key, str):
                     raise ParameterError("All keys specified in 'mdp_args' should be strings.")
                 else:
                     if '-' in key:
-                        raise ParameterError("Parameters specified in 'mdp_args' must use underscores in place of hyphens.")  # noqa: E501
+                        raise ParameterError("ensemble_md convention: Parameters specified in 'mdp_args' must use underscores in place of hyphens.")  # noqa: E501
             for val_list in self.mdp_args.values():
                 if len(val_list) != self.n_sim:
                     raise ParameterError("The number of values specified for each key in 'mdp_args' should be the same as the number of replicas.")  # noqa: E501
@@ -318,7 +327,7 @@ class ReplicaExchangeEE:
             self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
         if 'gen_vel' not in self.template or ('gen_vel' in self.template and self.template['gen_vel'] == 'no'):
-            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with detailed balance.')  # noqa: E501
+            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.')  # noqa: E501
 
         if self.nst_sim % self.template['nstlog'] != 0:
             raise ParameterError(
@@ -330,16 +339,18 @@ class ReplicaExchangeEE:
 
         if self.template['nstexpanded'] % self.template['nstdhdl'] != 0:
             raise ParameterError(
-                'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
+                'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.')  # noqa: E501
 
         if self.mdp_args is not None:
-            if 'lmc_seed' in self.mdp_args and -1 not in self.mdp_args['lmc_seed']:
+            # Varying the following parameters may not make sense, but here we just avoid edge cases.
+            # We check these parameters as they could directly influence the correctness of the simulation.
+            if 'lmc_seed' in self.mdp_args and self.mdp_args['lmc_seed'] != [-1] * self.n_sim:
                 self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
-            if 'gen_seed' in self.mdp_args and -1 not in self.mdp_args['gen_seed']:
+            if 'gen_seed' in self.mdp_args and self.mdp_args['gen_seed'] != [-1] * self.n_sim:
                 self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
-            if 'gen_vel' in self.mdp_args and 'no' in self.mdp_args['gen_vel']:
+            if 'gen_vel' in self.mdp_args and self.mdp_args['gen_vel'] != ['yes'] * self.n_sim:
                 self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.')  # noqa: E501
 
             if 'nstlog' in self.mdp_args and sum(self.nst_sim % np.array(self.mdp_args['nstlog'])) != 0:
@@ -352,7 +363,7 @@ class ReplicaExchangeEE:
 
             if 'nstexpanded' in self.mdp_args and 'nstdhdl' in self.mdp_args and sum(np.array(self.mdp_args['nstexpanded']) % np.array(self.mdp_args['nstdhdl'])) != 0:  # noqa: E501
                 raise ParameterError(
-                    'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
+                    'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.')  # noqa: E501
 
         if 'pull' in self.template and self.template['pull'] == 'yes':
             pull_ncoords = self.template['pull_ncoords']

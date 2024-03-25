@@ -104,15 +104,31 @@ class Test_ReplicaExchangeEE:
         # 7. Boolean parameters
         check_param_error(params_dict, 'msm', "The parameter 'msm' should be a boolean variable.", 3, False)
 
-        # 8. nstlog > nst_sim
+        # 8. Errors related to nstlog and nstdhdl
         mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))  # A perfect mdp file
+
+        # 8-1. nstlog is not a factor of nst_sim
         mdp['nstlog'] = 200
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
         params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
         params_dict['nst_sim'] = 100
         with pytest.raises(ParameterError, match='The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
             get_REXEE_instance(params_dict)
-        params_dict['nst_sim'] = 500
+
+        # 8-2. nstdhdl is not a factor of nst_sim
+        mdp['nstlog'] = 100
+        mdp['nstdhdl'] = 200
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        with pytest.raises(ParameterError, match='The parameter "nstdhdl" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        # 8-3. nstexpanded is not a factor of nstdhdl
+        mdp['nstdhdl'] = 100
+        mdp['nstexpanded'] = 50
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        with pytest.raises(ParameterError, match='In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
         # 9. n_sub < 1
@@ -121,7 +137,55 @@ class Test_ReplicaExchangeEE:
         # Note that the parentheses are special characters that need to be escaped in regular expressions
         with pytest.raises(ParameterError, match=r'There must be at least two states for each replica \(current value: -6\). The current specified configuration \(n_tot=9, n_sim=4, s=5\) does not work for REXEE.'):  # noqa: E501
             get_REXEE_instance(params_dict)
-        params_dict['s'] = 1
+
+        # 10. s < 0
+        params_dict['s'] = -1
+        with pytest.raises(ParameterError, match="The parameter 's' should be non-negative."):
+            get_REXEE_instance(params_dict)
+        params_dict['s'] = 1  # set back to a normal value
+
+        # 11. Cases for MT-REXEE (relevant parameters: add_swappables, modify_coords, etc.)
+        params_dict['gro'] = ['ensemble_md/tests/data/sys.gro']
+        with pytest.raises(ParameterError, match="The number of the input GRO files must be the same as the number of replicas, if multiple are specified."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+        params_dict['gro'] = 'ensemble_md/tests/data/sys.gro'  # set back to a normal value
+
+        # 12. Test mdp_args
+        params_dict['mdp_args'] = 3
+        with pytest.raises(ParameterError, match="The parameter 'mdp_args' should be a dictionary."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'ref_p': 1.0}
+        with pytest.raises(ParameterError, match="The values specified in 'mdp_args' should be lists."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'ref_p': [1.0, 1.0, 1.0, 1.0]}
+        with pytest.raises(ParameterError, match="MDP parameters set by 'mdp_args' should differ across at least two replicas."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {5: [1, 1, 1, 1.01]}  # set back to a normal value
+        with pytest.raises(ParameterError, match="All keys specified in 'mdp_args' should be strings."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'ref-p': [1.0, 1.01, 1.02, 1.03]}
+        with pytest.raises(ParameterError, match="ensemble_md convention: Parameters specified in 'mdp_args' must use underscores in place of hyphens."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'ref_p': [1.0, 1.01, 1.02]}
+        with pytest.raises(ParameterError, match="The number of values specified for each key in 'mdp_args' should be the same as the number of replicas."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'nstlog': [200, 100, 100, 100]}
+        with pytest.raises(ParameterError, match='The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'nstdhdl': [200, 100, 100, 100]}
+        with pytest.raises(ParameterError, match='The parameter "nstdhdl" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'nstdhdl': [20, 10, 10, 10], 'nstexpanded': [10, 50, 10, 10]}
+        with pytest.raises(ParameterError, match='In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
 
     def test_set_params_warnings(self, params_dict):
         # 1. Non-recognizable parameter in the YAML file
@@ -135,20 +199,34 @@ class Test_ReplicaExchangeEE:
         mdp['lmc_seed'] = 1000
         mdp['gen_seed'] = 1000
         mdp['wl_scale'] = ''
+        mdp['gen_vel'] = 'no'
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
 
         params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
         params_dict['N_cutoff'] = 1000
-        REXEE = get_REXEE_instance(params_dict)
+        REXEE_1 = get_REXEE_instance(params_dict)
 
         warning_1 = 'Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.'  # noqa: E501
         warning_2 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
         warning_3 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
-        assert warning_1 in REXEE.warnings
-        assert warning_2 in REXEE.warnings
-        assert warning_3 in REXEE.warnings
+        warning_4 = 'Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.'  # noqa: E501
+
+        assert warning_1 in REXEE_1.warnings
+        assert warning_2 in REXEE_1.warnings
+        assert warning_3 in REXEE_1.warnings
+        assert warning_4 in REXEE_1.warnings
 
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
+
+        # 2. Warnings related to the mdp file (for cases where mdp_args is not None)
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))  # A perfect mdp file
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+
+        params_dict['mdp_args'] = {'lmc_seed': [-1, -1, -1, 0], 'gen_seed': [-1, -1, -1, 0], 'gen_vel': ['no', 'no', 'no', 'yes']}  # noqa: E501
+        REXEE_2 = get_REXEE_instance(params_dict)
+        assert warning_2 in REXEE_2.warnings
+        assert warning_3 in REXEE_2.warnings
+        assert warning_4 in REXEE_2.warnings
 
     def test_set_params(self, params_dict):
         # 0. Get an REXEE instance to test
