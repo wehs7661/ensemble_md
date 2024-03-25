@@ -226,24 +226,22 @@ include parameters for data analysis here.
 -------------------
 
   - :code:`gro`: (Required)
-      The input system configuration in the form of GRO file(s) used to initiate the REXEE simulation. If only one GRO file is specified,
+      The path of the input system configuration in the form of GRO file(s) used to initiate the REXEE simulation. If only one GRO file is specified,
       it will be used to initiate all the replicas. If multiple GRO files are specified (using the YAML syntax),
       the number of GRO files has to be the same as the number of replicas. 
   - :code:`top`: (Required)
-      The input system topology in the form of TOP file(s) used to initiate the REXEE simulation. If only one TOP file is specified,
+      The path of the input system topology in the form of TOP file(s) used to initiate the REXEE simulation. If only one TOP file is specified,
       it will be used to initiate all the replicas. If multiple TOP files are specified (using the YAML syntax),
       the number of TOP files has to be the same as the number of replicas. In the case where multiple TOP and GRO files are specified,
       the i-th TOP file corresponds to the i-th GRO file.
   - :code:`mdp`: (Required)
-      The input MDP file used to initiate the REXEE simulation. Specifically, this input MDP file will serve as a template for
+      The path of the input MDP file used to initiate the REXEE simulation. Specifically, this input MDP file will serve as a template for
       customizing MDP files for all replicas. Therefore, the MDP template must have the whole range of :math:`λ` values. 
       and the corresponding weights (in fixed-weight simulations). This holds for REXEE simulations for multiple serial mutations as well.
       For example, in an REXEE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if
       exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Notably, unlike
       the parameters :code:`gro` and :code:`top`, only one MDP file can be specified for the parameter :code:`mdp`. If you wish to use
       different parameters for different replicas, please use the parameter :code:`mdp_args`.
-  - :code:`working_dir`: (Optional, Default: :code:`os.getcwd()`)
-      The working directory where the REXEE simulation will be performed. If not specified, the current working directory will be used.
   - :code:`modify_coords`: (Optional, Default: :code:`None`)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
       before the coordinate exchange, which is generally required in REXEE simulations for multiple serial mutations.

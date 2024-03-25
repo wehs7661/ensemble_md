@@ -152,7 +152,6 @@ class ReplicaExchangeEE:
         # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
-            "working_dir": os.getcwd(),
             "add_swappables": None,
             "modify_coords": None,
             "nst_sim": None,
@@ -242,6 +241,7 @@ class ReplicaExchangeEE:
         for i in params_str:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
+        self.working_dir = os.path.dirname(self.mdp)
 
         params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg', 'w_combine']
         for i in params_bool:
