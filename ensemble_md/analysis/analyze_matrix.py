@@ -18,7 +18,7 @@ from ensemble_md.utils.exceptions import ParseError
 from ensemble_md.utils.exceptions import ParameterError
 
 
-def parse_transmtx(log_file, expanded_ensemble=True):
+def calc_transmtx(log_file, expanded_ensemble=True):
     """
     Parses the log file to get the transition matrix of an expanded ensemble
     or replica exchange simulation. Notably, a theoretical transition matrix

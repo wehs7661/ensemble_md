@@ -20,9 +20,9 @@ current_path = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(current_path, "data")
 
 
-def test_parse_transmtx():
+def test_calc_transmtx():
     # Case 1: Expanded ensemble where there is a transition matrix
-    A1, B1, C1 = analyze_matrix.parse_transmtx(os.path.join(input_path, 'log/EXE.log'))
+    A1, B1, C1 = analyze_matrix.calc_transmtx(os.path.join(input_path, 'log/EXE.log'))
     A1_expected = np.array([[0.5, 0.34782609, 0.15000001, 0, 0, 0],
        [0.34782609, 0.18181819, 0.15789473, 0.17647059, 0.10526316, 0.125     ],   # noqa: E128, E202, E203
        [0.15000001, 0.15789473, 0.        , 0.14285715, 0.4375    , 0.07692308],   # noqa: E202, E203
@@ -51,12 +51,12 @@ def test_parse_transmtx():
     # Case 2: Expanded ensemble where there is no transition matrix
     log = os.path.join(input_path, 'log/EXE_0.log')
     with pytest.raises(ParseError, match=f'No transition matrices found in {log}.'):
-        A2, B2, C2 = analyze_matrix.parse_transmtx(log)
+        A2, B2, C2 = analyze_matrix.calc_transmtx(log)
 
     # Case 3: Hamiltonian replica exchange
     # Note that the transition matrices shown in the log file of different replicas should all be the same.
     # Here we use log/HREX.log, which is a part of the log file from anthracene HREX.
-    A3, B3, C3 = analyze_matrix.parse_transmtx(os.path.join(input_path, 'log/HREX.log'), expanded_ensemble=False)
+    A3, B3, C3 = analyze_matrix.calc_transmtx(os.path.join(input_path, 'log/HREX.log'), expanded_ensemble=False)
     A3_expected = np.array([[0.7869, 0.2041, 0.0087, 0.0003, 0.0000, 0.0000, 0.0000, 0.0000],  # noqa: E128, E202, E203, E501
        [0.2041, 0.7189, 0.0728, 0.0041, 0.0001, 0.0000, 0.0000, 0.0000],   # noqa: E128, E202, E203
        [0.0087, 0.0728, 0.7862, 0.1251, 0.0071, 0.0001, 0.0000, 0.0000],   # noqa: E202, E203

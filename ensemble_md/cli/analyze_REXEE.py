@@ -428,7 +428,6 @@ def main():
 
         # 4-3. Recalculate the free energy profile if subsampling_avg is True
         if REXEE.subsampling_avg is True:
-            # TODO: This does not work in the case where there is a pickle file since t_idx_list and g_list are not pickled. One can just delete the pickle file to rerun the analysis though.  # noqa: E501
             print('\nUsing averaged start index of the equilibrated data and the avearged statistic inefficiency to re-perform free energy calculations ...')  # noqa: E501
             t_avg = int(np.mean(t_idx_list)) + 1   # Using the ceiling function to be a little more conservative
             g_avg = np.array(g_list).prod() ** (1/len(g_list))  # geometric mean
