@@ -79,11 +79,19 @@ def get_gmx_cmd_from_output(output):
     f = open(output, 'r')
     lines = f.readlines()
     f.close()
+
     n = -1
+    cmd = None
     for l in lines:  # noqa: E741
         n += 1
-        if l.startswith('Command line'):
-            cmd = lines[n+1].strip()
+        if 'Command line' in l:
+            if lines[n + 1].startswith(';'):
+                cmd = lines[n+1].split(';')[1].strip()
+            else:
+                cmd = lines[n+1].strip()
+            break
+    if cmd is None:
+        raise ValueError(f'Could not find the GROMACS command in the file {output}.')
 
     flags = {}
     cmd_split = cmd.split(' ')
