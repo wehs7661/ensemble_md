@@ -242,6 +242,8 @@ class ReplicaExchangeEE:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
         self.working_dir = os.path.dirname(self.mdp)
+        if self.working_dir == '':
+            self.working_dir = '.'
 
         params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg', 'w_combine']
         for i in params_bool:

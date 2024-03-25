@@ -94,10 +94,10 @@ def main():
         # 2-1. Set up input files for all simulations
         if rank == 0:
             for i in range(REXEE.n_sim):
-                os.mkdir(f'sim_{i}')
-                os.mkdir(f'sim_{i}/iteration_0')
+                os.mkdir(f'{REXEE.working_dir}/sim_{i}')
+                os.mkdir(f'{REXEE.working_dir}/sim_{i}/iteration_0')
                 MDP = REXEE.initialize_MDP(i)
-                MDP.write(f"sim_{i}/iteration_0/expanded.mdp", skipempty=True)
+                MDP.write(f"{REXEE.working_dir}/sim_{i}/iteration_0/expanded.mdp", skipempty=True)
 
         # 2-2. Run the first set of simulations
         REXEE.run_REXEE(0)
@@ -115,10 +115,10 @@ def main():
             else:
                 print('Deleting data generated after the checkpoint ...')
                 for i in range(REXEE.n_sim):
-                    n_finished = len(next(os.walk(f'sim_{i}'))[1])  # number of finished iterations
+                    n_finished = len(next(os.walk(f'{REXEE.working_dir}/sim_{i}'))[1])  # number of finished iterations
                     for j in range(start_idx, n_finished):
-                        print(f'  Deleting the folder sim_{i}/iteration_{j}')
-                        shutil.rmtree(f'sim_{i}/iteration_{j}')
+                        print(f'  Deleting the folder {REXEE.working_dir}/sim_{i}/iteration_{j}')
+                        shutil.rmtree(f'{REXEE.working_dir}/sim_{i}/iteration_{j}')
 
             # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
             # Note that these two arrays are created in rank 0 and should always be operated in rank 0,
@@ -132,7 +132,7 @@ def main():
         start_idx = comm.bcast(start_idx, root=0)  # so that all the ranks are aware of start_idx
 
     # 2-3. Get the reference distance for the distance restraint specified in the pull code, if any.
-    pullx_file = 'sim_0/iteration_0/pullx.xvg'
+    pullx_file = f'{REXEE.working_dir}/sim_0/iteration_0/pullx.xvg'
     REXEE.get_ref_dist(pullx_file)
 
     for i in range(start_idx, REXEE.n_iter):
@@ -144,8 +144,8 @@ def main():
                 # 3-1. For all the replica simulations,
                 #   (1) Find the last sampled state and the corresponding lambda values from the DHDL files.
                 #   (2) Find the final Wang-Landau incrementors and weights from the LOG files.
-                dhdl_files = [f'sim_{j}/iteration_{i - 1}/dhdl.xvg' for j in range(REXEE.n_sim)]
-                log_files = [f'sim_{j}/iteration_{i - 1}/md.log' for j in range(REXEE.n_sim)]
+                dhdl_files = [f'{REXEE.working_dir}/sim_{j}/iteration_{i - 1}/dhdl.xvg' for j in range(REXEE.n_sim)]
+                log_files = [f'{REXEE.working_dir}/sim_{j}/iteration_{i - 1}/md.log' for j in range(REXEE.n_sim)]
                 states_ = REXEE.extract_final_dhdl_info(dhdl_files)
                 wl_delta, weights_, counts_ = REXEE.extract_final_log_info(log_files)
                 print()
@@ -246,9 +246,9 @@ def main():
                 # Here we keep the lambda range set in mdp the same across different iterations in the same folder but swap out the gro file  # noqa: E501
                 # Note we use states (copy of states_) instead of states_ in update_MDP.
                 for j in list(range(REXEE.n_sim)):
-                    os.mkdir(f'sim_{j}/iteration_{i}')
+                    os.mkdir(f'{REXEE.working_dir}/sim_{j}/iteration_{i}')
                     MDP = REXEE.update_MDP(f"sim_{j}/iteration_{i - 1}/expanded.mdp", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
-                    MDP.write(f"sim_{j}/iteration_{i}/expanded.mdp", skipempty=True)
+                    MDP.write(f"{REXEE.working_dir}/sim_{j}/iteration_{i}/expanded.mdp", skipempty=True)
                     # In run_REXEE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
                     # level of the simulation (the file that will be shared by all simulations). For the gro file, we
                     # pass swap_pattern to the function to figure it out internally.
@@ -292,8 +292,8 @@ def main():
                         for j in range(len(swap_list)):
                             print('\nModifying the coordinates of the following output GRO files ...')
                             # gro_1 and gro_2 are the simlation outputs (that we want to back up) and the inputs to modify_coords  # noqa: E501
-                            gro_1 = f'sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
-                            gro_2 = f'sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
+                            gro_1 = f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
+                            gro_2 = f'{REXEE.working_dir}/sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
                             print(f'  - {gro_1}\n  - {gro_2}')
 
                             # Now we rename gro_1 and gro_2 to back them up
