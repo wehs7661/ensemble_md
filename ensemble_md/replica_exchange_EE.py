@@ -459,7 +459,7 @@ class ReplicaExchangeEE:
                     self.gmx_version = line.split()[-1]
                     break
         except subprocess.CalledProcessError:
-            print(f"{self.gmx_executable} is not available on this system.")
+            print(f"{self.gmx_executable} is not available.")
         except Exception as e:
             print(f"An error occurred:\n{e}")
 
@@ -592,15 +592,21 @@ class ReplicaExchangeEE:
 
         return MDP
 
-    def get_ref_dist(self):
+    def get_ref_dist(self, pullx_file = 'sim_0/iteration_0/pullx.xvg'):
         """
         Gets the reference distance(s) to use starting from the second iteration if distance restraint(s) are used.
         Specifically, a reference distance determined here is the initial COM distance between the pull groups
         in the input GRO file. This function initializes the attribute :code:`ref_dist`.
+        
+        Parameter
+        ---------
+        pullx_file : str
+            The path to the pullx file whose initial value will be used as the reference distance.
+            Usually, this should be the path of the pullx file of the first iteration. The default
+            is :code:`sim_0/iteration_0/pullx.xvg`.
         """
         if hasattr(self, 'set_ref_dist'):
             self.ref_dist = []
-            pullx_file = 'sim_0/iteration_0/pullx.xvg'
             for i in range(len(self.set_ref_dist)):
                 if self.set_ref_dist[i] is True:
                     # dist = list(extract_dataframe(pullx_file, headers=headers)[f'{i+1}'])[0]
@@ -900,6 +906,7 @@ class ReplicaExchangeEE:
                 # This should only happen when the method of exhaustive swaps is used.
                 if i == 0:
                     self.n_empty_swappable += 1
+                    print('No swap is proposed because there is no swappable pair at all.')
                 break
             else:
                 self.n_swap_attempts += 1
@@ -908,7 +915,7 @@ class ReplicaExchangeEE:
 
                 swap = ReplicaExchangeEE.propose_swap(swappables)
                 print(f'\nProposed swap: {swap}')
-                if swap == []:
+                if swap == []:  # the same as len(swappables) == 0, self.proposal must not be exhaustive if this line is reached.
                     self.n_empty_swappable += 1
                     print('No swap is proposed because there is no swappable pair at all.')
                     break  # no need to re-identify swappable pairs and draw new samples

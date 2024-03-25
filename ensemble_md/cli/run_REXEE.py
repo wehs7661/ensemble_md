@@ -132,7 +132,8 @@ def main():
         start_idx = comm.bcast(start_idx, root=0)  # so that all the ranks are aware of start_idx
 
     # 2-3. Get the reference distance for the distance restraint specified in the pull code, if any.
-    REXEE.get_ref_dist()
+    pullx_file = 'sim_0/iteration_0/pullx.xvg'
+    REXEE.get_ref_dist(pullx_file)
 
     for i in range(start_idx, REXEE.n_iter):
         # For a large code block like below executed on rank 0, we try to catch any exception and abort the simulation.
