@@ -186,6 +186,31 @@ class Test_ReplicaExchangeEE:
         params_dict['mdp_args'] = {'nstdhdl': [20, 10, 10, 10], 'nstexpanded': [10, 50, 10, 10]}
         with pytest.raises(ParameterError, match='In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.'):  # noqa: E501
             get_REXEE_instance(params_dict)
+        params_dict['mdp_args'] = None  # set back to a normal value
+
+        # 13. Test the parameter 'pull'
+        params_dict['nst_sim'] = 2000
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded_pull.mdp"))
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
+
+        mdp['pull_coord1_geometry'] = 'direction'
+        mdp.write(params_dict['mdp'])
+        get_REXEE_instance(params_dict)
+
+        mdp['pull_coord1_geometry'] = 'distance'  # set back to the original value
+        mdp['pull_coord1_start'] = 'no'
+        mdp.write(params_dict['mdp'])
+        get_REXEE_instance(params_dict)
+
+        mdp['pull_coord1_start'] = 'yes'
+        mdp.write(params_dict['mdp'])
+        mdp['pull_nstxout'] = 0
+        mdp.write(params_dict['mdp'])
+        REXEE_pull = get_REXEE_instance(params_dict)
+        warning = 'A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.'
+        assert warning in REXEE_pull.warnings
+
+        os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
     def test_set_params_warnings(self, params_dict):
         # 1. Non-recognizable parameter in the YAML file

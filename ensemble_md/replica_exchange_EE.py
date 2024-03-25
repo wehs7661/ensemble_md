@@ -372,9 +372,7 @@ class ReplicaExchangeEE:
                 if self.template[f'pull_coord{i+1}_geometry'] == 'distance':
                     if self.template[f'pull_coord{i+1}_start'] == 'yes':
                         self.set_ref_dist.append(True)  # starting from the second iteration, set pull_coord*_init.
-                        if 'pull_nstxout' not in self.template:
-                            self.warnings.append('A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.')  # noqa: E501
-                        if self.template['pull_nstxout'] == 0:
+                        if 'pull_nstxout' not in self.template or self.template['pull_nstxout'] == 0:
                             self.warnings.append('A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.')  # noqa: E501
                     else:
                         self.set_ref_dist.append(False)  # Here we assume that the user know what reference distance to use.  # noqa: E501
