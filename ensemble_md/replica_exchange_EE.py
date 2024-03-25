@@ -152,6 +152,7 @@ class ReplicaExchangeEE:
         # Step 3: Handle the optional YAML parameters
         # Key: Optional argument; Value: Default value
         optional_args = {
+            "working_dir": os.getcwd(),
             "add_swappables": None,
             "modify_coords": None,
             "nst_sim": None,
@@ -592,7 +593,7 @@ class ReplicaExchangeEE:
 
         return MDP
 
-    def get_ref_dist(self, pullx_file = 'sim_0/iteration_0/pullx.xvg'):
+    def get_ref_dist(self, pullx_file=None):
         """
         Gets the reference distance(s) to use starting from the second iteration if distance restraint(s) are used.
         Specifically, a reference distance determined here is the initial COM distance between the pull groups
@@ -605,6 +606,8 @@ class ReplicaExchangeEE:
             Usually, this should be the path of the pullx file of the first iteration. The default
             is :code:`sim_0/iteration_0/pullx.xvg`.
         """
+        if pullx_file is None:
+            pullx_file = f"{self.working_dir}/sim_0/iteration_0/pullx.xvg"
         if hasattr(self, 'set_ref_dist'):
             self.ref_dist = []
             for i in range(len(self.set_ref_dist)):
@@ -1320,14 +1323,14 @@ class ReplicaExchangeEE:
             arguments = [self.gmx_executable, 'grompp']
 
             # Input files
-            mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
+            mdp = f"{self.working_dir}/sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
             if n == 0:
                 if isinstance(self.gro, list):
                     gro = f"{self.gro[i]}"
                 else:
                     gro = f"{self.gro}"
             else:
-                gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
+                gro = f"{self.working_dir}/sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
 
             if isinstance(self.top, list):
                 top = f"{self.top[i]}"
@@ -1339,8 +1342,8 @@ class ReplicaExchangeEE:
 
             # Add output file arguments
             arguments.extend([
-                "-o", f"sim_{i}/iteration_{n}/sys_EE.tpr",
-                "-po", f"sim_{i}/iteration_{n}/mdout.mdp"
+                "-o", f"{self.working_dir}/sim_{i}/iteration_{n}/sys_EE.tpr",
+                "-po", f"{self.working_dir}/sim_{i}/iteration_{n}/mdout.mdp"
             ])
 
             # Add additional arguments if any
@@ -1394,7 +1397,7 @@ class ReplicaExchangeEE:
         if rank == 0:
             print('Running EXE simulations ...')
         if rank < self.n_sim:
-            os.chdir(f'sim_{rank}/iteration_{n}')
+            os.chdir(f'{self.working_dir}/sim_{rank}/iteration_{n}')
             returncode, stdout, stderr = utils.run_gmx_cmd(arguments)
             if returncode != 0:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')

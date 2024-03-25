@@ -222,8 +222,8 @@ include parameters for data analysis here.
       :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
       Note that REXEE only works with MPI-enabled GROMACS. 
 
-3.2. Input files
-----------------
+3.2. Input settings
+-------------------
 
   - :code:`gro`: (Required)
       The input system configuration in the form of GRO file(s) used to initiate the REXEE simulation. If only one GRO file is specified,
@@ -242,6 +242,8 @@ include parameters for data analysis here.
       exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Notably, unlike
       the parameters :code:`gro` and :code:`top`, only one MDP file can be specified for the parameter :code:`mdp`. If you wish to use
       different parameters for different replicas, please use the parameter :code:`mdp_args`.
+  - :code:`working_dir`: (Optional, Default: :code:`os.getcwd()`)
+      The working directory where the REXEE simulation will be performed. If not specified, the current working directory will be used.
   - :code:`modify_coords`: (Optional, Default: :code:`None`)
       The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
       before the coordinate exchange, which is generally required in REXEE simulations for multiple serial mutations.
