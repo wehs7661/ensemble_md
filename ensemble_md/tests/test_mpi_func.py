@@ -17,9 +17,6 @@ import pytest
 from mpi4py import MPI
 from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
 
-current_path = os.path.dirname(os.path.abspath(__file__))
-input_path = os.path.join(current_path, "data")
-
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
@@ -40,10 +37,6 @@ def params_dict():
         'working_dir': 'ensemble_md/tests/data',
     }
     yield REXEE_dict
-
-    # Remove the file after the unit test is done.
-    if os.path.isfile('params.yaml') is True:
-        os.remove('params.yaml')
 
     # Remove the file after the unit test is done.
     if os.path.isfile('params.yaml') is True:
@@ -125,12 +118,13 @@ def test_run_grompp(params_dict):
             assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_0/mdout.mdp') is True
 
             # Here we check if the command executed was what we expected
-            mdp = f'{REXEE.working_dir}/sim_{i}/iteration_0/mdout.mdp'
+            mdp = f'{REXEE.working_dir}/sim_{i}/iteration_0/expanded.mdp'
             gro = params_dict['gro']
             top = params_dict['top']
             tpr = f'{REXEE.working_dir}/sim_{i}/iteration_0/sys_EE.tpr'
             mdout = f'{REXEE.working_dir}/sim_{i}/iteration_0/mdout.mdp'
-            cmd = f'{REXEE.check_gmx_executable} -f {mdp} -c {gro} -p {top} -o {tpr} -po {mdout} -maxwarn 1'
+            cmd = f'{REXEE.gmx_executable} grompp -f {mdp} -c {gro} -p {top} -o {tpr} -po {mdout} -maxwarn 1'
+            print(cmd)
             assert get_gmx_cmd_from_output(mdout)[0] == cmd
 
             shutil.rmtree(f'{REXEE.working_dir}/sim_{i}')
