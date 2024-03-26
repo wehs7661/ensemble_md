@@ -14,11 +14,7 @@ import os
 import yaml
 import shutil
 import pytest
-from mpi4py import MPI
 from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
-
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
 
 
 @pytest.fixture
@@ -30,7 +26,7 @@ def params_dict():
         'gmx_executable': 'gmx',
         'gro': 'ensemble_md/tests/data/sys.gro',
         'top': 'ensemble_md/tests/data/sys.top',
-        'mdp': 'ensemble_md/tests/data/expanded.mdp',
+        'mdp': 'ensemble_md/tests/data/mdp/expanded.mdp',
         'n_sim': 4,
         'n_iter': 10,
         's': 1,
@@ -50,6 +46,7 @@ def get_REXEE_instance(input_dict, yml_file='params.yaml'):
     with open(yml_file, 'w') as f:
         yaml.dump(input_dict, f)
     REXEE = ReplicaExchangeEE(yml_file)
+    print(os.path.abspath(yml_file))
     return REXEE
 
 
@@ -97,6 +94,10 @@ def get_gmx_cmd_from_output(output):
 
 @pytest.mark.mpi
 def test_run_grompp(params_dict):
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
     params_dict['grompp_args'] = {'-maxwarn': '1'}
 
     # Case 1: The first iteration, i.e., n = 0

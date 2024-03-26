@@ -98,3 +98,25 @@ class Test_MDP:
         mdp.write('test_2.mdp', skipempty=True)
         os.remove('test_1.mdp')
         os.remove('test_2.mdp')
+
+def test_compare_MDPs():
+    mdp_list = ['ensemble_md/tests/data/mdp/compare_1.mdp', 'ensemble_md/tests/data/mdp/compare_2.mdp', 'ensemble_md/tests/data/mdp/compare_3.mdp']
+    result_1 = gmx_parser.compare_MDPs(mdp_list[:2], print_diff=True)
+    result_2 = gmx_parser.compare_MDPs(mdp_list[1:], print_diff=True)
+    dict_1 = {}  # the first two are the same but just in different formats
+    dict_2 = {
+        'nstdhdl': [100, 10],
+        'wl_oneovert': [None, 'yes'],
+        'weight_equil_wl_delta': [None, 0.001],
+        'init_lambda_weights': [[0.0, 57.88597, 112.71883, 163.84425, 210.48097, 253.80261, 294.79849, 333.90408, 370.82669, 406.02515, 438.53116, 468.53751, 496.24649, 521.58417, 544.57404, 565.26697, 583.7337, 599.60651, 613.43958, 624.70471, 633.95947, 638.29785, 642.44977, 646.33551, 649.91626, 651.54779, 652.93359, 654.13263, 654.94073, 655.13086, 655.07239, 654.66443, 653.68683, 652.32123, 650.72308, 649.2381, 647.94586, 646.599, 645.52063, 643.99133], None],
+        'wl_ratio': [None, 0.7],
+        'lmc_weights_equil': [None, 'wl_delta'],
+        'lmc_stats': ['no', 'wang_landau'],
+        'wl_scale': [None, 0.8],
+        'init_wl_delta': [None, 10],
+        'lmc_seed': [None, -1],
+        'nstexpanded': [100, 10]
+    }
+
+    assert result_1 == dict_1
+    assert result_2 == dict_2
