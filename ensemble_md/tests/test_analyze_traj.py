@@ -31,6 +31,18 @@ def test_extract_state_traj():
     assert np.allclose(t, t_true)
 
 
+def test_stitch_time_series():
+    pass
+
+
+def test_convert_npy2xvg():
+    pass
+
+
+def test_stitch_time_series_for_sim():
+    pass
+
+
 def test_stitch_trajs():
     pass
 
@@ -51,5 +63,37 @@ def test_plot_state_hist():
     pass
 
 
+def test_calculate_hist_rmse():
+    pass
+
+
 def plot_transit_time():
+    pass
+
+
+def test_plot_g_vecs():
+    pass
+
+
+def test_get_swaps():
+    pass
+
+
+def test_plot_swaps():
+    pass
+
+
+def test_get_g_evolution():
+    pass
+
+
+def test_get_dg_evoluation():
+    pass
+
+
+def test_plot_dg_evolution():
+    pass
+
+
+def test_get_delta_w_updates():
     pass

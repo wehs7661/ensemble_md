@@ -557,7 +557,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
     return hist_data
 
 
-def calculate_hist_rmse(hist_data, state_ranges):
+def calc_hist_rmse(hist_data, state_ranges):
     """
     Calculates the RMSE of accumulated histogram counts of the state index. The reference
     is determined by assuming all alchemical states have equal chances to be visited, i.e.
