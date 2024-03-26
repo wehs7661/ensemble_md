@@ -106,6 +106,7 @@ def test_run_grompp(params_dict):
 
     if rank == 0:
         for i in range(params_dict['n_sim']):
+            # Here we use the template mdp file since this is mainly for testing the function, not the GROMACS command.
             os.makedirs(f'{REXEE.working_dir}/sim_{i}/iteration_{n}')
             shutil.copy(REXEE.mdp, f'{REXEE.working_dir}/sim_{i}/iteration_{n}/expanded.mdp')
 
@@ -130,4 +131,30 @@ def test_run_grompp(params_dict):
             shutil.rmtree(f'{REXEE.working_dir}/sim_{i}')
 
     # Case 2: Other iterations, i.e., n != 0
-    # More to come ...
+    n = 1  # For swap_pattern, we stick with [1, 0, 2, 3]
+    REXEE = get_REXEE_instance(params_dict)
+    if rank == 0:
+        for i in range(params_dict['n_sim']):
+            os.makedirs(f'{REXEE.working_dir}/sim_{i}/iteration_{n}')
+            os.makedirs(f'{REXEE.working_dir}/sim_{i}/iteration_{n-1}')
+            shutil.copy(REXEE.mdp, f'{REXEE.working_dir}/sim_{i}/iteration_{n}/expanded.mdp')
+            shutil.copy(REXEE.gro, f'{REXEE.working_dir}/sim_{i}/iteration_{n-1}/confout.gro')
+
+    REXEE._run_grompp(n, swap_pattern)
+
+    # Check if the output files are generated, then clean up
+    if rank == 0:
+        for i in range(params_dict['n_sim']):
+            assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_1/sys_EE.tpr') is True
+            assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_1/mdout.mdp') is True
+
+            # Here we check if the command executed was what we expected
+            mdp = f'{REXEE.working_dir}/sim_{i}/iteration_1/expanded.mdp'
+            gro = f'{REXEE.working_dir}/sim_{swap_pattern[i]}/iteration_0/confout.gro'
+            top = params_dict['top']
+            tpr = f'{REXEE.working_dir}/sim_{i}/iteration_1/sys_EE.tpr'
+            mdout = f'{REXEE.working_dir}/sim_{i}/iteration_1/mdout.mdp'
+            cmd = f'{REXEE.gmx_executable} grompp -f {mdp} -c {gro} -p {top} -o {tpr} -po {mdout} -maxwarn 1'
+            assert get_gmx_cmd_from_output(mdout)[0] == cmd
+
+            shutil.rmtree(f'{REXEE.working_dir}/sim_{i}')
