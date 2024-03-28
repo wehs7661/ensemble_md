@@ -158,6 +158,7 @@ def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
     n_sim = len(files)      # number of replicas
     n_iter = len(files[0])  # number of iterations per replica
     trajs = [[] for i in range(n_sim)]
+    t_last = None    # just for checking the continuity of the trajectory
     for i in range(n_sim):
         for j in range(n_iter):
             if dhdl:
@@ -171,13 +172,14 @@ def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
 
             if j != 0:
                 # Check the continuity of the trajectory
-                if traj[0] != trajs[i][-1] or t[0] != trajs[i][-1]:
+                if traj[0] != trajs[i][-1] or t[0] != t_last:
                     err_str = f'The first frame of iteration {j} in replica {i} is not continuous with the last frame of the previous iteration.'  # noqa: E501
                     err_str += f'Please check files {files[i][j - 1]} and {files[i][j]}.'
                     raise ValueError(err_str)
                 
                 traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
             trajs[i].extend(traj)
+            t_last = t[-1]
 
     # Save the trajectories as an NPY file if desired
     if save is True:
