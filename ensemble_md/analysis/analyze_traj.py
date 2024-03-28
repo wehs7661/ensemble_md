@@ -109,7 +109,7 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
             if j != 0:
                 # Check the continuity of the trajectory
                 if traj[0] != val_last or t[0] != t_last:
-                    err_str = f'The first frame of iteration {j} of starting configuration {i} is not continuous with the last frame of the previous iteration. '
+                    err_str = f'The first frame of iteration {j} of starting configuration {i} is not continuous with the last frame of the previous iteration. '  # noqa: E501
                     err_str += f'Please check files {files_sorted[i][j - 1]} and {files_sorted[i][j]}.'
                     raise ValueError(err_str)
 
@@ -118,7 +118,7 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
 
             if j != 0:
                 traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
-            
+
             trajs[i].extend(traj)
 
     if save_npy is True:
@@ -135,7 +135,7 @@ def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
     Stitches the state-space/CV-space time series in the same replica/simulation folder.
     That is, the output time series is contributed by multiple different trajectories (initiated by
     different starting configurations) to a certain alchemical range.
-    
+
     Parameters
     ----------
     files : list
@@ -188,7 +188,7 @@ def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
 
             if j != 0:
                 traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
-            
+
             trajs[i].extend(traj)
 
     # Save the trajectories as an NPY file if desired
