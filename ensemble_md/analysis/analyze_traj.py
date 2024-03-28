@@ -124,7 +124,7 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
     return trajs
 
 
-def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
+def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
     """
     Stitches the state-space/CV-space time series in the same replica/simulation folder.
     That is, the output time series is contributed by multiple different trajectories (initiated by
@@ -136,9 +136,6 @@ def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=T
         A list of lists of file names of GROMACS DHDL files or general GROMACS XVG files
         or PLUMED output files. Specifically, :code:`files[i]` should be a list containing
         the files of interest from all iterations in replica :code:`i`. The files should be sorted naturally.
-    shifts : list
-        A list of values for shifting the state indices for each replica. The length of the list
-        should be equal to the number of replicas. This is only needed when :code:`dhdl=True`.
     dhdl : bool
         Whether the input files are GROMACS dhdl files, in which case trajectories of global alchemical indices
         will be generated. If :code:`dhdl=False`, the input files must be readable by `numpy.loadtxt` assuming that
@@ -169,8 +166,8 @@ def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=T
                 traj = np.loadtxt(files[i][j], comments=['#', '@'])[:, col_idx]
                 t = np.loadtxt(files[i][j], comments=['#', '@'])[:, 0]
 
-            if dhdl:
-                traj = list(np.array(traj) + shifts[i])
+            # Note that there is no need to shift the indices for the same replica, which same the same set of states
+            # traj = list(np.array(traj) + shifts[i])
 
             if j != 0:
                 # Check the continuity of the trajectory
