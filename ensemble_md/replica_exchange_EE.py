@@ -241,6 +241,9 @@ class ReplicaExchangeEE:
         for i in params_str:
             if type(getattr(self, i)) != str:
                 raise ParameterError(f"The parameter '{i}' should be a string.")
+        self.working_dir = os.path.dirname(self.mdp)
+        if self.working_dir == '':
+            self.working_dir = '.'
 
         params_bool = ['verbose', 'rm_cpt', 'msm', 'free_energy', 'subsampling_avg', 'w_combine']
         for i in params_bool:
@@ -268,12 +271,21 @@ class ReplicaExchangeEE:
                         raise ParameterError("Each number specified in 'add_swappables' should be a non-negative integer.")  # noqa: E501
 
         if self.mdp_args is not None:
+            # Note that mdp_args is a dictionary including MDP parameters DIFFERING across replicas.
+            # The value of each key should be a list of length n_sim.
+            for val in self.mdp_args.values():
+                if not isinstance(val, list):
+                    raise ParameterError("The values specified in 'mdp_args' should be lists.")
+
+                if len(set(val)) == 1:
+                    raise ParameterError("MDP parameters set by 'mdp_args' should differ across at least two replicas.")  # noqa: E501
+
             for key in self.mdp_args.keys():
                 if not isinstance(key, str):
                     raise ParameterError("All keys specified in 'mdp_args' should be strings.")
                 else:
                     if '-' in key:
-                        raise ParameterError("Parameters specified in 'mdp_args' must use underscores in place of hyphens.")  # noqa: E501
+                        raise ParameterError("ensemble_md convention: Parameters specified in 'mdp_args' must use underscores in place of hyphens.")  # noqa: E501
             for val_list in self.mdp_args.values():
                 if len(val_list) != self.n_sim:
                     raise ParameterError("The number of values specified for each key in 'mdp_args' should be the same as the number of replicas.")  # noqa: E501
@@ -318,7 +330,7 @@ class ReplicaExchangeEE:
             self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
         if 'gen_vel' not in self.template or ('gen_vel' in self.template and self.template['gen_vel'] == 'no'):
-            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with detailed balance.')  # noqa: E501
+            self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.')  # noqa: E501
 
         if self.nst_sim % self.template['nstlog'] != 0:
             raise ParameterError(
@@ -330,16 +342,18 @@ class ReplicaExchangeEE:
 
         if self.template['nstexpanded'] % self.template['nstdhdl'] != 0:
             raise ParameterError(
-                'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
+                'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.')  # noqa: E501
 
         if self.mdp_args is not None:
-            if 'lmc_seed' in self.mdp_args and -1 not in self.mdp_args['lmc_seed']:
+            # Varying the following parameters may not make sense, but here we just avoid edge cases.
+            # We check these parameters as they could directly influence the correctness of the simulation.
+            if 'lmc_seed' in self.mdp_args and self.mdp_args['lmc_seed'] != [-1] * self.n_sim:
                 self.warnings.append('Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
-            if 'gen_seed' in self.mdp_args and -1 not in self.mdp_args['gen_seed']:
+            if 'gen_seed' in self.mdp_args and self.mdp_args['gen_seed'] != [-1] * self.n_sim:
                 self.warnings.append('Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.')  # noqa: E501
 
-            if 'gen_vel' in self.mdp_args and 'no' in self.mdp_args['gen_vel']:
+            if 'gen_vel' in self.mdp_args and self.mdp_args['gen_vel'] != ['yes'] * self.n_sim:
                 self.warnings.append('Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.')  # noqa: E501
 
             if 'nstlog' in self.mdp_args and sum(self.nst_sim % np.array(self.mdp_args['nstlog'])) != 0:
@@ -352,7 +366,7 @@ class ReplicaExchangeEE:
 
             if 'nstexpanded' in self.mdp_args and 'nstdhdl' in self.mdp_args and sum(np.array(self.mdp_args['nstexpanded']) % np.array(self.mdp_args['nstdhdl'])) != 0:  # noqa: E501
                 raise ParameterError(
-                    'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios might be wrong.')  # noqa: E501
+                    'In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.')  # noqa: E501
 
         if 'pull' in self.template and self.template['pull'] == 'yes':
             pull_ncoords = self.template['pull_ncoords']
@@ -361,9 +375,7 @@ class ReplicaExchangeEE:
                 if self.template[f'pull_coord{i+1}_geometry'] == 'distance':
                     if self.template[f'pull_coord{i+1}_start'] == 'yes':
                         self.set_ref_dist.append(True)  # starting from the second iteration, set pull_coord*_init.
-                        if 'pull_nstxout' not in self.template:
-                            self.warnings.append('A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.')  # noqa: E501
-                        if self.template['pull_nstxout'] == 0:
+                        if 'pull_nstxout' not in self.template or self.template['pull_nstxout'] == 0:
                             self.warnings.append('A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.')  # noqa: E501
                     else:
                         self.set_ref_dist.append(False)  # Here we assume that the user know what reference distance to use.  # noqa: E501
@@ -450,7 +462,7 @@ class ReplicaExchangeEE:
                     self.gmx_version = line.split()[-1]
                     break
         except subprocess.CalledProcessError:
-            print(f"{self.gmx_executable} is not available on this system.")
+            print(f"{self.gmx_executable} is not available.")
         except Exception as e:
             print(f"An error occurred:\n{e}")
 
@@ -583,15 +595,23 @@ class ReplicaExchangeEE:
 
         return MDP
 
-    def get_ref_dist(self):
+    def get_ref_dist(self, pullx_file=None):
         """
         Gets the reference distance(s) to use starting from the second iteration if distance restraint(s) are used.
         Specifically, a reference distance determined here is the initial COM distance between the pull groups
         in the input GRO file. This function initializes the attribute :code:`ref_dist`.
+
+        Parameter
+        ---------
+        pullx_file : str
+            The path to the pullx file whose initial value will be used as the reference distance.
+            Usually, this should be the path of the pullx file of the first iteration. The default
+            is :code:`sim_0/iteration_0/pullx.xvg`.
         """
+        if pullx_file is None:
+            pullx_file = f"{self.working_dir}/sim_0/iteration_0/pullx.xvg"
         if hasattr(self, 'set_ref_dist'):
             self.ref_dist = []
-            pullx_file = 'sim_0/iteration_0/pullx.xvg'
             for i in range(len(self.set_ref_dist)):
                 if self.set_ref_dist[i] is True:
                     # dist = list(extract_dataframe(pullx_file, headers=headers)[f'{i+1}'])[0]
@@ -891,6 +911,7 @@ class ReplicaExchangeEE:
                 # This should only happen when the method of exhaustive swaps is used.
                 if i == 0:
                     self.n_empty_swappable += 1
+                    print('No swap is proposed because there is no swappable pair at all.')
                 break
             else:
                 self.n_swap_attempts += 1
@@ -899,7 +920,7 @@ class ReplicaExchangeEE:
 
                 swap = ReplicaExchangeEE.propose_swap(swappables)
                 print(f'\nProposed swap: {swap}')
-                if swap == []:
+                if swap == []:  # the same as len(swappables) == 0, self.proposal must not be exhaustive if this line is reached.  # noqa: E501
                     self.n_empty_swappable += 1
                     print('No swap is proposed because there is no swappable pair at all.')
                     break  # no need to re-identify swappable pairs and draw new samples
@@ -1304,14 +1325,14 @@ class ReplicaExchangeEE:
             arguments = [self.gmx_executable, 'grompp']
 
             # Input files
-            mdp = f"sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
+            mdp = f"{self.working_dir}/sim_{i}/iteration_{n}/{self.mdp.split('/')[-1]}"
             if n == 0:
                 if isinstance(self.gro, list):
                     gro = f"{self.gro[i]}"
                 else:
                     gro = f"{self.gro}"
             else:
-                gro = f"sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files
+                gro = f"{self.working_dir}/sim_{swap_pattern[i]}/iteration_{n-1}/confout.gro"  # This effectively swap out GRO files  # noqa: E501
 
             if isinstance(self.top, list):
                 top = f"{self.top[i]}"
@@ -1323,8 +1344,8 @@ class ReplicaExchangeEE:
 
             # Add output file arguments
             arguments.extend([
-                "-o", f"sim_{i}/iteration_{n}/sys_EE.tpr",
-                "-po", f"sim_{i}/iteration_{n}/mdout.mdp"
+                "-o", f"{self.working_dir}/sim_{i}/iteration_{n}/sys_EE.tpr",
+                "-po", f"{self.working_dir}/sim_{i}/iteration_{n}/mdout.mdp"
             ])
 
             # Add additional arguments if any
@@ -1378,7 +1399,7 @@ class ReplicaExchangeEE:
         if rank == 0:
             print('Running EXE simulations ...')
         if rank < self.n_sim:
-            os.chdir(f'sim_{rank}/iteration_{n}')
+            os.chdir(f'{self.working_dir}/sim_{rank}/iteration_{n}')
             returncode, stdout, stderr = utils.run_gmx_cmd(arguments)
             if returncode != 0:
                 print(f'Error on rank {rank} (return code: {returncode}):\n{stderr}')

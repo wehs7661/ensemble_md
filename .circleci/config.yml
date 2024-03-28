@@ -53,9 +53,13 @@ jobs:
           name: Run unit tests
           command: |
             source $HOME/pkgs/bin/GMXRC
-            pip3 install pytest 
+            pip3 install pytest
+            pip3 install pytest-mpi
             pip3 install pytest-cov
             pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
+            # COVERAGE_FILE=.coverage_1 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
+            # COVERAGE_FILE=.coverage_2 mpirun -np 4 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/test_mpi_func.py --with-mpi
+            # coverage combine .coverage_*
 
       - run:
           name: CodeCov

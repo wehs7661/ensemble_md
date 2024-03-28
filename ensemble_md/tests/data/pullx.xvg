@@ -1,0 +1,28 @@
+# This file was created Thu Feb 15 02:05:13 2024
+# Created by:
+#          :-) GROMACS - gmx mdrun, 2022.5-dev-20230428-fdf57150ad (-:
+# 
+# Executable:   /jet/home/wehs7661/pkgs/gromacs/2022.5/bin/gmx
+# Data prefix:  /jet/home/wehs7661/pkgs/gromacs/2022.5
+# Working dir:  /ocean/projects/bio230014p/wehs7661/EEXE_experiments/CB7-10/complex/REXEE/fixed/Group_1/test_1/rep_1/sim_0/iteration_0
+# Command line:
+#   gmx mdrun -s sys_EE.tpr -nt 16 -ntmpi 1
+# gmx mdrun is part of G R O M A C S:
+#
+# GROwing Monsters And Cloning Shrimps
+#
+@    title "Pull COM"
+@    xaxis  label "Time (ps)"
+@    yaxis  label "Position (nm)"
+@TYPE xy
+@ view 0.15, 0.15, 0.75, 0.85
+@ legend on
+@ legend box on
+@ legend loctype view
+@ legend 0.78, 0.8
+@ legend length 2
+@ s0 legend "1"
+@ s1 legend "1 ref"
+0.0000  0.428422        0.428422
+2.0000  0.457696        0.428422
+4.0000  0.374694        0.428422
