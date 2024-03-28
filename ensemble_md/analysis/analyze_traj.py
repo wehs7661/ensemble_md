@@ -103,7 +103,7 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
                     t = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, 0]  # only used if save_xvg is True
             else:
                 # Starting from the 2nd iteration, we get rid of the first time frame the first
-                # frame of iteration n+1 the is the same as the last frame of iteration n
+                # frame of iteration n+1 is the same as the last frame of iteration n
                 if dhdl:
                     traj, t = extract_state_traj(files_sorted[i][j])
                     traj, t = traj[1:], t[1:]
@@ -124,39 +124,12 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
     return trajs
 
 
-def convert_npy2xvg(trajs, dt, subsampling=1):
-    """
-    Convert a :code:`state_trajs.npy` or :code:`cv_trajs.npy` file to :math:`N_{\text{rep}}` XVG files
-    that have two columns: time (ps) and state index.
-
-    Parameters
-    ----------
-    trajs : ndarray
-        The state-space or CV-space trajectories read from :code:`state_trajs.npy` or :code:`cv_trajs.npy`.
-    dt : float
-        The time interval (in ps) between consecutive frames of the trajectories.
-    subsampling : int
-        The stride for subsampling the time series. The default is 1.
-    """
-    n_configs = len(trajs)
-    for i in range(n_configs):
-        traj = trajs[i]
-        t = np.arange(len(traj)) * dt
-        headers = ['This file was created by ensemble_md']
-        if 'int' in str(traj.dtype):
-            headers.extend(['Time (ps) v.s. State index'])
-            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%4.0f'])  # noqa: E501
-        else:
-            headers.extend(['Time (ps) v.s. CV'])
-            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%8.6f'])  # noqa: E501
-
-
 def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
     """
     Stitches the state-space/CV-space time series in the same replica/simulation folder.
     That is, the output time series is contributed by multiple different trajectories (initiated by
     different starting configurations) to a certain alchemical range.
-
+    
     Parameters
     ----------
     files : list
@@ -191,14 +164,21 @@ def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=T
     for i in range(n_sim):
         for j in range(n_iter):
             if dhdl:
-                traj, _ = extract_state_traj(files[i][j])
+                traj, t = extract_state_traj(files[i][j])
             else:
                 traj = np.loadtxt(files[i][j], comments=['#', '@'])[:, col_idx]
+                t = np.loadtxt(files[i][j], comments=['#', '@'])[:, 0]
 
             if dhdl:
                 traj = list(np.array(traj) + shifts[i])
 
             if j != 0:
+                # Check the continuity of the trajectory
+                if traj[0] != trajs[i][-1] or t[0] != trajs[i][-1]:
+                    err_str = f'The first frame of iteration {j} in replica {i} is not continuous with the last frame of the previous iteration.'  # noqa: E501
+                    err_str += f'Please check files {files[i][j - 1]} and {files[i][j]}.'
+                    raise ValueError(err_str)
+                
                 traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
             trajs[i].extend(traj)
 
@@ -245,6 +225,33 @@ def stitch_trajs(gmx_executable, files, rep_trajs):
         returncode, stdout, stderr = utils.run_gmx_cmd(arguments)
         if returncode != 0:
             print(f'Error with return code: {returncode}):\n{stderr}')
+
+
+def convert_npy2xvg(trajs, dt, subsampling=1):
+    """
+    Convert a :code:`state_trajs.npy` or :code:`cv_trajs.npy` file to :math:`N_{\text{rep}}` XVG files
+    that have two columns: time (ps) and state index.
+
+    Parameters
+    ----------
+    trajs : ndarray
+        The state-space or CV-space trajectories read from :code:`state_trajs.npy` or :code:`cv_trajs.npy`.
+    dt : float
+        The time interval (in ps) between consecutive frames of the trajectories.
+    subsampling : int
+        The stride for subsampling the time series. The default is 1.
+    """
+    n_configs = len(trajs)
+    for i in range(n_configs):
+        traj = trajs[i]
+        t = np.arange(len(traj)) * dt
+        headers = ['This file was created by ensemble_md']
+        if 'int' in str(traj.dtype):
+            headers.extend(['Time (ps) v.s. State index'])
+            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%4.0f'])  # noqa: E501
+        else:
+            headers.extend(['Time (ps) v.s. CV'])
+            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%8.6f'])  # noqa: E501
 
 
 def traj2transmtx(traj, N, normalize=True):
@@ -336,7 +343,7 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_prefix='Trajectory'):
+def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None, title_prefix='Trajectory'):
     """
     Plots the time series of state index.
 
@@ -405,7 +412,6 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_pre
             linewidth = 1  # this is the default
 
         # Finally, plot the trajectories
-        linewidth = 1  # this is the default
         plt.plot(x[::stride], trajs[i][::stride], color=colors[i], linewidth=linewidth)
         if dt is None:
             plt.xlabel('MC moves')
