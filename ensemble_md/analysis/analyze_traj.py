@@ -485,6 +485,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
     hist_data = []
     lower_bound, upper_bound = -0.5, n_states - 0.5
     for traj in trajs:
+        # bins for different traj in trajs should be the same
         hist, bins = np.histogram(traj, bins=np.arange(lower_bound, upper_bound + 1, 1))
         hist_data.append(hist)
     if save_hist is True:
@@ -510,6 +511,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
         y_max = 0
         for i in range(n_configs):
             max_count = np.max(bottom + hist_data[i])
+            print(max_count)
             if max_count > y_max:
                 y_max = max_count
             plt.bar(
