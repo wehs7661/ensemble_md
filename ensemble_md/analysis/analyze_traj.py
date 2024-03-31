@@ -10,8 +10,10 @@
 """
 The :obj:`.analyze_traj` module provides methods for analyzing trajectories in REXEE.
 """
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import chain
 from matplotlib.ticker import MaxNLocator
 
 from alchemlyb.parsing.gmx import _get_headers as get_headers
@@ -511,7 +513,6 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
         y_max = 0
         for i in range(n_configs):
             max_count = np.max(bottom + hist_data[i])
-            print(max_count)
             if max_count > y_max:
                 y_max = max_count
             plt.bar(
@@ -678,12 +679,13 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                 last_visited = k
 
         # Here we figure out the round-trip time from t_0k and t_k0.
-        if len(t_0k) != len(t_k0):   # then it must be len(t_0k) = len(t_k0) + 1 or len(t_k0) = len(t_0k) + 1, so we drop the last element of the larger list  # noqa: E501
-            if len(t_0k) > len(t_k0):
-                t_0k.pop()
+        t_0k_, t_k0_ = copy.deepcopy(t_0k), copy.deepcopy(t_k0)
+        if len(t_0k_) != len(t_k0_):   # then it must be len(t_0k) = len(t_k0) + 1 or len(t_k0) = len(t_0k) + 1, so we drop the last element of the larger list  # noqa: E501
+            if len(t_0k_) > len(t_k0_):
+                t_0k_.pop()
             else:
-                t_k0.pop()
-        t_roundtrip = list(np.array(t_0k) + np.array(t_k0))
+                t_k0_.pop()
+        t_roundtrip = list(np.array(t_0k_) + np.array(t_k0_))
 
         if end_0_found is True and end_k_found is True:
             if dt is not None:
@@ -711,7 +713,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             t_roundtrip_avg.append(np.mean(t_roundtrip))
 
             if len(t_0k) + len(t_k0) + len(t_roundtrip) > 0:  # i.e. not all are empty
-                if sci is False and np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
+                flattened_list = list(chain.from_iterable([t_0k, t_k0, t_roundtrip]))
+                if sci is False and np.max(flattened_list) >= 10000:
                     sci = True
         else:
             t_0k_list.append([])
@@ -742,7 +745,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             for i in range(len(t_list)):    # t_list[i] is the list for trajectory i
                 plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Trajectory {i}', marker=marker)
 
-            if max(max((t_list))) >= 10000:
+            flattened_t_list = list(chain.from_iterable(t_list))
+            if np.max(flattened_t_list) >= 10000:
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             plt.xlabel('Event index')
             plt.ylabel(f'{y_labels[t]}')
