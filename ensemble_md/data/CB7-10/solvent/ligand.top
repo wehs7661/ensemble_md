@@ -1,0 +1,15 @@
+#include "amber03.ff/forcefield.itp"
+#include "/ocean/projects/bio230014p/wehs7661/EEXE_experiments/CB7-10/complex/Prep/Topology/itp_files/10atomtypes.itp"
+#include "/ocean/projects/bio230014p/wehs7661/EEXE_experiments/CB7-10/complex/Prep/Topology/itp_files/10_GMX.itp"
+#include "amber03.ff/tip3p.itp"
+#include "amber03.ff/ions.itp"
+
+
+[ system ]
+10.acpype only with solvent in water
+
+[ molecules ]
+; Compound        #nmols
+MOL                 1
+SOL         1691
+CL               3

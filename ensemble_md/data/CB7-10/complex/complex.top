@@ -1,0 +1,15 @@
+#include "amber03.ff/forcefield.itp"
+#include "/ocean/projects/bio230014p/wehs7661/EEXE_experiments/CB7-10/complex/Prep/Topology/itp_files/10atomtypes.itp"
+#include "/ocean/projects/bio230014p/wehs7661/EEXE_experiments/CB7-10/complex/Prep/Topology/itp_files/cucurbit_7_uril_GMX.itp"
+#include "/ocean/projects/bio230014p/wehs7661/EEXE_experiments/CB7-10/complex/Prep/Topology/itp_files/10_GMX.itp"
+#include "amber03.ff/tip3p.itp"
+#include "amber03.ff/ions.itp"
+
+[ system ]
+Complex of CB7 and 10.acpype with solvent in water
+
+[ molecules ]
+HOS     1
+MOL     1
+SOL         2711
+CL               3
