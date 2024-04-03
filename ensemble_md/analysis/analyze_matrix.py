@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from ensemble_md.utils.exceptions import ParseError
 from ensemble_md.utils.exceptions import ParameterError
+from ensmeble_md.analysis import analyze_traj
 
 
 def calc_transmtx(log_file, expanded_ensemble=True):
@@ -122,23 +123,59 @@ def calc_equil_prob(trans_mtx):
     return equil_prob
 
 
-def calc_spectral_gap(trans_mtx, atol=1e-8):
+def synthesize_transmtx(trans_mtx, n_frames=100000):
     """
-    Calculates the spectral gap of the input transition matrix.
+    Synthesizes a mock transition matrix by calculating the underlying equilibrium probability
+    of the input transition matrix, synthesizing a trajectory by drawing samples from the equilibrium
+    distribution, and calculating the transition matrix from the trajectory.
+
+    Parameters
+    ----------
+    trans_mtx: np.ndarray
+        The input transition matrix.
+    n_frames: int
+        The number of frames of the synthesized trajectory from which the mock transition matrix is calculated.
+
+    Returns
+    -------
+    syn_mtx: np.ndarray
+        The synthesized transition matrix.
+    syn_traj: np.ndarray
+        The synthesized trajectory.
+    diff_mtx: np.ndarray
+        The absolute difference between the input and synthesized transition matrices.
+    """
+    equil_prob = calc_equil_prob(trans_mtx)
+    n_states = len(equil_prob)
+    syn_traj = np.random.choice(n_states, size=n_frames, p=equil_prob)
+    syn_mtx = analyze_traj.traj_to_transmtx(syn_traj, n_states)
+    diff_mtx = np.abs(trans_mtx - syn_mtx)
+
+    return syn_mtx, syn_traj, diff_mtx
+
+
+def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50):
+    """
+    Calculates the spectral gap of the input transition matrix and estimates its
+    uncertainty using the bootstrap method.
 
     Parameters
     ----------
     trans_mtx : np.ndarray
-        The input state transition matrix
+        The input transition matrix
     atol: float
         The absolute tolerance for checking the sum of columns and rows.
+    n_bootstrap: int
+        The number of bootstrap iterations for uncertainty estimation.
 
     Returns
     -------
     spectral_gap : float
-        The spectral gap of the input transitio n matrix
+        The spectral gap of the input transitio n matrix.
+    spectral_gap_err : float
+        The estimated uncertainty of the spectral gap.
     eig_vals : list
-        The list of eigenvalues
+        The list of eigenvalues.
     """
     check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1, atol=atol) for i in range(len(trans_mtx))])
     check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1, atol=atol) for i in range(len(trans_mtx))])
@@ -159,7 +196,27 @@ def calc_spectral_gap(trans_mtx, atol=1e-8):
 
     spectral_gap = np.abs(eig_vals[0]) - np.abs(eig_vals[1])
 
-    return spectral_gap, eig_vals
+    # Estimate the uncertainty of the spectral gap
+    spectral_gap_list = []
+    n_performed = 0
+    while n_performed < n_bootstrap:
+        mtx_boot = synthesize_transmtx(trans_mtx)[0]
+        check_row_boot = sum([np.isclose(np.sum(mtx_boot[i]), 1, atol=atol) for i in range(len(mtx_boot))])
+        check_col_boot = sum([np.isclose(np.sum(mtx_boot[:, i]), 1, atol=atol) for i in range(len(mtx_boot))])
+        if check_row_boot == len(mtx_boot):
+            eig_vals_boot, _ = np.linalg.eig(mtx_boot.T)
+        elif check_col_boot == len(mtx_boot):
+            eig_vals_boot, _ = np.linalg.eig(mtx_boot)
+        else:
+            continue
+
+        n_performed += 1
+        eig_vals_boot = np.sort(eig_vals_boot)[::-1]
+        spectral_gap_list.append(np.abs(eig_vals_boot[0]) - np.abs(eig_vals_boot[1]))
+
+    spectral_gap_err = np.std(spectral_gap_list, ddof=1)
+
+    return spectral_gap, spectral_gap_err, eig_vals
 
 
 def split_transmtx(trans_mtx, n_sim, n_sub):

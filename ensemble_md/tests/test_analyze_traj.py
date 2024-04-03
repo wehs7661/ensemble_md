@@ -530,10 +530,10 @@ def test_plot_transit_time(mock_plt):
 
 @patch('ensemble_md.analysis.analyze_traj.plt')
 def test_plot_g_vecs(mock_plt):
-    cmap = mock_plt.cm.ocean
+    # cmap = mock_plt.cm.ocean
     mock_ax = MagicMock()
     mock_plt.gca.return_value = mock_ax
-    
+
     # Case 1: Short g_vecs with refs and with plot_rmse = True
     g_vecs = np.array([[0, 10, 20, 30], [0, 8, 18, 28]])
     refs = np.array([0, 8, 18, 28])
@@ -557,7 +557,6 @@ def test_plot_g_vecs(mock_plt):
 
     assert mock_plt.ylabel.call_args_list[0][0] == ('Alchemical weight (kT)',)
     assert mock_plt.ylabel.call_args_list[1][0] == ('RMSE in the alchemical weights (kT)',)
-
 
     # Case 2: Long g_vecs
 
