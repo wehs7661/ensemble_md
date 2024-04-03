@@ -528,8 +528,38 @@ def test_plot_transit_time(mock_plt):
     mock_plt.savefig.assert_not_called()
 
 
-def test_plot_g_vecs():
-    pass
+@patch('ensemble_md.analysis.analyze_traj.plt')
+def test_plot_g_vecs(mock_plt):
+    cmap = mock_plt.cm.ocean
+    mock_ax = MagicMock()
+    mock_plt.gca.return_value = mock_ax
+    
+    # Case 1: Short g_vecs with refs and with plot_rmse = True
+    g_vecs = np.array([[0, 10, 20, 30], [0, 8, 18, 28]])
+    refs = np.array([0, 8, 18, 28])
+    refs_err = np.array([0.1, 0.1, 0.1, 0.1])
+
+    analyze_traj.plot_g_vecs(g_vecs, refs, refs_err, plot_rmse=True)
+
+    mock_plt.figure.assert_called()
+    mock_plt.plot.assert_called()
+    mock_plt.xlabel.assert_called_with('Iteration index')
+    # mock_plt.ylabel.assert_called_any('Alchemical weight (kT)')
+    mock_plt.xlim.assert_called()
+    mock_plt.grid.assert_called()
+    mock_plt.legend.assert_called_with(loc='center left', bbox_to_anchor=(1, 0.2))
+
+    assert mock_plt.figure.call_count == 2
+    assert mock_plt.plot.call_count == 4
+    assert mock_plt.axhline.call_count == 3
+    assert mock_plt.fill_between.call_count == 3
+    assert mock_plt.grid.call_count == 2
+
+    assert mock_plt.ylabel.call_args_list[0][0] == ('Alchemical weight (kT)',)
+    assert mock_plt.ylabel.call_args_list[1][0] == ('RMSE in the alchemical weights (kT)',)
+
+
+    # Case 2: Long g_vecs
 
 
 def test_get_swaps():

@@ -694,7 +694,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                 t_k0 = list(np.array(t_k0) * dt)  # units: ps
                 t_roundtrip = list(np.array(t_roundtrip) * dt)  # units: ps
                 if len(t_0k) + len(t_k0) + len(t_roundtrip) > 0:  # i.e. not all are empty
-                    if np.max([t_0k, t_k0, t_roundtrip]) > t_max:
+                    
+                    if np.max(list(chain.from_iterable([t_0k, t_k0, t_roundtrip]))) > t_max:
                         t_max = np.max([t_0k, t_k0, t_roundtrip])
 
                     if t_max >= 10000:
@@ -745,8 +746,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             for i in range(len(t_list)):    # t_list[i] is the list for trajectory i
                 plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Trajectory {i}', marker=marker)
 
-            flattened_t_list = list(chain.from_iterable(t_list))
-            if np.max(flattened_t_list) >= 10000:
+            if np.max(list(chain.from_iterable(t_list))) >= 10000:
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             plt.xlabel('Event index')
             plt.ylabel(f'{y_labels[t]}')
