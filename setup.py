@@ -64,8 +64,8 @@ setup(
 
     # Optional include package data to ship with your package
     # Customize MANIFEST.in if the general case does not suit your needs
-    # Comment out this line to prevent the files from being packaged with your software
-    include_package_data=True,
+    # Comment out this line or set include_package_data to False to prevent the files from being packaged with your software
+    include_package_data=False,
 
     # Allows `setup.py test` to work correctly with pytest
     setup_requires=[] + pytest_runner,
