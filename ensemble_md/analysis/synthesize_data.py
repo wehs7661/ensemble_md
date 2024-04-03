@@ -12,7 +12,7 @@ The :obj:`.synthesize_data` module provides methods for synthesizing REXEE data.
 """
 import numpy as np
 from ensemble_md.analysis import analyze_traj
-from ensemble_md.analysis import analyze_matrix
+
 
 def synthesize_traj(trans_mtx, n_frames=100000, method='transmtx', start=0, seed=None):
     """
@@ -38,14 +38,15 @@ def synthesize_traj(trans_mtx, n_frames=100000, method='transmtx', start=0, seed
         The starting state of the synthesized trajectory if the method is :code:`transmtx`. The default value is 0,
         i.e., the first state. This parameter is ignored if the method is :code:`equil_prob`.
     seed: int
-        The seed for the random number generator. The default value is None, i.e., the seed is not set. 
-    
+        The seed for the random number generator. The default value is None, i.e., the seed is not set.
+
     Returns
     -------
     syn_traj: np.ndarray
         The synthesized trajectory.
     """
-    np.random.seed(seed)  # If seed is None, the seed is not set.
+    if seed is not None:
+        np.random.seed(seed)
     N = len(trans_mtx)  # Can be the number of states or replicas depending on the type of the input mtraix
     if method == 'equil_prob':
         equil_prob = analyze_traj.calc_equil_prob(trans_mtx)
@@ -65,8 +66,8 @@ def synthesize_transmtx(trans_mtx, n_frames=100000, seed=None):
     """
     Synthesizes a normalized transition matrix similar to the input transition matrix by first
     generating a trajectory using :code:`synthesize_traj` with :code:`method='transmtx'` and then
-    calculating the transition matrix from the synthesized trajectory. 
-    
+    calculating the transition matrix from the synthesized trajectory.
+
     Parameters
     ----------
     trans_mtx: np.ndarray
@@ -75,8 +76,8 @@ def synthesize_transmtx(trans_mtx, n_frames=100000, seed=None):
         The number of frames of the synthesized trajectory from which the mock transition matrix is calculated.
         The default value is 100000.
     seed: int
-        The seed for the random number generator. The default value is None, i.e., the seed is not set. 
-    
+        The seed for the random number generator. The default value is None, i.e., the seed is not set.
+
     Returns
     -------
     syn_mtx: np.ndarray
@@ -87,7 +88,7 @@ def synthesize_transmtx(trans_mtx, n_frames=100000, seed=None):
         The input transition matrix subtracted by the synthesized transition matrix.
     """
     N = len(trans_mtx)  # can be the number of states or number of replicas depending on mtx_type
-    
+
     # Note that here we just use the default values (method='transmtx' and start=0) for synthesize_traj, so that
     # the synthesized matrix will be similar to the input one. (If equil_prob is used, the resulting matrix may
     # be very different from the input one, though the equilibrium probabilities and spectral gap should be similar.)
@@ -98,4 +99,3 @@ def synthesize_transmtx(trans_mtx, n_frames=100000, seed=None):
     diff_mtx = trans_mtx - syn_mtx
 
     return syn_mtx, syn_traj, diff_mtx
-

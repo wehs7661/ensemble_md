@@ -123,7 +123,7 @@ def calc_equil_prob(trans_mtx):
     return equil_prob
 
 
-def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50):
+def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50, bootstrap_seed=None):
     """
     Calculates the spectral gap of the input transition matrix and estimates its
     uncertainty using the bootstrap method.
@@ -136,6 +136,8 @@ def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50):
         The absolute tolerance for checking the sum of columns and rows.
     n_bootstrap: int
         The number of bootstrap iterations for uncertainty estimation.
+    bootstrap_seed: int
+        The seed for the random number generator for the bootstrap method.
 
     Returns
     -------
@@ -169,7 +171,7 @@ def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50):
     spectral_gap_list = []
     n_performed = 0
     while n_performed < n_bootstrap:
-        mtx_boot = synthesize_data.synthesize_transmtx(trans_mtx)[0]
+        mtx_boot = synthesize_data.synthesize_transmtx(trans_mtx, seed=bootstrap_seed)[0]
         check_row_boot = sum([np.isclose(np.sum(mtx_boot[i]), 1, atol=atol) for i in range(len(mtx_boot))])
         check_col_boot = sum([np.isclose(np.sum(mtx_boot[:, i]), 1, atol=atol) for i in range(len(mtx_boot))])
         if check_row_boot == len(mtx_boot):
@@ -217,6 +219,7 @@ def calc_t_relax(spectral_gap, exchange_period, spectral_gap_err=None):
         t_relax_err = exchange_period * spectral_gap_err / spectral_gap ** 2  # error propagation
 
     return t_relax, t_relax_err
+
 
 def split_transmtx(trans_mtx, n_sim, n_sub):
     """
