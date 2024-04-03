@@ -122,40 +122,6 @@ def calc_equil_prob(trans_mtx):
     return equil_prob
 
 
-def synthesize_transmtx(trans_mtx, mtx_type='rep', n_frames=100000):
-    """
-    Synthesizes a mock transition matrix by calculating the underlying equilibrium probability
-    of the input transition matrix, synthesizing a trajectory by drawing samples from the equilibrium
-    distribution, and calculating the transition matrix from the trajectory.
-
-    Parameters
-    ----------
-    trans_mtx: np.ndarray
-        The input transition matrix.
-    mtx_type: str
-        The type of the input transition matrix. It can be either 'rep' (replica-space transition matrix)
-        or 'state' (state-space transition matrix).
-    n_frames: int
-        The number of frames of the synthesized trajectory from which the mock transition matrix is calculated.
-
-    Returns
-    -------
-    syn_mtx: np.ndarray
-        The synthesized transition matrix.
-    syn_traj: np.ndarray
-        The synthesized trajectory.
-    diff_mtx: np.ndarray
-        The absolute difference between the input and synthesized transition matrices.
-    """
-    equil_prob = calc_equil_prob(trans_mtx)
-    n_states = len(equil_prob)
-    syn_traj = np.random.choice(n_states, size=n_frames, p=equil_prob.reshape(n_states))
-    syn_mtx = analyze_traj.traj2transmtx(syn_traj, n_states)
-    diff_mtx = np.abs(trans_mtx - syn_mtx)
-
-    return syn_mtx, syn_traj, diff_mtx
-
-
 def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50):
     """
     Calculates the spectral gap of the input transition matrix and estimates its
