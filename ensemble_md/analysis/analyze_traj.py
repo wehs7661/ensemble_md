@@ -694,7 +694,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                 t_k0 = list(np.array(t_k0) * dt)  # units: ps
                 t_roundtrip = list(np.array(t_roundtrip) * dt)  # units: ps
                 if len(t_0k) + len(t_k0) + len(t_roundtrip) > 0:  # i.e. not all are empty
-                    
+
                     if np.max(list(chain.from_iterable([t_0k, t_k0, t_roundtrip]))) > t_max:
                         t_max = np.max([t_0k, t_k0, t_roundtrip])
 

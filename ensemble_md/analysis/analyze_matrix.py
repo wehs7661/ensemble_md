@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from ensemble_md.utils.exceptions import ParseError
 from ensemble_md.utils.exceptions import ParameterError
+from ensemble_md.analysis import synthesize_data
 
 
 def calc_transmtx(log_file, expanded_ensemble=True):
@@ -122,23 +123,30 @@ def calc_equil_prob(trans_mtx):
     return equil_prob
 
 
-def calc_spectral_gap(trans_mtx, atol=1e-8):
+def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50, bootstrap_seed=None):
     """
-    Calculates the spectral gap of the input transition matrix.
+    Calculates the spectral gap of the input transition matrix and estimates its
+    uncertainty using the bootstrap method.
 
     Parameters
     ----------
     trans_mtx : np.ndarray
-        The input state transition matrix
+        The input transition matrix
     atol: float
         The absolute tolerance for checking the sum of columns and rows.
+    n_bootstrap: int
+        The number of bootstrap iterations for uncertainty estimation.
+    bootstrap_seed: int
+        The seed for the random number generator for the bootstrap method.
 
     Returns
     -------
     spectral_gap : float
-        The spectral gap of the input transitio n matrix
+        The spectral gap of the input transitio n matrix.
+    spectral_gap_err : float
+        The estimated uncertainty of the spectral gap.
     eig_vals : list
-        The list of eigenvalues
+        The list of eigenvalues.
     """
     check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1, atol=atol) for i in range(len(trans_mtx))])
     check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1, atol=atol) for i in range(len(trans_mtx))])
@@ -159,7 +167,58 @@ def calc_spectral_gap(trans_mtx, atol=1e-8):
 
     spectral_gap = np.abs(eig_vals[0]) - np.abs(eig_vals[1])
 
-    return spectral_gap, eig_vals
+    # Estimate the uncertainty of the spectral gap
+    spectral_gap_list = []
+    n_performed = 0
+    while n_performed < n_bootstrap:
+        mtx_boot = synthesize_data.synthesize_transmtx(trans_mtx, seed=bootstrap_seed)[0]
+        check_row_boot = sum([np.isclose(np.sum(mtx_boot[i]), 1, atol=atol) for i in range(len(mtx_boot))])
+        check_col_boot = sum([np.isclose(np.sum(mtx_boot[:, i]), 1, atol=atol) for i in range(len(mtx_boot))])
+        if check_row_boot == len(mtx_boot):
+            eig_vals_boot, _ = np.linalg.eig(mtx_boot.T)
+        elif check_col_boot == len(mtx_boot):
+            eig_vals_boot, _ = np.linalg.eig(mtx_boot)
+        else:
+            continue
+
+        n_performed += 1
+        eig_vals_boot = np.sort(eig_vals_boot)[::-1]
+        spectral_gap_list.append(np.abs(eig_vals_boot[0]) - np.abs(eig_vals_boot[1]))
+
+    spectral_gap_err = np.std(spectral_gap_list, ddof=1)
+
+    return spectral_gap, spectral_gap_err, eig_vals
+
+
+def calc_t_relax(spectral_gap, exchange_period, spectral_gap_err=None):
+    """
+    Calculates the relaxation time given the spectral gap of a transition matrix of interest.
+    By defintion, the relaxation time is equal to the exchange period divided by the spectral gap.
+
+    Parameters
+    ----------
+    spectral_gap: float
+        The input spectral gap.
+    exchange_period : float
+        The exchange period of the simulation in ps.
+    spectral_gap_err : float
+        The uncertainty of the spectral gap, which is used to calculate the uncertainty of the relaxation time using
+        error propagation.
+
+    Returns
+    -------
+    t_relax : float
+        The relaxation time in ps.
+    t_relax_err : float
+        The uncertainty of the relaxation time in ps.
+    """
+    t_relax = exchange_period / spectral_gap
+    t_relax_err = None
+
+    if spectral_gap_err is not None:
+        t_relax_err = exchange_period * spectral_gap_err / spectral_gap ** 2  # error propagation
+
+    return t_relax, t_relax_err
 
 
 def split_transmtx(trans_mtx, n_sim, n_sub):
