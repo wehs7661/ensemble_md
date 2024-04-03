@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from ensemble_md.utils.exceptions import ParseError
 from ensemble_md.utils.exceptions import ParameterError
+from ensemble_md.analysis import synthesize_data
 
 
 def calc_transmtx(log_file, expanded_ensemble=True):
@@ -168,7 +169,7 @@ def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50):
     spectral_gap_list = []
     n_performed = 0
     while n_performed < n_bootstrap:
-        mtx_boot = synthesize_transmtx(trans_mtx)[0]
+        mtx_boot = synthesize_data.synthesize_transmtx(trans_mtx)[0]
         check_row_boot = sum([np.isclose(np.sum(mtx_boot[i]), 1, atol=atol) for i in range(len(mtx_boot))])
         check_col_boot = sum([np.isclose(np.sum(mtx_boot[:, i]), 1, atol=atol) for i in range(len(mtx_boot))])
         if check_row_boot == len(mtx_boot):
@@ -186,6 +187,36 @@ def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50):
 
     return spectral_gap, spectral_gap_err, eig_vals
 
+
+def calc_t_relax(spectral_gap, exchange_period, spectral_gap_err=None):
+    """
+    Calculates the relaxation time given the spectral gap of a transition matrix of interest.
+    By defintion, the relaxation time is equal to the exchange period divided by the spectral gap.
+
+    Parameters
+    ----------
+    spectral_gap: float
+        The input spectral gap.
+    exchange_period : float
+        The exchange period of the simulation in ps.
+    spectral_gap_err : float
+        The uncertainty of the spectral gap, which is used to calculate the uncertainty of the relaxation time using
+        error propagation.
+
+    Returns
+    -------
+    t_relax : float
+        The relaxation time in ps.
+    t_relax_err : float
+        The uncertainty of the relaxation time in ps.
+    """
+    t_relax = exchange_period / spectral_gap
+    t_relax_err = None
+
+    if spectral_gap_err is not None:
+        t_relax_err = exchange_period * spectral_gap_err / spectral_gap ** 2  # error propagation
+
+    return t_relax, t_relax_err
 
 def split_transmtx(trans_mtx, n_sim, n_sub):
     """
