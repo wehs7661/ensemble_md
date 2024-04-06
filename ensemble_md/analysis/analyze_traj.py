@@ -753,7 +753,7 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             plt.grid()
             plt.legend()
             if fig_prefix is None:
-                plt.savefig(f'{folder}/{fig_names[t]}')
+                plt.savefig(f'{folder}/{fig_names[t]}', dpi=600)
             else:
                 plt.savefig(f'{folder}/{fig_prefix}_{fig_names[t]}', dpi=600)
 
@@ -800,9 +800,9 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
     """
     # n_iter, n_state = g_vecs.shape[0], g_vecs.shape[1]
     g_vecs = np.transpose(g_vecs)
-    n_sim = len(g_vecs)
+    n_states = len(g_vecs)
     cmap = plt.cm.ocean  # other good options are CMRmap, gnuplot, terrain, turbo, brg, etc.
-    colors = [cmap(i) for i in np.arange(n_sim) / n_sim]
+    colors = [cmap(i) for i in np.arange(n_states) / n_states]
     plt.figure()
     for i in range(1, len(g_vecs)):
         if len(g_vecs[0]) < 100:

@@ -52,10 +52,19 @@ def synthesize_traj(trans_mtx, n_frames=100000, method='transmtx', start=0, seed
         equil_prob = analyze_traj.calc_equil_prob(trans_mtx)
         syn_traj = np.random.choice(N, size=n_frames, p=equil_prob.reshape(N))
     elif method == 'transmtx':
+        check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1, atol=1e-8) for i in range(len(trans_mtx))])
+        check_col = sum([np.isclose(np.sum(trans_mtx[:, i]), 1, atol=1e-8) for i in range(len(trans_mtx))])
+        if check_row == N:
+            mtx = trans_mtx
+        elif check_col == N:
+            mtx = trans_mtx.T
+        else:
+            raise ValueError('The input matrix is not normalized')
+
         syn_traj = np.zeros(n_frames, dtype=int)
         syn_traj[0] = start
         for i in range(1, n_frames):
-            syn_traj[i] = np.random.choice(N, p=trans_mtx[syn_traj[i-1]])
+            syn_traj[i] = np.random.choice(N, p=mtx[syn_traj[i-1]])
     else:
         raise ValueError(f'Invalid method: {method}. The method must be either "transmtx" or "equil_prob".')
 
