@@ -94,32 +94,21 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
             files_sorted[i].append(files[rep_trajs[i][j]][j])
 
     # Then, stitch the trajectories for each starting configuration
+    # Unlike stitch_time_series_for_sim, there is no way to check the continuity.
     trajs = [[] for i in range(n_configs)]  # for each starting configuration
-    t_last, val_last = None, None    # just for checking the continuity of the trajectory
     for i in range(n_configs):
         for j in range(n_iter):
             if dhdl:
-                traj, t = extract_state_traj(files_sorted[i][j])
+                traj, _ = extract_state_traj(files_sorted[i][j])
             else:
                 traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx]
-                t = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, 0]
 
             # Shift the indices so that global indices are used.
             shift_idx = rep_trajs[i][j]
             traj = list(np.array(traj) + shifts[shift_idx])
 
-            if j != 0:
-                # Check the continuity of the trajectory
-                if traj[0] != val_last or t[0] != t_last:
-                    err_str = f'The first frame of iteration {j} of starting configuration {i} is not continuous with the last frame of the previous iteration. '  # noqa: E501
-                    err_str += f'Please check files {files_sorted[i][j - 1]} and {files_sorted[i][j]}.'
-                    raise ValueError(err_str)
-
-            t_last = t[-1]
-            val_last = traj[-1]
-
-            if j != 0:
-                traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
+            if j != n_iter - 1:
+                traj = traj[:-1]
 
             trajs[i].extend(traj)
 
@@ -200,7 +189,7 @@ def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
     return trajs
 
 
-def stitch_trajs(gmx_executable, files, rep_trajs):
+def stitch_xtc_trajs(gmx_executable, files, rep_trajs):
     """
     Demuxes GROMACS trajectories from different replicas into individual continuous trajectories.
 

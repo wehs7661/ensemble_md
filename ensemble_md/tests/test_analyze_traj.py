@@ -58,6 +58,60 @@ def test_extract_state_traj():
 
 
 def test_stitch_time_series():
+    folder = os.path.join(input_path, 'dhdl/simulation_example')
+    files = [[f'{folder}/sim_{i}/iteration_{j}/dhdl.xvg' for j in range(3)] for i in range(4)]
+    rep_trajs = np.array([[0, 0, 1], [1, 1, 0], [2, 2, 2], [3, 3, 3]])
+    shifts = [0, 1, 2, 3]
+
+    trajs = analyze_traj.stitch_time_series(files, rep_trajs, shifts)
+    assert trajs[0] == [
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1, 1,
+        1, 1, 1, 1, 2, 2, 2, 1, 2, 2, 3, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5
+    ]
+    assert trajs[1] == [
+        1, 1, 2, 3, 3, 3, 2, 2, 1, 1, 1, 1, 1, 2, 3, 2, 1, 1, 1, 1,
+        2, 2, 1, 1, 1, 1, 1, 2, 3, 2, 1, 1, 1, 1, 2, 3, 3, 3, 2, 2,
+        1, 1, 1, 0, 1, 1, 1, 0, 1, 2, 0, 2, 1, 1, 0, 0, 1, 0, 1, 0, 1
+    ]
+    assert trajs[2] == [
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2, 3, 3,
+        3, 3, 3, 3, 3, 3, 3, 2, 3, 2, 3, 3, 3, 2, 2, 3, 4, 3, 3, 2,
+        3, 3, 2, 2, 2, 3, 4, 3, 4, 4, 5, 5, 5, 5, 4, 3, 4, 3, 3, 4, 4
+    ]
+    assert trajs[3] == [
+        3, 3, 3, 3, 3, 3, 3, 5, 4, 4, 5, 4, 4, 5, 4, 5, 5, 5, 4, 5,
+        4, 4, 5, 4, 5, 5, 4, 5, 5, 5, 4, 5, 5, 4, 5, 4, 5, 4, 5, 5,
+        6, 6, 6, 5, 6, 6, 6, 5, 5, 5, 5, 5, 4, 4, 5, 6, 6, 6, 7, 6, 7
+    ]
+
+    assert os.path.exists('state_trajs.npy')
+    os.remove('state_trajs.npy')
+
+
+def test_stitch_time_series_for_sim():
+    # Set up files for testing
+    for sim in range(2):
+        for iteration in range(2):
+            target_dir = f'ensemble_md/tests/data/stitch_test/sim_{sim}/iteration_{iteration}'
+            os.makedirs(target_dir)
+            shutil.copy(f'ensemble_md/tests/data/dhdl/dhdl_{sim * 2 + iteration}.xvg', f'{target_dir}/dhdl.xvg')
+            save_and_exclude(f'{target_dir}/dhdl.xvg', 40)  # just keep the first 10 frames
+
+    # files = [[f'ensemble_md/tests/data/stitch_test/sim_{i}/iteration_{j}/dhdl_short.xvg' for j in range(2)] for i in range(2)]  # noqa: E501
+    # shifts = [1, 1]
+
+    # More to come ...
+    # trajs_test = analyze_traj.stitch_time_series_for_sim(files, shifts, save=True)
+    # trajs_expected = [
+    #     [0, 0, 3, 1, 4, 4, 5, 4, 5, 5, 4]
+    # ]
+
+    # Clean up
+    shutil.rmtree('ensemble_md/tests/data/stitch_test')
+
+
+def test_stitch_xtc_trajs():
     pass
 
 
@@ -113,32 +167,6 @@ def test_convert_npy2xvg():
     os.remove('traj_0.xvg')
     os.remove('traj_1.xvg')
     os.chdir('../../../')
-
-
-def test_stitch_time_series_for_sim():
-    # Set up files for testing
-    for sim in range(2):
-        for iteration in range(2):
-            target_dir = f'ensemble_md/tests/data/stitch_test/sim_{sim}/iteration_{iteration}'
-            os.makedirs(target_dir)
-            shutil.copy(f'ensemble_md/tests/data/dhdl/dhdl_{sim * 2 + iteration}.xvg', f'{target_dir}/dhdl.xvg')
-            save_and_exclude(f'{target_dir}/dhdl.xvg', 40)  # just keep the first 10 frames
-
-    # files = [[f'ensemble_md/tests/data/stitch_test/sim_{i}/iteration_{j}/dhdl_short.xvg' for j in range(2)] for i in range(2)]  # noqa: E501
-    # shifts = [1, 1]
-
-    # More to come ...
-    # trajs_test = analyze_traj.stitch_time_series_for_sim(files, shifts, save=True)
-    # trajs_expected = [
-    #     [0, 0, 3, 1, 4, 4, 5, 4, 5, 5, 4]
-    # ]
-
-    # Clean up
-    shutil.rmtree('ensemble_md/tests/data/stitch_test')
-
-
-def test_stitch_trajs():
-    pass
 
 
 def test_traj2transmtx():
