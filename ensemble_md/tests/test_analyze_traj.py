@@ -12,7 +12,6 @@ Unit tests for the module analyze_traj.py.
 """
 import os
 import pytest
-import shutil
 import numpy as np
 from unittest.mock import patch, MagicMock
 from ensemble_md.analysis import analyze_traj
@@ -128,7 +127,7 @@ def test_stitch_time_series_for_sim():
     trajs = analyze_traj.stitch_time_series_for_sim(files, shifts)
 
     trajs[0] == [
-        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1,
         1, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1, 1,
         1, 1, 1, 0, 1, 1, 1, 0, 1, 2, 0, 2, 1, 1, 0, 0, 1, 0, 1, 0, 1
     ]
@@ -160,7 +159,7 @@ def test_stitch_time_series_for_sim():
     os.rename(f'{folder}/sim_2/iteration_1/dhdl.xvg', f'{folder}/sim_2/iteration_1/dhdl_temp.xvg')
     os.rename(f'{folder}/sim_2/iteration_1/dhdl_short.xvg', f'{folder}/sim_2/iteration_1/dhdl.xvg')
 
-    match_str = 'The first frame of iteration 2 in replica 2 is not continuous with the last frame of the previous iteration. '
+    match_str = 'The first frame of iteration 2 in replica 2 is not continuous with the last frame of the previous iteration. '  # noqa: E501
     match_str += f'Please check files {folder}/sim_2/iteration_1/dhdl.xvg and {folder}/sim_2/iteration_2/dhdl.xvg'
     with pytest.raises(ValueError, match=match_str):
         trajs = analyze_traj.stitch_time_series_for_sim(files, shifts)
@@ -788,7 +787,22 @@ def test_plot_g_vecs(mock_plt):
 
 
 def test_get_swaps():
-    pass
+    input_file = os.path.join('ensemble_md/tests/data', 'run_REXEE_log.txt')
+    proposed_swaps, accepted_swaps = analyze_traj.get_swaps(input_file)
+
+    assert proposed_swaps == [
+        {0: 0, 1: 3, 2: 1, 3: 0, 4: 0},
+        {1: 2, 2: 2, 3: 0, 4: 1, 5: 1},
+        {2: 3, 3: 3, 4: 2, 5: 0, 6: 0},
+        {3: 0, 4: 1, 5: 0, 6: 3, 7: 0},
+    ]
+
+    assert accepted_swaps == [
+        {0: 0, 1: 2, 2: 1, 3: 0, 4: 0},
+        {1: 2, 2: 1, 3: 0, 4: 0, 5: 0},
+        {2: 2, 3: 0, 4: 0, 5: 0, 6: 0},
+        {3: 0, 4: 0, 5: 0, 6: 0, 7: 0},
+    ]
 
 
 def test_plot_swaps():

@@ -105,7 +105,7 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
                 traj = list(np.array(traj) + shifts[shift_idx])
             else:
                 traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx]
-            
+
             if j != n_iter - 1:
                 traj = traj[:-1]
 
@@ -180,7 +180,7 @@ def stitch_time_series_for_sim(files, shifts, dhdl=True, col_idx=-1, save=True):
                 traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
 
             trajs[i].extend(traj)
-        
+
         # All segments for the same replica should have the same shift
         trajs[i] = list(np.array(trajs[i]) + shifts[i])
 
@@ -835,7 +835,7 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
 
 def get_swaps(REXEE_log='run_REXEE_log.txt'):
     """
-    For each replica, identifies the states where exchanges were proposed and accepted.
+    For each replica, identifies the states involved in proposed and accepted exchanges.
     (Todo: We should be able to only use :code:`rep_trajs.npy` and :code:`state_trajs.npy`
     instead of parsing the REXEE log file to reach the same goal.)
 
