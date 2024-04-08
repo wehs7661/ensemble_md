@@ -11,6 +11,7 @@
 Unit tests for the module analyze_traj.py.
 """
 import os
+import pytest
 import shutil
 import numpy as np
 from unittest.mock import patch, MagicMock
@@ -63,6 +64,7 @@ def test_stitch_time_series():
     rep_trajs = np.array([[0, 0, 1], [1, 1, 0], [2, 2, 2], [3, 3, 3]])
     shifts = [0, 1, 2, 3]
 
+    # Test 1
     trajs = analyze_traj.stitch_time_series(files, rep_trajs, shifts)
     assert trajs[0] == [
         0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1,
@@ -88,31 +90,108 @@ def test_stitch_time_series():
     assert os.path.exists('state_trajs.npy')
     os.remove('state_trajs.npy')
 
+    # Test 2: Treat the dhdl files as other types of xvg files
+    # Here the time series will be read as is and not shifting is done.
+    trajs = analyze_traj.stitch_time_series(files, rep_trajs, dhdl=False, col_idx=1)
+
+    assert trajs[0] == [
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1, 1,
+        0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 2, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4
+    ]
+    assert trajs[1] == [
+        0, 0, 1, 2, 2, 2, 1, 1, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0,
+        1, 1, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 1, 2, 2, 2, 1, 1,
+        1, 1, 1, 0, 1, 1, 1, 0, 1, 2, 0, 2, 1, 1, 0, 0, 1, 0, 1, 0, 1
+    ]
+    assert trajs[2] == [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 0, 1, 2, 1, 1, 0,
+        1, 1, 0, 0, 0, 1, 2, 1, 2, 2, 3, 3, 3, 3, 2, 1, 2, 1, 1, 2, 2
+    ]
+    assert trajs[3] == [
+        0, 0, 0, 0, 0, 0, 0, 2, 1, 1, 2, 1, 1, 2, 1, 2, 2, 2, 1, 2,
+        1, 1, 2, 1, 2, 2, 1, 2, 2, 2, 1, 2, 2, 1, 2, 1, 2, 1, 2, 2,
+        3, 3, 3, 2, 3, 3, 3, 2, 2, 2, 2, 2, 1, 1, 2, 3, 3, 3, 4, 3, 4
+    ]
+
+    assert os.path.exists('cv_trajs.npy')
+    os.remove('cv_trajs.npy')
+
 
 def test_stitch_time_series_for_sim():
-    # Set up files for testing
-    for sim in range(2):
-        for iteration in range(2):
-            target_dir = f'ensemble_md/tests/data/stitch_test/sim_{sim}/iteration_{iteration}'
-            os.makedirs(target_dir)
-            shutil.copy(f'ensemble_md/tests/data/dhdl/dhdl_{sim * 2 + iteration}.xvg', f'{target_dir}/dhdl.xvg')
-            save_and_exclude(f'{target_dir}/dhdl.xvg', 40)  # just keep the first 10 frames
+    folder = os.path.join(input_path, 'dhdl/simulation_example')
+    files = [[f'{folder}/sim_{i}/iteration_{j}/dhdl.xvg' for j in range(3)] for i in range(4)]
+    shifts = [0, 1, 2, 3]
 
-    # files = [[f'ensemble_md/tests/data/stitch_test/sim_{i}/iteration_{j}/dhdl_short.xvg' for j in range(2)] for i in range(2)]  # noqa: E501
-    # shifts = [1, 1]
+    # Test 1
+    trajs = analyze_traj.stitch_time_series_for_sim(files, shifts)
 
-    # More to come ...
-    # trajs_test = analyze_traj.stitch_time_series_for_sim(files, shifts, save=True)
-    # trajs_expected = [
-    #     [0, 0, 3, 1, 4, 4, 5, 4, 5, 5, 4]
-    # ]
+    trajs[0] == [
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 
+        1, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1, 1,
+        1, 1, 1, 0, 1, 1, 1, 0, 1, 2, 0, 2, 1, 1, 0, 0, 1, 0, 1, 0, 1
+    ]
 
-    # Clean up
-    shutil.rmtree('ensemble_md/tests/data/stitch_test')
+    trajs[1] == [
+        1, 1, 2, 3, 3, 3, 2, 2, 1, 1, 1, 1, 1, 2, 3, 2, 1, 1, 1, 1,
+        2, 2, 1, 1, 1, 1, 1, 2, 3, 2, 1, 1, 1, 1, 2, 3, 3, 3, 2, 2,
+        1, 1, 1, 0, 1, 1, 1, 0, 1, 2, 0, 2, 1, 1, 0, 0, 1, 0, 1, 0, 1
+    ]
+
+    trajs[2] == [
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2, 3, 3,
+        3, 3, 3, 3, 3, 3, 3, 2, 3, 2, 3, 3, 3, 2, 2, 3, 4, 3, 3, 2,
+        3, 3, 2, 2, 2, 3, 4, 3, 4, 4, 5, 5, 5, 5, 4, 3, 4, 3, 3, 4, 4
+    ]
+
+    trajs[3] == [
+        3, 3, 3, 3, 3, 3, 3, 5, 4, 4, 5, 4, 4, 5, 4, 5, 5, 5, 4, 5,
+        4, 4, 5, 4, 5, 5, 4, 5, 5, 5, 4, 5, 5, 4, 5, 4, 5, 4, 5, 5,
+        6, 6, 6, 5, 6, 6, 6, 5, 5, 5, 5, 5, 4, 4, 5, 6, 6, 6, 7, 6, 7
+    ]
+
+    assert os.path.exists('state_trajs_for_sim.npy')
+    os.remove('state_trajs_for_sim.npy')
+
+    # Test 2: Test for discontinuous time series
+    # Here, for sim_2, we exclude the last 5 lines for the dhdl.xvg file in iteration_1 to create a gap
+    save_and_exclude(f'{folder}/sim_2/iteration_1/dhdl.xvg', 5)
+    os.rename(f'{folder}/sim_2/iteration_1/dhdl.xvg', f'{folder}/sim_2/iteration_1/dhdl_temp.xvg')
+    os.rename(f'{folder}/sim_2/iteration_1/dhdl_short.xvg', f'{folder}/sim_2/iteration_1/dhdl.xvg')
+
+    match_str = 'The first frame of iteration 2 in replica 2 is not continuous with the last frame of the previous iteration. '
+    match_str += f'Please check files {folder}/sim_2/iteration_1/dhdl.xvg and {folder}/sim_2/iteration_2/dhdl.xvg'
+    with pytest.raises(ValueError, match=match_str):
+        trajs = analyze_traj.stitch_time_series_for_sim(files, shifts)
+
+    # Delete dhdl_short.xvg and rename dhdl_temp.xvg back to dhdl.xvg
+    os.remove(f'{folder}/sim_2/iteration_1/dhdl.xvg')
+    os.rename(f'{folder}/sim_2/iteration_1/dhdl_temp.xvg', f'{folder}/sim_2/iteration_1/dhdl.xvg')
 
 
-def test_stitch_xtc_trajs():
-    pass
+@patch('ensemble_md.analysis.analyze_traj.utils.run_gmx_cmd')
+def test_stitch_xtc_trajs(mock_gmx):
+    # Here we mock run_gmx_cmd so we don't need to call GROMACS and don't need example xtc files.
+    folder = os.path.join(input_path, 'dhdl/simulation_example')
+    files = [[f'{folder}/sim_{i}/iteration_{j}/md.xtc' for j in range(3)] for i in range(4)]
+    rep_trajs = np.array([[0, 0, 1], [1, 1, 0], [2, 2, 2], [3, 3, 3]])
+
+    mock_rtn, mock_stdout, mock_stderr = MagicMock(), MagicMock(), MagicMock()
+    mock_gmx.return_value = mock_rtn, mock_stdout, mock_stderr
+
+    analyze_traj.stitch_xtc_trajs('gmx', files, rep_trajs)
+
+    args_1 = ['gmx', 'trjcat', '-f', f'{folder}/sim_0/iteration_0/md.xtc', f'{folder}/sim_0/iteration_1/md.xtc', f'{folder}/sim_1/iteration_2/md.xtc', '-o', 'traj_0.xtc']  # noqa: E501
+    args_2 = ['gmx', 'trjcat', '-f', f'{folder}/sim_1/iteration_0/md.xtc', f'{folder}/sim_1/iteration_1/md.xtc', f'{folder}/sim_0/iteration_2/md.xtc', '-o', 'traj_1.xtc']  # noqa: E501
+    args_3 = ['gmx', 'trjcat', '-f', f'{folder}/sim_2/iteration_0/md.xtc', f'{folder}/sim_2/iteration_1/md.xtc', f'{folder}/sim_2/iteration_2/md.xtc', '-o', 'traj_2.xtc']  # noqa: E501
+    args_4 = ['gmx', 'trjcat', '-f', f'{folder}/sim_3/iteration_0/md.xtc', f'{folder}/sim_3/iteration_1/md.xtc', f'{folder}/sim_3/iteration_2/md.xtc', '-o', 'traj_3.xtc']  # noqa: E501
+
+    assert mock_gmx.call_count == 4
+    assert mock_gmx.call_args_list[0][0][0] == args_1
+    assert mock_gmx.call_args_list[1][0][0] == args_2
+    assert mock_gmx.call_args_list[2][0][0] == args_3
+    assert mock_gmx.call_args_list[3][0][0] == args_4
 
 
 def test_convert_npy2xvg():

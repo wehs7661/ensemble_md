@@ -100,13 +100,12 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
         for j in range(n_iter):
             if dhdl:
                 traj, _ = extract_state_traj(files_sorted[i][j])
+                # Shift the indices so that global indices are used.
+                shift_idx = rep_trajs[i][j]
+                traj = list(np.array(traj) + shifts[shift_idx])
             else:
                 traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx]
-
-            # Shift the indices so that global indices are used.
-            shift_idx = rep_trajs[i][j]
-            traj = list(np.array(traj) + shifts[shift_idx])
-
+            
             if j != n_iter - 1:
                 traj = traj[:-1]
 
@@ -121,7 +120,7 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
     return trajs
 
 
-def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
+def stitch_time_series_for_sim(files, shifts, dhdl=True, col_idx=-1, save=True):
     """
     Stitches the state-space/CV-space time series in the same replica/simulation folder.
     That is, the output time series is contributed by multiple different trajectories (initiated by
@@ -133,6 +132,9 @@ def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
         A list of lists of file names of GROMACS DHDL files or general GROMACS XVG files
         or PLUMED output files. Specifically, :code:`files[i]` should be a list containing
         the files of interest from all iterations in replica :code:`i`. The files should be sorted naturally.
+    shifts : list
+        A list of values for shifting the state indices for each replica. The length of the list
+        should be equal to the number of replicas. This is only needed when :code:`dhdl=True`.
     dhdl : bool
         Whether the input files are GROMACS dhdl files, in which case trajectories of global alchemical indices
         will be generated. If :code:`dhdl=False`, the input files must be readable by `numpy.loadtxt` assuming that
@@ -164,9 +166,6 @@ def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
                 traj = np.loadtxt(files[i][j], comments=['#', '@'])[:, col_idx]
                 t = np.loadtxt(files[i][j], comments=['#', '@'])[:, 0]
 
-            # Note that there is no need to shift the indices for the same replica, which same the same set of states
-            # traj = list(np.array(traj) + shifts[i])
-
             if j != 0:
                 # Check the continuity of the trajectory
                 if traj[0] != val_last or t[0] != t_last:
@@ -177,10 +176,13 @@ def stitch_time_series_for_sim(files, dhdl=True, col_idx=-1, save=True):
             t_last = t[-1]
             val_last = traj[-1]
 
-            if j != 0:
+            if j != n_iter - 1:
                 traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
 
             trajs[i].extend(traj)
+        
+        # All segments for the same replica should have the same shift
+        trajs[i] = list(np.array(trajs[i]) + shifts[i])
 
     # Save the trajectories as an NPY file if desired
     if save is True:
