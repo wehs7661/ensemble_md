@@ -835,7 +835,7 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
 
 def get_swaps(REXEE_log='run_REXEE_log.txt'):
     """
-    For each replica, identifies the states involved in proposed and accepted exchanges.
+    For each replica, identifies the states involved in proposed and accepted.
     (Todo: We should be able to only use :code:`rep_trajs.npy` and :code:`state_trajs.npy`
     instead of parsing the REXEE log file to reach the same goal.)
 
@@ -850,12 +850,12 @@ def get_swaps(REXEE_log='run_REXEE_log.txt'):
         A list of dictionaries showing where the swaps were proposed in
         each replica. Each dictionary (corresponding to one replica) have
         keys being the global state indices and values being the number of
-        proposed swaps that occurred in the state indicated by the key.
+        proposed swaps that involved the state indicated by the key.
     accepted_swaps : list
         A list of dictionaries showing where the swaps were accepted in
         each replica. Each dictionary (corresponding to one replica) have
         keys being the global state indices and values being the number of
-        accepted swaps that occurred in the state indicated by the key.
+        accepted swaps that involved the state indicated by the key.
     """
     f = open(REXEE_log, 'r')
     lines = f.readlines()
@@ -963,10 +963,16 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
         if i == n_sim - 1:
             bounds[1] += 0.5
         plt.fill_betweenx([y_min, y_max], x1=bounds[1] + 0.5, x2=bounds[0] - 0.5, color=colors[i], alpha=0.1, zorder=0)
+
     plt.xlim([lower_bound, upper_bound])
     # plt.ylim([y_min, y_max])
+
     plt.xlabel('State')
-    plt.ylabel(f'Number of {swap_type} swaps')
+    if swap_type == '':
+        plt.ylabel('Number of swaps')
+    else:
+        plt.ylabel(f'Number of {swap_type} swaps')
+
     plt.grid()
     plt.legend()
     plt.tight_layout()

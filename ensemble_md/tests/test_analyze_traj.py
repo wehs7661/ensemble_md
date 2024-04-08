@@ -805,8 +805,97 @@ def test_get_swaps():
     ]
 
 
-def test_plot_swaps():
-    pass
+@patch('ensemble_md.analysis.analyze_traj.plt')
+def test_plot_swaps(mock_plt):
+    swaps = [
+        {0: 0, 1: 3, 2: 1, 3: 0, 4: 0},
+        {1: 2, 2: 2, 3: 0, 4: 1, 5: 1},
+        {2: 3, 3: 3, 4: 2, 5: 0, 6: 0},
+        {3: 0, 4: 1, 5: 0, 6: 3, 7: 0},
+    ]
+
+    # Test 1: The case not specifying the swap_type
+    cmap = mock_plt.cm.ocean
+    colors = [cmap(i) for i in np.arange(8) / 8]
+    mock_fig, mock_ax = MagicMock(), MagicMock()
+    mock_plt.figure.return_value = mock_fig
+    mock_fig.add_subplot.return_value = mock_ax
+
+    mock_min, mock_max = MagicMock(), MagicMock()
+    mock_ax.get_ylim.return_value = (mock_min, mock_max)
+
+    analyze_traj.plot_swaps(swaps, stack=True)
+
+    mock_plt.figure.assert_called_once_with(figsize=(6.4, 4.8))
+    mock_fig.add_subplot.assert_called_once_with(111)
+    mock_plt.bar.assert_called()
+    mock_plt.xticks.assert_called_once_with(range(8))
+    mock_plt.fill_betweenx.assert_called()
+    mock_plt.xlim.assert_called_once_with([-0.5, 7.5])
+    mock_plt.xlabel.assert_called_once_with('State')
+    mock_plt.ylabel.assert_called_once_with('Number of swaps')
+    mock_plt.grid.assert_called_once()
+    mock_plt.legend.assert_called_once()
+    mock_plt.tight_layout.assert_called_once()
+    mock_plt.savefig.assert_called_once_with('swaps.png', dpi=600)
+
+    counts_list = [
+        [0, 3, 1, 0, 0, 0, 0, 0],
+        [0, 2, 2, 0, 1, 1, 0, 0],
+        [0, 0, 3, 3, 2, 0, 0, 0],
+        [0, 0, 0, 0, 1, 0, 3, 0],
+    ]
+    assert mock_plt.bar.call_count == 4
+    assert [mock_plt.bar.call_args_list[i][0][0] for i in range(4)] == [range(8)] * 4
+    assert [mock_plt.bar.call_args_list[i][0][1] for i in range(4)] == [counts_list[i] for i in range(4)]
+    assert mock_plt.bar.call_args_list[0][1] == {
+        'align': 'center',
+        'width': 1,
+        'color': colors[0],
+        'edgecolor': 'black',
+        'label': 'Replica 0',
+        'alpha': 0.5,
+        'bottom': [0, 0, 0, 0, 0, 0, 0, 0]
+    }
+    assert mock_plt.bar.call_args_list[1][1] == {
+        'align': 'center',
+        'width': 1,
+        'color': colors[1],
+        'edgecolor': 'black',
+        'label': 'Replica 1',
+        'alpha': 0.5,
+        'bottom': [0, 3, 1, 0, 0, 0, 0, 0]
+    }
+    assert mock_plt.bar.call_args_list[2][1] == {
+        'align': 'center',
+        'width': 1,
+        'color': colors[2],
+        'edgecolor': 'black',
+        'label': 'Replica 2',
+        'alpha': 0.5,
+        'bottom': [0, 5, 3, 0, 1, 1, 0, 0]
+    }
+    assert mock_plt.bar.call_args_list[3][1] == {
+        'align': 'center',
+        'width': 1,
+        'color': colors[3],
+        'edgecolor': 'black',
+        'label': 'Replica 3',
+        'alpha': 0.5,
+        'bottom': [0, 5, 6, 3, 3, 1, 0, 0]
+    }
+
+    # Below we only check the keyword arguments of the fill_betweenx calls
+    assert mock_plt.fill_betweenx.call_args_list[0][1] == {'x1': 4.5, 'x2': -1, 'color': colors[0], 'alpha': 0.1, 'zorder': 0}  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[1][1] == {'x1': 5.5, 'x2': 0.5, 'color': colors[1], 'alpha': 0.1, 'zorder': 0}  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[2][1] == {'x1': 6.5, 'x2': 1.5, 'color': colors[2], 'alpha': 0.1, 'zorder': 0}  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[3][1] == {'x1': 8, 'x2': 2.5, 'color': colors[3], 'alpha': 0.1, 'zorder': 0}  # noqa: E501
+
+    # Test 2: The case specifying the swap_type
+    mock_plt.reset_mock()
+    analyze_traj.plot_swaps(swaps, swap_type='proposed')
+    mock_plt.ylabel.assert_called_with('Number of proposed swaps')
+    mock_plt.savefig.assert_called_once_with('proposed_swaps.png', dpi=600)
 
 
 def test_get_g_evolution():
