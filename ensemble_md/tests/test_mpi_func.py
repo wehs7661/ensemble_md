@@ -209,5 +209,5 @@ def test_REXEE(params_dict):
             log = f'{REXEE.working_dir}/sim_{i}/iteration_0/md.log'
             cmd = f'{REXEE.gmx_executable} mdrun -s sys_EE.tpr -nsteps 10'
             assert get_gmx_cmd_from_output(log)[0] == cmd
-        
+
             shutil.rmtree(f'{REXEE.working_dir}/sim_{i}')
