@@ -1051,5 +1051,31 @@ def test_plot_dg_evolution(mock_fn, mock_plt):  # the outer decorator mock_plt s
     mock_plt.xlabel.assert_called_once_with('Time (ns)')
 
 
-def test_get_delta_w_updates():
-    pass
+@patch('ensemble_md.analysis.analyze_traj.plt')
+def test_get_delta_w_updates(mock_plt):
+    # Test 1
+    t_updates, delta_w_updates, equil = analyze_traj.get_delta_w_updates('ensemble_md/tests/data/log/case2_1.log', plot=True)  # noqa: E501
+    np.testing.assert_almost_equal(t_updates, [0, 0.00104, 0.00204])
+    assert delta_w_updates == [0.4, 0.32, 0.256]
+    assert equil is True
+
+    mock_plt.figure.assert_called_once()
+    mock_plt.plot.assert_called()
+    mock_plt.xlabel.assert_called_once_with('Time (ns)')
+    mock_plt.ylabel.assert_called_once_with(r'Wang-Landau incrementor ($k_{B}T$)')
+    mock_plt.grid.cassert_called_once()
+    mock_plt.savefig.assert_called_once_with('delta_w_updates.png', dpi=600)
+
+    assert mock_plt.plot.call_count == 4
+    assert mock_plt.text.call_count == 3
+    assert mock_plt.plot.call_args_list[0][0][0] == t_updates[:2]
+    assert mock_plt.plot.call_args_list[0][0][1] == [0.4, 0.4]
+    assert mock_plt.plot.call_args_list[1][0][0] == [t_updates[1], t_updates[1]]
+    assert mock_plt.plot.call_args_list[1][0][1] == [0.4, 0.32]
+    assert mock_plt.plot.call_args_list[2][0][0] == t_updates[1:]
+    assert mock_plt.plot.call_args_list[2][0][1] == [0.32, 0.32]
+    assert mock_plt.plot.call_args_list[3][0][0] == [0.00204, 0.00204]
+    assert mock_plt.plot.call_args_list[3][0][1] == [0.32, 0.256]
+    assert mock_plt.text.call_args_list[0][0] == (0.65, 0.95, 'init_wl_delta: 0.4')
+    assert mock_plt.text.call_args_list[1][0] == (0.65, 0.9, 'wl_scale: 0.8')
+    assert mock_plt.text.call_args_list[2][0] == (0.65, 0.85, 'wl_delta_cutoff: 0.3')

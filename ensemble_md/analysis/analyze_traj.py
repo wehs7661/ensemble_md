@@ -1172,8 +1172,8 @@ def get_delta_w_updates(log_file, plot=False):
     Returns
     -------
     t_updates : list
-        A list of time frames when the Wang-Landau incrementor is updated.
-    delta_updates : list
+        A list of time frames (in ns) when the Wang-Landau incrementor is updated.
+    delta_w_updates : list
         A list of the updated Wang-Landau incrementors. Should be the same
         length as :code:`t_updates`.
     equil : bool
@@ -1185,7 +1185,7 @@ def get_delta_w_updates(log_file, plot=False):
 
     # Get the parameters
     for l in lines:  # noqa: E741
-        if 'dt ' in l:
+        if ' dt ' in l:
             dt = float(l.split('=')[-1])
         if 'init-wl-delta ' in l:
             init_wl_delta = float(l.split('=')[-1])
@@ -1198,7 +1198,7 @@ def get_delta_w_updates(log_file, plot=False):
 
     # Start parsing the data
     n = -1
-    t_updates, delta_updates = [0], [init_wl_delta]
+    t_updates, delta_w_updates = [0], [init_wl_delta]
     for l in lines:  # noqa: E741
         n += 1
         if 'weights are now' in l:
@@ -1207,30 +1207,30 @@ def get_delta_w_updates(log_file, plot=False):
             # search the following 10 lines to find the Wang-Landau incrementor
             for i in range(10):
                 if 'Wang-Landau incrementor is:' in lines[n + i]:
-                    delta_updates.append(float(lines[n + i].split()[-1]))
+                    delta_w_updates.append(float(lines[n + i].split()[-1]))
                     break
         if 'Weights have equilibrated' in l:
             equil = True
             break
 
     if equil is True:
-        delta_updates.append(delta_updates[-1] * wl_scale)
+        delta_w_updates.append(delta_w_updates[-1] * wl_scale)
 
     # Plot the Wang-Landau incrementor as a function of time if requested
     # Note that between adjacen entries in t_updates, a horizontal line should be drawn.
     if plot is True:
         plt.figure()
         for i in range(len(t_updates) - 1):
-            plt.plot([t_updates[i], t_updates[i + 1]], [delta_updates[i], delta_updates[i]], c='C0')
-            plt.plot([t_updates[i + 1], t_updates[i + 1]], [delta_updates[i], delta_updates[i + 1]], c='C0')
+            plt.plot([t_updates[i], t_updates[i + 1]], [delta_w_updates[i], delta_w_updates[i]], c='C0')
+            plt.plot([t_updates[i + 1], t_updates[i + 1]], [delta_w_updates[i], delta_w_updates[i + 1]], c='C0')
 
         plt.text(0.65, 0.95, f'init_wl_delta: {init_wl_delta}', transform=plt.gca().transAxes)
-        plt.text(0.65, 0.9, f'wl-scale: {wl_scale}', transform=plt.gca().transAxes)
+        plt.text(0.65, 0.9, f'wl_scale: {wl_scale}', transform=plt.gca().transAxes)
         plt.text(0.65, 0.85, f'wl_delta_cutoff: {wl_delta_cutoff}', transform=plt.gca().transAxes)
 
         plt.xlabel('Time (ns)')
         plt.ylabel(r'Wang-Landau incrementor ($k_{B}T$)')
         plt.grid()
-        plt.savefig('delta_updates.png', dpi=600)
+        plt.savefig('delta_w_updates.png', dpi=600)
 
-    return t_updates, delta_updates, equil
+    return t_updates, delta_w_updates, equil
