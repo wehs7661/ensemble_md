@@ -1116,7 +1116,7 @@ def get_dg_evolution(log_files, start_state, end_state):
     return dg
 
 
-def plot_dg_evolution(log_files, start_state, end_state, start_idx=0, end_idx=-1, dt_log=2):
+def plot_dg_evolution(log_files, start_state, end_state, start_idx=None, end_idx=None, dt_log=2):
     """
     For weight-updating simulations, plots the time series of the weight
     difference (:math:`Δg = g_2-g_1`) between the specified states.
