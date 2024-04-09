@@ -56,10 +56,15 @@ jobs:
             pip3 install pytest
             pip3 install pytest-mpi
             pip3 install pytest-cov
+            
+            coverage run -m pytest -vv --disable-pytest-warnings --color=yes ensemble_md/tests
+            mpirun -np 4 coverage run --rcfile setup.cfg -m pytest ensemble_md/tests/test_mpi_func.py --with-mpi -vv --disable-pytest-warnings --color=yes  # this will generate multiple .coverage* files that can be combined
+            coverage combine  # This will combine multiple .coverage* files into a single .coverage file that will be uploaded and reported.
+
+            # Below are some old commands:
             # pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
-            COVERAGE_FILE=.coverage_1 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
-            COVERAGE_FILE=.coverage_2 mpirun -np 4 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/test_mpi_func.py --with-mpi
-            coverage combine .coverage_*
+            # COVERAGE_FILE=.coverage_1 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
+            # COVERAGE_FILE=.coverage_2 mpirun -np 4 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/test_mpi_func.py --with-mpi
 
       - run:
           name: CodeCov
