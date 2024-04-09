@@ -898,12 +898,129 @@ def test_plot_swaps(mock_plt):
     mock_plt.savefig.assert_called_once_with('proposed_swaps.png', dpi=600)
 
 
-def test_get_g_evolution():
-    pass
+@patch('ensemble_md.analysis.analyze_traj.np')
+def test_get_g_evolution(mock_np):
+    # Here instead of checking the values of g_vecs_avg and g_vecs_err, we check the inputs to np.mean and np.std
+
+    # Test 1: A standard case where two log files are passed with default parameters
+    g_vecs_all, g_vecs_avg, g_vecs_err = analyze_traj.get_g_evolution(
+        log_files=['ensemble_md/tests/data/log/EXE_0.log', 'ensemble_md/tests/data/log/EXE_1.log'],
+        start_state=0,
+        end_state=6
+    )
+    assert g_vecs_all == [
+        [0, 3.83101, 4.95736, 5.63808, 6.07220, 6.13408],
+        [0, 3.43101, 3.75736, 5.23808, 4.87220, 5.33408],
+        [0, 2.63101, 2.95736, 5.23808, 4.47220, 5.73408],
+        [0, 1.83101, 2.55736, 4.43808, 4.47220, 6.13408],
+        [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
+        [0, 0.72635, 0.80707, 1.44120, 2.10308, 4.03106],
+        [0, 0.72635, 1.30707, 1.44120, 2.10308, 4.53106],
+        [0, 0.72635, 2.80707, 2.94120, 4.10308, 6.53106],
+        [0, 1.72635, 2.30707, 2.44120, 5.10308, 6.53106],
+        [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
+    ]
+    assert g_vecs_avg is None
+    assert g_vecs_err is None
+
+    mock_np.mean.assert_not_called()
+    mock_np.std.assert_not_called()
+
+    # Test 2: Test the avg_frac parameter
+    mock_np.reset_mock()
+    _ = analyze_traj.get_g_evolution(
+        log_files=['ensemble_md/tests/data/log/EXE_0.log'],
+        start_state=0,
+        end_state=6,
+        avg_frac=0.5  # the last 2 out of 5 frames should be used
+    )
+
+    input_weights = np.array([[0, 1.83101, 2.55736, 4.43808, 4.47220, 6.13408], [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408]])  # noqa: E501
+
+    assert mock_np.mean.call_count == 1
+    assert mock_np.std.call_count == 1
+    np.testing.assert_array_equal(mock_np.mean.call_args_list[0][0][0], input_weights)
+    np.testing.assert_array_equal(mock_np.std.call_args_list[0][0][0], input_weights)
+    assert mock_np.mean.call_args_list[0][1] == {'axis': 0}
+    assert mock_np.std.call_args_list[0][1] == {'axis': 0, 'ddof': 1}
+
+    # Test 3: Test avg_from_last_update but with a log file where wl-delta was not updated
+    mock_np.reset_mock()
+    _ = analyze_traj.get_g_evolution(
+        ['ensemble_md/tests/data/log/EXE_0.log'],
+        start_state=0,
+        end_state=6,
+        avg_frac=0.5,  # here we check if this option is ignored
+        avg_from_last_update=True  # wl-delta was not updated in EXE_0.log so all weights will be used for mean/std
+    )
+
+    input_weights = [
+        [0, 3.83101, 4.95736, 5.63808, 6.07220, 6.13408],
+        [0, 3.43101, 3.75736, 5.23808, 4.87220, 5.33408],
+        [0, 2.63101, 2.95736, 5.23808, 4.47220, 5.73408],
+        [0, 1.83101, 2.55736, 4.43808, 4.47220, 6.13408],
+        [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
+    ]
+
+    assert mock_np.mean.call_count == 1
+    assert mock_np.std.call_count == 1
+    np.testing.assert_array_equal(mock_np.mean.call_args_list[0][0][0], input_weights)
+    np.testing.assert_array_equal(mock_np.std.call_args_list[0][0][0], input_weights)
+    assert mock_np.mean.call_args_list[0][1] == {'axis': 0}
+    assert mock_np.std.call_args_list[0][1] == {'axis': 0, 'ddof': 1}
+
+    # Test 4: Test avg_from_last_update and with a log file where wl-delta was indeed updated and
+    # the weights got equilibrated
+    mock_np.reset_mock()
+    g_vecs_all, g_vecs_avg, g_vecs_err = analyze_traj.get_g_evolution(
+        ['ensemble_md/tests/data/log/case2_1.log'],
+        start_state=0,
+        end_state=6,
+        avg_from_last_update=True
+    )
+
+    assert g_vecs_all == [
+        [0, 1.16453, 2.69258, 2.48480, 1.46220, 3.88607],  # 4.2 ps
+        [0, 1.16453, 1.49258, 2.48480, 1.06220, 3.88607],  # 4.4 ps
+        [0, 1.16453, 1.89258, 2.08480, 1.86220, 3.88607],  # 4.5 ps
+        [0, 1.16453, 1.89258, 2.08480, 1.86220, 4.68607],  # 4.8 ps
+        [0, 2.36453, 3.09258, 3.28480, 3.06220, 5.48607],  # 5.0 ps
+        [0, 2.68453, 4.13258, 4.32480, 4.42220, 6.52607],  # 5.2 ps, wl-delta updated
+        [0, 2.36453, 3.49258, 4.00480, 4.74220, 6.20607],  # 5.4 ps
+        [0, 2.36453, 3.17258, 3.36480, 3.78220, 4.92607],  # 5.6 ps
+        [0, 1.40453, 2.85258, 2.08480, 3.14220, 4.92607],  # 5.8 ps
+        [0, 1.40453, 2.53258, 2.40480, 3.14220, 5.56607],  # 6.0 ps, equilibrated at 6.04 ps
+        [0, 1.40453, 2.85258, 2.72480, 3.46220, 5.88607],  # 6.2 ps
+    ]
+
+    assert mock_np.mean.call_count == 1
+    assert mock_np.std.call_count == 1
+    np.testing.assert_array_equal(mock_np.mean.call_args_list[0][0][0], g_vecs_all[-6:])
+    np.testing.assert_array_equal(mock_np.std.call_args_list[0][0][0], g_vecs_all[-6:])
+    assert mock_np.mean.call_args_list[0][1] == {'axis': 0}
+    assert mock_np.std.call_args_list[0][1] == {'axis': 0, 'ddof': 1}
 
 
-def test_get_dg_evoluation():
-    pass
+@patch('ensemble_md.analysis.analyze_traj.get_g_evolution')
+def test_get_dg_evoluation(mock_fn):
+    mock_fn.return_value = ([
+        [0, 3.83101, 4.95736, 5.63808, 6.07220, 6.13408],
+        [0, 3.43101, 3.75736, 5.23808, 4.87220, 5.33408],
+        [0, 2.63101, 2.95736, 5.23808, 4.47220, 5.73408],
+        [0, 1.83101, 2.55736, 4.43808, 4.47220, 6.13408],
+        [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
+    ], MagicMock(), MagicMock())
+
+    # Test 1
+    dg = analyze_traj.get_dg_evolution(['ensemble_md/tests/data/log/EXE_0.log'], 0, 3)
+    mock_fn.assert_called_once_with(['ensemble_md/tests/data/log/EXE_0.log'], 0, 3)
+    np.testing.assert_array_equal(dg, np.array([5.63808, 5.23808, 5.23808, 4.43808, 3.63808]))
+
+    # Test 2 (just different start_state/end_state values)
+    mock_fn.reset_mock()
+    dg = analyze_traj.get_dg_evolution(['ensemble_md/tests/data/log/EXE_0.log'], 1, 3)
+    mock_fn.assert_called_once_with(['ensemble_md/tests/data/log/EXE_0.log'], 1, 3)
+    np.testing.assert_array_almost_equal(dg, np.array([1.80707, 1.80707, 2.60707, 2.60707, 2.60707]))
 
 
 def test_plot_dg_evolution():

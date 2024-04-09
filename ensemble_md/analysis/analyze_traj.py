@@ -982,7 +982,7 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
         plt.savefig(f'{swap_type}_swaps.png', dpi=600)
 
 
-def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False):
+def get_g_evolution(log_files, start_state, end_state, avg_frac=0, avg_from_last_update=False):
     """
     For weight-updating simulations, gets the time series of the alchemical
     weights of all states. Note that this funciton is only suitable for analyzing
@@ -992,29 +992,38 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
     Parameters
     ----------
     log_files : list
-        The list of log file names.
-    N_states : int
-        The total number of states in the whole alchemical range.
+        The list of log file names. If multiple log files are provided (for a REXEE)
+        simulations, please make sure the files are in the correct order.
+    start_state : int
+        The index of the first state of interest. The index starts from 0.
+    end_state : int
+        The index of the last state of interest. The index start from 0. For example, if :code:`start_state`
+        is set to 1 and :code:`end_state` is set to 3, then the weight evolution for
+        states 1, 2 and 3 will be extracted.
     avg_frac : float
         The fraction of the last part of the simulation to be averaged. The
         default is 0, which means no averaging. Note that this parameter is
         ignored if :code:`avg_from_last_update` is :code:`True`.
     avg_from_last_update : bool
-        Whether to average from the last update of wl-delta. If False, the
-        averaging will be from the beginning of the simulation.
+        Whether to average from the last update of wl-delta. If this option is set to False,
+        or the option is set to True but the wl-delta was not updated in the provided log
+        file(s), the all weights will be used for averging.
 
     Returns
     -------
     g_vecs_all : list
         The alchemical weights of all states as a function of time.
-        It should be a list of lists.
+        It should be a list of lists. For example, :code:`g_vecs_all[i]` should be the
+        alchemical weights of all states at time frame with index :code:`i`.
+        Weights after equilibration are not included.
     g_vecs_avg : list
         The alchemical weights of all states averaged over the last part of
         the simulation. If :code:`avg_frac` is 0, :code:`None` will be returned.
+        Note that weights after equilibration are not considered.
     g_vecs_err : list
         The errors of the alchemical weights of all states averaged over the
         last part of the simulation. If :code:`avg_frac` is 0 and :code:`avg_from_last_update`
-        is :code:`False`, :code:`None` will be returned.
+        is :code:`False`, :code:`None` will be returned. Note that weights after equilibration are not considered.
     """
     g_vecs_all = []
     idx_updates = []  # the indices of the data points corresponding to the updates of wl-delta
@@ -1029,7 +1038,7 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
             n += 1
             if "Count   G(in kT)" in line:  # this line is lines[n]
                 w = []  # the list of weights at this time frame
-                for i in range(1, N_states + 1):
+                for i in range(start_state + 1, end_state + 1):
                     if "<<" in lines[n + i]:
                         w.append(float(lines[n + i].split()[-3]))
                     else:
@@ -1061,7 +1070,11 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
         if find_equil is True:
             idx_updates = idx_updates[:-1]
 
-        idx_last_update = idx_updates[-1]
+        if idx_updates == []:
+            print('Note: wl-delta was not updated in the provided log file(s) so all weights are used for averaging.')
+            idx_last_update = -1  # so that all weights are used for averaging
+        else:
+            idx_last_update = idx_updates[-1]
         g_vecs_avg = np.mean(g_vecs_all[idx_last_update + 1:], axis=0)
         g_vecs_err = np.std(g_vecs_all[idx_last_update + 1:], axis=0, ddof=1)
     else:
@@ -1084,7 +1097,8 @@ def get_dg_evolution(log_files, start_state, end_state):
     Parameters
     ----------
     log_files : list
-        The list of log file names.
+        The list of log file names. If multiple log files are provided (for a REXEE)
+        simulations, please make sure the files are in the correct order.
     start_state : int
         The index of the state (starting from 0) whose weight is :math:`g_1`.
     end_state : int
@@ -1095,8 +1109,8 @@ def get_dg_evolution(log_files, start_state, end_state):
     dg : list
         A list of :math:`Δg` values.
     """
-    N_states = end_state - start_state + 1  # number of states for the range of insterest
-    g_vecs = get_g_evolution(log_files, N_states)
+    # N_states = end_state - start_state + 1  # number of states for the range of insterest
+    g_vecs, _, _ = get_g_evolution(log_files, start_state, end_state)
     dg = [g_vecs[i][end_state] - g_vecs[i][start_state] for i in range(len(g_vecs))]
 
     return dg
