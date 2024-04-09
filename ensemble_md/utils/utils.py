@@ -284,19 +284,23 @@ def get_time_metrics(log):
         if 'Time: ' in l:
             t_metrics['t_core'] = float(l.split()[1])  # s
             t_metrics['t_wall'] = float(l.split()[2])  # s
-            break
 
     return t_metrics
 
 
-def analyze_REXEE_time(log_files=None):
+def analyze_REXEE_time(n_iter=None, log_files=None):
     """
     Perform simple data analysis on the wall times and performances of all iterations of an REXEE simulation.
 
     Parameters
     ----------
+    n_iter : None or int
+        The number of iterations in the REXEE simulation. If None, the function will try to find the number of
+        iterations by counting the number of directories named "iteration_*" in the simulation directory
+        (i.e., :code:`sim_0`) in the current working directory or where the log files are located.
     log_files : None or list
-        A list of sorted file names of all log files.
+        A list of lists log files with the shape of (n_iter, n_replicas). If None, the function will try to find
+        the log files by searching the current working directory.
 
     Returns
     -------
@@ -308,9 +312,17 @@ def analyze_REXEE_time(log_files=None):
     t_wall_list : list
         The list of wall times of finishing each mdrun command.
     """
-    n_iter = len(glob.glob('sim_0/iteration_*'))
+    if n_iter is None:
+        if log_files is None:
+            n_iter = len(glob.glob('sim_0/iteration_*'))
+        else:
+            n_iter = len(log_files)
+
     if log_files is None:
         log_files = [natsort.natsorted(glob.glob(f'sim_*/iteration_{i}/*log')) for i in range(n_iter)]
+
+    if len(log_files) == 0:
+        raise FileNotFoundError("No sim/iteration directories found.")
 
     t_wall_list = []
     t_wall_tot, t_sync = 0, 0

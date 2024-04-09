@@ -1,0 +1,363 @@
+Current time: 19/06/2023 04:08:37
+Command line: /jet/home/wehs7661/.local/python3.9/bin/run_EEXE
+
+Important parameters of EXEE
+============================
+Python version: 3.9.12 (main, Feb 28 2023, 14:59:18) 
+[GCC 10.2.0]
+GROMACS executable: /jet/home/wehs7661/pkgs/gromacs/2022.5/bin/gmx
+GROMACS version: 2022.5-dev-20230428-fdf57150ad
+ensemble_md version: 0.6.0+40.gba0d9e6.dirty
+Simulation inputs: anthracene.gro, anthracene.top, expanded.mdp
+Verbose log file: True
+Proposal scheme: exhaustive
+Acceptance scheme for swapping simulations: metropolis
+Whether to perform weight combination: False
+Histogram cutoff: -1
+Number of replicas: 4
+Number of iterations: 12500
+Number of attempted swaps in one exchange interval: N^3
+Length of each replica: 4.0 ps
+Frequency for checkpointing: 100 iterations
+Total number of states: 8
+Additional grompp arguments: None
+Additional runtime arguments: {'-nt': '16', '-ntmpi': '1'}
+Alchemical ranges of each replica in EEXE:
+  - Replica 0: States [0, 1, 2, 3, 4]
+  - Replica 1: States [1, 2, 3, 4, 5]
+  - Replica 2: States [2, 3, 4, 5, 6]
+  - Replica 3: States [3, 4, 5, 6, 7]
+
+Iteration 0:  0.0 -  4.0 ps
+===========================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 1, (coul, vdw) =                 (0.18,)
+  Simulation 1: Global state 2, (coul, vdw) =                 (0.42,)
+  Simulation 2: Global state 3, (coul, vdw) =                 (0.57,)
+  Simulation 3: Global state 4, (coul, vdw) =                 (0.68,)
+
+Parsing sim_0/iteration_0/md.log ...
+Parsing sim_1/iteration_0/md.log ...
+Parsing sim_2/iteration_0/md.log ...
+Parsing sim_3/iteration_0/md.log ...
+
+Swappable pairs: [(0, 1), (1, 2), (2, 3)]
+
+Proposed swap: (2, 3)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 1.91 kT, U^j_m - U^j_n = 6.93 kT, Total dU: 8.84 kT
+  g^i_n - g^i_m = 0.43 kT, g^j_m - g^j_n = -0.43 kT, Total dg: 0.00 kT
+  Acceptance rate: 0.000 / Random number drawn: 0.212
+  Swap rejected! 
+  Current list of configurations: [0, 1, 2, 3]
+
+Remaining swappable pairs: [(0, 1)]
+
+Proposed swap: (0, 1)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 5.12 kT, U^j_m - U^j_n = 1.53 kT, Total dU: 6.65 kT
+  g^i_n - g^i_m = 4.94 kT, g^j_m - g^j_n = -4.94 kT, Total dg: 0.00 kT
+  Acceptance rate: 0.001 / Random number drawn: 0.958
+  Swap rejected! 
+  Current list of configurations: [0, 1, 2, 3]
+
+The finally adopted swap pattern: [0, 1, 2, 3]
+The list of configurations sampled in each replica in the next iteration: [0, 1, 2, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 1:  4.0 -  8.0 ps
+===========================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 1, (coul, vdw) =                 (0.18,)
+  Simulation 1: Global state 1, (coul, vdw) =                 (0.18,)
+  Simulation 2: Global state 3, (coul, vdw) =                 (0.57,)
+  Simulation 3: Global state 6, (coul, vdw) =                 (0.86,)
+
+Parsing sim_0/iteration_1/md.log ...
+Parsing sim_1/iteration_1/md.log ...
+Parsing sim_2/iteration_1/md.log ...
+Parsing sim_3/iteration_1/md.log ...
+
+Swappable pairs: [(0, 1), (2, 3)]
+
+Proposed swap: (0, 1)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 0.00 kT, U^j_m - U^j_n = 0.00 kT, Total dU: 0.00 kT
+  g^i_n - g^i_m = 0.00 kT, g^j_m - g^j_n = 0.00 kT, Total dg: 0.00 kT
+  Acceptance rate: 1.000 / Random number drawn: 0.047
+  Swap accepted! 
+  Current list of configurations: [1, 0, 2, 3]
+
+Remaining swappable pairs: [(2, 3)]
+
+Proposed swap: (2, 3)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 8.64 kT, U^j_m - U^j_n = 41.64 kT, Total dU: 50.28 kT
+  g^i_n - g^i_m = -5.23 kT, g^j_m - g^j_n = 5.23 kT, Total dg: 0.00 kT
+  Acceptance rate: 0.000 / Random number drawn: 0.347
+  Swap rejected! 
+  Current list of configurations: [1, 0, 2, 3]
+
+The finally adopted swap pattern: [1, 0, 2, 3]
+The list of configurations sampled in each replica in the next iteration: [1, 0, 2, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 2:  8.0 -  12.0 ps
+============================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 1, (coul, vdw) =                 (0.18,)
+  Simulation 1: Global state 5, (coul, vdw) =                 (0.76,)
+  Simulation 2: Global state 4, (coul, vdw) =                 (0.68,)
+  Simulation 3: Global state 7, (coul, vdw) =                 (1.0,)
+
+Parsing sim_0/iteration_2/md.log ...
+Parsing sim_1/iteration_2/md.log ...
+Parsing sim_2/iteration_2/md.log ...
+Parsing sim_3/iteration_2/md.log ...
+
+n_ex is set back to 1 since there is only 1 swappable pair.
+Swappable pairs: [(1, 2)]
+
+Proposed swap: (1, 2)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 9.19 kT, U^j_m - U^j_n = -2.31 kT, Total dU: 6.88 kT
+  g^i_n - g^i_m = 1.45 kT, g^j_m - g^j_n = -1.45 kT, Total dg: 0.00 kT
+  Acceptance rate: 0.001 / Random number drawn: 0.303
+  Swap rejected! 
+  Current list of configurations: [1, 0, 2, 3]
+
+The finally adopted swap pattern: [0, 1, 2, 3]
+The list of configurations sampled in each replica in the next iteration: [1, 0, 2, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 3:  12.0 -  16.0 ps
+=============================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 0, (coul, vdw) =                 (0.0,)
+  Simulation 1: Global state 5, (coul, vdw) =                 (0.76,)
+  Simulation 2: Global state 6, (coul, vdw) =                 (0.86,)
+  Simulation 3: Global state 7, (coul, vdw) =                 (1.0,)
+
+Parsing sim_0/iteration_3/md.log ...
+Parsing sim_1/iteration_3/md.log ...
+Parsing sim_2/iteration_3/md.log ...
+Parsing sim_3/iteration_3/md.log ...
+
+Swappable pairs: []
+
+The finally adopted swap pattern: [0, 1, 2, 3]
+The list of configurations sampled in each replica in the next iteration: [1, 0, 2, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 4:  16.0 -  20.0 ps
+=============================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 1, (coul, vdw) =                 (0.18,)
+  Simulation 1: Global state 1, (coul, vdw) =                 (0.18,)
+  Simulation 2: Global state 3, (coul, vdw) =                 (0.57,)
+  Simulation 3: Global state 6, (coul, vdw) =                 (0.86,)
+
+Parsing sim_0/iteration_4/md.log ...
+Parsing sim_1/iteration_4/md.log ...
+Parsing sim_2/iteration_4/md.log ...
+Parsing sim_3/iteration_4/md.log ...
+
+Swappable pairs: [(0, 1), (2, 3)]
+
+Proposed swap: (0, 1)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 0.00 kT, U^j_m - U^j_n = 0.00 kT, Total dU: 0.00 kT
+  g^i_n - g^i_m = 0.00 kT, g^j_m - g^j_n = 0.00 kT, Total dg: 0.00 kT
+  Acceptance rate: 1.000 / Random number drawn: 0.601
+  Swap accepted! 
+  Current list of configurations: [0, 1, 2, 3]
+
+Remaining swappable pairs: [(2, 3)]
+
+Proposed swap: (2, 3)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 7.79 kT, U^j_m - U^j_n = 52.74 kT, Total dU: 60.53 kT
+  g^i_n - g^i_m = -5.23 kT, g^j_m - g^j_n = 5.23 kT, Total dg: 0.00 kT
+  Acceptance rate: 0.000 / Random number drawn: 0.530
+  Swap rejected! 
+  Current list of configurations: [0, 1, 2, 3]
+
+The finally adopted swap pattern: [1, 0, 2, 3]
+The list of configurations sampled in each replica in the next iteration: [0, 1, 2, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 5:  20.0 -  24.0 ps
+=============================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 2, (coul, vdw) =                 (0.42,)
+  Simulation 1: Global state 4, (coul, vdw) =                 (0.68,)
+  Simulation 2: Global state 2, (coul, vdw) =                 (0.42,)
+  Simulation 3: Global state 6, (coul, vdw) =                 (0.86,)
+
+Parsing sim_0/iteration_5/md.log ...
+Parsing sim_1/iteration_5/md.log ...
+Parsing sim_2/iteration_5/md.log ...
+Parsing sim_3/iteration_5/md.log ...
+
+Swappable pairs: [(0, 1), (0, 2), (1, 2)]
+
+Proposed swap: (0, 2)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 0.00 kT, U^j_m - U^j_n = 0.00 kT, Total dU: 0.00 kT
+  g^i_n - g^i_m = 0.00 kT, g^j_m - g^j_n = 0.00 kT, Total dg: 0.00 kT
+  Acceptance rate: 1.000 / Random number drawn: 0.883
+  Swap accepted! 
+  Current list of configurations: [2, 1, 0, 3]
+
+Remaining swappable pairs: []
+
+The finally adopted swap pattern: [2, 1, 0, 3]
+The list of configurations sampled in each replica in the next iteration: [2, 1, 0, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 6:  24.0 -  28.0 ps
+=============================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 0, (coul, vdw) =                 (0.0,)
+  Simulation 1: Global state 4, (coul, vdw) =                 (0.68,)
+  Simulation 2: Global state 2, (coul, vdw) =                 (0.42,)
+  Simulation 3: Global state 7, (coul, vdw) =                 (1.0,)
+
+Parsing sim_0/iteration_6/md.log ...
+Parsing sim_1/iteration_6/md.log ...
+Parsing sim_2/iteration_6/md.log ...
+Parsing sim_3/iteration_6/md.log ...
+
+n_ex is set back to 1 since there is only 1 swappable pair.
+Swappable pairs: [(1, 2)]
+
+Proposed swap: (1, 2)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 11.12 kT, U^j_m - U^j_n = 6.74 kT, Total dU: 17.86 kT
+  g^i_n - g^i_m = -2.63 kT, g^j_m - g^j_n = 2.63 kT, Total dg: 0.00 kT
+  Acceptance rate: 0.000 / Random number drawn: 0.041
+  Swap rejected! 
+  Current list of configurations: [2, 1, 0, 3]
+
+The finally adopted swap pattern: [0, 1, 2, 3]
+The list of configurations sampled in each replica in the next iteration: [2, 1, 0, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 7:  28.0 -  32.0 ps
+=============================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 0, (coul, vdw) =                 (0.0,)
+  Simulation 1: Global state 1, (coul, vdw) =                 (0.18,)
+  Simulation 2: Global state 4, (coul, vdw) =                 (0.68,)
+  Simulation 3: Global state 6, (coul, vdw) =                 (0.86,)
+
+Parsing sim_0/iteration_7/md.log ...
+Parsing sim_1/iteration_7/md.log ...
+Parsing sim_2/iteration_7/md.log ...
+Parsing sim_3/iteration_7/md.log ...
+
+n_ex is set back to 1 since there is only 1 swappable pair.
+Swappable pairs: [(2, 3)]
+
+Proposed swap: (2, 3)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 0.02 kT, U^j_m - U^j_n = 17.39 kT, Total dU: 17.41 kT
+  g^i_n - g^i_m = -5.66 kT, g^j_m - g^j_n = 5.66 kT, Total dg: 0.00 kT
+  Acceptance rate: 0.000 / Random number drawn: 0.494
+  Swap rejected! 
+  Current list of configurations: [2, 1, 0, 3]
+
+The finally adopted swap pattern: [0, 1, 2, 3]
+The list of configurations sampled in each replica in the next iteration: [2, 1, 0, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 8:  32.0 -  36.0 ps
+=============================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+Below are the final states being visited:
+  Simulation 0: Global state 1, (coul, vdw) =                 (0.18,)
+  Simulation 1: Global state 2, (coul, vdw) =                 (0.42,)
+  Simulation 2: Global state 2, (coul, vdw) =                 (0.42,)
+  Simulation 3: Global state 7, (coul, vdw) =                 (1.0,)
+
+Parsing sim_0/iteration_8/md.log ...
+Parsing sim_1/iteration_8/md.log ...
+Parsing sim_2/iteration_8/md.log ...
+Parsing sim_3/iteration_8/md.log ...
+
+Swappable pairs: [(0, 1), (1, 2)]
+
+Proposed swap: (1, 2)
+  Proposing a move from (x^i_m, x^j_n) to (x^i_n, x^j_m) ...
+  U^i_n - U^i_m = 0.00 kT, U^j_m - U^j_n = 0.00 kT, Total dU: 0.00 kT
+  g^i_n - g^i_m = 0.00 kT, g^j_m - g^j_n = 0.00 kT, Total dg: 0.00 kT
+  Acceptance rate: 1.000 / Random number drawn: 0.254
+  Swap accepted! 
+  Current list of configurations: [2, 0, 1, 3]
+
+Remaining swappable pairs: []
+
+The finally adopted swap pattern: [0, 2, 1, 3]
+The list of configurations sampled in each replica in the next iteration: [2, 0, 1, 3]
+
+Note: No histogram correction will be performed.
+Note: No weight combination will be performed.
+
+Iteration 9:  36.0 -  40.0 ps
+=============================
+Generating a TPR file on rank 0 ...
+Running an EXE simulation on rank 0 ...
+
+----- Saving .npy files to checkpoint the simulation ---
+
+Summary of the simulation ensemble
+==================================
+Simulation status:
+- Rep 0: The weights were fixed throughout the simulation.
+- Rep 1: The weights were fixed throughout the simulation.
+- Rep 2: The weights were fixed throughout the simulation.
+- Rep 3: The weights were fixed throughout the simulation.
+
+Time elapsed: xx hour(s) xx minute(s) xx second(s)

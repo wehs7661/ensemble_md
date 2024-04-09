@@ -222,20 +222,20 @@ include parameters for data analysis here.
       :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
       Note that REXEE only works with MPI-enabled GROMACS. 
 
-3.2. Input files
-----------------
+3.2. Input settings
+-------------------
 
   - :code:`gro`: (Required)
-      The input system configuration in the form of GRO file(s) used to initiate the REXEE simulation. If only one GRO file is specified,
+      The path of the input system configuration in the form of GRO file(s) used to initiate the REXEE simulation. If only one GRO file is specified,
       it will be used to initiate all the replicas. If multiple GRO files are specified (using the YAML syntax),
       the number of GRO files has to be the same as the number of replicas. 
   - :code:`top`: (Required)
-      The input system topology in the form of TOP file(s) used to initiate the REXEE simulation. If only one TOP file is specified,
+      The path of the input system topology in the form of TOP file(s) used to initiate the REXEE simulation. If only one TOP file is specified,
       it will be used to initiate all the replicas. If multiple TOP files are specified (using the YAML syntax),
       the number of TOP files has to be the same as the number of replicas. In the case where multiple TOP and GRO files are specified,
       the i-th TOP file corresponds to the i-th GRO file.
   - :code:`mdp`: (Required)
-      The input MDP file used to initiate the REXEE simulation. Specifically, this input MDP file will serve as a template for
+      The path of the input MDP file used to initiate the REXEE simulation. Specifically, this input MDP file will serve as a template for
       customizing MDP files for all replicas. Therefore, the MDP template must have the whole range of :math:`λ` values. 
       and the corresponding weights (in fixed-weight simulations). This holds for REXEE simulations for multiple serial mutations as well.
       For example, in an REXEE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if

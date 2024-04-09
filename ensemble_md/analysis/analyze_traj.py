@@ -10,8 +10,10 @@
 """
 The :obj:`.analyze_traj` module provides methods for analyzing trajectories in REXEE.
 """
+import copy
 import numpy as np
 import matplotlib.pyplot as plt
+from itertools import chain
 from matplotlib.ticker import MaxNLocator
 
 from alchemlyb.parsing.gmx import _get_headers as get_headers
@@ -92,27 +94,21 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
             files_sorted[i].append(files[rep_trajs[i][j]][j])
 
     # Then, stitch the trajectories for each starting configuration
+    # Unlike stitch_time_series_for_sim, there is no way to check the continuity.
     trajs = [[] for i in range(n_configs)]  # for each starting configuration
     for i in range(n_configs):
         for j in range(n_iter):
-            if j == 0:
-                if dhdl:
-                    traj, t = extract_state_traj(files_sorted[i][j])
-                else:
-                    traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx]
-                    t = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, 0]  # only used if save_xvg is True
-            else:
-                # Starting from the 2nd iteration, we get rid of the first time frame the first
-                # frame of iteration n+1 the is the same as the last frame of iteration n
-                if dhdl:
-                    traj, t = extract_state_traj(files_sorted[i][j])
-                    traj, t = traj[1:], t[1:]
-                else:
-                    traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx][1:]
-
-            if dhdl:  # Trajectories of global alchemical indices will be generated.
+            if dhdl:
+                traj, _ = extract_state_traj(files_sorted[i][j])
+                # Shift the indices so that global indices are used.
                 shift_idx = rep_trajs[i][j]
                 traj = list(np.array(traj) + shifts[shift_idx])
+            else:
+                traj = np.loadtxt(files_sorted[i][j], comments=['#', '@'])[:, col_idx]
+
+            if j != n_iter - 1:
+                traj = traj[:-1]
+
             trajs[i].extend(traj)
 
     if save_npy is True:
@@ -124,34 +120,7 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
     return trajs
 
 
-def convert_npy2xvg(trajs, dt, subsampling=1):
-    """
-    Convert a :code:`state_trajs.npy` or :code:`cv_trajs.npy` file to :math:`N_{\text{rep}}` XVG files
-    that have two columns: time (ps) and state index.
-
-    Parameters
-    ----------
-    trajs : ndarray
-        The state-space or CV-space trajectories read from :code:`state_trajs.npy` or :code:`cv_trajs.npy`.
-    dt : float
-        The time interval (in ps) between consecutive frames of the trajectories.
-    subsampling : int
-        The stride for subsampling the time series. The default is 1.
-    """
-    n_configs = len(trajs)
-    for i in range(n_configs):
-        traj = trajs[i]
-        t = np.arange(len(traj)) * dt
-        headers = ['This file was created by ensemble_md']
-        if 'int' in str(traj.dtype):
-            headers.extend(['Time (ps) v.s. State index'])
-            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%4.0f'])  # noqa: E501
-        else:
-            headers.extend(['Time (ps) v.s. CV'])
-            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%8.6f'])  # noqa: E501
-
-
-def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=True):
+def stitch_time_series_for_sim(files, shifts, dhdl=True, col_idx=-1, save=True):
     """
     Stitches the state-space/CV-space time series in the same replica/simulation folder.
     That is, the output time series is contributed by multiple different trajectories (initiated by
@@ -188,19 +157,32 @@ def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=T
     n_sim = len(files)      # number of replicas
     n_iter = len(files[0])  # number of iterations per replica
     trajs = [[] for i in range(n_sim)]
+    t_last, val_last = None, None    # just for checking the continuity of the trajectory
     for i in range(n_sim):
         for j in range(n_iter):
             if dhdl:
-                traj, _ = extract_state_traj(files[i][j])
+                traj, t = extract_state_traj(files[i][j])
             else:
                 traj = np.loadtxt(files[i][j], comments=['#', '@'])[:, col_idx]
-
-            if dhdl:
-                traj = list(np.array(traj) + shifts[i])
+                t = np.loadtxt(files[i][j], comments=['#', '@'])[:, 0]
 
             if j != 0:
+                # Check the continuity of the trajectory
+                if traj[0] != val_last or t[0] != t_last:
+                    err_str = f'The first frame of iteration {j} in replica {i} is not continuous with the last frame of the previous iteration. '  # noqa: E501
+                    err_str += f'Please check files {files[i][j - 1]} and {files[i][j]}.'
+                    raise ValueError(err_str)
+
+            t_last = t[-1]
+            val_last = traj[-1]
+
+            if j != n_iter - 1:
                 traj = traj[:-1]  # remove the last frame, which is the same as the first of the next time series.
+
             trajs[i].extend(traj)
+
+        # All segments for the same replica should have the same shift
+        trajs[i] = list(np.array(trajs[i]) + shifts[i])
 
     # Save the trajectories as an NPY file if desired
     if save is True:
@@ -209,7 +191,7 @@ def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save=T
     return trajs
 
 
-def stitch_trajs(gmx_executable, files, rep_trajs):
+def stitch_xtc_trajs(gmx_executable, files, rep_trajs):
     """
     Demuxes GROMACS trajectories from different replicas into individual continuous trajectories.
 
@@ -245,6 +227,33 @@ def stitch_trajs(gmx_executable, files, rep_trajs):
         returncode, stdout, stderr = utils.run_gmx_cmd(arguments)
         if returncode != 0:
             print(f'Error with return code: {returncode}):\n{stderr}')
+
+
+def convert_npy2xvg(trajs, dt, subsampling=1):
+    """
+    Convert a :code:`state_trajs.npy` or :code:`cv_trajs.npy` file to :math:`N_{\text{rep}}` XVG files
+    that have two columns: time (ps) and state index.
+
+    Parameters
+    ----------
+    trajs : ndarray
+        The state-space or CV-space trajectories read from :code:`state_trajs.npy` or :code:`cv_trajs.npy`.
+    dt : float
+        The time interval (in ps) between consecutive frames of the trajectories.
+    subsampling : int
+        The stride for subsampling the time series. The default is 1.
+    """
+    n_configs = len(trajs)
+    for i in range(n_configs):
+        traj = trajs[i]
+        t = np.arange(len(traj)) * dt
+        headers = ['This file was created by ensemble_md']
+        if 'int' in str(traj.dtype):
+            headers.extend(['Time (ps) v.s. State index'])
+            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%4.0f'])  # noqa: E501
+        else:
+            headers.extend(['Time (ps) v.s. CV'])
+            np.savetxt(f'traj_{i}.xvg', np.transpose([t[::subsampling], traj[::subsampling]]), header='\n'.join(headers), fmt=['%-8.1f', '%8.6f'])  # noqa: E501
 
 
 def traj2transmtx(traj, N, normalize=True):
@@ -336,7 +345,7 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     plt.savefig(f'{fig_name}', dpi=600)
 
 
-def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_prefix='Trajectory'):
+def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None, title_prefix='Trajectory'):
     """
     Plots the time series of state index.
 
@@ -405,7 +414,6 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=1, title_pre
             linewidth = 1  # this is the default
 
         # Finally, plot the trajectories
-        linewidth = 1  # this is the default
         plt.plot(x[::stride], trajs[i][::stride], color=colors[i], linewidth=linewidth)
         if dt is None:
             plt.xlabel('MC moves')
@@ -470,6 +478,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
     hist_data = []
     lower_bound, upper_bound = -0.5, n_states - 0.5
     for traj in trajs:
+        # bins for different traj in trajs should be the same
         hist, bins = np.histogram(traj, bins=np.arange(lower_bound, upper_bound + 1, 1))
         hist_data.append(hist)
     if save_hist is True:
@@ -557,7 +566,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
     return hist_data
 
 
-def calculate_hist_rmse(hist_data, state_ranges):
+def calc_hist_rmse(hist_data, state_ranges):
     """
     Calculates the RMSE of accumulated histogram counts of the state index. The reference
     is determined by assuming all alchemical states have equal chances to be visited, i.e.
@@ -661,12 +670,13 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                 last_visited = k
 
         # Here we figure out the round-trip time from t_0k and t_k0.
-        if len(t_0k) != len(t_k0):   # then it must be len(t_0k) = len(t_k0) + 1 or len(t_k0) = len(t_0k) + 1, so we drop the last element of the larger list  # noqa: E501
-            if len(t_0k) > len(t_k0):
-                t_0k.pop()
+        t_0k_, t_k0_ = copy.deepcopy(t_0k), copy.deepcopy(t_k0)
+        if len(t_0k_) != len(t_k0_):   # then it must be len(t_0k) = len(t_k0) + 1 or len(t_k0) = len(t_0k) + 1, so we drop the last element of the larger list  # noqa: E501
+            if len(t_0k_) > len(t_k0_):
+                t_0k_.pop()
             else:
-                t_k0.pop()
-        t_roundtrip = list(np.array(t_0k) + np.array(t_k0))
+                t_k0_.pop()
+        t_roundtrip = list(np.array(t_0k_) + np.array(t_k0_))
 
         if end_0_found is True and end_k_found is True:
             if dt is not None:
@@ -675,7 +685,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                 t_k0 = list(np.array(t_k0) * dt)  # units: ps
                 t_roundtrip = list(np.array(t_roundtrip) * dt)  # units: ps
                 if len(t_0k) + len(t_k0) + len(t_roundtrip) > 0:  # i.e. not all are empty
-                    if np.max([t_0k, t_k0, t_roundtrip]) > t_max:
+
+                    if np.max(list(chain.from_iterable([t_0k, t_k0, t_roundtrip]))) > t_max:
                         t_max = np.max([t_0k, t_k0, t_roundtrip])
 
                     if t_max >= 10000:
@@ -694,7 +705,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             t_roundtrip_avg.append(np.mean(t_roundtrip))
 
             if len(t_0k) + len(t_k0) + len(t_roundtrip) > 0:  # i.e. not all are empty
-                if sci is False and np.max([t_0k, t_k0, t_roundtrip]) >= 10000:
+                flattened_list = list(chain.from_iterable([t_0k, t_k0, t_roundtrip]))
+                if sci is False and np.max(flattened_list) >= 10000:
                     sci = True
         else:
             t_0k_list.append([])
@@ -725,14 +737,14 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
             for i in range(len(t_list)):    # t_list[i] is the list for trajectory i
                 plt.plot(np.arange(len(t_list[i])) + 1, t_list[i], label=f'Trajectory {i}', marker=marker)
 
-            if max(max((t_list))) >= 10000:
+            if np.max(list(chain.from_iterable(t_list))) >= 10000:
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
             plt.xlabel('Event index')
             plt.ylabel(f'{y_labels[t]}')
             plt.grid()
             plt.legend()
             if fig_prefix is None:
-                plt.savefig(f'{folder}/{fig_names[t]}')
+                plt.savefig(f'{folder}/{fig_names[t]}', dpi=600)
             else:
                 plt.savefig(f'{folder}/{fig_prefix}_{fig_names[t]}', dpi=600)
 
@@ -779,9 +791,9 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
     """
     # n_iter, n_state = g_vecs.shape[0], g_vecs.shape[1]
     g_vecs = np.transpose(g_vecs)
-    n_sim = len(g_vecs)
+    n_states = len(g_vecs)
     cmap = plt.cm.ocean  # other good options are CMRmap, gnuplot, terrain, turbo, brg, etc.
-    colors = [cmap(i) for i in np.arange(n_sim) / n_sim]
+    colors = [cmap(i) for i in np.arange(n_states) / n_states]
     plt.figure()
     for i in range(1, len(g_vecs)):
         if len(g_vecs[0]) < 100:
@@ -823,7 +835,7 @@ def plot_g_vecs(g_vecs, refs=None, refs_err=None, plot_rmse=True):
 
 def get_swaps(REXEE_log='run_REXEE_log.txt'):
     """
-    For each replica, identifies the states where exchanges were proposed and accepted.
+    For each replica, identifies the states involved in proposed and accepted.
     (Todo: We should be able to only use :code:`rep_trajs.npy` and :code:`state_trajs.npy`
     instead of parsing the REXEE log file to reach the same goal.)
 
@@ -838,12 +850,12 @@ def get_swaps(REXEE_log='run_REXEE_log.txt'):
         A list of dictionaries showing where the swaps were proposed in
         each replica. Each dictionary (corresponding to one replica) have
         keys being the global state indices and values being the number of
-        proposed swaps that occurred in the state indicated by the key.
+        proposed swaps that involved the state indicated by the key.
     accepted_swaps : list
         A list of dictionaries showing where the swaps were accepted in
         each replica. Each dictionary (corresponding to one replica) have
         keys being the global state indices and values being the number of
-        accepted swaps that occurred in the state indicated by the key.
+        accepted swaps that involved the state indicated by the key.
     """
     f = open(REXEE_log, 'r')
     lines = f.readlines()
@@ -951,10 +963,16 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
         if i == n_sim - 1:
             bounds[1] += 0.5
         plt.fill_betweenx([y_min, y_max], x1=bounds[1] + 0.5, x2=bounds[0] - 0.5, color=colors[i], alpha=0.1, zorder=0)
+
     plt.xlim([lower_bound, upper_bound])
     # plt.ylim([y_min, y_max])
+
     plt.xlabel('State')
-    plt.ylabel(f'Number of {swap_type} swaps')
+    if swap_type == '':
+        plt.ylabel('Number of swaps')
+    else:
+        plt.ylabel(f'Number of {swap_type} swaps')
+
     plt.grid()
     plt.legend()
     plt.tight_layout()
@@ -964,7 +982,7 @@ def plot_swaps(swaps, swap_type='', stack=True, figsize=None):
         plt.savefig(f'{swap_type}_swaps.png', dpi=600)
 
 
-def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False):
+def get_g_evolution(log_files, start_state, end_state, avg_frac=0, avg_from_last_update=False):
     """
     For weight-updating simulations, gets the time series of the alchemical
     weights of all states. Note that this funciton is only suitable for analyzing
@@ -974,29 +992,38 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
     Parameters
     ----------
     log_files : list
-        The list of log file names.
-    N_states : int
-        The total number of states in the whole alchemical range.
+        The list of log file names. If multiple log files are provided (for a REXEE)
+        simulations, please make sure the files are in the correct order.
+    start_state : int
+        The index of the first state of interest. The index starts from 0.
+    end_state : int
+        The index of the last state of interest. The index start from 0. For example, if :code:`start_state`
+        is set to 1 and :code:`end_state` is set to 3, then the weight evolution for
+        states 1, 2 and 3 will be extracted.
     avg_frac : float
         The fraction of the last part of the simulation to be averaged. The
         default is 0, which means no averaging. Note that this parameter is
         ignored if :code:`avg_from_last_update` is :code:`True`.
     avg_from_last_update : bool
-        Whether to average from the last update of wl-delta. If False, the
-        averaging will be from the beginning of the simulation.
+        Whether to average from the last update of wl-delta. If this option is set to False,
+        or the option is set to True but the wl-delta was not updated in the provided log
+        file(s), the all weights will be used for averging.
 
     Returns
     -------
     g_vecs_all : list
         The alchemical weights of all states as a function of time.
-        It should be a list of lists.
+        It should be a list of lists. For example, :code:`g_vecs_all[i]` should be the
+        alchemical weights of all states at time frame with index :code:`i`.
+        Weights after equilibration are not included.
     g_vecs_avg : list
         The alchemical weights of all states averaged over the last part of
         the simulation. If :code:`avg_frac` is 0, :code:`None` will be returned.
+        Note that weights after equilibration are not considered.
     g_vecs_err : list
         The errors of the alchemical weights of all states averaged over the
         last part of the simulation. If :code:`avg_frac` is 0 and :code:`avg_from_last_update`
-        is :code:`False`, :code:`None` will be returned.
+        is :code:`False`, :code:`None` will be returned. Note that weights after equilibration are not considered.
     """
     g_vecs_all = []
     idx_updates = []  # the indices of the data points corresponding to the updates of wl-delta
@@ -1011,7 +1038,7 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
             n += 1
             if "Count   G(in kT)" in line:  # this line is lines[n]
                 w = []  # the list of weights at this time frame
-                for i in range(1, N_states + 1):
+                for i in range(start_state + 1, end_state + 1):
                     if "<<" in lines[n + i]:
                         w.append(float(lines[n + i].split()[-3]))
                     else:
@@ -1043,7 +1070,11 @@ def get_g_evolution(log_files, N_states, avg_frac=0, avg_from_last_update=False)
         if find_equil is True:
             idx_updates = idx_updates[:-1]
 
-        idx_last_update = idx_updates[-1]
+        if idx_updates == []:
+            print('Note: wl-delta was not updated in the provided log file(s) so all weights are used for averaging.')
+            idx_last_update = -1  # so that all weights are used for averaging
+        else:
+            idx_last_update = idx_updates[-1]
         g_vecs_avg = np.mean(g_vecs_all[idx_last_update + 1:], axis=0)
         g_vecs_err = np.std(g_vecs_all[idx_last_update + 1:], axis=0, ddof=1)
     else:
@@ -1066,7 +1097,8 @@ def get_dg_evolution(log_files, start_state, end_state):
     Parameters
     ----------
     log_files : list
-        The list of log file names.
+        The list of log file names. If multiple log files are provided (for a REXEE)
+        simulations, please make sure the files are in the correct order.
     start_state : int
         The index of the state (starting from 0) whose weight is :math:`g_1`.
     end_state : int
@@ -1077,14 +1109,14 @@ def get_dg_evolution(log_files, start_state, end_state):
     dg : list
         A list of :math:`Δg` values.
     """
-    N_states = end_state - start_state + 1  # number of states for the range of insterest
-    g_vecs = get_g_evolution(log_files, N_states)
+    # N_states = end_state - start_state + 1  # number of states for the range of insterest
+    g_vecs, _, _ = get_g_evolution(log_files, start_state, end_state)
     dg = [g_vecs[i][end_state] - g_vecs[i][start_state] for i in range(len(g_vecs))]
 
     return dg
 
 
-def plot_dg_evolution(log_files, start_state, end_state, start_idx=0, end_idx=-1, dt_log=2):
+def plot_dg_evolution(log_files, start_state, end_state, start_idx=None, end_idx=None, dt_log=2):
     """
     For weight-updating simulations, plots the time series of the weight
     difference (:math:`Δg = g_2-g_1`) between the specified states.
@@ -1140,8 +1172,8 @@ def get_delta_w_updates(log_file, plot=False):
     Returns
     -------
     t_updates : list
-        A list of time frames when the Wang-Landau incrementor is updated.
-    delta_updates : list
+        A list of time frames (in ns) when the Wang-Landau incrementor is updated.
+    delta_w_updates : list
         A list of the updated Wang-Landau incrementors. Should be the same
         length as :code:`t_updates`.
     equil : bool
@@ -1153,7 +1185,7 @@ def get_delta_w_updates(log_file, plot=False):
 
     # Get the parameters
     for l in lines:  # noqa: E741
-        if 'dt ' in l:
+        if ' dt ' in l:
             dt = float(l.split('=')[-1])
         if 'init-wl-delta ' in l:
             init_wl_delta = float(l.split('=')[-1])
@@ -1166,7 +1198,7 @@ def get_delta_w_updates(log_file, plot=False):
 
     # Start parsing the data
     n = -1
-    t_updates, delta_updates = [0], [init_wl_delta]
+    t_updates, delta_w_updates = [0], [init_wl_delta]
     for l in lines:  # noqa: E741
         n += 1
         if 'weights are now' in l:
@@ -1175,30 +1207,30 @@ def get_delta_w_updates(log_file, plot=False):
             # search the following 10 lines to find the Wang-Landau incrementor
             for i in range(10):
                 if 'Wang-Landau incrementor is:' in lines[n + i]:
-                    delta_updates.append(float(lines[n + i].split()[-1]))
+                    delta_w_updates.append(float(lines[n + i].split()[-1]))
                     break
         if 'Weights have equilibrated' in l:
             equil = True
             break
 
     if equil is True:
-        delta_updates.append(delta_updates[-1] * wl_scale)
+        delta_w_updates.append(delta_w_updates[-1] * wl_scale)
 
     # Plot the Wang-Landau incrementor as a function of time if requested
     # Note that between adjacen entries in t_updates, a horizontal line should be drawn.
     if plot is True:
         plt.figure()
         for i in range(len(t_updates) - 1):
-            plt.plot([t_updates[i], t_updates[i + 1]], [delta_updates[i], delta_updates[i]], c='C0')
-            plt.plot([t_updates[i + 1], t_updates[i + 1]], [delta_updates[i], delta_updates[i + 1]], c='C0')
+            plt.plot([t_updates[i], t_updates[i + 1]], [delta_w_updates[i], delta_w_updates[i]], c='C0')
+            plt.plot([t_updates[i + 1], t_updates[i + 1]], [delta_w_updates[i], delta_w_updates[i + 1]], c='C0')
 
         plt.text(0.65, 0.95, f'init_wl_delta: {init_wl_delta}', transform=plt.gca().transAxes)
-        plt.text(0.65, 0.9, f'wl-scale: {wl_scale}', transform=plt.gca().transAxes)
+        plt.text(0.65, 0.9, f'wl_scale: {wl_scale}', transform=plt.gca().transAxes)
         plt.text(0.65, 0.85, f'wl_delta_cutoff: {wl_delta_cutoff}', transform=plt.gca().transAxes)
 
         plt.xlabel('Time (ns)')
         plt.ylabel(r'Wang-Landau incrementor ($k_{B}T$)')
         plt.grid()
-        plt.savefig('delta_updates.png', dpi=600)
+        plt.savefig('delta_w_updates.png', dpi=600)
 
-    return t_updates, delta_updates, equil
+    return t_updates, delta_w_updates, equil

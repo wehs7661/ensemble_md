@@ -104,15 +104,31 @@ class Test_ReplicaExchangeEE:
         # 7. Boolean parameters
         check_param_error(params_dict, 'msm', "The parameter 'msm' should be a boolean variable.", 3, False)
 
-        # 8. nstlog > nst_sim
+        # 8. Errors related to nstlog and nstdhdl
         mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))  # A perfect mdp file
+
+        # 8-1. nstlog is not a factor of nst_sim
         mdp['nstlog'] = 200
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
         params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
         params_dict['nst_sim'] = 100
         with pytest.raises(ParameterError, match='The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
             get_REXEE_instance(params_dict)
-        params_dict['nst_sim'] = 500
+
+        # 8-2. nstdhdl is not a factor of nst_sim
+        mdp['nstlog'] = 100
+        mdp['nstdhdl'] = 200
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        with pytest.raises(ParameterError, match='The parameter "nstdhdl" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        # 8-3. nstexpanded is not a factor of nstdhdl
+        mdp['nstdhdl'] = 100
+        mdp['nstexpanded'] = 50
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+        with pytest.raises(ParameterError, match='In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
         # 9. n_sub < 1
@@ -121,7 +137,80 @@ class Test_ReplicaExchangeEE:
         # Note that the parentheses are special characters that need to be escaped in regular expressions
         with pytest.raises(ParameterError, match=r'There must be at least two states for each replica \(current value: -6\). The current specified configuration \(n_tot=9, n_sim=4, s=5\) does not work for REXEE.'):  # noqa: E501
             get_REXEE_instance(params_dict)
-        params_dict['s'] = 1
+
+        # 10. s < 0
+        params_dict['s'] = -1
+        with pytest.raises(ParameterError, match="The parameter 's' should be non-negative."):
+            get_REXEE_instance(params_dict)
+        params_dict['s'] = 1  # set back to a normal value
+
+        # 11. Cases for MT-REXEE (relevant parameters: add_swappables, modify_coords, etc.)
+        params_dict['gro'] = ['ensemble_md/tests/data/sys.gro']
+        with pytest.raises(ParameterError, match="The number of the input GRO files must be the same as the number of replicas, if multiple are specified."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+        params_dict['gro'] = 'ensemble_md/tests/data/sys.gro'  # set back to a normal value
+
+        # 12. Test mdp_args
+        params_dict['mdp_args'] = 3
+        with pytest.raises(ParameterError, match="The parameter 'mdp_args' should be a dictionary."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'ref_p': 1.0}
+        with pytest.raises(ParameterError, match="The values specified in 'mdp_args' should be lists."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'ref_p': [1.0, 1.0, 1.0, 1.0]}
+        with pytest.raises(ParameterError, match="MDP parameters set by 'mdp_args' should differ across at least two replicas."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {5: [1, 1, 1, 1.01]}  # set back to a normal value
+        with pytest.raises(ParameterError, match="All keys specified in 'mdp_args' should be strings."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'ref-p': [1.0, 1.01, 1.02, 1.03]}
+        with pytest.raises(ParameterError, match="ensemble_md convention: Parameters specified in 'mdp_args' must use underscores in place of hyphens."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'ref_p': [1.0, 1.01, 1.02]}
+        with pytest.raises(ParameterError, match="The number of values specified for each key in 'mdp_args' should be the same as the number of replicas."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'nstlog': [200, 100, 100, 100]}
+        with pytest.raises(ParameterError, match='The parameter "nstlog" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'nstdhdl': [200, 100, 100, 100]}
+        with pytest.raises(ParameterError, match='The parameter "nstdhdl" must be a factor of the parameter "nst_sim" specified in the YAML file.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['mdp_args'] = {'nstdhdl': [20, 10, 10, 10], 'nstexpanded': [10, 50, 10, 10]}
+        with pytest.raises(ParameterError, match='In REXEE, the parameter "nstdhdl" must be a factor of the parameter "nstexpanded", or the calculation of acceptance ratios may be wrong.'):  # noqa: E501
+            get_REXEE_instance(params_dict)
+        params_dict['mdp_args'] = None  # set back to a normal value
+
+        # 13. Test the parameter 'pull'
+        params_dict['nst_sim'] = 2000
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded_pull.mdp"))
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
+
+        mdp['pull_coord1_geometry'] = 'direction'
+        mdp.write(params_dict['mdp'])
+        get_REXEE_instance(params_dict)
+
+        mdp['pull_coord1_geometry'] = 'distance'  # set back to the original value
+        mdp['pull_coord1_start'] = 'no'
+        mdp.write(params_dict['mdp'])
+        get_REXEE_instance(params_dict)
+
+        mdp['pull_coord1_start'] = 'yes'
+        mdp.write(params_dict['mdp'])
+        mdp['pull_nstxout'] = 0
+        mdp.write(params_dict['mdp'])
+        REXEE_pull = get_REXEE_instance(params_dict)
+        warning = 'A non-zero value should be specified for pull_nstxout if pull_coord*_start is set to yes.'
+        assert warning in REXEE_pull.warnings
+
+        os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
     def test_set_params_warnings(self, params_dict):
         # 1. Non-recognizable parameter in the YAML file
@@ -135,20 +224,34 @@ class Test_ReplicaExchangeEE:
         mdp['lmc_seed'] = 1000
         mdp['gen_seed'] = 1000
         mdp['wl_scale'] = ''
+        mdp['gen_vel'] = 'no'
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
 
         params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
         params_dict['N_cutoff'] = 1000
-        REXEE = get_REXEE_instance(params_dict)
+        REXEE_1 = get_REXEE_instance(params_dict)
 
         warning_1 = 'Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.'  # noqa: E501
         warning_2 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
         warning_3 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
-        assert warning_1 in REXEE.warnings
-        assert warning_2 in REXEE.warnings
-        assert warning_3 in REXEE.warnings
+        warning_4 = 'Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.'  # noqa: E501
+
+        assert warning_1 in REXEE_1.warnings
+        assert warning_2 in REXEE_1.warnings
+        assert warning_3 in REXEE_1.warnings
+        assert warning_4 in REXEE_1.warnings
 
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
+
+        # 2. Warnings related to the mdp file (for cases where mdp_args is not None)
+        mdp = gmx_parser.MDP(os.path.join(input_path, "expanded.mdp"))  # A perfect mdp file
+        mdp.write(os.path.join(input_path, "expanded_test.mdp"))
+
+        params_dict['mdp_args'] = {'lmc_seed': [-1, -1, -1, 0], 'gen_seed': [-1, -1, -1, 0], 'gen_vel': ['no', 'no', 'no', 'yes']}  # noqa: E501
+        REXEE_2 = get_REXEE_instance(params_dict)
+        assert warning_2 in REXEE_2.warnings
+        assert warning_3 in REXEE_2.warnings
+        assert warning_4 in REXEE_2.warnings
 
     def test_set_params(self, params_dict):
         # 0. Get an REXEE instance to test
@@ -293,9 +396,21 @@ class Test_ReplicaExchangeEE:
         L += "Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.\n"  # noqa: E501
         assert out_2 == L
 
+        REXEE.gro = ['ensemble_md/tests/data/sys.gro', 'ensemble_md/tests/data/sys.gro']  # noqa: E501
+        REXEE.top = ['ensemble_md/tests/data/sys.top', 'ensemble_md/tests/data/sys.top']
+        REXEE.mdp_args = {'ref_p': [1.0, 1.01, 1.02, 1.03], 'ref_t': [298, 300, 302, 303]}
+        REXEE.print_params()
+        out_3, err = capfd.readouterr()
+        line_1 = 'Simulation inputs: ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.gro, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/sys.top, ensemble_md/tests/data/expanded.mdp\n'  # noqa: E501
+        line_2 = 'MDP parameters differing across replicas:\n  - ref_p: [1.0, 1.01, 1.02, 1.03]\n  - ref_t: [298, 300, 302, 303]'  # noqa: E501
+        assert line_1 in out_3
+        assert line_2 in out_3
+
     def test_initialize_MDP(self, params_dict):
+        params_dict['mdp_args'] = {'ref_p': [1.0, 1.01, 1.02, 1.03], 'ref_t': [298, 300, 302, 303]}
         REXEE = get_REXEE_instance(params_dict)
         MDP = REXEE.initialize_MDP(2)  # the third replica
+        assert MDP["ref_p"] == 1.02
         assert MDP["nsteps"] == 500
         assert all(
             [
@@ -317,6 +432,12 @@ class Test_ReplicaExchangeEE:
             [a == b for a, b in zip(MDP["init_lambda_weights"], [0, 0, 0, 0, 0, 0])]
         )
 
+    def test_get_ref_dist(self, params_dict):
+        params_dict['set_ref_dist'] = [True]
+        REXEE = get_REXEE_instance(params_dict)
+        REXEE.get_ref_dist('ensemble_md/tests/data/pullx.xvg')
+        REXEE.ref_dist = [0.428422]
+
     def test_update_MDP(self, params_dict):
         new_template = "ensemble_md/tests/data/expanded.mdp"
         iter_idx = 3
@@ -327,13 +448,22 @@ class Test_ReplicaExchangeEE:
             [0, 0, 0, 0, 0, 0],
             [3.48, 2.78, 3.21, 4.56, 8.79, 0.48],
             [8.45, 0.52, 3.69, 2.43, 4.56, 6.73], ]
+        counts = [
+            [4, 11, 9, 9, 11, 6],
+            [9, 8, 8, 11, 7, 7],
+            [3, 1, 1, 9, 15, 21],
+            [0, 0, 0, 1, 18, 31],
+        ]
+        params_dict['set_ref_dist'] = [True]
 
         REXEE = get_REXEE_instance(params_dict)
-        REXEE.equil = [-1, 1, 0, -1]  # i.e. the 3rd replica will use fixed weights in the next iteration
+        REXEE.equil = [-1, 1, 0, -1]  # i.e., the 3rd replica will use fixed weights in the next iteration
         MDP_1 = REXEE.update_MDP(
             new_template, 2, iter_idx, states, wl_delta, weights)  # third replica
+
+        REXEE.get_ref_dist('ensemble_md/tests/data/pullx.xvg')  # so that we can test the pull code
         MDP_2 = REXEE.update_MDP(
-            new_template, 3, iter_idx, states, wl_delta, weights)  # fourth replica
+            new_template, 3, iter_idx, states, wl_delta, weights, counts)  # fourth replica
 
         assert MDP_1["tinit"] == MDP_2["tinit"] == 3
         assert MDP_1["nsteps"] == MDP_2["nsteps"] == 500
@@ -358,6 +488,9 @@ class Test_ReplicaExchangeEE:
                 )
             ]
         )
+        assert MDP_2['init_histogram_counts'] == [0, 0, 0, 1, 18, 31]
+        assert MDP_2['pull_coord1_start'] == 'no'
+        assert MDP_2['pull_coord1_init'] == 0.428422
 
     def test_extract_final_dhdl_info(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
@@ -385,11 +518,48 @@ class Test_ReplicaExchangeEE:
             [0, 0, 0, 1, 18, 31], ]
         assert REXEE.equil == [-1, -1, -1, -1]
 
+        # Below is a case where one of the replicas (the first replica) got equilibrated
+        log_files[0] = os.path.join(input_path, "log/case2_1.log")  # equilibrated weights
+        wl_delta, weights, counts = REXEE.extract_final_log_info(log_files)
+        assert np.allclose(REXEE.equil, [6.06, -1, -1, -1])
+        assert REXEE.equilibrated_weights == [[0.00000, 1.40453, 2.85258, 2.72480, 3.46220, 5.88607], [], [], []]
+
     def test_get_averaged_weights(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
         log_files = [
             os.path.join(input_path, f"log/EXE_{i}.log") for i in range(REXEE.n_sim)]
         avg, err = REXEE.get_averaged_weights(log_files)
+        assert REXEE.current_wl_delta == [0.4, 0.5, 0.5, 0.5]
+        assert REXEE.updating_weights == [
+            [
+                [0, 3.83101, 4.95736, 5.63808, 6.07220, 6.13408],
+                [0, 3.43101, 3.75736, 5.23808, 4.87220, 5.33408],
+                [0, 2.63101, 2.95736, 5.23808, 4.47220, 5.73408],
+                [0, 1.83101, 2.55736, 4.43808, 4.47220, 6.13408],
+                [0, 1.03101, 2.55736, 3.63808, 4.47220, 6.13408],
+            ],  # the weights of the first replica at 5 different time frames
+            [
+                [0, 0.72635, 0.80707, 1.44120, 2.10308, 4.03106],
+                [0, 0.72635, 1.30707, 1.44120, 2.10308, 4.53106],
+                [0, 0.72635, 2.80707, 2.94120, 4.10308, 6.53106],
+                [0, 1.72635, 2.30707, 2.44120, 5.10308, 6.53106],
+                [0, 1.22635, 2.30707, 2.44120, 4.10308, 6.03106],
+            ],  # the weights of the second replica at 5 different time frames
+            [
+                [0, -0.33569, -0.24525, 2.74443, 4.59472, 7.70726],
+                [0, -0.33569, -0.24525, 2.74443, 3.59472, 3.70726],
+                [0, -0.33569, -0.24525, 2.74443, 2.09472, 0.20726],
+                [0, -0.33569, -0.24525, 1.74443, -0.90528, -0.79274],
+                [0, 0.66431, 1.25475, 0.24443, 0.59472, 0.70726]
+            ],  # the weights of the third replica at 5 different time frames
+            [
+                [0, 0.09620, 1.59937, -4.31679, -14.89436, -16.08701],
+                [0, 0.09620, 1.59937, -4.31679, -15.89436, -20.08701],
+                [0, 0.09620, 1.59937, -4.31679, -18.39436, -22.58701],
+                [0, 0.09620, 1.59937, -4.31679, -20.39436, -25.58701],
+                [0, 0.09620, 1.59937, -4.31679, -22.89436, -28.08701]
+            ]
+        ]
         assert np.allclose(avg[0],  [0, 2.55101, 3.35736, 4.83808, 4.8722, 5.89408])
         assert np.allclose(err[0], [0, 1.14542569, 1.0198039, 0.8, 0.69282032, 0.35777088])
 
@@ -480,6 +650,18 @@ class Test_ReplicaExchangeEE:
         assert REXEE.n_rejected == 0
         assert pattern_4_2 == [1, 0, 3, 2]
         assert swap_list_4_2 == [(2, 3), (0, 1)]
+
+        # Case 4-3: REXEE.proposal is set to exhaustive but there is only one swappable pair anyway.
+        random.seed(0)
+        REXEE = get_REXEE_instance(params_dict)
+        REXEE.proposal = 'exhaustive'
+        states = [0, 2, 2, 8]  # swappable pair: [(1, 2)], swap: (1, 2), accept
+        f = copy.deepcopy(dhdl_files)
+        pattern_4_3, swap_list_4_3 = REXEE.get_swapping_pattern(f, states)
+        assert REXEE.n_swap_attempts == 1
+        assert REXEE.n_rejected == 0
+        assert pattern_4_3 == [0, 2, 1, 3]
+        assert swap_list_4_3 == [(1, 2)]
 
     def test_calc_prob_acc(self, capfd, params_dict):
         # k = 1.380649e-23; NA = 6.0221408e23; T = 298; kT = k * NA * T / 1000 = 2.4777098766670016
