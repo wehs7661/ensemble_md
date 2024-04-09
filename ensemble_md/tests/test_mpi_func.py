@@ -58,7 +58,6 @@ def get_REXEE_instance(input_dict, rank, yml_file=None):
     with open(yml_file, 'w') as f:
         yaml.dump(input_dict, f)
     REXEE = ReplicaExchangeEE(yml_file)
-    print(os.path.abspath(yml_file))
     return REXEE
 
 
@@ -116,6 +115,7 @@ def test_run_grompp(params_dict):
     swap_pattern = [1, 0, 2, 3]
     REXEE = get_REXEE_instance(params_dict, rank)
 
+    # Below we set up files for testing
     if rank == 0:
         for i in range(params_dict['n_sim']):
             # Here we use the template mdp file since this is mainly for testing the function, not the GROMACS command.
@@ -124,7 +124,9 @@ def test_run_grompp(params_dict):
 
     REXEE._run_grompp(n, swap_pattern)
 
-    # Check if the output files are generated, then clean up
+    comm.barrier()  # Wait for all MPI processes to finish
+
+    # Check if the output files were generated, then clean up
     if rank == 0:
         for i in range(params_dict['n_sim']):
             assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_0/sys_EE.tpr') is True
@@ -137,7 +139,6 @@ def test_run_grompp(params_dict):
             tpr = f'{REXEE.working_dir}/sim_{i}/iteration_0/sys_EE.tpr'
             mdout = f'{REXEE.working_dir}/sim_{i}/iteration_0/mdout.mdp'
             cmd = f'{REXEE.gmx_executable} grompp -f {mdp} -c {gro} -p {top} -o {tpr} -po {mdout} -maxwarn 1'
-            print(cmd)
             assert get_gmx_cmd_from_output(mdout)[0] == cmd
 
             shutil.rmtree(f'{REXEE.working_dir}/sim_{i}')
@@ -154,7 +155,7 @@ def test_run_grompp(params_dict):
 
     REXEE._run_grompp(n, swap_pattern)
 
-    # Check if the output files are generated, then clean up
+    # Check if the output files were generated, then clean up
     if rank == 0:
         for i in range(params_dict['n_sim']):
             assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_1/sys_EE.tpr') is True
@@ -169,4 +170,44 @@ def test_run_grompp(params_dict):
             cmd = f'{REXEE.gmx_executable} grompp -f {mdp} -c {gro} -p {top} -o {tpr} -po {mdout} -maxwarn 1'
             assert get_gmx_cmd_from_output(mdout)[0] == cmd
 
+            shutil.rmtree(f'{REXEE.working_dir}/sim_{i}')
+
+
+@pytest.mark.mpi
+def test_REXEE(params_dict):
+    # This should also tests _run_grompp and _run_mdrun
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    params_dict['grompp_args'] = {'-maxwarn': '1'}
+    params_dict['runtime_args'] = {'-nsteps': '10'}  # This will overwrite nsteps in mdp
+    n = 0
+    swap_pattern = [1, 0, 2, 3]
+    REXEE = get_REXEE_instance(params_dict, rank)
+
+    # Below we set up files for testing
+    if rank == 0:
+
+        print(glob.glob(f'{REXEE.working_dir}/*'))
+        for i in range(params_dict['n_sim']):
+            # Here we use the template mdp file since this is mainly for testing the function, not the GROMACS command.
+            os.makedirs(f'{REXEE.working_dir}/sim_{i}/iteration_{n}')
+            shutil.copy(REXEE.mdp, f'{REXEE.working_dir}/sim_{i}/iteration_{n}/expanded.mdp')
+        assert os.path.isfile(f'{REXEE.working_dir}/sim_0/iteration_0/expanded.mdp') is True
+
+    REXEE.run_REXEE(n, swap_pattern)
+
+    comm.barrier()  # Wait for all MPI processes to finish
+
+    # Check if the output files were generated, then clean up
+    if rank == 0:
+        for i in range(params_dict['n_sim']):
+            assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_0/sys_EE.tpr') is True
+            assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_0/mdout.mdp') is True
+            assert os.path.isfile(f'{REXEE.working_dir}/sim_{i}/iteration_0/confout.gro') is True  # check if mdrun succeeded  # noqa: E501
+
+            log = f'{REXEE.working_dir}/sim_{i}/iteration_0/md.log'
+            cmd = f'{REXEE.gmx_executable} mdrun -s sys_EE.tpr -nsteps 10'
+            assert get_gmx_cmd_from_output(log)[0] == cmd
+        
             shutil.rmtree(f'{REXEE.working_dir}/sim_{i}')

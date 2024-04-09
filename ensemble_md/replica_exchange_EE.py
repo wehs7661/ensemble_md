@@ -1399,6 +1399,7 @@ class ReplicaExchangeEE:
         if rank == 0:
             print('Running EXE simulations ...')
         if rank < self.n_sim:
+            cwd = os.getcwd()
             os.chdir(f'{self.working_dir}/sim_{rank}/iteration_{n}')
             returncode, stdout, stderr = utils.run_gmx_cmd(arguments)
             if returncode != 0:
@@ -1410,7 +1411,7 @@ class ReplicaExchangeEE:
                 except Exception:
                     print('\n--------------------------------------------------------------------------\n')
                     MPI.COMM_WORLD.Abort(1)
-            os.chdir('../../')
+            os.chdir(cwd)
 
         # gather return codes at rank 0
         code_list = comm.gather(returncode, root=0)
