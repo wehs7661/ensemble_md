@@ -150,10 +150,11 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
             clusters, sizes = get_cluster_members(outputs['cluster-log'])
             for i in range(1, n_clusters + 1):
                 print(f'  - Cluster {i} accounts for {sizes[i] * 100:.2f}% of the total configurations.')
-
-            n_transitions, t_transitions = count_transitions(clusters)
-            print(f'Number of transitions between the two biggest clusters: {n_transitions}')
-            print(f'Time frames of the transitions (ps): {t_transitions}')
+            
+            if n_clusters == 2:
+                n_transitions, t_transitions = count_transitions(clusters)
+                print(f'Number of transitions between the two clusters: {n_transitions}')
+                print(f'Time frames of the transitions (ps): {t_transitions}')
 
             print('Calculating the inter-medoid RMSD between the two biggest clusters ...')
             # Note that we pass outputs['cluster-pdb'] to -s so that the first medoid will be used as the reference
@@ -261,31 +262,40 @@ def get_cluster_members(cluster_log):
     return clusters, sizes
 
 
-def count_transitions(clusters):
+def count_transitions(clusters, idx_1=1, idx_2=2):
     """
-    Counts the number of transitions between the two biggest clusters.
+    Counts the number of transitions between two specified clusters.
 
     Parameters
     ----------
     clusters : dict
         A dictionary that contains the cluster index (starting from 1) as the key and the list of members
         (configurations at different timeframes) as the value.
+    idx_1 : int
+        The index of a cluster of interst.
+    idx_2 : int
+        The index of the other cluster of interest.
 
     Returns
     -------
     n_transitions : int
         The number of transitions between the two biggest clusters.
     t_transitions : list
-        The list of time frames when the transitions occur.
+        The list of time frames when the transitions occur. Note that if there was no transition (i.e., only one
+        cluster), an empty list will be returned.
     """
+    if len(clusters) < 2:
+        return 0, []
+
     # Combine and sort all cluster members for the first two biggest clusters while keeping track of their origin
-    all_members = [(member, 1) for member in clusters[1]] + [(member, 2) for member in clusters[2]]
+    all_members = [(member, idx_1) for member in clusters[idx_1]] + [(member, idx_2) for member in clusters[idx_2]]
     all_members.sort()
 
     # Count transitions and record time frames
     n_transitions = 0
     t_transitions = []
     last_cluster = all_members[0][1]  # the cluster index of the last time frame in the previous iteration
+
     for member in all_members[1:]:
         if member[1] != last_cluster:
             n_transitions += 1
