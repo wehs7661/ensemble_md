@@ -12,6 +12,7 @@ The :obj:`.synthesize_data` module provides methods for synthesizing REXEE data.
 """
 import numpy as np
 from ensemble_md.analysis import analyze_traj
+from ensemble_md.analysis import analyze_matrix
 
 
 def synthesize_traj(trans_mtx, n_frames=100000, method='transmtx', start=0, seed=None):
@@ -48,8 +49,12 @@ def synthesize_traj(trans_mtx, n_frames=100000, method='transmtx', start=0, seed
     if seed is not None:
         np.random.seed(seed)
     N = len(trans_mtx)  # Can be the number of states or replicas depending on the type of the input mtraix
+
+    if start >= N:
+        raise ValueError(f'The starting state {start} is out of the range of the input transition matrix.')
+
     if method == 'equil_prob':
-        equil_prob = analyze_traj.calc_equil_prob(trans_mtx)
+        equil_prob = analyze_matrix.calc_equil_prob(trans_mtx)
         syn_traj = np.random.choice(N, size=n_frames, p=equil_prob.reshape(N))
     elif method == 'transmtx':
         check_row = sum([np.isclose(np.sum(trans_mtx[i]), 1, atol=1e-8) for i in range(len(trans_mtx))])
@@ -59,7 +64,7 @@ def synthesize_traj(trans_mtx, n_frames=100000, method='transmtx', start=0, seed
         elif check_col == N:
             mtx = trans_mtx.T
         else:
-            raise ValueError('The input matrix is not normalized')
+            raise ValueError('The input matrix is not normalized.')
 
         syn_traj = np.zeros(n_frames, dtype=int)
         syn_traj[0] = start
