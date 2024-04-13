@@ -39,27 +39,6 @@ def test_get_cluster_members():
     assert sizes == {1: 27/56, 2: 29/56}
 
 
-def test_count_transitions():
-    # Test 1: No transitions (i.e., must be the case where there was only one cluster)
-    clusters = {
-        1: [0, 178, 184, 186, 300, 302, 304, 306, 308, 310, 312, 318, 362, 366, 370, 372, 374, 376, 378, 380, 382, 390, 460, 464, 468, 470, 476],  # noqa: E501
-    }
-    n_transitions, t_transitions = clustering.count_transitions(clusters)
-    assert n_transitions == 0
-    assert t_transitions == []
-
-    # Test 2: More transitions
-    clusters = {
-        1: [0, 2, 4, 6, 20, 22, 24, 34, 36, 38, 62, 64, 66, 80, 82, 84, 86],
-        2: [8, 10, 12, 26, 28, 30, 32, 48, 50, 52, 54, 74, 76, 78, 88, 90, 92, 94, 96],
-        3: [14, 16, 18, 40, 42, 44, 46, 56, 58, 60, 68, 70, 72],
-    }
-    n_transitions, t_transitions = clustering.count_transitions(clusters)
-
-    assert n_transitions == 9
-    assert t_transitions == [8, 20, 26, 34, 48, 62, 74, 80, 88]
-
-
 @patch('ensemble_md.analysis.clustering.plt')
 def test_analyze_transitions(mock_plt):
     # Test 1: No transitions
