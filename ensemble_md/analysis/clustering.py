@@ -333,7 +333,7 @@ def analyze_transitions(clusters, normalize=True, plot_type=None):
         The trajectory showing which cluster each configuration belongs to.
     t_transitions: dict
         A dictionary with keys being pairs of cluster indices and values being the time frames of transitions
-        between the two clusters.
+        between the two clusters. If there is no transition, an empty dictionary will be returned.
     """
     # Combine all cluster members and sort them
     all_members = []
@@ -355,9 +355,9 @@ def analyze_transitions(clusters, normalize=True, plot_type=None):
         if traj[i] != traj[i + 1]:
             pair = tuple(sorted((traj[i], traj[i + 1])))
             if pair not in t_transitions:
-                t_transitions[pair] = [t[i]]
+                t_transitions[pair] = [t[i + 1]]
             else:
-                t_transitions[pair].append(t[i])
+                t_transitions[pair].append(t[i + 1])
 
     if plot_type is not None:
         if plot_type == 'bar':
@@ -373,12 +373,12 @@ def analyze_transitions(clusters, normalize=True, plot_type=None):
         elif plot_type == 'xy':
             fig = plt.figure()
             ax = fig.add_subplot(111)
-            plt.plot(t, traj)
             if len(t) > 1000:
-                t /= 1000  # convert to ns
+                t = t / 1000  # convert to ns
                 units = 'ns'
             else:
                 units = 'ps'
+            plt.plot(t, traj)
             plt.xlabel(f'Time frame ({units})')
             plt.ylabel('Cluster index')
             ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
