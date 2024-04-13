@@ -8,7 +8,10 @@
 #                                                                  #
 ####################################################################
 import numpy as np
+import matplotlib.pyplot as plt
+from itertools import combinations
 from ensemble_md.utils.utils import run_gmx_cmd
+from ensemble_md.analysis import analyze_traj
 
 
 def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkage', cutoff=0.1, suffix=None):
@@ -152,7 +155,9 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
                 print(f'  - Cluster {i} accounts for {sizes[i] * 100:.2f}% of the total configurations.')
             
             if n_clusters == 2:
-                n_transitions, t_transitions = count_transitions(clusters)
+                # n_transitions, t_transitions = count_transitions(clusters)
+                transmtx, _ = get_cluster_transmtx(clusters, normalize=False)  # Note that this is a 2D count matrix.
+                n_transitions = np.sum(transmtx) - np.trace(transmtx)  # This is the sum of all off-diagonal elements. np.trace calculates the sum of the diagonal elements.
                 print(f'Number of transitions between the two clusters: {n_transitions}')
                 print(f'Time frames of the transitions (ps): {t_transitions}')
 
@@ -303,3 +308,83 @@ def count_transitions(clusters, idx_1=1, idx_2=2):
             t_transitions.append(member[0])
 
     return n_transitions, t_transitions
+
+
+def analyze_transitions(clusters, normalize=True, plot_type=None):
+    """
+    Analyzes transitions between clusters, including estimating the transition matrix, generating/plotting a trajectory
+    showing which cluster each configuration belongs to, and/or plotting the distribution of the clusters.
+
+    Parameters
+    ----------
+    clusters : dict
+        A dictionary that contains the cluster index (starting from 1) as the key and the list of members
+        (configurations at different timeframes in ps) as the value.
+    plot_type : str
+        The type of the figure to be plotted. The default is :code:`None`, which means no figure will be plotted.
+        The other options are :code:`'bar'` and :code:`'xy'`. The former plots the distribution of the clusters,
+        while the latter plots the trajectory showing which cluster each configuration belongs to.
+
+    Returns
+    -------
+    transmtx: np.ndarray
+        The transition matrix.
+    traj: np.ndarray
+        The trajectory showing which cluster each configuration belongs to.
+    t_transitions: dict
+        A dictionary with keys being pairs of cluster indices and values being the time frames of transitions
+        between the two clusters.
+    """
+    # Combine all cluster members and sort them
+    all_members = []
+    for key in clusters:
+        all_members.extend([(member, key) for member in clusters[key]])
+    all_members.sort()
+
+    # Generate the trajectory
+    t = np.array([member[0] for member in all_members])
+    traj = np.array([member[1] for member in all_members])
+
+    # Generate the transition matrix
+    # Since traj2transmtx assumes an index starting from 0, we subtract 1 from the trajectory
+    transmtx = analyze_traj.traj2transmtx(traj - 1, len(clusters), normalize=normalize)
+
+    # Generate the dictionary of transitions
+    t_transitions = {}
+    for i in range(len(traj) - 1):
+        if traj[i] != traj[i + 1]:
+            pair = tuple(sorted((traj[i], traj[i + 1])))
+            if pair not in t_transitions:
+                t_transitions[pair] = [t[i]]
+            else:
+                t_transitions[pair].append(t[i])
+
+    if plot_type is not None:
+        if plot_type == 'bar':
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            plt.bar(clusters.keys(), [len(clusters[i]) for i in clusters], width=0.35)
+            plt.xlabel('Cluster index')
+            plt.ylabel('Number of configurations')
+            plt.grid()
+            ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            plt.savefig('cluster_distribution.png', dpi=600)
+        elif plot_type == 'xy':
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            plt.plot(t, traj)
+            if len(t) > 1000:
+                t /= 1000  # convert to ns
+                units = 'ns'
+            else:
+                units = 'ps'
+            plt.xlabel(f'Time frame ({units})')
+            plt.ylabel('Cluster index')
+            ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            plt.grid()
+            plt.savefig('cluster_traj.png', dpi=600)
+        else:
+            raise ValueError(f'Invalid plot type: {plot_type}. The plot type must be either "bar" or "xy" or unspecified.')  # noqa: E501
+
+    return transmtx, traj, t_transitions
