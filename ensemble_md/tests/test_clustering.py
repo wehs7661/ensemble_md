@@ -11,17 +11,24 @@
 Unit tests for the module clustering.py.
 """
 import os
-import glob
 import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
-from ensemble_md.utils import utils
 from ensemble_md.analysis import clustering
 from ensemble_md.analysis import analyze_traj
 
 
-@patch('ensemble_md.analysis.clustering.run_gmx_cmd', side_effect=utils.run_gmx_cmd)
-def test_cluster_traj(mock_gmx, capfd):
+@patch('ensemble_md.analysis.clustering.analyze_transitions')
+@patch('ensemble_md.analysis.clustering.get_cluster_members')
+@patch('ensemble_md.analysis.clustering.get_cluster_info')
+@patch('ensemble_md.analysis.clustering.run_gmx_cmd')
+def test_cluster_traj(mock_gmx, mock_fn_1, mock_fn_2, mock_fn_3, capfd):
+    # mock_fn_1 mocks get_cluster_info, mock_fn_2 mocks get_cluster_members, mock_fn_3 mocks analyze_transitions
+    mock_gmx.return_value = 0, MagicMock(), MagicMock()  # returncode, stdout, stderr
+    mock_fn_1.return_value = ([1.861, 6.340], 4.379, 2)  # rmsd_range, avg_rmsd, n_clusters
+    mock_fn_2.return_value = ({1: [0, 2, 4], 2: [6, 8]}, {1: 0.6, 2: 0.4})  # clusters, sizes
+    mock_fn_3.return_value = (np.array([[1, 2], [3, 1]]), np.array([1, 1, 1, 2, 2]), {(1, 2): 10})  # transitions, traj, transitions_dict (the values here doe not need to make sense)  # noqa: E501
+
     inputs = {
         'traj': 'ensemble_md/tests/data/traj.xtc',
         'config': 'ensemble_md/tests/data/sys.gro',
@@ -48,15 +55,24 @@ def test_cluster_traj(mock_gmx, capfd):
         clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
     inputs['xvg'] = 'ensemble_md/tests/data/traj.xvg'
 
-    # Test 4: No index file is provided/group not found in the index file
+    # Test 4: No index file is provided
     mock_gmx.reset_mock()
-    with pytest.raises(ValueError, match='The group "HOS_MOL" is not present in the provided/generated index file.'):
-        clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
     args = ['gmx', 'make_ndx', '-f', 'ensemble_md/tests/data/sys.gro', '-o', 'index.ndx']
+    with pytest.raises(FileNotFoundError, match="No such file or directory: 'index.ndx'"):
+        # We do not really run GROMACS commands so no index.ndx will be generated.
+        # Still, we reach our goal to test the conditional block when inputs['index'] is None.
+        clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
     mock_gmx.assert_called_once_with(args, prompt_input='q\n')
-    os.remove('index.ndx')
 
-    # Test 5: An index file is provided but no coupled configurations are found
+    # Test 5: An index file is provided but groups of interest are not found
+    mock_gmx.reset_mock()
+    inputs['index'] = 'ensemble_md/tests/data/sys.ndx'
+    grps['center'] = 'test'
+    with pytest.raises(ValueError, match='The group "test" is not present in the provided/generated index file.'):
+        clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
+    grps['center'] = 'HOS_MOL'
+
+    # Test 6: An index file is provided but no coupled configurations are found
     mock_gmx.reset_mock()
     inputs['index'] = 'ensemble_md/tests/data/sys.ndx'
     inputs['xvg'] = 'traj_0.xvg'
@@ -65,17 +81,83 @@ def test_cluster_traj(mock_gmx, capfd):
     clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
     out, err = capfd.readouterr()
     assert 'Terminating clustering analysis since no fully decoupled state is present in the input trajectory while coupled_only is set to True.' in out  # noqa: E501
-    os.remove('traj_0.xvg')
 
-    # Test 6: An index file is provided and there are coupled configurations
+    # Test 7: An index file is provided and there are coupled configurations
     mock_gmx.reset_mock()
+
+    # save a rmsd_test.xvg just to avoid FileNotFoundError
+    with open('rmsd_test.xvg', 'w') as f:
+        f.write('0 1\n1 1\n2 1\n3 1\n4 1\n5 1\n')
+
     inputs['xvg'] = 'ensemble_md/tests/data/traj.xvg'
     clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
 
-    # Clean up
-    files = glob.glob('*_test*')
-    for f in files:
-        os.remove(f)
+    args_1 = [
+        'gmx', 'trjconv',
+        '-f', 'ensemble_md/tests/data/traj.xtc',
+        '-s', 'ensemble_md/tests/data/sys.gro',
+        '-n', 'ensemble_md/tests/data/sys.ndx',
+        '-o', 'nojump_test.xtc',
+        '-center', 'yes',
+        '-pbc', 'nojump',
+        '-drop', 'ensemble_md/tests/data/traj.xvg',
+        '-dropover', '0'
+    ]
+    args_2 = [
+        'gmx', 'trjconv',
+        '-f', 'nojump_test.xtc',
+        '-s', 'ensemble_md/tests/data/sys.gro',
+        '-n', 'ensemble_md/tests/data/sys.ndx',
+        '-o', 'center_test.xtc',
+        '-center', 'yes',
+        '-pbc', 'mol',
+        '-ur', 'compact',
+    ]
+    args_3 = [
+        'gmx', 'cluster',
+        '-f', 'center_test.xtc',
+        '-s', 'ensemble_md/tests/data/sys.gro',
+        '-n', 'ensemble_md/tests/data/sys.ndx',
+        '-o', 'rmsd_clust_test.xpm',
+        '-dist', 'rmsd_dist_test.xvg',
+        '-g', 'cluster_test.log',
+        '-cl', 'clusters_test.pdb',
+        '-cutoff', '0.13',
+        '-method', 'linkage',
+    ]
+    args_4 = [
+        'gmx', 'rms',
+        '-f', 'clusters_test.pdb',
+        '-s', 'clusters_test.pdb',
+        '-o', 'rmsd_test.xvg',
+        '-n', 'ensemble_md/tests/data/sys.ndx',
+    ]
+
+    assert mock_gmx.call_count == 4
+    assert mock_fn_1.call_count == 1
+    assert mock_fn_2.call_count == 1
+    assert mock_fn_3.call_count == 1
+
+    assert mock_gmx.call_args_list[0][0][0] == args_1
+    assert mock_gmx.call_args_list[1][0][0] == args_2
+    assert mock_gmx.call_args_list[2][0][0] == args_3
+    assert mock_gmx.call_args_list[3][0][0] == args_4
+    assert mock_gmx.call_args_list[0][1]['prompt_input'] == 'HOS_MOL\nHOS_MOL\n'
+    assert mock_gmx.call_args_list[1][1]['prompt_input'] == 'HOS_MOL\nHOS_MOL\n'
+    assert mock_gmx.call_args_list[2][1]['prompt_input'] == 'complex_heavy\nHOS_MOL\n'
+    assert mock_gmx.call_args_list[3][1]['prompt_input'] == 'complex_heavy\ncomplex_heavy\n'
+
+    out, err = capfd.readouterr()
+    assert 'Number of fully coupled configurations: 5' in out
+    assert 'Range of RMSD values: from 1.861 to 6.340 nm' in out
+    assert 'Average RMSD: 4.379 nm' in out
+    assert 'Number of clusters: 2' in out
+    assert '  - Cluster 1 accounts for 60.00% of the total configurations.' in out
+    assert '  - Cluster 2 accounts for 40.00% of the total configurations.' in out
+    assert 'Inter-medoid RMSD between the two biggest clusters: 1.000 nm' in out
+
+    os.remove('rmsd_test.xvg')
+    os.remove('traj_0.xvg')
 
 
 def test_get_cluster_info():

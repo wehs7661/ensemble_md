@@ -79,8 +79,8 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
     outputs = {
         'nojump': 'nojump.xtc',
         'center': 'center.xtc',
-        'rmsd-clust': 'rmsd-clust.xpm',
-        'rmsd-dist': 'rmsd-dist.xvg',
+        'rmsd-clust': 'rmsd_clust.xpm',
+        'rmsd-dist': 'rmsd_dist.xvg',
         'cluster-log': 'cluster.log',
         'cluster-pdb': 'clusters.pdb',
         'rmsd': 'rmsd.xvg',  # inter-medoid RMSD
@@ -167,7 +167,8 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
                 transmtx, _, t_transitions = analyze_transitions(clusters, normalize=False)  # Note that this is a 2D count matrix.  # noqa: E501
                 n_transitions = np.sum(transmtx) - np.trace(transmtx)  # This is the sum of all off-diagonal elements. np.trace calculates the sum of the diagonal elements.  # noqa: E501
                 print(f'Number of transitions between the two clusters: {n_transitions}')
-                print(f'Time frames of the transitions (ps): {t_transitions[(1, 2)]}')
+                if n_transitions > 0:
+                    print(f'Time frames of the transitions (ps): {t_transitions[(1, 2)]}')
 
             print('Calculating the inter-medoid RMSD between the two biggest clusters ...')
             # Note that we pass outputs['cluster-pdb'] to -s so that the first medoid will be used as the reference
