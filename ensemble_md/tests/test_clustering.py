@@ -10,19 +10,77 @@
 """
 Unit tests for the module clustering.py.
 """
+import os
+import glob
 import pytest
 import numpy as np
 from unittest.mock import patch, MagicMock
+from ensemble_md.utils import utils
 from ensemble_md.analysis import clustering
+from ensemble_md.analysis import analyze_traj
 
 
-def test_cluster_traj():
-    pass
+@patch('ensemble_md.analysis.clustering.run_gmx_cmd', side_effect=utils.run_gmx_cmd)
+def test_cluster_traj(mock_gmx, capfd):
+    inputs = {
+        'traj': 'ensemble_md/tests/data/traj.xtc',
+        'config': 'ensemble_md/tests/data/sys.gro',
+        'xvg': 'ensemble_md/tests/data/traj.xvg',
+        'index': None
+    }
+    grps = {
+        'center': 'HOS_MOL',
+        'rmsd': 'complex_heavy',
+        'output': 'HOS_MOL'
+    }
+
+    # Test 1: inputs not complete
+    with pytest.raises(ValueError, match='The key "traj" is missing in the inputs dictionary.'):
+        clustering.cluster_traj('gmx', {}, grps, coupled_only=True, cutoff=0.13, suffix='test')
+
+    # Test 2: grps not complete
+    with pytest.raises(ValueError, match='The key "center" is missing in the grps dictionary.'):
+        clustering.cluster_traj('gmx', inputs, {}, coupled_only=True, cutoff=0.13, suffix='test')
+
+    # Test 3: coupled_only is True but no xvg file is provided
+    inputs['xvg'] = None
+    with pytest.raises(ValueError, match='The parameter "coupled_only" is set to True but no XVG file is provided.'):
+        clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
+    inputs['xvg'] = 'ensemble_md/tests/data/traj.xvg'
+
+    # Test 4: No index file is provided/group not found in the index file
+    mock_gmx.reset_mock()
+    with pytest.raises(ValueError, match='The group "HOS_MOL" is not present in the provided/generated index file.'):
+        clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
+    args = ['gmx', 'make_ndx', '-f', 'ensemble_md/tests/data/sys.gro', '-o', 'index.ndx']
+    mock_gmx.assert_called_once_with(args, prompt_input='q\n')
+    os.remove('index.ndx')
+
+    # Test 5: An index file is provided but no coupled configurations are found
+    mock_gmx.reset_mock()
+    inputs['index'] = 'ensemble_md/tests/data/sys.ndx'
+    inputs['xvg'] = 'traj_0.xvg'
+    analyze_traj.convert_npy2xvg([np.ones(26)], 2)
+
+    clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
+    out, err = capfd.readouterr()
+    assert 'Terminating clustering analysis since no fully decoupled state is present in the input trajectory while coupled_only is set to True.' in out  # noqa: E501
+    os.remove('traj_0.xvg')
+
+    # Test 6: An index file is provided and there are coupled configurations
+    mock_gmx.reset_mock()
+    inputs['xvg'] = 'ensemble_md/tests/data/traj.xvg'
+    clustering.cluster_traj('gmx', inputs, grps, coupled_only=True, cutoff=0.13, suffix='test')
+
+    # Clean up
+    files = glob.glob('*_test*')
+    for f in files:
+        os.remove(f)
 
 
 def test_get_cluster_info():
     cluster_log = 'ensemble_md/tests/data/cluster.log'
-    results = cluster_info = clustering.get_cluster_info(cluster_log)
+    results = clustering.get_cluster_info(cluster_log)
 
     assert results[0] == [0.0236461, 0.316756]
     assert results[1] == 0.182848
@@ -75,7 +133,7 @@ def test_analyze_transitions(mock_plt):
     mock_plt.MaxNLocator.return_value = mock_obj
 
     results = clustering.analyze_transitions(clusters, plot_type='bar')
-    
+
     mock_plt.figure.called_once()
     mock_fig.add_subplot.assert_called_once_with(111)
     mock_plt.bar.called_once()
@@ -118,7 +176,7 @@ def test_analyze_transitions(mock_plt):
     results = clustering.analyze_transitions(clusters, plot_type='xy')
     mock_plt.xlabel.assert_called_once_with('Time frame (ns)')
     assert (mock_plt.plot.call_args_list[0][0][0] == np.arange(2000) / 1000).all()
-    
+
     # 3-4. invalid plt_type
-    with pytest.raises(ValueError, match='Invalid plot type: test. The plot type must be either "bar" or "xy" or unspecified.'):
+    with pytest.raises(ValueError, match='Invalid plot type: test. The plot type must be either "bar" or "xy" or unspecified.'):  # noqa: E501
         clustering.analyze_transitions(clusters, plot_type='test')

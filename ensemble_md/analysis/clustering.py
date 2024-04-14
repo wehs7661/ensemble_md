@@ -9,7 +9,6 @@
 ####################################################################
 import numpy as np
 import matplotlib.pyplot as plt
-from itertools import combinations
 from ensemble_md.utils.utils import run_gmx_cmd
 from ensemble_md.analysis import analyze_traj
 
@@ -47,6 +46,18 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
     suffix : str
         The suffix for the output files. The default is :code:`None`, which means no suffix will be added.
     """
+    # Check input parameters
+    required_keys_1 = ['traj', 'config', 'xvg', 'index']
+    for key in required_keys_1:
+        if key not in inputs:
+            raise ValueError(f'The key "{key}" is missing in the inputs dictionary.')
+    required_keys_2 = ['center', 'rmsd', 'output']
+    for key in required_keys_2:
+        if key not in grps:
+            raise ValueError(f'The key "{key}" is missing in the grps dictionary.')
+    if coupled_only and inputs['xvg'] is None:
+        raise ValueError('The parameter "coupled_only" is set to True but no XVG file is provided.')
+
     # Check if the index file is provided
     if inputs['index'] is None:
         print('Running gmx make_ndx to generate an index file ...')
@@ -63,7 +74,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         content = f.read()
     for key in grps:
         if grps[key] not in content:
-            raise ValueError(f'The group {grps[key]} is not present in the provided/generated index file.')
+            raise ValueError(f'The group "{grps[key]}" is not present in the provided/generated index file.')
 
     outputs = {
         'nojump': 'nojump.xtc',
@@ -96,8 +107,6 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         ]
 
         if coupled_only:
-            if inputs['xvg'] is None:
-                raise ValueError('The parameter "coupled_only" is set to True but no XVG file is provided.')
             args.extend([
                 '-drop', inputs['xvg'],
                 '-dropover', '0'
@@ -105,7 +114,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
 
         returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
         if returncode != 0:
-            print(f'Error with return code: {returncode}):\n{stderr}')
+            raise ValueError(f'Error with return code {returncode}:\n{stderr}')
 
         print('Centering the system ...')
         args = [
@@ -120,7 +129,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         ]
         returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
         if returncode != 0:
-            print(f'Error with return code: {returncode}):\n{stderr}')
+            raise ValueError(f'Error with return code {returncode}:\n{stderr}')
 
         if coupled_only is True:
             N_coupled = np.count_nonzero(lambda_data == 0)
@@ -141,7 +150,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         ]
         returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["output"]}\n')
         if returncode != 0:
-            print(f'Error with return code: {returncode}):\n{stderr}')
+            raise ValueError(f'Error with return code {returncode}:\n{stderr}')
 
         rmsd_range, rmsd_avg, n_clusters = get_cluster_info(outputs['cluster-log'])
 
@@ -153,10 +162,10 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
             clusters, sizes = get_cluster_members(outputs['cluster-log'])
             for i in range(1, n_clusters + 1):
                 print(f'  - Cluster {i} accounts for {sizes[i] * 100:.2f}% of the total configurations.')
-            
+
             if n_clusters == 2:
-                transmtx, _, t_transitions = analyze_transitions(clusters, normalize=False)  # Note that this is a 2D count matrix.
-                n_transitions = np.sum(transmtx) - np.trace(transmtx)  # This is the sum of all off-diagonal elements. np.trace calculates the sum of the diagonal elements.
+                transmtx, _, t_transitions = analyze_transitions(clusters, normalize=False)  # Note that this is a 2D count matrix.  # noqa: E501
+                n_transitions = np.sum(transmtx) - np.trace(transmtx)  # This is the sum of all off-diagonal elements. np.trace calculates the sum of the diagonal elements.  # noqa: E501
                 print(f'Number of transitions between the two clusters: {n_transitions}')
                 print(f'Time frames of the transitions (ps): {t_transitions[(1, 2)]}')
 
