@@ -328,6 +328,8 @@ def calculate_df_rmse(estimators, df_ref, state_ranges):
         df = np.array(estimators[i].delta_f_.iloc[0])  # the first state always has 0 free energy here
         ref = df_ref[state_ranges[i]]
         ref -= ref[0]   # shift the free energy of the first state in the range to 0
+        print(df)
+        print(ref)
         rmse_list.append(np.sqrt(np.sum((df - ref) ** 2) / len(df)))
 
     return rmse_list
@@ -381,7 +383,9 @@ def average_weights(g_vecs, frac):
     for i in range(N):
         dg.append(g_vecs[i][-1] - g_vecs[i][0])
     n = int(np.floor(N * frac))
+    if n <= 1:
+        print('The number of samples to be averaged is less than 2, so all samples will be averaged.')
     dg_avg = np.mean(dg[-n:])
-    dg_avg_err = np.std(dg_avg[-n:], ddof=1)
+    dg_avg_err = np.std(dg[-n:], ddof=1)
 
     return dg_avg, dg_avg_err
