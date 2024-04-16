@@ -96,10 +96,10 @@ def preprocess_data(files_list, temp, data_type, spacing=1, t=None, g=None):
             Neff_max = int((len(data_series.values) - t) / g)
 
         print(f'Subsampling and decorrelating the concatenated {data_type} data ...')
-        print(f'  Adopted spacing: {spacing: .0f}')
-        print(f' {t / len(data_series) * 100: .1f}% of the {data_type} data was in the equilibrium region and therfore discarded.')  # noqa: E501
-        print(f'  Statistical inefficiency of {data_type}: {g: .1f}')
-        print(f'  Number of effective samples: {Neff_max: .0f}\n')
+        print(f'  Adopted spacing: {spacing:.0f}')
+        print(f'  {t / len(data_series) * 100:.1f}% of the {data_type} data was in the equilibrium region and therfore discarded.')  # noqa: E501
+        print(f'  Statistical inefficiency of {data_type}: {g:.1f}')
+        print(f'  Number of effective samples: {Neff_max:.0f}\n')
 
         data_series_equil, data_equil = data_series[t:], data[t:]
         indices = subsample_correlated_data(data_series_equil, g=g)
