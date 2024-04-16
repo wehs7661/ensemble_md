@@ -1,6 +1,6 @@
-ensemble\_md.ensemble_EXE
-=========================
+ensemble\_md.replica_exchange_EE
+================================
 
-.. automodule:: ensemble_md.ensemble_EXE
+.. automodule:: ensemble_md.replica_exchange_EE
     :members:
     :undoc-members:
