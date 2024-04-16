@@ -10,9 +10,11 @@
 """
 Unit tests for the module analyze_free_energy.py.
 """
+import math
 import pytest
 import numpy as np
 from unittest.mock import patch, call, MagicMock
+from ensemble_md.utils import utils
 from ensemble_md.analysis import analyze_free_energy
 
 
@@ -145,12 +147,62 @@ def test_calculate_df_adjacent():
 
 
 def test_combine_df_adjacent():
-    pass
+    df_adjacent = [[1, 3], [4, 6]]
+    df_err_adjacent = [[0.1, 0.1], [0.1, 0.1]]
+    state_ranges = [[0, 1, 2], [1, 2, 3]]
+
+    # Test 1: df_err_adjacent is None (in which case err_type is ignored)
+    results = analyze_free_energy._combine_df_adjacent(df_adjacent, None, state_ranges, "propagate")
+    assert results[0] == [1, 3.5, 6]
+    assert math.isnan(results[1][0])
+    assert results[1][1] == np.std([3, 4], ddof=1)
+    assert math.isnan(results[1][2])
+    assert results[2] == [False, True, False]
+
+    # Test 2: df_err_adjacent is not None and err_type is "std"
+    results = analyze_free_energy._combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, "std")
+    assert results[0] == [1, 3.5, 6]
+    np.testing.assert_array_almost_equal(results[1], [0.1, np.std([3, 4], ddof=1), 0.1])
+    assert results[2] == [False, True, False]
+
+    # Test 3: df_err_adjacent is not None and err_type is "propagate"
+    df_err_adjacent = [[0.1, 0.1], [0.2, 0.1]]  # make the errs different so that the weighted mean will not be equal to simple mean  # noqa: E501
+    results = analyze_free_energy._combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, "propagate")
+    assert results[0] == [1, utils.weighted_mean([3, 4], [0.1, 0.2])[0], 6]
+    assert results[1] == [0.1, utils.weighted_mean([3, 4], [0.1, 0.2])[1], 0.1]
+    assert results[2] == [False, True, False]
 
 
-def test_calculate_free_energy():
-    # state_ranges = [[0, 1, 2, 3, 4], [1, 2, 3, 4, 5], [2, 3, 4, 5, 6], [3, 4, 5, 6, 7]]
-    pass
+@patch('ensemble_md.analysis.analyze_free_energy._apply_estimators')
+@patch('ensemble_md.analysis.analyze_free_energy._combine_df_adjacent')
+@patch('ensemble_md.analysis.analyze_free_energy._calculate_df_adjacent')
+def test_calculate_free_energy(mock_calc, mock_combine, mock_apply):
+    state_ranges = [[0, 1, 2], [1, 2, 3]]
+    mock_data = [MagicMock() for _ in range(4)]
+    mock_estimators = [MagicMock() for _ in range(4)]
+    mock_apply.return_value = mock_estimators
+    mock_calc.return_value = ([[1, 3], [4, 6]], [[0.1, 0.1], [0.1, 0.1]])  # df_adjacent, df_err_adjacent
+    mock_combine.return_value = ([1, 3.5, 6], [0.1, np.std([3, 4], ddof=1), 0.1], [False, True, False])
+    for data in mock_data:
+        data.sample.return_value = data  # Always returns itself, simplifying the bootstrapping logic for testing
+
+    # Test 1: err_method == "propagate"
+    results = analyze_free_energy.calculate_free_energy(mock_data, state_ranges, "MBAR", err_method="propagate")
+    assert results[0] == [0, 1, 4.5, 10.5]
+    assert results[1] == [0, 0.1, np.sqrt(0.1 ** 2 + np.std([3, 4], ddof=1) ** 2), np.sqrt(0.1 ** 2 + np.std([3, 4], ddof=1) ** 2 + 0.1 ** 2)]  # noqa: E501
+    assert results[2] == mock_estimators
+
+    # Test 2: err_method == "bootstrap"
+    mock_combine.return_value = ([1, 3.5, 6], [0.1, np.std([3, 4], ddof=1), 0.1], [False, True, False])  # we need this since df and df_err are modified by the previous test  # noqa: E501
+    results = analyze_free_energy.calculate_free_energy(mock_data, state_ranges, "MBAR", err_method="bootstrap", n_bootstrap=10, seed=0)  # noqa: E501
+    # Since all bootstrap iterations are the same, error_bootstrap should be [0, 0, 0], df_err = [0.1, 0, 0]
+    assert results[0] == [0, 1, 4.5, 10.5]
+    assert results[1] == [0, 0.1, 0.1, np.sqrt(0.1 ** 2 + 0.1 ** 2)]
+    assert results[2] == mock_estimators
+
+    # Test 3: Invalid err_method
+    with pytest.raises(Exception, match='Specified err_method not available.'):
+        analyze_free_energy.calculate_free_energy(mock_data, state_ranges, "MBAR", err_method="XYZ")
 
 
 def test_calculate_df_rmse():

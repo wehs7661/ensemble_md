@@ -220,8 +220,11 @@ def _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type):
             mean, error = utils.weighted_mean(df_list, df_err_list)
 
             if err_type == 'std':
-                # overwrite the error calculated above
-                error = np.std(df_list, ddof=1)
+                if len(df_list) == 1:
+                    error = df_err_list[0]
+                else:
+                    # overwrite the error calculated above
+                    error = np.std(df_list, ddof=1)
 
         df.append(mean)
         df_err.append(error)
@@ -291,6 +294,10 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
             if overlap_bool[i] is True:
                 print(f'Replaced the propagated error with the bootstrapped error for states {i} and {i + 1}: {df_err[i]:.5f} -> {error_bootstrap[i]:.5f}.')  # noqa: E501
                 df_err[i] = error_bootstrap[i]
+    elif err_method == 'propagate':
+        pass
+    else:
+        raise ParameterError('Specified err_method not available.')
 
     df.insert(0, 0)
     df_err.insert(0, 0)
