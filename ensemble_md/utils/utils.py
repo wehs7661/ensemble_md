@@ -21,41 +21,35 @@ import numpy as np
 
 class Logger:
     """
-    Redirects the STDOUT and STDERR to a specified output file while preserving them on screen.
+    A logger class that redirects the STDOUT and STDERR to a specified output file while
+    preserving the output on screen. This is useful for logging terminal output to a file
+    for later analysis while still seeing the output in real-time during execution.
 
     Parameters
     ----------
     logfile : str
-        Name of the output file to write the logged messages.
+        The file path to which the standard output and standard error should be logged.
 
     Attributes
     ----------
-    terminal : file object
-        The file object that represents the original STDOUT (i.e., the screen).
-    log : file object
-        The file object that represents the logfile where messages will be written.
+    terminal : :code:`io.TextIOWrapper` object
+        The original standard output object, typically :code:`sys.stdout`.
+    log : :code:`io.TextIOWrapper` object
+        File object used to log the output in append mode.
     """
 
     def __init__(self, logfile):
-        """
-        Initializes a Logger instance.
-
-        Parameters
-        ----------
-        logfile : str
-            Name of the output file to write the logged messages.
-        """
         self.terminal = sys.stdout
         self.log = open(logfile, "a")
 
     def write(self, message):
         """
-        Writes the given message to both the STDOUT and the logfile.
+        Writes a message to the terminal and to the log file.
 
         Parameters
         ----------
         message : str
-            The message to be written to STDOUT and logfile.
+            The message to be written to STDOUT and the log file.
         """
         self.terminal.write(message)
         self.log.write(message)
@@ -63,7 +57,7 @@ class Logger:
     def flush(self):
         """
         This method is needed for Python 3 compatibility. This handles the flush command by doing nothing.
-        You might want to specify some extra behavior here.
+        Some extra behaviors may be specified here.
         """
         # self.terminal.log()
         pass
@@ -71,15 +65,15 @@ class Logger:
 
 def run_gmx_cmd(arguments, prompt_input=None):
     """
-    Runs a GROMACS command as a subprocess
+    Runs a GROMACS command through a subprocess call.
 
     Parameters
     ----------
     arguments : list
-        A list of arguments that compose of the GROMACS command to run, e.g.
+        A list of arguments that compose of the GROMACS command to run, e.g.,
         :code:`['gmx', 'mdrun', '-deffnm', 'sys']`.
-    prompt_input : str or None
-        The input to be passed to the GROMACS command when it prompts for input.
+    prompt_input : str or None, Optional
+        The input to be passed to the interative prompt launched by the GROMACS command, if any.
 
     Returns
     -------
@@ -89,7 +83,6 @@ def run_gmx_cmd(arguments, prompt_input=None):
         The STDOUT of the process.
     stderr: str or None
         The STDERR or the process.
-
     """
     try:
         result = subprocess.run(arguments, capture_output=True, text=True, input=prompt_input, check=True)
@@ -102,7 +95,7 @@ def run_gmx_cmd(arguments, prompt_input=None):
 
 def format_time(t):
     """
-    Converts time in seconds to the "most readable" format.
+    Converts time in seconds to a more readable format.
 
     Parameters
     ----------
@@ -112,7 +105,9 @@ def format_time(t):
     Returns
     -------
     t_str : str
-        A string in the format of "XX day XX hour(s) XX minute(s) XX second(s)".
+        A string representing the time duration in a format of "X hour(s) Y minute(s) Z second(s)", adjusting the units
+        as necessary based on the input duration, e.g., 1 hour(s) 0 minute(s) 0 second(s) for 3600 seconds and
+        15 minute(s) 30 second(s) for 930 seconds.
     """
     hh_mm_ss = str(datetime.timedelta(seconds=t)).split(":")
 
@@ -135,8 +130,8 @@ def format_time(t):
 
 def _autoconvert(s):
     """
-    Converts input to a numerical type if possible. Used for the MDP parser.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
+    Converts input to a numerical type if possible. This internal function is used for the MDP parser
+    and was adapted from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
     Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
 
     Parameters
@@ -152,11 +147,6 @@ def _autoconvert(s):
         that value is returned as an :code:`int` or :code:`float`. If :code:`s` can be converted to
         multiple numerical values, a :code:`numpy.ndarray` containing those values is returned.
         If :code:`s` cannot be converted to a numerical value, :code:`s` is returned as is.
-
-    Raises
-    ------
-    ValueError
-        If :code:`s` cannot be converted to a numerical value.
     """
     if type(s) is not str:
         return s
@@ -181,13 +171,18 @@ def _autoconvert(s):
 
 def _get_subplot_dimension(n_panels):
     """
-    Gets the numbers of rows and columns in a subplot such that
-    the arrangement of the .
+    Gets the number of rows and columns for a subplot based on the number of panels such
+    that the subplots are arranged in a grid that is as square as possible.
 
     Parameters
     ----------
     n_panels : int
-        The number of panels in the subplot.
+        The number of panels to be arranged in subplots.
+
+    Example
+    -------
+        >>> _get_subplot_dimension(10)
+        (4, 3)
     """
     if int(np.sqrt(n_panels) + 0.5) ** 2 == n_panels:
         # perfect square number
@@ -260,13 +255,13 @@ def calc_rmse(data, ref):
 
 def get_time_metrics(log):
     """
-    Gets the time-based metrics from a log file, including the core time (s),
+    Gets the time-based metrics from a log file of a REXEE simulation, including the core time,
     wall time, and performance (ns/day).
 
     Parameters
     ----------
     log : str
-        The input log file.
+        The file path of the input log file.
 
     Returns
     -------
@@ -290,16 +285,16 @@ def get_time_metrics(log):
 
 def analyze_REXEE_time(n_iter=None, log_files=None):
     """
-    Perform simple data analysis on the wall times and performances of all iterations of an REXEE simulation.
+    Performs simple data analysis on the wall times and performances of all iterations of an REXEE simulation.
 
     Parameters
     ----------
-    n_iter : None or int
+    n_iter : None or int, Optional
         The number of iterations in the REXEE simulation. If None, the function will try to find the number of
-        iterations by counting the number of directories named "iteration_*" in the simulation directory
-        (i.e., :code:`sim_0`) in the current working directory or where the log files are located.
-    log_files : None or list
-        A list of lists log files with the shape of (n_iter, n_replicas). If None, the function will try to find
+        iterations by counting the number of directories named in the format of :code`iteration_*` in the simulation
+        directory (specifically :code:`sim_0`) in the current working directory or where the log files are located.
+    log_files : None or list, Optional
+        A list of lists of log paths with the shape of :code:`(n_iter, n_replicas)`. If None, the function will try to find
         the log files by searching the current working directory.
 
     Returns
@@ -310,7 +305,7 @@ def analyze_REXEE_time(n_iter=None, log_files=None):
         The total time spent in synchronizing all replicas, which is the sum of the differences
         between the longest and the shortest time elapsed to finish a iteration.
     t_wall_list : list
-        The list of wall times of finishing each mdrun command.
+        The list of wall times for finishing each GROMACS mdrun command.
     """
     if n_iter is None:
         if log_files is None:

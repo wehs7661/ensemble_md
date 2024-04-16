@@ -13,4 +13,4 @@ class ParameterError(Exception):
 
 
 class ParseError(Exception):
-    """Error raised when parsing of a file failed. Modified from GromacsWrapper."""
+    """Error raised during parsing a file."""
