@@ -96,10 +96,10 @@ def preprocess_data(files_list, temp, data_type, spacing=1, t=None, g=None):
             Neff_max = int((len(data_series.values) - t) / g)
 
         print(f'Subsampling and decorrelating the concatenated {data_type} data ...')
-        print(f'  Adopted spacing: {spacing: .0f}')
-        print(f' {t / len(data_series) * 100: .1f}% of the {data_type} data was in the equilibrium region and therfore discarded.')  # noqa: E501
-        print(f'  Statistical inefficiency of {data_type}: {g: .1f}')
-        print(f'  Number of effective samples: {Neff_max: .0f}\n')
+        print(f'  Adopted spacing: {spacing:.0f}')
+        print(f'  {t / len(data_series) * 100:.1f}% of the {data_type} data was in the equilibrium region and therfore discarded.')  # noqa: E501
+        print(f'  Statistical inefficiency of {data_type}: {g:.1f}')
+        print(f'  Number of effective samples: {Neff_max:.0f}\n')
 
         data_series_equil, data_equil = data_series[t:], data[t:]
         indices = subsample_correlated_data(data_series_equil, g=g)
@@ -220,8 +220,11 @@ def _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type):
             mean, error = utils.weighted_mean(df_list, df_err_list)
 
             if err_type == 'std':
-                # overwrite the error calculated above
-                error = np.std(df_list, ddof=1)
+                if len(df_list) == 1:
+                    error = df_err_list[0]
+                else:
+                    # overwrite the error calculated above
+                    error = np.std(df_list, ddof=1)
 
         df.append(mean)
         df_err.append(error)
@@ -291,6 +294,10 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
             if overlap_bool[i] is True:
                 print(f'Replaced the propagated error with the bootstrapped error for states {i} and {i + 1}: {df_err[i]:.5f} -> {error_bootstrap[i]:.5f}.')  # noqa: E501
                 df_err[i] = error_bootstrap[i]
+    elif err_method == 'propagate':
+        pass
+    else:
+        raise ParameterError('Specified err_method not available.')
 
     df.insert(0, 0)
     df_err.insert(0, 0)
@@ -328,6 +335,8 @@ def calculate_df_rmse(estimators, df_ref, state_ranges):
         df = np.array(estimators[i].delta_f_.iloc[0])  # the first state always has 0 free energy here
         ref = df_ref[state_ranges[i]]
         ref -= ref[0]   # shift the free energy of the first state in the range to 0
+        print(df)
+        print(ref)
         rmse_list.append(np.sqrt(np.sum((df - ref) ** 2) / len(df)))
 
     return rmse_list
@@ -381,7 +390,9 @@ def average_weights(g_vecs, frac):
     for i in range(N):
         dg.append(g_vecs[i][-1] - g_vecs[i][0])
     n = int(np.floor(N * frac))
+    if n <= 1:
+        print('The number of samples to be averaged is less than 2, so all samples will be averaged.')
     dg_avg = np.mean(dg[-n:])
-    dg_avg_err = np.std(dg_avg[-n:], ddof=1)
+    dg_avg_err = np.std(dg[-n:], ddof=1)
 
     return dg_avg, dg_avg_err

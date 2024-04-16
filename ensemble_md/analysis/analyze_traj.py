@@ -266,7 +266,8 @@ def traj2transmtx(traj, N, normalize=True):
     Parameters
     ---------
     traj : list
-        A list of state indices showing the trajectory in the state space.
+        A list of state indices showing the trajectory in the state space. The index
+        is assumed to start from 0.
     N : int
         The size (N) of the expcted transition matrix (N by N).
     normalize : bool

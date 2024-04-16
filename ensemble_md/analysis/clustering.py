@@ -8,7 +8,9 @@
 #                                                                  #
 ####################################################################
 import numpy as np
+import matplotlib.pyplot as plt
 from ensemble_md.utils.utils import run_gmx_cmd
+from ensemble_md.analysis import analyze_traj
 
 
 def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkage', cutoff=0.1, suffix=None):
@@ -44,6 +46,18 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
     suffix : str
         The suffix for the output files. The default is :code:`None`, which means no suffix will be added.
     """
+    # Check input parameters
+    required_keys_1 = ['traj', 'config', 'xvg', 'index']
+    for key in required_keys_1:
+        if key not in inputs:
+            raise ValueError(f'The key "{key}" is missing in the inputs dictionary.')
+    required_keys_2 = ['center', 'rmsd', 'output']
+    for key in required_keys_2:
+        if key not in grps:
+            raise ValueError(f'The key "{key}" is missing in the grps dictionary.')
+    if coupled_only and inputs['xvg'] is None:
+        raise ValueError('The parameter "coupled_only" is set to True but no XVG file is provided.')
+
     # Check if the index file is provided
     if inputs['index'] is None:
         print('Running gmx make_ndx to generate an index file ...')
@@ -60,13 +74,13 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         content = f.read()
     for key in grps:
         if grps[key] not in content:
-            raise ValueError(f'The group {grps[key]} is not present in the provided/generated index file.')
+            raise ValueError(f'The group "{grps[key]}" is not present in the provided/generated index file.')
 
     outputs = {
         'nojump': 'nojump.xtc',
         'center': 'center.xtc',
-        'rmsd-clust': 'rmsd-clust.xpm',
-        'rmsd-dist': 'rmsd-dist.xvg',
+        'rmsd-clust': 'rmsd_clust.xpm',
+        'rmsd-dist': 'rmsd_dist.xvg',
         'cluster-log': 'cluster.log',
         'cluster-pdb': 'clusters.pdb',
         'rmsd': 'rmsd.xvg',  # inter-medoid RMSD
@@ -93,8 +107,6 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         ]
 
         if coupled_only:
-            if inputs['xvg'] is None:
-                raise ValueError('The parameter "coupled_only" is set to True but no XVG file is provided.')
             args.extend([
                 '-drop', inputs['xvg'],
                 '-dropover', '0'
@@ -102,7 +114,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
 
         returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
         if returncode != 0:
-            print(f'Error with return code: {returncode}):\n{stderr}')
+            raise ValueError(f'Error with return code {returncode}:\n{stderr}')
 
         print('Centering the system ...')
         args = [
@@ -117,7 +129,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         ]
         returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["center"]}\n{grps["output"]}\n')
         if returncode != 0:
-            print(f'Error with return code: {returncode}):\n{stderr}')
+            raise ValueError(f'Error with return code {returncode}:\n{stderr}')
 
         if coupled_only is True:
             N_coupled = np.count_nonzero(lambda_data == 0)
@@ -138,7 +150,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
         ]
         returncode, stdout, stderr = run_gmx_cmd(args, prompt_input=f'{grps["rmsd"]}\n{grps["output"]}\n')
         if returncode != 0:
-            print(f'Error with return code: {returncode}):\n{stderr}')
+            raise ValueError(f'Error with return code {returncode}:\n{stderr}')
 
         rmsd_range, rmsd_avg, n_clusters = get_cluster_info(outputs['cluster-log'])
 
@@ -151,9 +163,12 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
             for i in range(1, n_clusters + 1):
                 print(f'  - Cluster {i} accounts for {sizes[i] * 100:.2f}% of the total configurations.')
 
-            n_transitions, t_transitions = count_transitions(clusters)
-            print(f'Number of transitions between the two biggest clusters: {n_transitions}')
-            print(f'Time frames of the transitions (ps): {t_transitions}')
+            if n_clusters == 2:
+                transmtx, _, t_transitions = analyze_transitions(clusters, normalize=False)  # Note that this is a 2D count matrix.  # noqa: E501
+                n_transitions = np.sum(transmtx) - np.trace(transmtx)  # This is the sum of all off-diagonal elements. np.trace calculates the sum of the diagonal elements.  # noqa: E501
+                print(f'Number of transitions between the two clusters: {n_transitions}')
+                if n_transitions > 0:
+                    print(f'Time frames of the transitions (ps): {t_transitions[(1, 2)]}')
 
             print('Calculating the inter-medoid RMSD between the two biggest clusters ...')
             # Note that we pass outputs['cluster-pdb'] to -s so that the first medoid will be used as the reference
@@ -261,35 +276,81 @@ def get_cluster_members(cluster_log):
     return clusters, sizes
 
 
-def count_transitions(clusters):
+def analyze_transitions(clusters, normalize=True, plot_type=None):
     """
-    Counts the number of transitions between the two biggest clusters.
+    Analyzes transitions between clusters, including estimating the transition matrix, generating/plotting a trajectory
+    showing which cluster each configuration belongs to, and/or plotting the distribution of the clusters.
 
     Parameters
     ----------
     clusters : dict
         A dictionary that contains the cluster index (starting from 1) as the key and the list of members
-        (configurations at different timeframes) as the value.
+        (configurations at different timeframes in ps) as the value.
+    plot_type : str
+        The type of the figure to be plotted. The default is :code:`None`, which means no figure will be plotted.
+        The other options are :code:`'bar'` and :code:`'xy'`. The former plots the distribution of the clusters,
+        while the latter plots the trajectory showing which cluster each configuration belongs to.
 
     Returns
     -------
-    n_transitions : int
-        The number of transitions between the two biggest clusters.
-    t_transitions : list
-        The list of time frames when the transitions occur.
+    transmtx: np.ndarray
+        The transition matrix.
+    traj: np.ndarray
+        The trajectory showing which cluster each configuration belongs to.
+    t_transitions: dict
+        A dictionary with keys being pairs of cluster indices and values being the time frames of transitions
+        between the two clusters. If there is no transition, an empty dictionary will be returned.
     """
-    # Combine and sort all cluster members for the first two biggest clusters while keeping track of their origin
-    all_members = [(member, 1) for member in clusters[1]] + [(member, 2) for member in clusters[2]]
+    # Combine all cluster members and sort them
+    all_members = []
+    for key in clusters:
+        all_members.extend([(member, key) for member in clusters[key]])
     all_members.sort()
 
-    # Count transitions and record time frames
-    n_transitions = 0
-    t_transitions = []
-    last_cluster = all_members[0][1]  # the cluster index of the last time frame in the previous iteration
-    for member in all_members[1:]:
-        if member[1] != last_cluster:
-            n_transitions += 1
-            last_cluster = member[1]
-            t_transitions.append(member[0])
+    # Generate the trajectory
+    t = np.array([member[0] for member in all_members])
+    traj = np.array([member[1] for member in all_members])
 
-    return n_transitions, t_transitions
+    # Generate the transition matrix
+    # Since traj2transmtx assumes an index starting from 0, we subtract 1 from the trajectory
+    transmtx = analyze_traj.traj2transmtx(traj - 1, len(clusters), normalize=normalize)
+
+    # Generate the dictionary of transitions
+    t_transitions = {}
+    for i in range(len(traj) - 1):
+        if traj[i] != traj[i + 1]:
+            pair = tuple(sorted((traj[i], traj[i + 1])))
+            if pair not in t_transitions:
+                t_transitions[pair] = [t[i + 1]]
+            else:
+                t_transitions[pair].append(t[i + 1])
+
+    if plot_type is not None:
+        if plot_type == 'bar':
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            plt.bar(clusters.keys(), [len(clusters[i]) for i in clusters], width=0.35)
+            plt.xlabel('Cluster index')
+            plt.ylabel('Number of configurations')
+            plt.grid()
+            ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            plt.savefig('cluster_distribution.png', dpi=600)
+        elif plot_type == 'xy':
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            if len(t) > 1000:
+                t = t / 1000  # convert to ns
+                units = 'ns'
+            else:
+                units = 'ps'
+            plt.plot(t, traj)
+            plt.xlabel(f'Time frame ({units})')
+            plt.ylabel('Cluster index')
+            ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            plt.grid()
+            plt.savefig('cluster_traj.png', dpi=600)
+        else:
+            raise ValueError(f'Invalid plot type: {plot_type}. The plot type must be either "bar" or "xy" or unspecified.')  # noqa: E501
+
+    return transmtx, traj, t_transitions

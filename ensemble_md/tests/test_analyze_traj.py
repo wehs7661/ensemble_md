@@ -13,7 +13,7 @@ Unit tests for the module analyze_traj.py.
 import os
 import pytest
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, call, MagicMock
 from ensemble_md.analysis import analyze_traj
 
 current_path = os.path.dirname(os.path.abspath(__file__))
@@ -187,10 +187,10 @@ def test_stitch_xtc_trajs(mock_gmx):
     args_4 = ['gmx', 'trjcat', '-f', f'{folder}/sim_3/iteration_0/md.xtc', f'{folder}/sim_3/iteration_1/md.xtc', f'{folder}/sim_3/iteration_2/md.xtc', '-o', 'traj_3.xtc']  # noqa: E501
 
     assert mock_gmx.call_count == 4
-    assert mock_gmx.call_args_list[0][0][0] == args_1
-    assert mock_gmx.call_args_list[1][0][0] == args_2
-    assert mock_gmx.call_args_list[2][0][0] == args_3
-    assert mock_gmx.call_args_list[3][0][0] == args_4
+    assert mock_gmx.call_args_list[0] == call(args_1)
+    assert mock_gmx.call_args_list[1] == call(args_2)
+    assert mock_gmx.call_args_list[2] == call(args_3)
+    assert mock_gmx.call_args_list[3] == call(args_4)
 
 
 def test_convert_npy2xvg():
@@ -480,8 +480,8 @@ def test_plot_state_hist(mock_plt):
 
     assert mock_plt.bar.call_count == n_configs
     assert mock_plt.fill_betweenx.call_count == n_configs
-    assert mock_plt.fill_betweenx.call_args_list[0] == (([0, 5.25],), {'x1': 3.5, 'x2': -1.0, 'color': colors[0], 'alpha': 0.1, 'zorder': 0})  # noqa: E501
-    assert mock_plt.fill_betweenx.call_args_list[1] == (([0, 5.25],), {'x1': 6.0, 'x2': 1.5, 'color': colors[1], 'alpha': 0.1, 'zorder': 0})  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[0] == call([0, 5.25], x1=3.5, x2=-1.0, color=colors[0], alpha=0.1, zorder=0)  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[1] == call([0, 5.25], x1=6.0, x2=1.5, color=colors[1], alpha=0.1, zorder=0)  # noqa: E501
     assert mock_plt.bar.call_args_list[0][0][0] == range(6)
     np.testing.assert_array_equal(mock_plt.bar.call_args_list[0][0][1], hist_data[0])
     assert mock_plt.bar.call_args_list[1][0][0] == range(6)
@@ -539,14 +539,12 @@ def test_plot_state_hist(mock_plt):
     assert mock_plt.title.call_count == n_configs
     assert mock_plt.grid.call_count == n_configs
 
-    assert mock_plt.xticks.call_args_list[0][0] == ([0, 1, 2, 3],)
-    assert mock_plt.xticks.call_args_list[1][0] == ([2, 3, 4, 5],)
-    assert mock_plt.xticks.call_args_list[0][1] == {'fontsize': 8}
-    assert mock_plt.xticks.call_args_list[1][1] == {'fontsize': 8}
-    assert mock_plt.xlim.call_args_list[0][0] == ([-0.5, 3.5],)
-    assert mock_plt.xlim.call_args_list[1][0] == ([1.5, 5.5],)
-    assert mock_plt.title.call_args_list[0][0] == ('Trajectory 0',)
-    assert mock_plt.title.call_args_list[1][0] == ('Trajectory 1',)
+    assert mock_plt.xticks.call_args_list[0] == call([0, 1, 2, 3], fontsize=8)
+    assert mock_plt.xticks.call_args_list[1] == call([2, 3, 4, 5], fontsize=8)
+    assert mock_plt.xlim.call_args_list[0] == call([-0.5, 3.5])
+    assert mock_plt.xlim.call_args_list[1] == call([1.5, 5.5])
+    assert mock_plt.title.call_args_list[0] == call('Trajectory 0')
+    assert mock_plt.title.call_args_list[1] == call('Trajectory 1')
     assert mock_plt.bar.call_args_list[0][0][0] == [0, 1, 2, 3]
     assert mock_plt.bar.call_args_list[1][0][0] == [2, 3, 4, 5]
     np.testing.assert_array_equal(mock_plt.bar.call_args_list[0][0][1], hist_data[0][[0, 1, 2, 3]])
@@ -623,9 +621,9 @@ def test_plot_transit_time(mock_plt):
         {'label': 'Trajectory 1', 'marker': 'o'}
     ]
 
-    assert mock_plt.ylabel.call_args_list[0][0] == ('Average transit time from states 0 to k (step)',)
-    assert mock_plt.ylabel.call_args_list[1][0] == ('Average transit time from states k to 0 (step)',)
-    assert mock_plt.ylabel.call_args_list[2][0] == ('Average round-trip time (step)',)
+    assert mock_plt.ylabel.call_args_list[0] == call('Average transit time from states 0 to k (step)')
+    assert mock_plt.ylabel.call_args_list[1] == call('Average transit time from states k to 0 (step)')
+    assert mock_plt.ylabel.call_args_list[2] == call('Average round-trip time (step)')
 
     # Case 2: dt = 0.2 ps, fig_prefix = 'test', here we just test the return values
     mock_plt.reset_mock()
@@ -886,10 +884,10 @@ def test_plot_swaps(mock_plt):
     }
 
     # Below we only check the keyword arguments of the fill_betweenx calls
-    assert mock_plt.fill_betweenx.call_args_list[0][1] == {'x1': 4.5, 'x2': -1, 'color': colors[0], 'alpha': 0.1, 'zorder': 0}  # noqa: E501
-    assert mock_plt.fill_betweenx.call_args_list[1][1] == {'x1': 5.5, 'x2': 0.5, 'color': colors[1], 'alpha': 0.1, 'zorder': 0}  # noqa: E501
-    assert mock_plt.fill_betweenx.call_args_list[2][1] == {'x1': 6.5, 'x2': 1.5, 'color': colors[2], 'alpha': 0.1, 'zorder': 0}  # noqa: E501
-    assert mock_plt.fill_betweenx.call_args_list[3][1] == {'x1': 8, 'x2': 2.5, 'color': colors[3], 'alpha': 0.1, 'zorder': 0}  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[0] == call([mock_min, mock_max], x1=4.5, x2=-1, color=colors[0], alpha=0.1, zorder=0)  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[1] == call([mock_min, mock_max], x1=5.5, x2=0.5, color=colors[1], alpha=0.1, zorder=0)  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[2] == call([mock_min, mock_max], x1=6.5, x2=1.5, color=colors[2], alpha=0.1, zorder=0)  # noqa: E501
+    assert mock_plt.fill_betweenx.call_args_list[3] == call([mock_min, mock_max], x1=8, x2=2.5, color=colors[3], alpha=0.1, zorder=0)  # noqa: E501
 
     # Test 2: The case specifying the swap_type
     mock_plt.reset_mock()
