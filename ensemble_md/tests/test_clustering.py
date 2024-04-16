@@ -13,7 +13,7 @@ Unit tests for the module clustering.py.
 import os
 import pytest
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, call, MagicMock
 from ensemble_md.analysis import clustering
 from ensemble_md.analysis import analyze_traj
 
@@ -138,14 +138,10 @@ def test_cluster_traj(mock_gmx, mock_fn_1, mock_fn_2, mock_fn_3, capfd):
     assert mock_fn_2.call_count == 1
     assert mock_fn_3.call_count == 1
 
-    assert mock_gmx.call_args_list[0][0][0] == args_1
-    assert mock_gmx.call_args_list[1][0][0] == args_2
-    assert mock_gmx.call_args_list[2][0][0] == args_3
-    assert mock_gmx.call_args_list[3][0][0] == args_4
-    assert mock_gmx.call_args_list[0][1]['prompt_input'] == 'HOS_MOL\nHOS_MOL\n'
-    assert mock_gmx.call_args_list[1][1]['prompt_input'] == 'HOS_MOL\nHOS_MOL\n'
-    assert mock_gmx.call_args_list[2][1]['prompt_input'] == 'complex_heavy\nHOS_MOL\n'
-    assert mock_gmx.call_args_list[3][1]['prompt_input'] == 'complex_heavy\ncomplex_heavy\n'
+    assert mock_gmx.call_args_list[0] == call(args_1, prompt_input='HOS_MOL\nHOS_MOL\n')
+    assert mock_gmx.call_args_list[1] == call(args_2, prompt_input='HOS_MOL\nHOS_MOL\n')
+    assert mock_gmx.call_args_list[2] == call(args_3, prompt_input='complex_heavy\nHOS_MOL\n')
+    assert mock_gmx.call_args_list[3] == call(args_4, prompt_input='complex_heavy\ncomplex_heavy\n')
 
     out, err = capfd.readouterr()
     assert 'Number of fully coupled configurations: 5' in out

@@ -10,6 +10,7 @@
 """
 Unit tests for the module analyze_free_energy.py.
 """
+import pytest
 import numpy as np
 from unittest.mock import patch, call, MagicMock
 from ensemble_md.analysis import analyze_free_energy
@@ -79,16 +80,51 @@ def test_preprocess_data(mock_corr, mock_equil, mock_extract_dHdl, mock_extract_
     assert results[2] == [5, 5, 5, 5]
 
 
-# @patch(ensemble_md.analysis.analyze_free_energy.MBAR)
-# @patch(ensemble_md.analysis.analyze_free_energy.BAR)
-# @patch(ensemble_md.analysis.analyze_free_energy.TI)
-# def test_apply_estimators(mock_ti, mock_bar, mock_mbar):
-#     estimator_mock = MagicMock()
-#     estimator_mock.fit.return_value = estimator_mock
+@pytest.mark.parametrize("method, expected_estimator", [
+    ("MBAR", "MBAR estimator"),
+    ("BAR", "BAR estimator"),
+    ("TI", "TI estimator"),
+])
+def test_apply_estimators(method, expected_estimator):
+    with patch('ensemble_md.analysis.analyze_free_energy.MBAR') as mock_MBAR, \
+         patch('ensemble_md.analysis.analyze_free_energy.BAR') as mock_BAR, \
+         patch('ensemble_md.analysis.analyze_free_energy.TI') as mock_TI:
 
+        # Setup mock return values for each estimator
+        mock_MBAR_instance = MagicMock()
+        mock_MBAR.return_value = mock_MBAR_instance
+        mock_MBAR_instance.fit.return_value = "MBAR estimator"  # doesn't matter what the value is
 
-def test_apply_estimators():
-    pass
+        mock_BAR_instance = MagicMock()
+        mock_BAR.return_value = mock_BAR_instance
+        mock_BAR_instance.fit.return_value = "BAR estimator"  # doesn't matter what the value is
+
+        mock_TI_instance = MagicMock()
+        mock_TI.return_value = mock_TI_instance
+        mock_TI_instance.fit.return_value = "TI estimator"  # doesn't matter what the value is
+
+        # Create mock data frames
+        mock_data = [MagicMock(name=f"DataFrame {i}") for i in range(3)]
+
+        # Call the function
+        results = analyze_free_energy._apply_estimators(mock_data, method)
+
+        # Assertions to check correct estimators are used
+        assert len(results) == 3
+        assert all(result == expected_estimator for result in results), "Estimator results do not match expected"
+
+        # Ensure fit method is called on each data frame and verify calls
+        expected_calls = [call(data) for data in mock_data]
+        if method == "MBAR":
+            mock_MBAR_instance.fit.assert_has_calls(expected_calls)
+        elif method == "BAR":
+            mock_BAR_instance.fit.assert_has_calls(expected_calls)
+        elif method == "TI":
+            mock_TI_instance.fit.assert_has_calls(expected_calls)
+
+        # Test with an invalid method
+        with pytest.raises(Exception, match='Specified estimator not available.'):
+            analyze_free_energy._apply_estimators(mock_data, "XYZ")
 
 
 def test_calculate_df_adjacent():
