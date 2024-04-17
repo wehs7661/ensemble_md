@@ -170,21 +170,33 @@ def parse_log(log_file):
 
 
 class MDP(odict):
-    """Class that represents a Gromacs mdp run input file.
-    Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
-    Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com>
-    The MDP instance is an ordered dictionary.
+    """
+    A class that represents a GROMACS MDP file. Note that an MDP instance is an ordered dictionary,
+    with the i-th key corresponding to the i-th line in the MDP file. Comments and blank lines are
+    also preserved, e.g., with keys 'C0001' and 'B0001', respectively. The value corresponding to a
+    'C' key is the comment itself, while the value corresponding to a 'B' key is an empty string.
+    Comments after a parameter on the same line are discarded. Leading and trailing spaces
+    are always stripped.
 
-      - *Parameter names* are keys in the dictionary.
-      - *Comments* are sequentially numbered with keys Comment0001,
-        Comment0002, ...
-      - *Empty lines* are similarly preserved as Blank0001, ....
+    Parameters
+    ----------
+    input_mdp : str, Optional
+        The path to the input MDP file. The default is None.
+    **kwargs : Optional
+        Additional keyword arguments to be passed to add additional key-value pairs to the MDP instance.
+        Note that no sanity checks will be performed for the key-value pairs passed in this way. This
+        also does not work for keys that are not legal python variable names, such as anything that includes
+        a minus '-' sign or starts with a number.
 
-    When writing, the dictionary is dumped in the recorded order to a
-    file. Inserting keys at a specific position is not possible.
-
-    Currently, comments after a parameter on the same line are
-    discarded. Leading and trailing spaces are always stripped.
+    Attributes
+    ----------
+    COMMENT : re.Pattern
+        A compiled regular expression pattern for comments in MDP files.
+    PARAMETER : re.Pattern
+        A compiled regular expression pattern for parameters in MDP files.
+    input_mdp : str
+        The real path to the input MDP file returned by :code:`os.path.realpath(input_mdp)`,
+        which resolves any symbolic links in the path.
     """
     # Below are some class variables accessible to all functions.
     COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")  # noqa: W605
@@ -197,31 +209,11 @@ class MDP(odict):
         re.VERBOSE,
     )
 
-    def __init__(self, input_mdp=None, autoconvert=True, **kwargs):
-        """Initialize mdp structure.
-
-        :Arguments:
-          *filename*
-              read from mdp file
-          *autoconvert* : boolean
-              ``True`` converts numerical values to python numerical types;
-              ``False`` keeps everything as strings [``True``]
-          *kwargs*
-              Populate the MDP with key=value pairs. (NO SANITY CHECKS; and also
-              does not work for keys that are not legal python variable names such
-              as anything that includes a minus '-' sign or starts with a number).
-        """
+    def __init__(self, input_mdp=None, **kwargs):
         super(MDP, self).__init__(**kwargs)  # can use kwargs to set dict! (but no sanity checks!)
-        self.autoconvert = autoconvert
         if input_mdp is not None:
             self.input_mdp = os.path.realpath(input_mdp)
             self.read()
-
-    def _transform(self, value):
-        if self.autoconvert:
-            return utils._convert_to_numeric(value)
-        else:
-            return value.rstrip()
 
     def read(self):
         """Read and parse mdp file *filename*."""
@@ -249,10 +241,10 @@ class MDP(odict):
                 m = self.PARAMETER.match(line)
                 if m:
                     parameter = m.group("parameter")
-                    value = self._transform(m.group("value"))
+                    value = utils._convert_to_numeric(m.group("value"))
                     data[parameter] = value
                 else:
-                    err_msg = f"{self.input_mdp!r}: unknown line in mdp file, {line!r}"
+                    err_msg = f"{os.path.basename(self.input_mdp)!r}: unknown line in mdp file, {line!r}"
                     raise ParseError(err_msg)
 
         super(MDP, self).update(data)
