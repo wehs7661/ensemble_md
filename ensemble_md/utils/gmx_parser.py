@@ -13,7 +13,6 @@ The :code:`gmx_parser` module provides functions for parsing GROMACS files.
 import os
 import re
 import six
-import logging
 import warnings
 from collections import OrderedDict as odict
 
@@ -170,105 +169,37 @@ def parse_log(log_file):
     return weights, counts, wl_delta, equil_time
 
 
-class FileUtils(object):
-    """Mixin class to provide additional file-related capabilities.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
-    Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
+class MDP(odict):
     """
+    A class that represents a GROMACS MDP file. Note that an MDP instance is an ordered dictionary,
+    with the i-th key corresponding to the i-th line in the MDP file. Comments and blank lines are
+    also preserved, e.g., with keys 'C0001' and 'B0001', respectively. The value corresponding to a
+    'C' key is the comment itself, while the value corresponding to a 'B' key is an empty string.
+    Comments after a parameter on the same line are discarded. Leading and trailing spaces
+    are always stripped.
 
-    #: Default extension for files read/written by this class.
-    default_extension = None
+    Parameters
+    ----------
+    input_mdp : str, Optional
+        The path to the input MDP file. The default is None.
+    **kwargs : Optional
+        Additional keyword arguments to be passed to add additional key-value pairs to the MDP instance.
+        Note that no sanity checks will be performed for the key-value pairs passed in this way. This
+        also does not work for keys that are not legal python variable names, such as anything that includes
+        a minus '-' sign or starts with a number.
 
-    def _init_filename(self, filename=None, ext=None):
-        """Initialize the current filename :attr:`FileUtils.real_filename` of the object.
-
-        Bit of a hack.
-
-        - The first invocation must have ``filename != None``; this will set a
-          default filename with suffix :attr:`FileUtils.default_extension`
-          unless another one was supplied.
-
-        - Subsequent invocations either change the filename accordingly or
-          ensure that the default filename is set with the proper suffix.
-
-        """
-
-        extension = ext or self.default_extension
-        filename = self.filename(
-            filename, ext=extension, use_my_ext=True, set_default=True
-        )
-        #: Current full path of the object for reading and writing I/O.
-        self.real_filename = os.path.realpath(filename)
-
-    def filename(self, filename=None, ext=None, set_default=False, use_my_ext=False):
-        """Supply a file name for the class object.
-
-        Typical uses::
-
-           fn = filename()             ---> <default_filename>
-           fn = filename('name.ext')   ---> 'name'
-           fn = filename(ext='pickle') ---> <default_filename>'.pickle'
-           fn = filename('name.inp','pdf') --> 'name.pdf'
-           fn = filename('foo.pdf',ext='png',use_my_ext=True) --> 'foo.pdf'
-
-        The returned filename is stripped of the extension
-        (``use_my_ext=False``) and if provided, another extension is
-        appended. Chooses a default if no filename is given.
-
-        Raises a ``ValueError`` exception if no default file name is known.
-
-        If ``set_default=True`` then the default filename is also set.
-
-        ``use_my_ext=True`` lets the suffix of a provided filename take
-        priority over a default ``ext`` tension.
-        """
-        if filename is None:
-            if not hasattr(self, "_filename"):
-                self._filename = None  # add attribute to class
-            if self._filename:
-                filename = self._filename
-            else:
-                raise ValueError(
-                    "A file name is required because no default file name was defined."
-                )
-            my_ext = None
-        else:
-            filename, my_ext = os.path.splitext(filename)
-            if set_default:  # replaces existing default file name
-                self._filename = filename
-        if my_ext and use_my_ext:
-            ext = my_ext
-        if ext is not None:
-            if ext.startswith(os.extsep):
-                ext = ext[1:]  # strip a dot to avoid annoying mistakes
-            if ext != "":
-                filename = filename + os.extsep + ext
-        return filename
-
-
-class MDP(odict, FileUtils):
-    """Class that represents a Gromacs mdp run input file.
-    Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
-    Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com>
-    The MDP instance is an ordered dictionary.
-
-      - *Parameter names* are keys in the dictionary.
-      - *Comments* are sequentially numbered with keys Comment0001,
-        Comment0002, ...
-      - *Empty lines* are similarly preserved as Blank0001, ....
-
-    When writing, the dictionary is dumped in the recorded order to a
-    file. Inserting keys at a specific position is not possible.
-
-    Currently, comments after a parameter on the same line are
-    discarded. Leading and trailing spaces are always stripped.
+    Attributes
+    ----------
+    COMMENT : re.Pattern
+        A compiled regular expression pattern for comments in MDP files.
+    PARAMETER : re.Pattern
+        A compiled regular expression pattern for parameters in MDP files.
+    input_mdp : str
+        The real path to the input MDP file returned by :code:`os.path.realpath(input_mdp)`,
+        which resolves any symbolic links in the path.
     """
-
-    default_extension = "mdp"
-    logger = logging.getLogger("gromacs.formats.MDP")
-
-    COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")  # eat initial ws  # noqa: W605
-    # see regex in cbook.edit_mdp()
+    # Below are some class variables accessible to all functions.
+    COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")  # noqa: W605
     PARAMETER = re.compile(
         """
                             \s*(?P<parameter>[^=]+?)\s*=\s*  # parameter (ws-stripped), before '='  # noqa: W605
@@ -278,59 +209,23 @@ class MDP(odict, FileUtils):
         re.VERBOSE,
     )
 
-    def __init__(self, filename=None, autoconvert=True, **kwargs):
-        """Initialize mdp structure.
+    def __init__(self, input_mdp=None, **kwargs):
+        super(MDP, self).__init__(**kwargs)  # can use kwargs to set dict! (but no sanity checks!)
+        if input_mdp is not None:
+            self.input_mdp = os.path.realpath(input_mdp)
+            self.read()
 
-        :Arguments:
-          *filename*
-              read from mdp file
-          *autoconvert* : boolean
-              ``True`` converts numerical values to python numerical types;
-              ``False`` keeps everything as strings [``True``]
-          *kwargs*
-              Populate the MDP with key=value pairs. (NO SANITY CHECKS; and also
-              does not work for keys that are not legal python variable names such
-              as anything that includes a minus '-' sign or starts with a number).
-        """
-        super(MDP, self).__init__(
-            **kwargs
-        )  # can use kwargs to set dict! (but no sanity checks!)
-
-        self.autoconvert = autoconvert
-
-        if filename is not None:
-            self._init_filename(filename)
-            self.read(filename)
-
-    def __eq__(self, other):
-        """
-        __eq__ inherited from FileUtils needs to be overridden if new attributes (autoconvert in
-        this case) are assigned to the instance of the subclass (MDP in our case).
-        See `this post by LGTM <https://lgtm.com/rules/9990086/>`_ for more details.
-        """
-        if not isinstance(other, MDP):
-            return False
-        return FileUtils.__eq__(self, other) and self.autoconvert == other.autoconvert
-
-    def _transform(self, value):
-        if self.autoconvert:
-            return utils._autoconvert(value)
-        else:
-            return value.rstrip()
-
-    def read(self, filename=None):
+    def read(self):
         """Read and parse mdp file *filename*."""
-        self._init_filename(filename)
-
         def BLANK(i):
-            return "B{0:04d}".format(i)
+            return f"B{i:04d}"
 
         def COMMENT(i):
-            return "C{0:04d}".format(i)
+            return f"C{i:04d}"
 
         data = odict()
         iblank = icomment = 0
-        with open(self.real_filename) as mdp:
+        with open(self.input_mdp) as mdp:
             for line in mdp:
                 line = line.strip()
                 if len(line) == 0:
@@ -342,23 +237,19 @@ class MDP(odict, FileUtils):
                     icomment += 1
                     data[COMMENT(icomment)] = m.group("value")
                     continue
-                # parameter
+
                 m = self.PARAMETER.match(line)
                 if m:
-                    # check for comments after parameter?? -- currently discarded
                     parameter = m.group("parameter")
-                    value = self._transform(m.group("value"))
+                    value = utils._convert_to_numeric(m.group("value"))
                     data[parameter] = value
                 else:
-                    errmsg = "{filename!r}: unknown line in mdp file, {line!r}".format(
-                        **vars()
-                    )
-                    self.logger.error(errmsg)
-                    raise ParseError(errmsg)
+                    err_msg = f"{os.path.basename(self.input_mdp)!r}: unknown line in mdp file, {line!r}"
+                    raise ParseError(err_msg)
 
         super(MDP, self).update(data)
 
-    def write(self, filename=None, skipempty=False):
+    def write(self, output_mdp=None, skipempty=False):
         """Write mdp file to *filename*.
 
         Parameters
@@ -372,19 +263,19 @@ class MDP(odict, FileUtils):
         # The line 'if skipempty and (v == "" or v is None):' below could possibly incur FutureWarning
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
-        with open(self.filename(filename, ext="mdp"), "w") as mdp:
+        with open(output_mdp, "w") as mdp:
             for k, v in self.items():
                 if k[0] == "B":  # blank line
                     mdp.write("\n")
                 elif k[0] == "C":  # comment
-                    mdp.write("; {v!s}\n".format(**vars()))
+                    mdp.write(f"; {v!s}\n")
                 else:  # parameter = value
                     if skipempty and (v == "" or v is None):
                         continue
                     if isinstance(v, six.string_types) or not hasattr(v, "__iter__"):
-                        mdp.write("{k!s} = {v!s}\n".format(**vars()))
+                        mdp.write(f"{k!s} = {v!s}\n")
                     else:
-                        mdp.write("{} = {}\n".format(k, " ".join(map(str, v))))
+                        mdp.write(f"{k} = {' '.join(map(str, v))}\n")
 
 
 def compare_MDPs(mdp_list, print_diff=False):

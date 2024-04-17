@@ -89,21 +89,15 @@ def test_format_time():
     assert utils.format_time(90061) == "1 day, 1 hour(s) 1 minute(s) 1 second(s)"
 
 
-def test_autoconvert():
+def test_convert_to_numeric():
     # Test non-string input
-    assert utils._autoconvert(42) == 42
-
-    # Test string input that can be converted to int
-    assert utils._autoconvert("42") == 42
-
-    # Test string input that can be converted to float
-    assert utils._autoconvert("3.14159") == 3.14159
-
-    # Test string input that can be converted to a numpy array of ints
-    assert utils._autoconvert("1 2 3") == [1, 2, 3]
-
-    # Test string input that can be converted to a numpy array of floats
-    assert utils._autoconvert("1.0 2.0 3.0") == [1.0, 2.0, 3.0]
+    assert utils._convert_to_numeric(42) == 42
+    assert utils._convert_to_numeric("42") == 42
+    assert utils._convert_to_numeric("3.14159") == 3.14159
+    assert utils._convert_to_numeric("1 2 3") == [1, 2, 3]
+    assert utils._convert_to_numeric("1.0 2.0 3.0") == [1.0, 2.0, 3.0]
+    assert utils._convert_to_numeric("Hello, world!") == ['Hello,', 'world!']
+    assert utils._convert_to_numeric('Y Y Y') == ['Y', 'Y', 'Y']
 
 
 def test_get_subplot_dimension():

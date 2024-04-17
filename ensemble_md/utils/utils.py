@@ -128,24 +128,22 @@ def format_time(t):
     return t_str
 
 
-def _autoconvert(s):
+def _convert_to_numeric(s):
     """
-    Converts input to a numerical type if possible. This internal function is used for the MDP parser
-    and was adapted from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
-    Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
+    Converts the input to a numerical type when possible. This internal function is used for the MDP parser.
 
     Parameters
     ----------
-    s : str or any
-        The input value to be converted to a numerical type if possible. If :code:`s` is not a string,
-        it is returned as is.
+    s : any
+        The input value to be converted to a numerical type if possible. The data type of :code:`s` is
+        usually :code:`str` but can be any. However, if :code:`s` is not a string, it will be returned as is.
 
     Returns
     -------
-    numerical : int, float, numpy.ndarray, or any
+    numerical : any
         The converted numerical value. If :code:`s` can be converted to a single numerical value,
         that value is returned as an :code:`int` or :code:`float`. If :code:`s` can be converted to
-        multiple numerical values, a :code:`numpy.ndarray` containing those values is returned.
+        multiple numerical values, a list containing those values is returned.
         If :code:`s` cannot be converted to a numerical value, :code:`s` is returned as is.
     """
     if type(s) is not str:
@@ -157,16 +155,9 @@ def _autoconvert(s):
                 return s[0]
             else:
                 return s
-                """
-                if len(s) != 0 and type(s[0]) == str:
-                    # For the case like pull_coord1_dim = Y Y Y
-                    return s
-                else:
-                    return np.array(s)
-                """
         except (ValueError, AttributeError):
             pass
-    raise ValueError("Failed to autoconvert {0!r}".format(s))
+    raise ValueError(f"Failed to convert {s} to a numeric value.")
 
 
 def _get_subplot_dimension(n_panels):
@@ -296,8 +287,8 @@ def analyze_REXEE_time(n_iter=None, log_files=None):
         iterations by counting the number of directories named in the format of :code`iteration_*` in the simulation
         directory (specifically :code:`sim_0`) in the current working directory or where the log files are located.
     log_files : None or list, Optional
-        A list of lists of log paths with the shape of :code:`(n_iter, n_replicas)`. If None, the function will try to find
-        the log files by searching the current working directory.
+        A list of lists of log paths with the shape of :code:`(n_iter, n_replicas)`. If None, the function will try to
+        find the log files by searching the current working directory.
 
     Returns
     -------
