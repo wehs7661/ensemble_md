@@ -190,24 +190,23 @@ class MDP(odict):
 
     Attributes
     ----------
-    COMMENT : re.Pattern
+    COMMENT : :code:`re.Pattern` object
         A compiled regular expression pattern for comments in MDP files.
-    PARAMETER : re.Pattern
+    PARAMETER : :code:`re.Pattern` object
         A compiled regular expression pattern for parameters in MDP files.
     input_mdp : str
         The real path to the input MDP file returned by :code:`os.path.realpath(input_mdp)`,
         which resolves any symbolic links in the path.
+
+    Example
+    -------
+    >>> from ensemble_md.utils import gmx_parser
+    >>> gmx_parser.MDP("em.mdp")
+    MDP([('C0001', 'em.mdp - used as input into grompp to generate em.tpr'), ('C0002', 'All unspecified parameters adopt their own default values.'), ('B0001', ''), ('C0003', 'Run Control'), ('integrator', 'steep'), ('nsteps', 500000), ('B0002', ''), ('C0004', 'Energy minnimization'), ('emtol', 100.0), ('emstep', 0.01), ('B0003', ''), ('C0005', 'Neighbor searching/Electrostatics/Van der Waals'), ('cutoff-scheme', 'Verlet'), ('nstlist', 10), ('ns_type', 'grid'), ('pbc', 'xyz'), ('coulombtype', 'PME'), ('rcoulomb', 1.0), ('rvdw', 1.0)])  # noqa: E501
     """
     # Below are some class variables accessible to all functions.
     COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")  # noqa: W605
-    PARAMETER = re.compile(
-        """
-                            \s*(?P<parameter>[^=]+?)\s*=\s*  # parameter (ws-stripped), before '='  # noqa: W605
-                            (?P<value>[^;]*)                # value (stop before comment=;)  # noqa: W605
-                            (?P<comment>\s*;.*)?            # optional comment  # noqa: W605
-                            """,
-        re.VERBOSE,
-    )
+    PARAMETER = re.compile("""\s*(?P<parameter>[^=]+?)\s*=\s*(?P<value>[^;]*)(?P<comment>\s*;.*)?""", re.VERBOSE)  # noqa: W605, E501
 
     def __init__(self, input_mdp=None, **kwargs):
         super(MDP, self).__init__(**kwargs)  # can use kwargs to set dict! (but no sanity checks!)
@@ -216,7 +215,9 @@ class MDP(odict):
             self.read()
 
     def read(self):
-        """Read and parse mdp file *filename*."""
+        """
+        Reads and parses the input MDP file.
+        """
         def BLANK(i):
             return f"B{i:04d}"
 
@@ -250,18 +251,23 @@ class MDP(odict):
         super(MDP, self).update(data)
 
     def write(self, output_mdp=None, skipempty=False):
-        """Write mdp file to *filename*.
+        """
+        Writes the MDP instance (the ordered dictionary) to an output MDP file.
 
         Parameters
         ----------
-        filename : str
-            Output mdp file; default is the filename the mdp was read from. If the filename
-            is not supplied, the function will overwrite the file that the mdp was read from.
-        skipempty : bool
-            ``True`` removes any parameter lines from output that contain empty values [``False``]
+        output_mdp : str, Optional
+            The file path of the output MDP file. The default is the filename the MDP instance was built from.
+            If that if :code:`output_mdp` is not specified, the input MDP file will be overwritten.
+        skipempty : bool, Optional
+            Whether to skip empty values when writing the MDP file. If :code:`True`, any parameter lines from
+            the output that contain empty values will be removed. The default is :code:`False`.
         """
         # The line 'if skipempty and (v == "" or v is None):' below could possibly incur FutureWarning
         warnings.simplefilter(action='ignore', category=FutureWarning)
+
+        if output_mdp is None:
+            output_mdp = self.input_mdp
 
         with open(output_mdp, "w") as mdp:
             for k, v in self.items():
@@ -280,26 +286,37 @@ class MDP(odict):
 
 def compare_MDPs(mdp_list, print_diff=False):
     """
-    Given a list of MDP files, identify the parameters for which not all MDP
-    files have the same values. Note that this function is not aware of the default
-    values of GROMACS parameters. (Currently, this function is not used in the
-    workflow adopted in :code:`run_REXEE.py` but it might be useful in some places,
-    so we decided to keep it.)
+    Identifies the parameters differeing between a given list of MDP files. Note that
+    this function is not aware of the default values of GROMACS parameters.
+    (Currently, this function is not used in the workflow adopted in :code:`run_REXEE.py`
+    but it might be useful in some places, so we decided to keep it.)
 
     Parameters
     ----------
     mdp_list : list
         A list of MDP files.
-    print_diff : bool
-        If :code:`True`, print to screen the parameters that are different among the MDP files
-        and the values of the parameters in the MDP files in a more readable format.
+    print_diff : bool, Optional
+        Whether to print the parameters that are different among the MDP files in a more readable format.
+        The default is :code:`False`.
 
     Returns
     -------
     diff_params : dict
-        A dictionary of parameters that are different among the MDP files.
-        The keys are the parameter names and the values is a list of values of the
-        parameters in the MDP files.
+        A dictionary of parameters differing between MDP files. The keys are the parameter names and
+        the values is a list of values of the  parameters in the MDP files.
+
+    Example
+    -------
+    >>> from ensemble_md.utils import gmx_parser
+    >>> mdp_list = ['A.mdp', 'B.mdp']
+    >>> diff_params = gmx_parser.compare_MDPs(mdp_list, print_diff=True)
+    The following parameters are different among the MDP files:
+    wl_scale
+    - A.mdp: None
+    - B.mdp: 0.8
+    ...
+    >>> print(diff_params)
+    {'wl_scale': [None, 0.8], ...}
     """
     diff_params = {}
     for i in range(len(mdp_list)):
