@@ -10,6 +10,7 @@
 """
 The :code:`gmx_parser` module provides functions for parsing GROMACS files.
 """
+import os
 import re
 import six
 import logging
@@ -169,7 +170,7 @@ def parse_log(log_file):
     return weights, counts, wl_delta, equil_time
 
 
-class MDP(odict, utils.FileUtils):
+class MDP(odict):
     """Class that represents a Gromacs mdp run input file.
     Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
     Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com>
@@ -201,7 +202,7 @@ class MDP(odict, utils.FileUtils):
         re.VERBOSE,
     )
 
-    def __init__(self, filename=None, autoconvert=True, **kwargs):
+    def __init__(self, filename, autoconvert=True, **kwargs):
         """Initialize mdp structure.
 
         :Arguments:
@@ -218,22 +219,20 @@ class MDP(odict, utils.FileUtils):
         super(MDP, self).__init__(
             **kwargs
         )  # can use kwargs to set dict! (but no sanity checks!)
-
         self.autoconvert = autoconvert
+        self.real_filename = os.path.realpath(filename)
+        self.read(filename)
 
-        if filename is not None:
-            self._init_filename(filename)
-            self.read(filename)
-
-    def __eq__(self, other):
-        """
-        __eq__ inherited from utils.FileUtils needs to be overridden if new attributes (autoconvert in
-        this case) are assigned to the instance of the subclass (MDP in our case).
-        See `this post by LGTM <https://lgtm.com/rules/9990086/>`_ for more details.
-        """
-        if not isinstance(other, MDP):
-            return False
-        return utils.FileUtils.__eq__(self, other) and self.autoconvert == other.autoconvert
+    
+    # def __eq__(self, other):
+    #     """
+    #     __eq__ inherited from utils.FileUtils needs to be overridden if new attributes (autoconvert in
+    #     this case) are assigned to the instance of the subclass (MDP in our case).
+    #     See `this post by LGTM <https://lgtm.com/rules/9990086/>`_ for more details.
+    #     """
+    #     if not isinstance(other, MDP):
+    #         return False
+    #     return utils.FileUtils.__eq__(self, other) and self.autoconvert == other.autoconvert
 
     def _transform(self, value):
         if self.autoconvert:
@@ -243,8 +242,6 @@ class MDP(odict, utils.FileUtils):
 
     def read(self, filename=None):
         """Read and parse mdp file *filename*."""
-        self._init_filename(filename)
-
         def BLANK(i):
             return "B{0:04d}".format(i)
 
@@ -295,7 +292,7 @@ class MDP(odict, utils.FileUtils):
         # The line 'if skipempty and (v == "" or v is None):' below could possibly incur FutureWarning
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
-        with open(self.filename(filename, ext="mdp"), "w") as mdp:
+        with open(filename, "w") as mdp:
             for k, v in self.items():
                 if k[0] == "B":  # blank line
                     mdp.write("\n")

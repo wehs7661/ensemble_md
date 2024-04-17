@@ -64,44 +64,11 @@ class Logger:
         pass
 
 
+"""
 class FileUtils:
-    """
-    A utility class for managing file names and extensions within file operations.
-
-    Attributes
-    ----------
-    real_filename : str
-        The full path of the object for reading and writing I/O.
-    """
-    default_extension = None
-
-    def _init_filename(self, filename=None, ext=None):
-        extension = ext or self.default_extension
-        filename = self.filename(filename, ext=extension, use_my_ext=True, set_default=True)
+    def _init_filename(self, filename=None):
         self.real_filename = os.path.realpath(filename)
-
-    def filename(self, filename=None, ext=None, set_default=False, use_my_ext=False):
-        if filename is None:
-            if not hasattr(self, "_filename"):
-                self._filename = None  # add attribute to class
-            if self._filename:
-                filename = self._filename
-            else:
-                raise ValueError("A file name is required because no default file name was defined.")
-            my_ext = None
-        else:
-            filename, my_ext = os.path.splitext(filename)
-            if set_default:  # replaces existing default file name
-                self._filename = filename
-        if my_ext and use_my_ext:
-            ext = my_ext
-        if ext is not None:
-            if ext.startswith(os.extsep):
-                ext = ext[1:]  # strip a dot to avoid annoying mistakes
-            if ext != "":
-                filename = filename + os.extsep + ext
-        return filename
-
+"""
 
 def run_gmx_cmd(arguments, prompt_input=None):
     """
