@@ -8,7 +8,7 @@
 #                                                                  #
 ####################################################################
 """
-The :obj:`.utils` module provides useful utility functions.
+The :obj:`.utils` module provides useful utility functions for running or analyzing REXEE simulations.
 """
 import sys
 import glob
@@ -172,7 +172,8 @@ def _autoconvert(s):
 def _get_subplot_dimension(n_panels):
     """
     Gets the number of rows and columns for a subplot based on the number of panels such
-    that the subplots are arranged in a grid that is as square as possible.
+    that the subplots are arranged in a grid that is as square as possible. A greater number
+    of columns is preferred to a greater number of rows.
 
     Parameters
     ----------
@@ -181,8 +182,9 @@ def _get_subplot_dimension(n_panels):
 
     Example
     -------
-        >>> _get_subplot_dimension(10)
-        (4, 3)
+    >>> from ensemble_md.utils import utils
+    >>> utils._get_subplot_dimension(10)
+    (4, 3)
     """
     if int(np.sqrt(n_panels) + 0.5) ** 2 == n_panels:
         # perfect square number
