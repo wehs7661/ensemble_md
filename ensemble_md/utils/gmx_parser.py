@@ -197,7 +197,7 @@ class MDP(odict):
         re.VERBOSE,
     )
 
-    def __init__(self, filename=None, autoconvert=True, **kwargs):
+    def __init__(self, input_mdp=None, autoconvert=True, **kwargs):
         """Initialize mdp structure.
 
         :Arguments:
@@ -213,27 +213,27 @@ class MDP(odict):
         """
         super(MDP, self).__init__(**kwargs)  # can use kwargs to set dict! (but no sanity checks!)
         self.autoconvert = autoconvert
-        if filename is not None:
-            self.filename = os.path.realpath(filename)
-            self.read(filename)
+        if input_mdp is not None:
+            self.input_mdp = os.path.realpath(input_mdp)
+            self.read()
 
     def _transform(self, value):
         if self.autoconvert:
-            return utils._autoconvert(value)
+            return utils._convert_to_numeric(value)
         else:
             return value.rstrip()
 
-    def read(self, filename=None):
+    def read(self):
         """Read and parse mdp file *filename*."""
         def BLANK(i):
-            return "B{0:04d}".format(i)
+            return f"B{i:04d}"
 
         def COMMENT(i):
-            return "C{0:04d}".format(i)
+            return f"C{i:04d}"
 
         data = odict()
         iblank = icomment = 0
-        with open(self.filename) as mdp:
+        with open(self.input_mdp) as mdp:
             for line in mdp:
                 line = line.strip()
                 if len(line) == 0:
@@ -245,22 +245,19 @@ class MDP(odict):
                     icomment += 1
                     data[COMMENT(icomment)] = m.group("value")
                     continue
-                # parameter
+
                 m = self.PARAMETER.match(line)
                 if m:
-                    # check for comments after parameter?? -- currently discarded
                     parameter = m.group("parameter")
                     value = self._transform(m.group("value"))
                     data[parameter] = value
                 else:
-                    errmsg = "{filename!r}: unknown line in mdp file, {line!r}".format(
-                        **vars()
-                    )
-                    raise ParseError(errmsg)
+                    err_msg = f"{self.input_mdp!r}: unknown line in mdp file, {line!r}"
+                    raise ParseError(err_msg)
 
         super(MDP, self).update(data)
 
-    def write(self, filename=None, skipempty=False):
+    def write(self, output_mdp=None, skipempty=False):
         """Write mdp file to *filename*.
 
         Parameters
@@ -274,19 +271,19 @@ class MDP(odict):
         # The line 'if skipempty and (v == "" or v is None):' below could possibly incur FutureWarning
         warnings.simplefilter(action='ignore', category=FutureWarning)
 
-        with open(filename, "w") as mdp:
+        with open(output_mdp, "w") as mdp:
             for k, v in self.items():
                 if k[0] == "B":  # blank line
                     mdp.write("\n")
                 elif k[0] == "C":  # comment
-                    mdp.write("; {v!s}\n".format(**vars()))
+                    mdp.write(f"; {v!s}\n")
                 else:  # parameter = value
                     if skipempty and (v == "" or v is None):
                         continue
                     if isinstance(v, six.string_types) or not hasattr(v, "__iter__"):
-                        mdp.write("{k!s} = {v!s}\n".format(**vars()))
+                        mdp.write(f"{k!s} = {v!s}\n")
                     else:
-                        mdp.write("{} = {}\n".format(k, " ".join(map(str, v))))
+                        mdp.write(f"{k} = {' '.join(map(str, v))}\n")
 
 
 def compare_MDPs(mdp_list, print_diff=False):
