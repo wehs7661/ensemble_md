@@ -13,7 +13,6 @@ The :code:`gmx_parser` module provides functions for parsing GROMACS files.
 import os
 import re
 import six
-import logging
 import warnings
 from collections import OrderedDict as odict
 
@@ -187,12 +186,8 @@ class MDP(odict):
     Currently, comments after a parameter on the same line are
     discarded. Leading and trailing spaces are always stripped.
     """
-
-    default_extension = "mdp"
-    logger = logging.getLogger("gromacs.formats.MDP")
-
-    COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")  # eat initial ws  # noqa: W605
-    # see regex in cbook.edit_mdp()
+    # Below are some class variables accessible to all functions.
+    COMMENT = re.compile("""\s*;\s*(?P<value>.*)""")  # noqa: W605
     PARAMETER = re.compile(
         """
                             \s*(?P<parameter>[^=]+?)\s*=\s*  # parameter (ws-stripped), before '='  # noqa: W605
@@ -202,7 +197,7 @@ class MDP(odict):
         re.VERBOSE,
     )
 
-    def __init__(self, filename, autoconvert=True, **kwargs):
+    def __init__(self, filename=None, autoconvert=True, **kwargs):
         """Initialize mdp structure.
 
         :Arguments:
@@ -216,23 +211,11 @@ class MDP(odict):
               does not work for keys that are not legal python variable names such
               as anything that includes a minus '-' sign or starts with a number).
         """
-        super(MDP, self).__init__(
-            **kwargs
-        )  # can use kwargs to set dict! (but no sanity checks!)
+        super(MDP, self).__init__(**kwargs)  # can use kwargs to set dict! (but no sanity checks!)
         self.autoconvert = autoconvert
-        self.real_filename = os.path.realpath(filename)
-        self.read(filename)
-
-    
-    # def __eq__(self, other):
-    #     """
-    #     __eq__ inherited from utils.FileUtils needs to be overridden if new attributes (autoconvert in
-    #     this case) are assigned to the instance of the subclass (MDP in our case).
-    #     See `this post by LGTM <https://lgtm.com/rules/9990086/>`_ for more details.
-    #     """
-    #     if not isinstance(other, MDP):
-    #         return False
-    #     return utils.FileUtils.__eq__(self, other) and self.autoconvert == other.autoconvert
+        if filename is not None:
+            self.filename = os.path.realpath(filename)
+            self.read(filename)
 
     def _transform(self, value):
         if self.autoconvert:
@@ -250,7 +233,7 @@ class MDP(odict):
 
         data = odict()
         iblank = icomment = 0
-        with open(self.real_filename) as mdp:
+        with open(self.filename) as mdp:
             for line in mdp:
                 line = line.strip()
                 if len(line) == 0:
@@ -273,7 +256,6 @@ class MDP(odict):
                     errmsg = "{filename!r}: unknown line in mdp file, {line!r}".format(
                         **vars()
                     )
-                    self.logger.error(errmsg)
                     raise ParseError(errmsg)
 
         super(MDP, self).update(data)

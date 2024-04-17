@@ -63,15 +63,6 @@ def test_parse_log():
     assert equil_time_3 == 0
 
 
-def test_filename():
-    MDP = gmx_parser.MDP()
-    with pytest.raises(ValueError, match="A file name is required because no default file name was defined."):
-        MDP.filename()
-
-    MDP._filename = 'test'
-    assert MDP.filename() == 'test'
-
-
 class Test_MDP:
     def test__eq__(self):
         mdp_1 = gmx_parser.MDP("ensemble_md/tests/data/expanded.mdp")
@@ -79,12 +70,11 @@ class Test_MDP:
         assert mdp_1 == mdp_2
 
     def test_read(self):
-        mdp = gmx_parser.MDP()
         f = open("fake.mdp", "a")
         f.write("TEST")
         f.close()
         with pytest.raises(ParseError, match="'fake.mdp': unknown line in mdp file, 'TEST'"):
-            mdp.read('fake.mdp')
+            gmx_parser.MDP('fake.mdp')  # This should call the read function in __init__
         os.remove('fake.mdp')
 
     def test_write(self):

@@ -10,7 +10,6 @@
 """
 The :obj:`.utils` module provides useful utility functions for running or analyzing REXEE simulations.
 """
-import os
 import sys
 import glob
 import natsort
@@ -63,12 +62,6 @@ class Logger:
         # self.terminal.log()
         pass
 
-
-"""
-class FileUtils:
-    def _init_filename(self, filename=None):
-        self.real_filename = os.path.realpath(filename)
-"""
 
 def run_gmx_cmd(arguments, prompt_input=None):
     """
