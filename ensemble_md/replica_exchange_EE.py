@@ -9,7 +9,7 @@
 ####################################################################
 """
 The :obj:`.replica_exchange_EE` module provides functions for setting up and
-replica exchange and expanded ensemble (REXEE) simulations.
+performing replica exchange and expanded ensemble (REXEE) simulations.
 """
 import os
 import sys
@@ -37,38 +37,39 @@ rank = comm.Get_rank()
 
 class ReplicaExchangeEE:
     """
-    This class provides a variety of functions useful for setting up and running
-    replica exchange (REX) of expanded ensemble (EE), or REXEE simulations.
-    Upon instantiation, all parameters in the YAML file will be assigned to an
+    A class that provides a variety of functions useful for setting up and running
+    a replica exchange (REX) of expanded ensemble (EE) simulation, or a REXEE simulation.
+    Upon instantiation, all parameters in the input YAML file will be assigned to an
     attribute in the class. In addition to these variables, below is a list of
     attributes of the class. (All the the attributes are assigned by :obj:`set_params`
-    unless otherwise noted.)
+    except that :code:`yaml` is assigned by :code:`__init__`.)
 
     :ivar gmx_path: The absolute path of the GROMACS exectuable.
     :ivar gmx_version: The version of the GROMACS executable.
-    :ivar yaml: The input YAML file used to instantiate the class. Assigned by the :code:`__init__` function.
+    :ivar yaml: The input YAML file used to instantiate the class. The file should contain necessary REXEE parameters.
+        For more details, please check the :ref:`doc_parameters`.
     :ivar warnings: Warnings about parameter specification in either YAML or MDP files.
-    :ivar reformatted_mdp: Whether the templated MDP file has been reformatted by replacing hyphens
+    :ivar template: The template MDP file on which the instance of the :obj:`MDP` class is based.
+    :ivar reformatted_mdp: Whether the template MDP file has been reformatted by replacing hyphens
         with underscores or not.
-    :ivar template: The instance of the :obj:`MDP` class based on the template MDP file.
     :ivar dt: The simulation timestep in ps.
     :ivar temp: The simulation temperature in Kelvin.
-    :ivar fixed_weights: Whether the weights will be fixed during the simulation (according to the template MDP file).
+    :ivar fixed_weights: Whether the weights will be fixed during the simulation.
     :ivar updating_weights: The list of weights as a function of time (since the last update of the Wang-Landau
         incrementor) for different replicas. The length is equal to the number of replicas. This is only relevant for
         weight-updating simulations.
-    :ivar equilibrated_weights: The equilibrated weights of different replicas. For weight-equilibrating simulations,
-        this list is initialized as a list of empty lists. Otherwise (weight-fixed), it is initialized as a list of
-        :code:`None`.
+    :ivar equilibrated_weights: The equilibrated weights of different replicas. For weight-updating simulations,
+        this list is initialized as a list of empty lists. Otherwise (i.e., in fixed-weight simulations), it is initialized
+        as a list of :code:`None`.
     :ivar current_wl_delta: The current value of the Wang-Landau incrementor. This is only relevent for weight-updating
         simulations.
     :ivar kT: 1 kT in kJ/mol at the simulation temperature.
-    :ivar lambda_types: The types of lambda variables involved in expanded ensemble simulations, e.g.
+    :ivar lambda_types: The types of lambda variables involved in expanded ensemble simulations, e.g.,
         :code:`fep_lambdas`, :code:`mass_lambdas`, :code:`coul_lambdas`, etc.
     :ivar n_tot: The total number of states for all replicas.
-    :ivar n_sub: The numbmer of states for each replica. The current implementation assumes homogenous replicas.
-    :ivar state_ranges: A list of list of state indices for each replica.
-    :ivar equil: A list of times it took to equilibrated the weights for different replicas. This
+    :ivar n_sub: The numbmer of states of each replica. The current implementation assumes homogenous replicas.
+    :ivar state_ranges: A list of list of (global) state indices for each replica.
+    :ivar equil: A list of times it took to equilibrate the weights for different replicas. This
         list is initialized with a list of -1, where -1 means that the weights haven't been equilibrated. Also,
         a value of 0 means that the simulation is a fixed-weight simulation.
     :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`.accept_or_reject`.
@@ -77,12 +78,13 @@ class ReplicaExchangeEE:
     :ivar n_emtpy_swappable: The number of times when there was no swappable pair.
     :ivar rep_trajs: The replica-space trajectories of all configurations.
     :ivar configs: A list that thows the current configuration index that each replica is sampling.
-    :ivar g_vecs: The time series of the (processed) whole-range alchemical weights. If no weight combination is
-        applied, this list will just be a list of :code:`None`'s.
+    :ivar g_vecs: The time series of processed (e.g., combined across replicas) alchemical weights for the entire state
+        space. If no weight combination scheme is applied, this list will just be a list of :code:`None`'s.
     :ivar df_data_type: The type of data (either :math:`u_{nk}` or :math:`dH/dλ`) that will be used for
-        free energy calculations if :code:`df_method` is :code:`True`.
-    :ivar modify_coords_fn: The function (callable) in the external module (specified as :code:`modify_coords` in
-        the input YAML file) for modifying coordinates at exchanges.
+        free energy calculations. This depends on the free energy estimator specified in the parameter :code:`df_method`.
+    :ivar modify_coords_fn: The function (callable) in an external module (specified as :code:`modify_coords` in
+        the input YAML file) for modifying coordinates at exchanges. This parameter is only relevant to
+        multi-topology REXEE (i.e., MT-REXEE) simulations.
     """
 
     def __init__(self, yaml_file, analysis=False):
@@ -91,34 +93,34 @@ class ReplicaExchangeEE:
 
     def set_params(self, analysis):
         """
-        Sets up or reads in the user-defined parameters from a yaml file and an MDP template.
+        Sets up or reads in the user-defined parameters from an input YAML file and an MDP template.
         This function is called to instantiate the class in the :code:`__init__` function of
         class. Specifically, it does the following:
 
           1. Sets up constants.
-          2. Reads in parameters from a YAML file.
+          2. Reads in REXEE parameters from a YAML file.
           3. Handles YAML parameters.
           4. Checks if the parameters in the YAML file are well-defined.
           5. Reformats the input MDP file to replace all hyphens with underscores.
           6. Reads in parameters from the MDP template.
 
-        After instantiation, the class instance will have attributes corresponding to
+        After instantiation, the class instance will have an attribute corresponding to
         each of the parameters specified in the YAML file. For a full list of the parameters that
         can be specified in the YAML file, please refer to :ref:`doc_parameters`.
 
-        :param yaml_file: The file name of the YAML file for specifying the parameters for REXEE.
+        :param yaml_file: The file path of the input YAML file that specifies REXEE parameters.
         :type yaml_file: str
         :param analysis: Whether the instantiation of the class is for data analysis of REXEE simulations.
-            The default is :code:`False`
-        :type analysis: bool
+            The default is :code:`False`.
+        :type analysis: bool, Optional
 
         :raises ParameterError:
 
-              - If a required parameter is not specified in the YAML file.
+              - If a required parameter is not specified in the input YAML file.
               - If a specified parameter is not recognizable.
               - If a specified option is not available for a parameter.
               - If the data type or range (e.g., positive or negative) of a parameter is not correct.
-              - If an invalid MDP file is detected.
+              - If any MDP parameter invalid for the REXEE simulation is detected.
         """
         self.warnings = []  # Store warnings, if any.
 
@@ -468,12 +470,12 @@ class ReplicaExchangeEE:
 
     def print_params(self, params_analysis=False):
         """
-        Prints important parameters related to the EXEE simulation.
+        Prints important parameters relevant to the REXEE simulation to be performed.
 
         Parameters
         ----------
-        params_analysis : bool, optional
-            If True, additional parameters related to data analysis will be printed. Default is False.
+        params_analysis : bool, Optional
+            Whether additional parameters for data analysis should be printed. The default is :code:`False`.
         """
         if isinstance(self.gro, list):
             gro_str = ', '.join(self.gro)
@@ -485,8 +487,8 @@ class ReplicaExchangeEE:
         else:
             top_str = self.top
 
-        print("Important parameters of EXEE")
-        print("============================")
+        print("Important parameters of REXEE")
+        print("=============================")
         print(f"Python version: {sys.version}")
         print(f"GROMACS executable: {self.gmx_path}")  # we print the full path here
         print(f"GROMACS version: {self.gmx_version}")
