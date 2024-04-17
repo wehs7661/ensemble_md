@@ -23,11 +23,6 @@ input_path = os.path.join(current_path, "data")
 
 
 def test_parse_log():
-    """
-      - Case 1: The weights have never been equilibrated.
-      - Case 2: The weights were equilibrated during the simulation.
-      - Case 3: The weights were fixed in the simulation.
-    """
     # Case 1: weight-updating simulation
     weights_0, counts_0, wl_delta_0, equil_time_0 = gmx_parser.parse_log(os.path.join(input_path, 'log/EXE_0.log'))
     assert len(weights_0) == 5

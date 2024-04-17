@@ -10,7 +10,6 @@
 """
 The :code:`gmx_parser` module provides functions for parsing GROMACS files.
 """
-import os
 import re
 import six
 import logging
@@ -170,83 +169,7 @@ def parse_log(log_file):
     return weights, counts, wl_delta, equil_time
 
 
-class FileUtils(object):
-    """Mixin class to provide additional file-related capabilities.
-    Modified from `utilities.py in GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
-    Copyright (c) 2009 Oliver Beckstein <orbeckst@gmail.com>
-    """
-
-    #: Default extension for files read/written by this class.
-    default_extension = None
-
-    def _init_filename(self, filename=None, ext=None):
-        """Initialize the current filename :attr:`FileUtils.real_filename` of the object.
-
-        Bit of a hack.
-
-        - The first invocation must have ``filename != None``; this will set a
-          default filename with suffix :attr:`FileUtils.default_extension`
-          unless another one was supplied.
-
-        - Subsequent invocations either change the filename accordingly or
-          ensure that the default filename is set with the proper suffix.
-
-        """
-
-        extension = ext or self.default_extension
-        filename = self.filename(
-            filename, ext=extension, use_my_ext=True, set_default=True
-        )
-        #: Current full path of the object for reading and writing I/O.
-        self.real_filename = os.path.realpath(filename)
-
-    def filename(self, filename=None, ext=None, set_default=False, use_my_ext=False):
-        """Supply a file name for the class object.
-
-        Typical uses::
-
-           fn = filename()             ---> <default_filename>
-           fn = filename('name.ext')   ---> 'name'
-           fn = filename(ext='pickle') ---> <default_filename>'.pickle'
-           fn = filename('name.inp','pdf') --> 'name.pdf'
-           fn = filename('foo.pdf',ext='png',use_my_ext=True) --> 'foo.pdf'
-
-        The returned filename is stripped of the extension
-        (``use_my_ext=False``) and if provided, another extension is
-        appended. Chooses a default if no filename is given.
-
-        Raises a ``ValueError`` exception if no default file name is known.
-
-        If ``set_default=True`` then the default filename is also set.
-
-        ``use_my_ext=True`` lets the suffix of a provided filename take
-        priority over a default ``ext`` tension.
-        """
-        if filename is None:
-            if not hasattr(self, "_filename"):
-                self._filename = None  # add attribute to class
-            if self._filename:
-                filename = self._filename
-            else:
-                raise ValueError(
-                    "A file name is required because no default file name was defined."
-                )
-            my_ext = None
-        else:
-            filename, my_ext = os.path.splitext(filename)
-            if set_default:  # replaces existing default file name
-                self._filename = filename
-        if my_ext and use_my_ext:
-            ext = my_ext
-        if ext is not None:
-            if ext.startswith(os.extsep):
-                ext = ext[1:]  # strip a dot to avoid annoying mistakes
-            if ext != "":
-                filename = filename + os.extsep + ext
-        return filename
-
-
-class MDP(odict, FileUtils):
+class MDP(odict, utils.FileUtils):
     """Class that represents a Gromacs mdp run input file.
     Modified from `GromacsWrapper <https://github.com/Becksteinlab/GromacsWrapper>`_.
     Copyright (c) 2009-2011 Oliver Beckstein <orbeckst@gmail.com>
@@ -304,13 +227,13 @@ class MDP(odict, FileUtils):
 
     def __eq__(self, other):
         """
-        __eq__ inherited from FileUtils needs to be overridden if new attributes (autoconvert in
+        __eq__ inherited from utils.FileUtils needs to be overridden if new attributes (autoconvert in
         this case) are assigned to the instance of the subclass (MDP in our case).
         See `this post by LGTM <https://lgtm.com/rules/9990086/>`_ for more details.
         """
         if not isinstance(other, MDP):
             return False
-        return FileUtils.__eq__(self, other) and self.autoconvert == other.autoconvert
+        return utils.FileUtils.__eq__(self, other) and self.autoconvert == other.autoconvert
 
     def _transform(self, value):
         if self.autoconvert:
