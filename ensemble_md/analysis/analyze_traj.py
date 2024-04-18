@@ -337,7 +337,7 @@ def plot_rep_trajs(trajs, fig_name, dt=None, stride=None):
     trajs : list
         A list of lists that represent the all replica-space trajectories.
     fig_name : str
-        The file path of the PNG file to be saved.
+        The file path to save the figure.
     dt : float or None, Optional
         One trajectory timestep in ps. If :code:`dt=None`, the function assumes there are no time frames but MC steps.
         The default is :code:`None`.
@@ -403,7 +403,7 @@ def plot_state_trajs(trajs, state_ranges, fig_name, dt=None, stride=None, title_
     state_ranges : list
         A list of lists of showing the state indices sampled by each replica.
     fig_name : str
-        The file path of the PNG file to be saved.
+        The file path to save the figure.
     dt : float or None, Optional
         One trajectory timestep in ps. If :code:`dt=None`, the function assumes there are no time frames but MC steps.
         The default is :code:`None`.
@@ -501,7 +501,7 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
     state_ranges : list
         A list of lists of showing the state indices sampled by each replica.
     fig_name : str
-        The file path of the PNG file to be saved.
+        The file path to save the figure.
     stack : bool, Optional
         Whether to stack the histograms. This parameter is only relevant when :code:`subplots` is :code:`False`.
         The default is :code:`True`.

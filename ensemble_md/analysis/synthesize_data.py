@@ -8,7 +8,9 @@
 #                                                                  #
 ####################################################################
 """
-The :obj:`.synthesize_data` module provides methods for synthesizing REXEE data.
+The :obj:`.synthesize_data` module provides methods for synthesizing REXEE data. This is mainly useful
+for carrying out the bootstrap analysis for some analysis, such as the spectral gap calculation in
+:obj:`.analyze_matrix`.
 """
 import numpy as np
 from ensemble_md.analysis import analyze_traj

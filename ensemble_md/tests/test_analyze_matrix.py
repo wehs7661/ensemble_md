@@ -56,7 +56,7 @@ def test_calc_transmtx():
     # Case 3: Hamiltonian replica exchange
     # Note that the transition matrices shown in the log file of different replicas should all be the same.
     # Here we use log/HREX.log, which is a part of the log file from anthracene HREX.
-    A3, B3, C3 = analyze_matrix.calc_transmtx(os.path.join(input_path, 'log/HREX.log'), expanded_ensemble=False)
+    A3, B3, C3 = analyze_matrix.calc_transmtx(os.path.join(input_path, 'log/HREX.log'), simulation_type='HREX')
     A3_expected = np.array([[0.7869, 0.2041, 0.0087, 0.0003, 0.0000, 0.0000, 0.0000, 0.0000],  # noqa: E128, E202, E203, E501
        [0.2041, 0.7189, 0.0728, 0.0041, 0.0001, 0.0000, 0.0000, 0.0000],   # noqa: E128, E202, E203
        [0.0087, 0.0728, 0.7862, 0.1251, 0.0071, 0.0001, 0.0000, 0.0000],   # noqa: E202, E203

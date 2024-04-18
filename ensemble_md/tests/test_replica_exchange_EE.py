@@ -359,7 +359,7 @@ class Test_ReplicaExchangeEE:
         REXEE.print_params()
         out_1, err = capfd.readouterr()
         L = ""
-        L += "Important parameters of EXEE\n============================\n"
+        L += "Important parameters of REXEE\n=============================\n"
         L += f"Python version: {sys.version}\n"
         L += f"GROMACS executable: {REXEE.gmx_path}\n"  # Easier to pass CI. This is easy to catch anyway
         L += f"GROMACS version: {REXEE.gmx_version}\n"  # Easier to pass CI. This is easy to catch anyway
