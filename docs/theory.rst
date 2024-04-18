@@ -1,8 +1,8 @@
-.. _doc_basic_idea:
-
 .. note:: This page is still a work in progress. Please check `Issue 33`_ for the current progress.
 
 .. _`Issue 33`: https://github.com/wehs7661/ensemble_md/issues/33
+
+.. _doc_basic_idea:
 
 1. Basic idea
 =============

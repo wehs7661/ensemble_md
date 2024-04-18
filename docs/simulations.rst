@@ -7,7 +7,7 @@
 can be used to perform and analyze REXEE simulations, respectively. Below we provide more details about each of these CLIs.
 
 1.1. CLI :code:`explore_REXEE`
------------------------------
+------------------------------
 Here is the help message of :code:`explore_REXEE`:
 
 ::
@@ -32,7 +32,7 @@ Here is the help message of :code:`explore_REXEE`:
 
 
 1.2. CLI :code:`run_REXEE`
--------------------------
+--------------------------
 Here is the help message of :code:`run_REXEE`:
 
 ::
@@ -71,7 +71,7 @@ so each of the 4 replicas will use 32 threads (assuming thread-MPI GROMACS), tak
 of 128 cores.
 
 1.3. CLI :code:`analyze_REXEE`
------------------------------
+------------------------------
 Finally, here is the help message of :code:`analyze_REXEE`:
 
 ::
@@ -258,7 +258,7 @@ include parameters for data analysis here.
 .. _doc_REXEE_parameters:
 
 3.3. REXEE parameters
---------------------
+---------------------
 
   - :code:`n_sim`: (Required)
       The number of replica simulations.
@@ -425,6 +425,7 @@ MDP parameters:
   can be observed in a fixed-weight REXEE simulation and the equilibration time may be much longer for a weight-updating
   REXEE simulation. To ensure the same reference distance across all iterations in an REXEE simulation, consider the
   following scenarios:
+
     - If you would like to use the COM distance between the pull groups in the input GRO file as the reference distance
       for all the iterations (whatever that value is), then specify :code:`pull_coord1_start = yes` with
       :code:`pull_coord1_init = 0` in your input MDP template. In this case, :obj:`.update_MDP` will parse :code:`pullx.xvg`

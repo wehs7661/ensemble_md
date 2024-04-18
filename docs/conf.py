@@ -50,7 +50,6 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.extlinks',
-    'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'nbsphinx',
 ]
@@ -188,5 +187,5 @@ autodoc_default_options = {
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
-    "pymbar": ("https://pymbar.readthedocs.io/en/latest/", None),
+    'alchemlyb': ('https://alchemlyb.readthedocs.io/en/latest/', None),
 }
