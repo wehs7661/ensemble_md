@@ -50,6 +50,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.extlinks',
+    'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'nbsphinx',
 ]
@@ -183,4 +184,9 @@ autodoc_mock_imports = ["mpi4py"]  # we originally included gmxapi in the old ve
 # -- Others ------------------------------------------------------------------
 autodoc_default_options = {
     'private-members': True,
+}
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    "pymbar": ("https://pymbar.readthedocs.io/en/latest/", None),
 }

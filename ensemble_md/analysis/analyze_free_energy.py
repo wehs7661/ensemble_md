@@ -31,7 +31,7 @@ def preprocess_data(files_list, temp, data_type, spacing=1, t=None, g=None):
     For each replica, it reads in :math:`u_{nk}`/:math:`dH/dλ` data from all iterations, concatenate
     them, remove the equilibrium region and and decorrelate the concatenated data. Notably,
     the data preprocessing protocol is basically the same as the one adopted in
-    :code:`alchemlyb.subsampling.equilibrium_detection`.
+    :func:`alchemlyb.subsampling.equilibrium_detection`.
 
     Parameters
     ----------
