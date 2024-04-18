@@ -59,8 +59,8 @@ class ReplicaExchangeEE:
         incrementor) for different replicas. The length is equal to the number of replicas. This is only relevant for
         weight-updating simulations.
     :ivar equilibrated_weights: The equilibrated weights of different replicas. For weight-updating simulations,
-        this list is initialized as a list of empty lists. Otherwise (i.e., in fixed-weight simulations), it is initialized
-        as a list of :code:`None`.
+        this list is initialized as a list of empty lists. Otherwise (i.e., in fixed-weight simulations), it is
+        initialized as a list of :code:`None`.
     :ivar current_wl_delta: The current value of the Wang-Landau incrementor. This is only relevent for weight-updating
         simulations.
     :ivar kT: 1 kT in kJ/mol at the simulation temperature.
@@ -81,7 +81,8 @@ class ReplicaExchangeEE:
     :ivar g_vecs: The time series of processed (e.g., combined across replicas) alchemical weights for the entire state
         space. If no weight combination scheme is applied, this list will just be a list of :code:`None`'s.
     :ivar df_data_type: The type of data (either :math:`u_{nk}` or :math:`dH/dλ`) that will be used for
-        free energy calculations. This depends on the free energy estimator specified in the parameter :code:`df_method`.
+        free energy calculations. This depends on the free energy estimator specified in the parameter
+        :code:`df_method`.
     :ivar modify_coords_fn: The function (callable) in an external module (specified as :code:`modify_coords` in
         the input YAML file) for modifying coordinates at exchanges. This parameter is only relevant to
         multi-topology REXEE (i.e., MT-REXEE) simulations.
@@ -690,7 +691,7 @@ class ReplicaExchangeEE:
         Parameters
         ----------
         dhdl_files : list
-            A list of file paths to GROMACS DHDL files of different replicas. Note that 
+            A list of file paths to GROMACS DHDL files of different replicas. Note that
             the order of the files should be consistent with the order of the replicas.
 
         Returns
@@ -794,7 +795,7 @@ class ReplicaExchangeEE:
         -------
         swappables : list
             A list of tuples representing the simulations that can be swapped.
-        
+
         Example
         -------
         Below is an example where the REXEE simulation is composed of four replicas sampling states 0-3, 1-4,
@@ -1143,7 +1144,7 @@ class ReplicaExchangeEE:
     def weight_correction(self, weights, counts):
         """
         Adjusts the lambda weights based on the histogram counts by using the following equation:
-        :math:`g_k' = g_k + \ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
+        :math:`g_k' = g_k + ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
         are the lambda weight before and after the correction, respectively.
         Notably, in any of the following situations, we don't do any correction.
 
@@ -1283,7 +1284,7 @@ class ReplicaExchangeEE:
         -------
         weights_modified : list
             A list of modified alchemical weights of ALL simulations.
-        g_vec : np.ndarray
+        g_vec : numpy.ndarray
             An array of alchemical weights of the whole range of states.
         """
         # (1) Print the original weights
