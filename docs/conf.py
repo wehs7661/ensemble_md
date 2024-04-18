@@ -187,5 +187,8 @@ autodoc_default_options = {
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'pymbar': ('https://pymbar.readthedocs.io/en/latest/', None),
     'alchemlyb': ('https://alchemlyb.readthedocs.io/en/latest/', None),
 }

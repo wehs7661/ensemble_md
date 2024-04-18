@@ -65,7 +65,7 @@ def stitch_time_series(files, rep_trajs, shifts=None, dhdl=True, col_idx=-1, sav
         list should be equal to the number of replicas. This is only needed when :code:`dhdl=True`.
     dhdl : bool, Optional
         Whether the input files are GROMACS dhdl files. If :code:`dhdl=False`, the input files must be readable
-        by `numpy.loadtxt` assuming that the start of a comment is indicated by either the :code:`#` or :code:`@`
+        by :func:`numpy.loadtxt` assuming that the start of a comment is indicated by either the :code:`#` or :code:`@`
         characters. Such files include any GROMACS XVG files or PLUMED output files (output by plumed driver,
         for instance). In this case, trajectories of the configurational collective variable of interest are generated.
         The default is :code:`True`.
@@ -154,7 +154,7 @@ def stitch_time_series_for_sim(files, shifts=None, dhdl=True, col_idx=-1, save_n
         list should be equal to the number of replicas. This is only needed when :code:`dhdl=True`.
     dhdl : bool, Optional
         Whether the input files are GROMACS dhdl files. If :code:`dhdl=False`, the input files must be readable
-        by `numpy.loadtxt` assuming that the start of a comment is indicated by either the :code:`#` or :code:`@`
+        by :func:`numpy.loadtxt` assuming that the start of a comment is indicated by either the :code:`#` or :code:`@`
         characters. Such files include any GROMACS XVG files or PLUMED output files (output by plumed driver, for
         instance). In this case, trajectories of the configurational collective variable of interest are generated.
         The default is :code:`True`.
