@@ -8,7 +8,8 @@
 #                                                                  #
 ####################################################################
 """
-The :obj:`.msm_analysis` module provides analysis methods based on Markov state models.
+The :obj:`.msm_analysis` module provides analysis methods based on Markov state models
+built from REXEE simulations.
 """
 import pyemma
 import ruptures as rpt
@@ -19,16 +20,16 @@ from ensemble_md.utils import utils
 
 def plot_acf(models, n_tot, fig_name):
     """
-    Plots the state index autocorrelation times for all configurations in a single plot
+    Plots the state index autocorrelation times for all configurations in a single plot.
 
     Parameters
     ----------
     models : list
         A list of MSM models (built by PyEMMA) that have the :code:`correlation` method.
     n_tot : int
-        The total number of states (whole range).
+        The total number of states across all replicas.
     fig_name : str
-        The file name of the png file to be saved (with the extension).
+        The file path to save the figure.
     """
     plt.figure()
     for i in range(len(models)):
@@ -45,7 +46,7 @@ def plot_acf(models, n_tot, fig_name):
 
 def plot_its(trajs, lags, fig_name, dt=1, units='step'):
     """
-    Plots the implied timescales as a function of lag time for all configurations
+    Plots the implied timescales (ITS) as a function of lag time for all configurations
     in a subplot.
 
     Parameters
@@ -55,16 +56,16 @@ def plot_its(trajs, lags, fig_name, dt=1, units='step'):
     lags : list
         A list of lag times to examine.
     fig_name : str
-        The file name of the png file to be saved (with the extension).
+        The file path to save the figure.
     dt : float
         Physical time between frames. The default is 1.
     units : str
-        The units of dt. The default is 'ps'.
+        The units of :code:`dt`. The default is :code:`'step'`.
 
     Returns
     -------
     ts_list : list
-        An list of instances of the :code:`ImpliedTimescales` class in PyEMMA.
+        A list of instances of the :code:`ImpliedTimescales` class in PyEMMA.
     """
     ts_list = []
     n_rows, n_cols = utils.get_subplot_dimension(len(trajs))
@@ -90,21 +91,21 @@ def plot_its(trajs, lags, fig_name, dt=1, units='step'):
 def decide_lagtimes(ts_list):
     """
     This function automatically estimates a lagtime for building an MSM for each configuration.
-    Specifically, the lag time will be estimated by the change point detection enabled by
-    ruptures for each (n-1) timescales (where n is the number of states). A good lag time
-    should be long enough such that the timescale is roughly constant but short enough to be
-    smaller than all timescales. If no lag time is smaller than all timescales, then a
-    warning will be printed and a lag time of 1 will be returned in chosen_lags.
+    Specifically, the lag time will be estimated using change-point detection enabled by
+    :code:`ruptures` for each (:math:`n-1`) timescales (where :math:`n` is the number of states).
+    A good lag time should be long enough such that the timescale is roughly constant but short
+    enough to be smaller than all timescales. If no lag time is smaller than all timescales, then a
+    warning will be printed and a lag time of 1 will be returned.
 
     Parameters
     ----------
     ts_list : list
-        An list of instances of the ImpliedTimescales class in PyEMMA.
+        A list of instances of the :code:`ImpliedTimescales` class in PyEMMA.
 
     Returns
     -------
     chosen_lags: list
-        A list of lag time automatically determined for each configuration.
+        A list of lag times automatically determined for each configuration.
     """
     # Workflow: first find the timescales larger than the corressponding lag times,
     # then perform change change detection.
