@@ -27,35 +27,34 @@ from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 def preprocess_data(files_list, temp, data_type, spacing=1, t=None, g=None):
     """
-    This function preprocesses :math:`u_{nk}`/:math:`dH/dλ` data for all replicas in an REXEE simulation.
-    For each replica, it reads in :math:`u_{nk}`/:math:`dH/dλ` data from all iterations, concatenate
-    them, remove the equilibrium region and and decorrelate the concatenated data. Notably,
-    the data preprocessing protocol is basically the same as the one adopted in
-    :code:`alchemlyb.subsampling.equilibrium_detection`.
+    This function preprocesses :math:`u_{nk}` or :math:`dH/dλ` data for all replicas in an REXEE simulation.
+    For each replica, it reads in :math:`u_{nk}` or :math:`dH/dλ` data from all iterations, concatenate
+    them, remove the equilibrium region and and decorrelate the concatenated data.
 
     Parameters
     ----------
     files_list : list
-        A list of lists of naturally sorted dhdl file names from all iterations for different replicas.
-        :code:`files[i]` should be the list of dhdl file names from all iterations of replica :code:`i`.
+        A list of lists of naturally sorted DHDL file names from all iterations for different replicas.
+        Specifically, :code:`files[i]` should be the list of DHDL file names from all iterations of replica :code:`i`.
     temp : float
         The simulation temperature in Kelvin. We assume all replicas were performed at the same temperature.
     data_type : str
         The type of energy data to be procssed. Should be either :code:`'u_nk'` or :code:`'dhdl'`.
-    spacing : int
-        The spacing (number of data points) to consider when subsampling the data, which is assumed to
-        be the same for all replicas.
-    t : int
+    spacing : int, Optional
+        The spacing (in the number of data points) to consider when subsampling the data, which is assumed to
+        be the same for all replicas. The default is 1.
+    t : int, Optional
         The user-specified index that indicates the start of equilibrated data. If this parameter is not specified,
-        the function will estimate it using :code:`pymbar.timeseries.detect_equilibration`.
-    g : int
-        The user-specified index that indicates the start of equilibrated data. If this parameter is not specified,
-        the function will estimate it using :code:`pymbar.timeseries.detect_equilibration`.
+        the function will estimate it using :func:`pymbar.timeseries.detect_equilibration`. The default
+        is :code:`None`.
+    g : int, Optional
+        The user-specified statistical inefficiency. If this parameter is not specified, the function will estimate
+        it using :func:`pymbar.timeseries.detect_equilibration`. The default is :code:`None`.
 
     Returns
     -------
-    preprocessed_data_all : pd.Dataframe
-        A list of preprocessed :math:`u_{nk}`/:math:`dH/dλ` data for all replicas that can serve as the
+    preprocessed_data_all : pandas.Dataframe
+        A list of preprocessed :math:`u_{nk}` or :math:`dH/dλ` data for all replicas that can serve as the
         input to free energy estimators.
     t_list : list
         A list of indices indicating the start of equilibrated data for different replicas. This list will
@@ -78,7 +77,7 @@ def preprocess_data(files_list, temp, data_type, spacing=1, t=None, g=None):
     n_sim = len(files_list)
     preprocessed_data_all, t_list, g_list = [], [], []
     for i in range(n_sim):
-        print(f'Reading dhdl files of alchemical range {i} ...')
+        print(f'Reading dhdl files of state range {i} ...')
         print(f'Collecting {data_type} data from all iterations ...')
         data = alchemlyb.concat([extract_fn(xvg, T=temp) for xvg in files_list[i]])
         data_series = convert_fn(data)
@@ -112,21 +111,27 @@ def preprocess_data(files_list, temp, data_type, spacing=1, t=None, g=None):
 
 def _apply_estimators(data, df_method="MBAR"):
     """
-    An internal function that generates a list of estimators fitting the input data.
+    An internal function used in :func:`calculate_free_energy` to generate a list of estimators fitting the input data.
 
     Parameters
     ----------
-    data : pd.Dataframe
-        A list of dHdl or u_nk dataframes obtained from all replicas of the REXEE simulation of interest.
-        Preferrably, the dHdl or u_nk data should be preprocessed by the function proprocess_data.
-    df_method : str
-        The selected free energy estimator. Options include "MBAR", "BAR" and "TI".
+    data : pandas.Dataframe
+        A list of :math:`dH/dλ` or :math:`u_{nk}` dataframes obtained from all replicas of the REXEE simulation
+        Preferrably, the :math:`dH/dλ` or :math:`u_{nk}` data should be preprocessed by the function
+        :func:`preprocess_data`.
+    df_method : str, Optional
+        The selected free energy estimator. Options include :code:`"MBAR"`, :code:`"BAR"` and :code:`"TI"`.
+        The default is :code:`"MBAR"`.
 
     Returns
     -------
     estimators : list
         A list of estimators fitting the input data for all replicas. With this, the user
         can access all the free energies and their associated uncertainties for all states and replicas.
+
+    See also
+    --------
+    :func:`calculate_free_energy`
     """
     n_sim = len(data)
     estimators = []  # A list of objects of the corresponding class in alchemlyb.estimators
@@ -145,7 +150,7 @@ def _apply_estimators(data, df_method="MBAR"):
 
 def _calculate_df_adjacent(estimators):
     """
-    An Internal function that calculates at list of free energy between adjacent
+    An internal function used in :func:`calculate_free_energy` to calculate a list of free energies between adjacent
     states for all replicas.
 
     Parameters
@@ -153,13 +158,18 @@ def _calculate_df_adjacent(estimators):
     estimators : list
         A list of estimators fitting the input data for all replicas. With this, the user
         can access all the free energies and their associated uncertainties for all states and replicas.
+        In our code, these estimators come from the function :func:`_apply_estimators`.
 
     Returns
     -------
     df_adjacent : list
         A list of lists free energy differences between adjacent states for all replicas.
     df_err_adjacent : list
-        A list of lists of uncertainties corresponding to the values of :code:`df_adjacent`.
+        A list of lists of uncertainties corresponding to the values in :code:`df_adjacent`.
+
+    See also
+    --------
+    :func:`calculate_free_energy`
     """
     n_sim = len(estimators)
     df_adjacent = [list(np.array(estimators[i].delta_f_)[:-1, 1:].diagonal()) for i in range(n_sim)]
@@ -168,35 +178,40 @@ def _calculate_df_adjacent(estimators):
     return df_adjacent, df_err_adjacent
 
 
-def _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type):
+def _combine_df_adjacent(df_adjacent, state_ranges, df_err_adjacent=None, err_type="propagate"):
     """
-    An internal function that combines the free energy differences between adjacent states
-    in different state ranges using either simple means or inverse-variance weighted means.
-    Specifically, if :code:`df_err_adjacent` is :code:`None`, simple means will be used.
-    Otherwise, inverse-variance weighted means will be used.
+    An internal function used in :func:`calculate_free_energy` to combine the free energy differences between
+    adjacent states in different state ranges using either simple means or inverse-variance weighted means.
 
     Parameters
     ----------
     df_adjacent : list
         A list of lists free energy differences between adjacent states for all replicas.
-    df_err_adjacent : list
-        A list of lists of uncertainties corresponding to the values of :code:`df_adjacent`.
     state_ranges : list
-        A list of lists of intergers that represents the alchemical states that can be sampled by different replicas.
-    err_type : str
+        A list of lists of showing the state indices sampled by each replica.
+    df_err_adjacent : list, Optional
+        A list of lists of uncertainties corresponding to the values of :code:`df_adjacent`. Notably, if
+        :code:`df_err_adjacent` is :code:`None`, simple means will be used. Otherwise, inverse-variance weighted
+        means will be used. The default is :code:`None`
+    err_type : str, Optional
         How the error of the combined free energy differences should be calculated. Available options include
-        "propagate" and "std". Note that the option "propagate" is only available when :code:`df_err_adjacent`
-        is not :code:`None`.
+        :code:`"propagate"` and :code:`"std"`. Note that the option :code:`"propagate"` is only available when
+        :code:`df_err_adjacent` is not :code:`None`.
 
     Returns
     -------
     df : list
-        A list of free energy differences between states i and i + 1 for the entire state range.
+        A list of free energy differences between states :math:`i` and :math:`i + 1` for the entire state range.
     df_err : list
         A list of uncertainties of the free energy differences for the entire state range.
     overlap_bool : list
-        overlap_bool[i] = True means that the i-th free energy difference (i.e. df[i]) was available
-        in multiple replicas.
+        A list of boolean values indicating whether a free energy difference was available in multiple replicas.
+        For example, :code:`overlap_bool[i] = True` means that the :math:`i`-th free energy difference (i.e.
+        :code:`df[i]`) was available in multiple replicas.
+
+    See also
+    --------
+    :func:`calculate_free_energy`
     """
     n_tot = state_ranges[-1][-1] + 1
     df, df_err, overlap_bool = [], [], []
@@ -232,46 +247,62 @@ def _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type):
     return df, df_err, overlap_bool
 
 
-def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='propagate', n_bootstrap=None, seed=None):
+def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method="propagate", n_bootstrap=None, seed=None):
     """
-    Caculates the averaged free energy profile with the chosen method given dHdl or u_nk data obtained from
-    all replicas of the REXEE simulation of interest. Available methods include TI, BAR, and MBAR. TI
-    requires dHdl data while the other two require u_nk data.
+    Caculates the averaged free energy profile with the chosen method given :math:`u_{nk}` or :math:`dH/dλ` data
+    obtained from all replicas of the REXEE simulation. Available methods include TI, BAR, and MBAR. TI
+    requires :math:`dH/dλ` data while the other two require :math:`u_{nk}` data.
 
     Parameters
     ----------
-    data : pd.Dataframe
-        A list of dHdl or u_nk dataframes obtained from all replicas of the REXEE simulation of interest.
-        Preferrably, the dHdl or u_nk data should be preprocessed by the function proprocess_data.
+    data : pandas.Dataframe
+        A list of :math:`u_{nk}` or :math:`dH/dλ` dataframes obtained from all replicas of the REXEE simulation.
+        Preferrably, the :math:`u_{nk}` or :math:`dH/dλ` data should be preprocessed by the function
+        :func:`proprocess_data`.
     state_ranges : list
-        A list of lists of intergers that represents the alchemical states that can be sampled by different replicas.
-    df_method : str
-        The method used to calculate the free energy profile. Available choices include "TI", "BAR", and "MBAR".
-    err_method : str
+        A list of lists of showing the state indices sampled by each replica.
+    df_method : str, Optional
+        The method used to calculate the free energy profile. Available choices include :code:`"TI"`,
+        :code:`"BAR"`, and :code:`"MBAR"`. The default is :code:`"MBAR"`.
+    err_method : str, Optional
         The method used to estimate the uncertainty of the free energy combined across multiple replicas.
-        Available options include "propagate" and "bootstrap". The bootstrapping method is more accurate
-        but much more computationally expensive than simple error propagation.
-    n_bootstrap : int
+        Available options include :code:`"propagate"` and :code:`"bootstrap"`. The bootstrapping method is
+        more accurate but much more computationally expensive than simple error propagation.
+    n_bootstrap : int, Optional
         The number of bootstrap iterations. This parameter is used only when the boostrapping method is chosen to
-        estimate the uncertainties of the free energies.
-    seed : int
-        The random seed for bootstrapping.
+        estimate the uncertainties of the free energies. The default is :code:`None`. In the CLI :code:`analyze_REXEE`,
+        this number is set by the YAML parameter :code:`n_bootstrap`.
+    seed : int, Optional
+        The random seed for bootstrapping. Only relevant when :code:`err_method` is :code:`"bootstrap"`.
+        The default is :code:`None`.
 
     Returns
     -------
     f : list
         The full-range free energy profile.
     f_err : list
-        The uncertainty corresponding to the values in :code:`f`.
+        The uncertainties corresponding to the values in :code:`f`.
     estimators : list
         A list of estimators fitting the input data for all replicas. With this, the user
         can access all the free energies and their associated uncertainties for all states and replicas.
+
+    Example
+    -------
+    In the CLI :code:`analyze_REXEE`, lines like below are used:
+
+        >>> import glob
+        >>> import natsort
+        >>> from ensemble_md.analysis import analyze_free_energy
+        >>> state_ranges = [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]]
+        >>> file_list = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/dhdl*xvg')) for i in range(4)]
+        >>> data_list, _, _ = analyze_free_energy.preprocess_data(file_list, temp=300, data_type='u_nk')
+        >>> f, _, _ = analyze_free_energy.calculate_free_energy(data_list, state_ranges, "MBAR", "propagate")
     """
     n_sim = len(data)
     n_tot = state_ranges[-1][-1] + 1
     estimators = _apply_estimators(data, df_method)
     df_adjacent, df_err_adjacent = _calculate_df_adjacent(estimators)
-    df, df_err, overlap_bool = _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type='propagate')
+    df, df_err, overlap_bool = _combine_df_adjacent(df_adjacent, state_ranges, df_err_adjacent, err_type='propagate')
 
     if err_method == 'bootstrap':
         if seed is not None:
@@ -284,7 +315,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
             sampled_data = [sampled_data_all[i].iloc[b * len(data[i]):(b + 1) * len(data[i])] for i in range(n_sim)]
             bootstrap_estimators = _apply_estimators(sampled_data, df_method)
             df_adjacent, df_err_adjacent = _calculate_df_adjacent(bootstrap_estimators)
-            df_sampled, _, overlap_bool = _combine_df_adjacent(df_adjacent, df_err_adjacent, state_ranges, err_type='propagate')  # doesn't matter what value err_type here is # noqa: E501
+            df_sampled, _, overlap_bool = _combine_df_adjacent(df_adjacent, state_ranges, df_err_adjacent, err_type='propagate')  # doesn't matter what value err_type here is # noqa: E501
             df_bootstrap.append(df_sampled)
         error_bootstrap = np.std(df_bootstrap, axis=0, ddof=1)
 
@@ -309,7 +340,7 @@ def calculate_free_energy(data, state_ranges, df_method="MBAR", err_method='prop
 
 def calculate_df_rmse(estimators, df_ref, state_ranges):
     """
-    Calculates the RMSE values of the free energy profiles of different alchemical ranges given the reference free
+    Calculates the RMSE values of the free energy profiles of different state ranges given the reference free
     energy profile for the whole range of states.
 
     Parameters
@@ -317,16 +348,21 @@ def calculate_df_rmse(estimators, df_ref, state_ranges):
     estimators : list
         A list of estimators fitting the input data for all replicas. With this, the user
         can access all the free energies and their associated uncertainties for all states and replicas.
+        The estimators should be generated by the function :func:`calculate_free_energy`.
     df_ref : list
         A list of values corresponding to the free energies of the whole range of states. The length
         of the list should be equal to the number of states in total.
     state_ranges : list
-        A list of lists of intergers that represents the alchemical states that can be sampled by different replicas.
+        A list of lists of showing the state indices sampled by each replica.
 
     Returns
     -------
     rmse_list : list
-        A list of RMSE values of the free energy profiles of different alchemical ranges.
+        A list of RMSE values of the free energy profiles of different state ranges.
+
+    See also
+    --------
+    :func:`calculate_free_energy`
     """
     n_sim = len(estimators)
     df_ref = np.array(df_ref)
@@ -344,16 +380,16 @@ def calculate_df_rmse(estimators, df_ref, state_ranges):
 
 def plot_free_energy(f, f_err, fig_name):
     """
-    Plot the free energy profile with error bars.
+    Plots the free energy profile with error bars.
 
     Parameters
     ----------
     f : list
         The full-range free energy profile.
     f_err : list
-        The uncertainty corresponding to the values in :code:`f`.
+        The uncertainties corresponding to the values in :code:`f`.
     fig_name : str
-        The file name of the png file to be saved (with the extension).
+        The file path to save the figure.
     """
     plt.figure()
     plt.plot(range(len(f)), f, 'o-', c='#1f77b4')
@@ -366,24 +402,26 @@ def plot_free_energy(f, f_err, fig_name):
 
 def average_weights(g_vecs, frac):
     """
-    Average the differences between the weights of the coupled and uncoupled states.
-    This can be an estimate of the free energy difference between two end states.
+    Given the time series of the whole range of alchemical weights, averages the
+    weight differences between the the coupled and decoupled states. This can be
+    an estimate of the free energy difference between two end states. This function
+    is only relevant for weight-updating REXEE simulations.
 
     Parameters
     ----------
-    g_vecs : np.array
+    g_vecs : numpy.ndarray
         An array of alchemical weights of the whole range of states as a function of
         simulation time, which is typically generated by :obj:`.combine_weights`.
     frac : float
-        The fraction of g_vecs to average over. frac=0.2 means average the last 20% of
-        the weight vectors.
+        The fraction of :code:`g_vecs` to average over. :code:`frac=0.2` means average
+        the last 20% of the weight vectors will be averaged.
 
     Returns
     -------
     dg_avg : float
-        The averaged difference in the weights between the coupled and uncoupled states.
+        The averaged weight difference between the coupled and decoupled states.
     dg_avg_err : float
-        The error of :code:`dg_avg`.
+        The errors corresponding to the value of :code:`dg_avg`.
     """
     N = len(g_vecs)
     dg = []

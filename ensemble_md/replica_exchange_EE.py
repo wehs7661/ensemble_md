@@ -9,7 +9,7 @@
 ####################################################################
 """
 The :obj:`.replica_exchange_EE` module provides functions for setting up and
-replica exchange and expanded ensemble (REXEE) simulations.
+performing replica exchange and expanded ensemble (REXEE) simulations.
 """
 import os
 import sys
@@ -37,38 +37,39 @@ rank = comm.Get_rank()
 
 class ReplicaExchangeEE:
     """
-    This class provides a variety of functions useful for setting up and running
-    replica exchange (REX) of expanded ensemble (EE), or REXEE simulations.
-    Upon instantiation, all parameters in the YAML file will be assigned to an
+    A class that provides a variety of functions useful for setting up and running
+    a replica exchange (REX) of expanded ensemble (EE) simulation, or a REXEE simulation.
+    Upon instantiation, all parameters in the input YAML file will be assigned to an
     attribute in the class. In addition to these variables, below is a list of
     attributes of the class. (All the the attributes are assigned by :obj:`set_params`
-    unless otherwise noted.)
+    except that :code:`yaml` is assigned by :code:`__init__`.)
 
     :ivar gmx_path: The absolute path of the GROMACS exectuable.
     :ivar gmx_version: The version of the GROMACS executable.
-    :ivar yaml: The input YAML file used to instantiate the class. Assigned by the :code:`__init__` function.
+    :ivar yaml: The input YAML file used to instantiate the class. The file should contain necessary REXEE parameters.
+        For more details, please check the :ref:`doc_parameters`.
     :ivar warnings: Warnings about parameter specification in either YAML or MDP files.
-    :ivar reformatted_mdp: Whether the templated MDP file has been reformatted by replacing hyphens
+    :ivar template: The template MDP file on which the instance of the :obj:`MDP` class is based.
+    :ivar reformatted_mdp: Whether the template MDP file has been reformatted by replacing hyphens
         with underscores or not.
-    :ivar template: The instance of the :obj:`MDP` class based on the template MDP file.
     :ivar dt: The simulation timestep in ps.
     :ivar temp: The simulation temperature in Kelvin.
-    :ivar fixed_weights: Whether the weights will be fixed during the simulation (according to the template MDP file).
+    :ivar fixed_weights: Whether the weights will be fixed during the simulation.
     :ivar updating_weights: The list of weights as a function of time (since the last update of the Wang-Landau
         incrementor) for different replicas. The length is equal to the number of replicas. This is only relevant for
         weight-updating simulations.
-    :ivar equilibrated_weights: The equilibrated weights of different replicas. For weight-equilibrating simulations,
-        this list is initialized as a list of empty lists. Otherwise (weight-fixed), it is initialized as a list of
-        :code:`None`.
+    :ivar equilibrated_weights: The equilibrated weights of different replicas. For weight-updating simulations,
+        this list is initialized as a list of empty lists. Otherwise (i.e., in fixed-weight simulations), it is
+        initialized as a list of :code:`None`.
     :ivar current_wl_delta: The current value of the Wang-Landau incrementor. This is only relevent for weight-updating
         simulations.
     :ivar kT: 1 kT in kJ/mol at the simulation temperature.
-    :ivar lambda_types: The types of lambda variables involved in expanded ensemble simulations, e.g.
+    :ivar lambda_types: The types of lambda variables involved in expanded ensemble simulations, e.g.,
         :code:`fep_lambdas`, :code:`mass_lambdas`, :code:`coul_lambdas`, etc.
     :ivar n_tot: The total number of states for all replicas.
-    :ivar n_sub: The numbmer of states for each replica. The current implementation assumes homogenous replicas.
-    :ivar state_ranges: A list of list of state indices for each replica.
-    :ivar equil: A list of times it took to equilibrated the weights for different replicas. This
+    :ivar n_sub: The numbmer of states of each replica. The current implementation assumes homogenous replicas.
+    :ivar state_ranges: A list of list of (global) state indices for each replica.
+    :ivar equil: A list of times it took to equilibrate the weights for different replicas. This
         list is initialized with a list of -1, where -1 means that the weights haven't been equilibrated. Also,
         a value of 0 means that the simulation is a fixed-weight simulation.
     :ivar n_rejected: The number of proposed exchanges that have been rejected. Updated by :obj:`.accept_or_reject`.
@@ -77,12 +78,14 @@ class ReplicaExchangeEE:
     :ivar n_emtpy_swappable: The number of times when there was no swappable pair.
     :ivar rep_trajs: The replica-space trajectories of all configurations.
     :ivar configs: A list that thows the current configuration index that each replica is sampling.
-    :ivar g_vecs: The time series of the (processed) whole-range alchemical weights. If no weight combination is
-        applied, this list will just be a list of :code:`None`'s.
+    :ivar g_vecs: The time series of processed (e.g., combined across replicas) alchemical weights for the entire state
+        space. If no weight combination scheme is applied, this list will just be a list of :code:`None`'s.
     :ivar df_data_type: The type of data (either :math:`u_{nk}` or :math:`dH/dλ`) that will be used for
-        free energy calculations if :code:`df_method` is :code:`True`.
-    :ivar modify_coords_fn: The function (callable) in the external module (specified as :code:`modify_coords` in
-        the input YAML file) for modifying coordinates at exchanges.
+        free energy calculations. This depends on the free energy estimator specified in the parameter
+        :code:`df_method`.
+    :ivar modify_coords_fn: The function (callable) in an external module (specified as :code:`modify_coords` in
+        the input YAML file) for modifying coordinates at exchanges. This parameter is only relevant to
+        multi-topology REXEE (i.e., MT-REXEE) simulations.
     """
 
     def __init__(self, yaml_file, analysis=False):
@@ -91,34 +94,34 @@ class ReplicaExchangeEE:
 
     def set_params(self, analysis):
         """
-        Sets up or reads in the user-defined parameters from a yaml file and an MDP template.
+        Sets up or reads in the user-defined parameters from an input YAML file and an MDP template.
         This function is called to instantiate the class in the :code:`__init__` function of
         class. Specifically, it does the following:
 
           1. Sets up constants.
-          2. Reads in parameters from a YAML file.
+          2. Reads in REXEE parameters from a YAML file.
           3. Handles YAML parameters.
           4. Checks if the parameters in the YAML file are well-defined.
           5. Reformats the input MDP file to replace all hyphens with underscores.
           6. Reads in parameters from the MDP template.
 
-        After instantiation, the class instance will have attributes corresponding to
+        After instantiation, the class instance will have an attribute corresponding to
         each of the parameters specified in the YAML file. For a full list of the parameters that
         can be specified in the YAML file, please refer to :ref:`doc_parameters`.
 
-        :param yaml_file: The file name of the YAML file for specifying the parameters for REXEE.
+        :param yaml_file: The file path of the input YAML file that specifies REXEE parameters.
         :type yaml_file: str
         :param analysis: Whether the instantiation of the class is for data analysis of REXEE simulations.
-            The default is :code:`False`
-        :type analysis: bool
+            The default is :code:`False`.
+        :type analysis: bool, Optional
 
         :raises ParameterError:
 
-              - If a required parameter is not specified in the YAML file.
+              - If a required parameter is not specified in the input YAML file.
               - If a specified parameter is not recognizable.
               - If a specified option is not available for a parameter.
               - If the data type or range (e.g., positive or negative) of a parameter is not correct.
-              - If an invalid MDP file is detected.
+              - If any MDP parameter invalid for the REXEE simulation is detected.
         """
         self.warnings = []  # Store warnings, if any.
 
@@ -468,12 +471,12 @@ class ReplicaExchangeEE:
 
     def print_params(self, params_analysis=False):
         """
-        Prints important parameters related to the EXEE simulation.
+        Prints important parameters relevant to the REXEE simulation to be performed.
 
         Parameters
         ----------
-        params_analysis : bool, optional
-            If True, additional parameters related to data analysis will be printed. Default is False.
+        params_analysis : bool, Optional
+            Whether additional parameters for data analysis should be printed. The default is :code:`False`.
         """
         if isinstance(self.gro, list):
             gro_str = ', '.join(self.gro)
@@ -485,8 +488,8 @@ class ReplicaExchangeEE:
         else:
             top_str = self.top
 
-        print("Important parameters of EXEE")
-        print("============================")
+        print("Important parameters of REXEE")
+        print("=============================")
         print(f"Python version: {sys.version}")
         print(f"GROMACS executable: {self.gmx_path}")  # we print the full path here
         print(f"GROMACS version: {self.gmx_version}")
@@ -538,7 +541,12 @@ class ReplicaExchangeEE:
         will be set to :code:`True`. In this case, the new MDP object with reformatted parameter names will be
         written to the original file path of the file, while the original file will be renamed with a
         :code:`_backup` suffix. If the input MDP file is not reformatted, the function sets
-        the class attribute :code:`self.reformatted_mdp` to :code:`False`.
+        the attribute :code:`self.reformatted_mdp` to :code:`False`.
+
+        Parameters
+        ----------
+        mdp_file : str
+            The file path of the MDP file to be reformatted.
 
         Returns
         -------
@@ -564,10 +572,10 @@ class ReplicaExchangeEE:
 
     def initialize_MDP(self, idx):
         """
-        Initializes the MDP object for generating MDP files for a replica based on the MDP template.
+        Initializes the MDP object for generating an MDP file for a specific replica based on the MDP template.
         This function should be called only for generating MDP files for the FIRST iteration
         and it has nothing to do with whether the weights are fixed or equilibrating.
-        It is assumed that the MDP template has all the common parameters of all replicas.
+        It is assumed that the MDP template has all the parameters shared by all replicas.
 
         Parameters
         ----------
@@ -577,7 +585,7 @@ class ReplicaExchangeEE:
         Returns
         -------
         MDP : :obj:`.gmx_parser.MDP` obj
-            An updated object of :obj:`.gmx_parser.MDP` that can be used to write MDP files.
+            A :obj:`.gmx_parser.MDP` object that can be used to write the MDP file.
         """
         MDP = copy.deepcopy(self.template)
         MDP["nsteps"] = self.nst_sim
@@ -597,13 +605,13 @@ class ReplicaExchangeEE:
 
     def get_ref_dist(self, pullx_file=None):
         """
-        Gets the reference distance(s) to use starting from the second iteration if distance restraint(s) are used.
-        Specifically, a reference distance determined here is the initial COM distance between the pull groups
-        in the input GRO file. This function initializes the attribute :code:`ref_dist`.
+        Gets the initial COM distance between the pull groups in the input GRO file. Importantly, this distance
+        will serve as the reference distance starting from the second iteration. This function initializes the
+        attribute :code:`ref_dist` and is only relevant when a distance restraint is applied in the GROMACS pull code.
 
-        Parameter
-        ---------
-        pullx_file : str
+        Parameters
+        ----------
+        pullx_file : str, Optional
             The path to the pullx file whose initial value will be used as the reference distance.
             Usually, this should be the path of the pullx file of the first iteration. The default
             is :code:`sim_0/iteration_0/pullx.xvg`.
@@ -620,14 +628,14 @@ class ReplicaExchangeEE:
 
     def update_MDP(self, new_template, sim_idx, iter_idx, states, wl_delta, weights, counts=None):
         """
-        Updates the MDP file for a new iteration based on the new MDP template coming from the previous iteration.
-        Note that if the weights got equilibrated in the previous iteration, then the weights will be fixed
-        at these equilibrated values for all the following iterations.
+        Updates the MDP file for a new iteration based on the new MDP template, which is the MDP file
+        from the previous iteration. Note that if the weights got equilibrated in the previous iteration,
+        the weights will be fixed at these equilibrated values for all the following iterations.
 
         Parameters
         ----------
         new_template : str
-            The new MDP template file. Typically the MDP file of the previous iteration.
+            The new MDP template file, which typically is the MDP file of the previous iteration.
         sim_idx : int
             The index of the simulation whose MDP parameters need to be updated.
         iter_idx : int
@@ -635,20 +643,18 @@ class ReplicaExchangeEE:
         states : list
             A list of last sampled states of all simulaitons in the previous iteration.
         wl_delta : list
-            A list of final Wang-Landau incrementors of all simulations.
+            A list of fina Wang-Landau incrementors of all simulations.
         weights : list
             A list of lists final weights of all simulations.
-        counts : list
+        counts : list, Optional
             A list of lists final counts of all simulations. If the value is :code:`None`,
             then the MDP parameter :code:`init-histogram-counts` won't be specified in the next iteration.
-            Note that not all the GROMACS versions have the MDP parameter :code:`init-histogram-counts` available,
-            in which case one should always pass :code:`None`, or set :code:`-maxwarn` in :code:`grompp_args`
-            in the input YAML file.
+            Note that this parameter is only supported by GROMACS with versions later than 2022.3.
 
         Return
         ------
         MDP : :obj:`.gmx_parser.MDP` obj
-            An updated object of :obj:`.gmx_parser.MDP` that can be used to write MDP files.
+            A :obj:`.gmx_parser.MDP` object that can be used to write the MDP file.
         """
         new_template = gmx_parser.MDP(new_template)  # turn into a gmx_parser.MDP object
         MDP = copy.deepcopy(new_template)
@@ -680,18 +686,18 @@ class ReplicaExchangeEE:
 
     def extract_final_dhdl_info(self, dhdl_files):
         """
-        For all the replica simulations, finds the last sampled state
-        and print the corresponding lambda values from a dhdl file.
+        Extracts the last sampled states for all replica simulations.
 
         Parameters
         ----------
         dhdl_files : list
-            A list of file paths to GROMACS DHDL files of different replicas.
+            A list of file paths to GROMACS DHDL files of different replicas. Note that
+            the order of the files should be consistent with the order of the replicas.
 
         Returns
         -------
         states : list
-            A list of the global indices of the last sampled states of all simulaitons.
+            A list of the global state indices of the last sampled states of all simulaitons.
         """
         states = []
         print("\nBelow are the final states being visited:")
@@ -712,7 +718,8 @@ class ReplicaExchangeEE:
           - The final Wang-Landau incrementors.
           - The final lists of weights.
           - The final lists of counts.
-          - Whether the weights were equilibrated in the simulations.
+
+        Note that the order of the files should be consistent with the order of the replicas.
 
         Parameters
         ----------
@@ -761,19 +768,19 @@ class ReplicaExchangeEE:
     @staticmethod
     def identify_swappable_pairs(states, state_ranges, neighbor_exchange, add_swappables=None):
         """
-        Identify swappable pairs. By definition, a pair of simulation is considered swappable only if
+        Identifies swappable pairs. By definition, a pair of simulation is considered swappable only if
         their last sampled states are in the alchemical ranges of both simulations. This is required
         to ensure that the values of involved ΔH and Δg can always be looked up from the DHDL and LOG files.
-        This also automatically guarantee that the simulations to be swapped have overlapping alchemical ranges.
+        This also automatically guarantees that the simulations to be swapped have overlapping state sets.
 
         Parameters
         ----------
         states : list
-            A list of the global indices of the last sampled states of all simulations. This list can be
-            generated by the :obj:`.extract_final_dhdl_info` method. Notably, the input list should not be
+            A list of the global state indices of the last sampled states of all simulations. This list can be
+            generated by :obj:`.extract_final_dhdl_info`. Notably, the input list should not be
             a list that has been updated/modified by :obj:`get_swapping_pattern`, or the result will be incorrect.
         state_ranges : list of lists
-            A list of state indies for all replicas. The input list can be a list updated by
+            A list of global state indices for all replicas. The input list can be a list updated by
             :obj:`.get_swapping_pattern`, especially in the case where there is a need to re-identify the
             swappable pairs after an attempted swap is accepted.
         neighbor_exchange : bool
@@ -782,12 +789,27 @@ class ReplicaExchangeEE:
             A list of lists that additionally consider states (in global indices) that can be swapped.
             For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that if a replica samples state 4,
             it can be swapped with another replica that samples state 5 and vice versa. The same logic applies
-            to states 14 and 15.
+            to states 14 and 15. This parameter is only relevant to MT-REXEE simulations.
 
         Returns
         -------
         swappables : list
             A list of tuples representing the simulations that can be swapped.
+
+        Example
+        -------
+        Below is an example where the REXEE simulation is composed of four replicas sampling states 0-3, 1-4,
+        2-5, and 3-6, respectively. At exchanges, these replicas are respectively at states 2, 3, 3, and 4.
+        Therefore, the swappable pairs are [(0, 1), (1, 2), (2, 3)]. If only neighboring swaps are considered,
+        the swappable pairs will be [(1, 2), (2, 3)].
+
+            >>> from ensemble_md.replica_exchange_EE import ReplicaExchangeEE as REXEE
+            >>> states = [2, 3, 2, 5]
+            >>> state_ranges = [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]]
+            >>> REXEE.identify_swappable_pairs(states, state_ranges, neighbor_exchange=False)
+            [(0, 1), (1, 2), (2, 3)]
+            >>> REXEE.identify_swappable_pairs(states, state_ranges, neighbor_exchange=True)
+            [(1, 2), (2, 3)]
         """
         n_sim = len(states)
         sim_idx = list(range(n_sim))
@@ -810,7 +832,6 @@ class ReplicaExchangeEE:
                         swappables.append(pair)
 
         if neighbor_exchange is True:
-            print('Note: One neighboring swap will be proposed.')
             swappables = [i for i in swappables if np.abs(i[0] - i[1]) == 1]
 
         return swappables
@@ -818,7 +839,7 @@ class ReplicaExchangeEE:
     @staticmethod
     def propose_swap(swappables):
         """
-        Proposes a swap of coordinates between replicas by drawing samples from the swappable pairs.
+        Proposes a swap of coordinates between replicas by drawing a pair from the list of swappable pairs.
 
         Parameters
         ----------
@@ -847,7 +868,7 @@ class ReplicaExchangeEE:
         sample configurations 0, 2, 1, 3, respectively, where configurations 0, 1, 2, 3 here are defined as whatever
         configurations are in replicas 0, 1, 2, 3 in the CURRENT iteration (not iteration 0), respectively.
 
-        Notably, when this function is called (e.g. once every iteration in an REXEE simulation), the output
+        Notably, when this function is called (e.g., once every iteration in a REXEE simulation), the output
         list :code:`swap_pattern` is always initialized as :code:`[0, 1, 2, 3, ...]` and gets updated once every
         attempted swap. This is different from the attribute :code:`configs`, which is only initialized at the
         very beginning of the entire REXEE simulation (iteration 0), though :code:`configs` also gets updated with
@@ -856,10 +877,10 @@ class ReplicaExchangeEE:
         Parameters
         ----------
         dhdl_files : list
-            A list of DHDL files. The indicies in the DHDL filenames shouuld be in an ascending order, e.g.
+            A list of paths to the DHDL files. The indicies in the DHDL filenames should be in an ascending order, e.g.
             :code:`[dhdl_0.xvg, dhdl_1.xvg, ..., dhdl_N.xvg]`.
         states : list
-            A list of last sampled states (in global indices) of ALL simulaitons. :code:`states[i]=j` means that
+            A list of last sampled states (in global indices) of ALL simulations. :code:`states[i]=j` means that
             the configuration in replica :code:`i` is at state :code:`j` at the time when the exchange is performed.
             This list can be generated :obj:`.extract_final_dhdl_info`.
 
@@ -982,7 +1003,7 @@ class ReplicaExchangeEE:
 
     def calc_prob_acc(self, swap, dhdl_files, states, shifts):
         """
-        Calculates the acceptance ratio given the Monte Carlo scheme for swapping the simulations.
+        Calculates the acceptance ratio for swapping simulations.
 
         Parameters
         ----------
@@ -992,11 +1013,11 @@ class ReplicaExchangeEE:
             A list of DHDL files, e.g. :code:`dhdl_files = ['dhdl_2.xvg', 'dhdl_1.xvg', 'dhdl_0.xvg', 'dhdl_3.xvg']`
             means that configurations 2, 1, 0, and 3 are now in replicas 0, 1, 2, 3. This can happen in multiple swaps
             when a previous swap between configurations 0 and 2 has just been accepted. Otherwise, the list of
-            filenames should always be in the ascending order, e.g. :code:`['dhdl_0.xvg', 'dhdl_1.xvg', 'dhdl_2.xvg',
+            filenames should always be in the ascending order, e.g., :code:`['dhdl_0.xvg', 'dhdl_1.xvg', 'dhdl_2.xvg',
             dhdl_3.xvg]`.
         states : list
             A list of last sampled states (in global indices) in the DHDL files corresponding to configurations 0, 1,
-            2, ... (e.g. :code:`dhdl_0.xvg`, :code:`dhdl_1.xvg`, :code:`dhdl_2.xvg`, ...)
+            2, ... (e.g., :code:`dhdl_0.xvg`, :code:`dhdl_1.xvg`, :code:`dhdl_2.xvg`, ...)
             This list can be generated by :obj:`.extract_final_dhdl_info`.
         shifts : list
             A list of state shifts for converting global state indices to the local ones. Specifically, :code:`states`
@@ -1046,12 +1067,13 @@ class ReplicaExchangeEE:
 
     def accept_or_reject(self, prob_acc):
         """
-        Returns a boolean variable indiciating whether the proposed swap should be acceepted given the acceptance rate.
+        Returns a boolean variable indicating whether the proposed swap should be acceepted or not given
+        the acceptance ratio.
 
         Parameters
         ----------
         prob_acc : float
-            The acceptance rate.
+            The acceptance ratio.
 
         Returns
         -------
@@ -1082,16 +1104,17 @@ class ReplicaExchangeEE:
 
     def get_averaged_weights(self, log_files):
         """
-        For each replica, calculate the averaged weights (and the associated error) from the time series
-        of the weights since the previous update of the Wang-Landau incrementor.
+        For each replica, calculates the averaged weights (and the associated error) from the time series
+        of the weights since the previous update of the Wang-Landau incrementor. This is only relevant
+        for weight-updating REXEE simulations.
 
         Parameters
         ----------
         log_files : list
             A list of file paths to GROMACS LOG files of different replicas.
 
-        Returned
-        --------
+        Returns
+        -------
         weights_avg : list
             A list of lists of weights averaged since the last update of the Wang-Landau
             incrementor. The length of the list should be the number of replicas.
@@ -1120,18 +1143,20 @@ class ReplicaExchangeEE:
 
     def weight_correction(self, weights, counts):
         """
-        Corrects the lambda weights based on the histogram counts. Namely,
+        Adjusts the lambda weights based on the histogram counts by using the following equation:
         :math:`g_k' = g_k + ln(N_{k-1}/N_k)`, where :math:`g_k` and :math:`g_k'`
-        are the lambda weight after and before the correction, respectively.
+        are the lambda weight before and after the correction, respectively.
         Notably, in any of the following situations, we don't do any correction.
 
-        - Either :math:`N_{k-1}` or :math:`N_k` is 0.
-        - Either :math:`N_{k-1}` or :math:`N_k` is smaller than the histogram cutoff.
+        - Either :math:`N_{k-1}` or :math:`N_k` is :math:`0`.
+        - Either :math:`N_{k-1}` or :math:`N_k` is smaller than the histogram cutoff specified by :code:`N_cutoff`
+          in the input YAML file.
 
         Parameters
         ----------
         weights : list
-            A list of lists of weights (of ALL simulations) to be corrected.
+            A list of lists of weights (of ALL simulations) to be corrected. The i-th element corresponds to
+            the list of weights of the i-th replica.
         counts : list
             A list of lists of counts (of ALL simulations).
 
@@ -1164,17 +1189,22 @@ class ReplicaExchangeEE:
 
     def histogram_correction(self, hist, print_values=True):
         """
-        Adjust the histogram counts. Specifically, the ratio of corrected histogram counts
-        for adjancent states is the geometric mean of the ratio of the original histogram counts
-        for the same states. Note, however, if the histogram counts are 0 for some states, the
-        histogram correction will be skipped and the original histogram counts will be returned.
+        Adjusts the histogram counts. For example, if replicas A and B both sample states 1 and 2 and have
+        histogram counts :math:`N^A_1`, :math:`N^A_2`, :math:`N^B_1`, and :math:`N^B_2`, the corrected histogram
+        counts for states 1 and 2 for BOTH replicas will be adjusted according to the following equation:
+        :math:`N_1'/N_2'=((N_1^A N_1^B)/(N_2^A N_2^B))^{1/2}`. Namely, the ratio of the corrected histogram
+        counts for adjacent states is the geometric mean of the ratio of the original histogram counts
+        for the same states. Note that if any histogram count is 0, histogram correction will not be performed
+        and the original histogram counts will be returned.
 
         Parameters
         ----------
         hist : list
-            A list of lists of histogram counts of ALL simulations.
-        print_values : bool, optional
-            Whether to print the histograms for each replica before and after histogram correction.
+            A list of lists of histogram counts of ALL simulations. The i-th element corresponds to
+            the list of histogram counts of the i-th replica.
+        print_values : bool, Optional
+            Whether to print the histogram counts for each replica before and after histogram correction.
+            The default is :code:`True`.
 
         Returns
         -------
@@ -1234,26 +1264,27 @@ class ReplicaExchangeEE:
 
     def combine_weights(self, weights, weights_err=None, print_values=True):
         """
-        Combine alchemical weights across multiple replicas. Note that if
+        Combines alchemical weights across multiple replicas. Note that if
         :code:`weights_err` is provided, inverse-variance weighting will be used.
         Care must be taken since inverse-variance weighting can lead to slower
-        convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for mor details.)
+        convergence if the provided errors are not accurate. (See :ref:`doc_w_schemes` for more details.)
 
         Parameters
         ----------
         weights : list
-            A list of lists alchemical weights of ALL simulations.
-        weights_err : list, optional
-            A list of lists of errors corresponding to the values in :code:`weights`.
-        print_values : bool, optional
+            A list of lists of alchemical weights of ALL simulations. The i-th element corresponds to
+            the list of weights of the i-th replica.
+        weights_err : list, Optional
+            A list of lists of errors corresponding to the values in :code:`weights`. The default is :code:`None`.
+        print_values : bool, Optional
             Whether to print the weights for each replica before and
-            after weight combination for each replica.
+            after weight combination for each replica. The default is :code:`True`.
 
         Returns
         -------
         weights_modified : list
-            A list of modified Wang-Landau weights of ALL simulations.
-        g_vec : np.ndarray
+            A list of modified alchemical weights of ALL simulations.
+        g_vec : numpy.ndarray
             An array of alchemical weights of the whole range of states.
         """
         # (1) Print the original weights
@@ -1376,7 +1407,7 @@ class ReplicaExchangeEE:
 
     def _run_mdrun(self, n):
         """
-        Executes GROMACS mdrun commands in parallel.
+        Executes GROMACS mdrun commands in parallel for a REXEE simulation.
 
         Parameters
         ----------
@@ -1424,18 +1455,18 @@ class ReplicaExchangeEE:
 
     def run_REXEE(self, n, swap_pattern=None):
         """
-        Perform one iteration in the REXEE simulation, which includes generating the
-        TPR files using the GROMACS grompp :code:`command` and running the expanded ensemble simulations
-        in parallel using GROMACS :code:`mdrun` command. The GROMACS commands are launched by as subprocesses.
+        Performs one iteration of a REXEE simulation, which includes generating the
+        TPR files using the GROMACS :code:`grompp` command and running the expanded ensemble simulations
+        in parallel using the GROMACS :code:`mdrun` command. The GROMACS commands are launched as subprocesses.
         The function assumes that the GROMACS executable is available.
 
         Parameters
         ----------
         n : int
             The iteration index (starting from 0).
-        swap_pattern : list
+        swap_pattern : list, Optional
             A list generated by :obj:`.get_swapping_pattern`. It represents how the replicas should be swapped.
-            This parameter is not needed only if :code:`n` is 0.
+            This parameter is not needed only if :code:`n` is 0. The default is :code:`None`.
         """
         if rank == 0:
             iter_str = f'\nIteration {n}: {self.dt * self.nst_sim * n: .1f} - {self.dt * self.nst_sim * (n + 1): .1f} ps'  # noqa: E501

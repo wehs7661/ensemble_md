@@ -50,6 +50,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.extlinks',
+    'sphinx.ext.todo',
     'nbsphinx',
 ]
 
@@ -57,6 +58,7 @@ autosummary_generate = True
 napoleon_google_docstring = False
 napoleon_use_param = False
 napoleon_use_ivar = True
+todo_include_todos = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -180,5 +182,13 @@ autodoc_mock_imports = ["mpi4py"]  # we originally included gmxapi in the old ve
 
 # -- Others ------------------------------------------------------------------
 autodoc_default_options = {
-    'private-members': True,
+    'private-members': False,
+}
+
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    'pymbar': ('https://pymbar.readthedocs.io/en/latest/', None),
+    'alchemlyb': ('https://alchemlyb.readthedocs.io/en/latest/', None),
 }

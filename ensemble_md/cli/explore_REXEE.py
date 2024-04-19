@@ -58,22 +58,22 @@ def solv_REXEE_diophantine(N, constraint=False):
     """
     Solves the general nonlinear Diophantine equation associated with the homogeneous REXEE
     parameters. Specifically, given the total number of states :math:`N` and the number of replicas
-    r, the states for each replica n and the state shift s can be expressed as:
-    n = N + (r-1)(t-1), and s = 1 - t, with the range of t being either the following:
-    - Without the additional constraint, (r-N+1)/r <= t <= 0
-    - With the additional constraint, (r-N+1)/r <= t <= (r-N+1)/(r+1)
+    :math:`R`, the number of states for each replica :math:`n_s` and the state shift :math:`ϕ` can be expressed as:
+    :math:`n_s = N + (R-1)(ϕ-1)`, and :math:`ϕ = 1 - t`, with the range of :math:`t` being either the following:
+    - Without the additional constraint, :math:`(r-N+1)/r ≤ t ≤ 0`
+    - With the additional constraint, :math:`(r-N+1)/r ≤ t ≤ (r-N+1)/(r+1)`
 
     Parameters
     ----------
     N : int
         The total number of states of the homogeneous REXEE of interesst.
     constraint : bool
-        Whether to apply additional constraints such that n-s <= 1/2n.
+        Whether to apply additional constraints such that :math:`n-s ≤ 1/2n`.
 
     Returns
     -------
     soln_all : pd.DataFrame
-        A pandas DataFrame that lists all the solutions of (N, r, n, s).
+        A pandas DataFrame that lists all the solutions of :math:`(N, R, n_s, ϕ)`.
     """
     soln_all = []   # [N, r, n, s]
     r_list = range(2, N)
@@ -103,7 +103,7 @@ def estimate_swapless_rate(state_ranges, N=1000000):
     Parameters
     ----------
     state_ranges : list
-        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :code:`EnsemblEXE`.)
+        A list of lists of state indices. (Like the attribute :code:`state_ranges` in :obj:`ReplicaExchangeEE`.)
     N : n
         The number of Monte Carlo iterations for the estimation.
 
