@@ -944,7 +944,6 @@ class ReplicaExchangeEE:
                     print('No swap is proposed because there is no swappable pair at all.')
                 break
             else:
-                self.n_swap_attempts += 1
                 if self.proposal == 'exhaustive':
                     n_ex_exhaustive += 1
 
@@ -955,6 +954,7 @@ class ReplicaExchangeEE:
                     print('No swap is proposed because there is no swappable pair at all.')
                     break  # no need to re-identify swappable pairs and draw new samples
                 else:
+                    self.n_swap_attempts += 1
                     if self.verbose is True and self.proposal != 'exhaustive':
                         print(f'A swap ({i + 1}/{n_ex}) is proposed between the configurations of Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
 
