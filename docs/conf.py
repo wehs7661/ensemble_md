@@ -182,7 +182,7 @@ autodoc_mock_imports = ["mpi4py"]  # we originally included gmxapi in the old ve
 
 # -- Others ------------------------------------------------------------------
 autodoc_default_options = {
-    'private-members': True,
+    'private-members': False,
 }
 
 intersphinx_mapping = {
