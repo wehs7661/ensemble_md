@@ -243,7 +243,7 @@ include parameters for data analysis here.
       the parameters :code:`gro` and :code:`top`, only one MDP file can be specified for the parameter :code:`mdp`. If you wish to use
       different parameters for different replicas, please use the parameter :code:`mdp_args`.
   - :code:`modify_coords`: (Optional, Default: :code:`None`)
-      The name of the Python module (without including the :code:`.py` extension) for modifying the output coordinates of the swapping replicas
+      The file path to the Python module for modifying the output coordinates of the swapping replicas
       before the coordinate exchange, which is generally required in REXEE simulations for multiple serial mutations.
       For the CLI :code:`run_REXEE` to work, here is the predefined contract for the module/function based on the assumptions :code:`run_REXEE` makes.
       Modules/functions not obeying the contract are unlikely to work.

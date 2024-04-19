@@ -264,14 +264,14 @@ class ReplicaExchangeEE:
                 raise ParameterError(f"The parameter '{i}' should be a dictionary.")
 
         if self.add_swappables is not None:
-            if not isinstance(self.add_swappables, list):
-                raise ParameterError("The parameter 'add_swappables' should be a nested list.")
             for sublist in self.add_swappables:
                 if not isinstance(sublist, list):
                     raise ParameterError("The parameter 'add_swappables' should be a nested list.")
                 for item in sublist:
                     if not isinstance(item, int) or item < 0:
                         raise ParameterError("Each number specified in 'add_swappables' should be a non-negative integer.")  # noqa: E501
+            if [len(i) for i in self.add_swappables] != [2] * len(self.add_swappables):
+                raise ParameterError("Each sublist in 'add_swappables' should contain two integers.")
 
         if self.mdp_args is not None:
             # Note that mdp_args is a dictionary including MDP parameters DIFFERING across replicas.
@@ -441,9 +441,17 @@ class ReplicaExchangeEE:
 
         # 7-12. External module for coordinate modification
         if self.modify_coords is not None:
-            sys.path.append(os.getcwd())
-            module = importlib.import_module(self.modify_coords)
-            self.modify_coords_fn = getattr(module, self.modify_coords)
+            module_file = os.path.basename(self.modify_coords)
+            module_dir = os.path.dirname(self.modify_coords)
+            if module_dir not in sys.path:
+                sys.path.append(module_dir)  # so that the module can be imported
+            module_name = os.path.splitext(module_file)[0]
+            module = importlib.import_module(module_name)
+            if not hasattr(module, module_name):
+                err_msg = f'The module for coordinate manipulation (specified through the parameter) must have a function with the same name as the module, i.e., {module_name}.'  # noqa: E501
+                raise ParameterError(err_msg)
+            else:
+                self.modify_coords_fn = getattr(module, module_name)
         else:
             self.modify_coords_fn = None
 
@@ -509,6 +517,7 @@ class ReplicaExchangeEE:
         print(f"Additionally defined swappable states: {self.add_swappables}")
         print(f"Additional grompp arguments: {self.grompp_args}")
         print(f"Additional runtime arguments: {self.runtime_args}")
+        print(f"External modules for coordinate manipulation: {self.modify_coords}")
         # print(f"Number of attempted swaps in one exchange interval: {self.n_ex}")
         if self.mdp_args is not None and len(self.mdp_args.keys()) > 1:
             print("MDP parameters differing across replicas:")

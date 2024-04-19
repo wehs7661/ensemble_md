@@ -10,6 +10,7 @@
 """
 Unit tests for the module replica_exchange_EE.py.
 """
+import re
 import os
 import sys
 import yaml
@@ -338,6 +339,49 @@ class Test_ReplicaExchangeEE:
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
         REXEE = get_REXEE_instance(params_dict)
         assert REXEE.fixed_weights is True
+        assert REXEE.modify_coords_fn is None  # Just an additional test for modify_coords_fn
+
+    def test_set_params_mtrexee(self, params_dict):
+        # Test 1: Below we check if the parameter "add_swappables" is well-defined.
+        params_dict['add_swappables'] = 5
+        params_dict['mdp'] = 'expanded.mdp'  # irrelevant to MT-REXEE but just to cover some lines
+        with pytest.raises(ParameterError, match="The parameter 'add_swappables' should be a list."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['add_swappables'] = [15, 16]
+        with pytest.raises(ParameterError, match="The parameter 'add_swappables' should be a nested list."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['add_swappables'] = [[-3, 1], [4, 5]]
+        with pytest.raises(ParameterError, match="Each number specified in 'add_swappables' should be a non-negative integer."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['add_swappables'] = [[1, 2, 3], [4, 5]]
+        with pytest.raises(ParameterError, match="Each sublist in 'add_swappables' should contain two integers."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        # Test 2: Below are some checks for the parameter "modify_coords"
+        # 2-1. The case where a function has the same name as the module.
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded.mdp'
+        params_dict['modify_coords'] = 'ensemble_md/tests/data/edit_gro.py'
+        params_dict['add_swappables'] = [[2, 3], [4, 5]]
+        with open('ensemble_md/tests/data/edit_gro.py', 'w') as f:
+            f.write('def edit_gro():\n')
+            f.write('    pass\n')
+        REXEE = get_REXEE_instance(params_dict)
+        assert REXEE.modify_coords_fn.__name__ == 'edit_gro'
+        os.remove('ensemble_md/tests/data/edit_gro.py')
+
+        # 2-2. The case where no function has the same name as the module.
+        params_dict['modify_coords'] = 'ensemble_md/tests/data/check_gro.py'
+        with open('ensemble_md/tests/data/check_gro.py', 'w') as f:
+            f.write('def test_gro():\n')
+            f.write('    pass\n')
+        # Below we escape the error message since things like "." could be interpreted as special characters
+        err_msg = re.escape("The module for coordinate manipulation (specified through the parameter) must have a function with the same name as the module, i.e., check_gro.")  # noqa: E501
+        with pytest.raises(ParameterError, match=err_msg):  # noqa: E501
+            REXEE = get_REXEE_instance(params_dict)
+        os.remove('ensemble_md/tests/data/check_gro.py')
 
     def test_reformat_MDP(self, params_dict):
         # Note that the function reformat_MDP is called in set_params
@@ -377,6 +421,7 @@ class Test_ReplicaExchangeEE:
         L += "Additionally defined swappable states: None\n"
         L += "Additional grompp arguments: None\n"
         L += "Additional runtime arguments: None\n"
+        L += "External modules for coordinate manipulation: None\n"
         L += "MDP parameters differing across replicas: None\n"
         L += "Alchemical ranges of each replica in REXEE:\n  - Replica 0: States [0, 1, 2, 3, 4, 5]\n"
         L += "  - Replica 1: States [1, 2, 3, 4, 5, 6]\n  - Replica 2: States [2, 3, 4, 5, 6, 7]\n"
