@@ -12,11 +12,13 @@ The :obj:`.msm_analysis` module provides analysis methods based on Markov state 
 built from REXEE simulations.
 """
 import pyemma
+import warnings
 import ruptures as rpt
 import matplotlib.pyplot as plt
 
 from ensemble_md.utils import utils
 
+warnings.warn('This module is still a work in progress. Please note that there are no immediate plans to expand or rigorously test this module.', UserWarning)  # noqa: E501
 
 def plot_acf(models, n_tot, fig_name):
     """
