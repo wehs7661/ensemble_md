@@ -232,17 +232,17 @@ class Test_ReplicaExchangeEE:
 
         params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
         params_dict['N_cutoff'] = 1000
-        REXEE_1 = get_REXEE_instance(params_dict)
+        REXEE = get_REXEE_instance(params_dict)
 
         warning_1 = 'Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.'  # noqa: E501
         warning_2 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
         warning_3 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
         warning_4 = 'Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.'  # noqa: E501
 
-        assert warning_1 in REXEE_1.warnings
-        assert warning_2 in REXEE_1.warnings
-        assert warning_3 in REXEE_1.warnings
-        assert warning_4 in REXEE_1.warnings
+        assert warning_1 in REXEE.warnings
+        assert warning_2 in REXEE.warnings
+        assert warning_3 in REXEE.warnings
+        assert warning_4 in REXEE.warnings
 
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
@@ -426,7 +426,7 @@ class Test_ReplicaExchangeEE:
         # capfd is a fixture in pytest for testing STDOUT
         REXEE = get_REXEE_instance(params_dict)
         REXEE.print_params()
-        out_1, err = capfd.readouterr()
+        out, err = capfd.readouterr()
         L = ""
         L += "Important parameters of REXEE\n=============================\n"
         L += f"Python version: {sys.version}\n"
@@ -451,11 +451,11 @@ class Test_ReplicaExchangeEE:
         L += "Alchemical ranges of each replica in REXEE:\n  - Replica 0: States [0, 1, 2, 3, 4, 5]\n"
         L += "  - Replica 1: States [1, 2, 3, 4, 5, 6]\n  - Replica 2: States [2, 3, 4, 5, 6, 7]\n"
         L += "  - Replica 3: States [3, 4, 5, 6, 7, 8]\n"
-        assert out_1 == L
+        assert out == L
 
         REXEE.reformatted_mdp = True  # Just to test the case where REXEE.reformatted_mdp is True
         REXEE.print_params(params_analysis=True)
-        out_2, err = capfd.readouterr()
+        out, err = capfd.readouterr()
         L += "\nWhether to build Markov state models and perform relevant analysis: False\n"
         L += "Whether to perform free energy calculations: False\n"
         L += "The step to used in subsampling the DHDL data in free energy calculations, if any: 1\n"
@@ -464,7 +464,7 @@ class Test_ReplicaExchangeEE:
         L += "The number of bootstrap iterations in the boostrapping method, if used: 50\n"
         L += "The random seed to use in bootstrapping, if used: None\n"
         L += "Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.\n"  # noqa: E501
-        assert out_2 == L
+        assert out == L
 
         REXEE.gro = ['ensemble_md/tests/data/sys.gro', 'ensemble_md/tests/data/sys.gro']  # noqa: E501
         REXEE.top = ['ensemble_md/tests/data/sys.top', 'ensemble_md/tests/data/sys.top']
@@ -642,20 +642,20 @@ class Test_ReplicaExchangeEE:
         states = [4, 2, 2, 7]   # This would lead to the swappables: [(0, 1), (0, 2), (1, 2)] in the standard case
 
         # Case 1: Any case that is not neighboring swap has the same definition for the swappable pairs
-        swappables_1 = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring')
-        assert swappables_1 == [(0, 1), (0, 2), (1, 2)]
+        swappables = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring')
+        assert swappables == [(0, 1), (0, 2), (1, 2)]
 
         # Case 2: Neighboring exchange
         REXEE.proposal = 'neighboring'
-        swappables_2 = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring')
-        assert swappables_2 == [(0, 1), (1, 2)]
+        swappables = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring')
+        assert swappables == [(0, 1), (1, 2)]
 
         # Case 3: Non-neighboring exchange, with add_swappables
         REXEE.proposal = 'exhaustive'
         REXEE.add_swappables = [[3, 7], [4, 7]]
         states = [4, 3, 2, 7]  # Without add_swappables, the swappables would be [(0, 1), (0, 2), (1, 2)]
-        swappables_3 = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring', REXEE.add_swappables)  # noqa: E501
-        assert swappables_3 == [(0, 1), (0, 2), (1, 2), (0, 3), (1, 3)]
+        swappables = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring', REXEE.add_swappables)  # noqa: E501
+        assert swappables == [(0, 1), (0, 2), (1, 2), (0, 3), (1, 3)]
 
     def test_propose_swap(self, params_dict):
         random.seed(0)
@@ -777,18 +777,18 @@ class Test_ReplicaExchangeEE:
 
         # Test 1
         swap = (0, 1)
-        prob_acc_1 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
+        prob_acc = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         out, err = capfd.readouterr()
         # dU = (-9.1366697  + 11.0623788)/2.4777098766670016 ~ 0.7772 kT, so p_acc = 0.45968522728859024
-        assert prob_acc_1 == pytest.approx(0.45968522728859024)
+        assert prob_acc == pytest.approx(0.45968522728859024)
         assert 'U^i_n - U^i_m = -3.69 kT, U^j_m - U^j_n = 4.46 kT, Total dU: 0.78 kT' in out
 
         # Test 2
         swap = (0, 2)
-        prob_acc_2 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
+        prob_acc = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         out, err = capfd.readouterr()
         # dU = (-9.1366697 + 4.9963939)/2.4777098766670016 ~ -1.6710 kT, so p_acc = 1
-        assert prob_acc_2 == 1
+        assert prob_acc == 1
 
     def test_accept_or_reject(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
@@ -809,10 +809,10 @@ class Test_ReplicaExchangeEE:
         # Case 1: Perform weight correction (N_cutoff reached)
         REXEE.N_cutoff = 5000
         REXEE.verbose = False  # just to increase code coverage
-        weights_1 = [[0, 10.304, 20.073, 29.364]]
-        counts_1 = [[31415, 45701, 55457, 59557]]
-        weights_1 = REXEE.weight_correction(weights_1, counts_1)
-        assert np.allclose(weights_1, [
+        weights = [[0, 10.304, 20.073, 29.364]]
+        counts = [[31415, 45701, 55457, 59557]]
+        weights = REXEE.weight_correction(weights, counts)
+        assert np.allclose(weights, [
             [
                 0,
                 10.304 + np.log(31415 / 45701),
@@ -823,10 +823,10 @@ class Test_ReplicaExchangeEE:
 
         # Case 2: Perform weight correction (N_cutoff not reached by both N_k and N_{k-1})
         REXEE.verbose = True
-        weights_2 = [[0, 10.304, 20.073, 29.364]]
-        counts_2 = [[3141, 4570, 5545, 5955]]
-        weights_2 = REXEE.weight_correction(weights_2, counts_2)
-        assert np.allclose(weights_2, [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]])
+        weights = [[0, 10.304, 20.073, 29.364]]
+        counts = [[3141, 4570, 5545, 5955]]
+        weights = REXEE.weight_correction(weights, counts)
+        assert np.allclose(weights, [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]])
 
     def test_combine_weights(self, params_dict):
         """
@@ -841,12 +841,12 @@ class Test_ReplicaExchangeEE:
 
         # Test 1: simple means
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
-        w_1, g_vec_1 = REXEE.combine_weights(weights)
-        assert np.allclose(w_1, [
+        w, g_vec = REXEE.combine_weights(weights)
+        assert np.allclose(w, [
             [0, 2.1, 3.9, 3.5],
             [0, 1.8, 1.4, 2.75],
             [0, -0.4, 0.95, 1.95]])
-        assert np.allclose(list(g_vec_1), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
+        assert np.allclose(list(g_vec), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
 
         # Test 2: weighted means
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]

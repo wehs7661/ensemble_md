@@ -24,12 +24,12 @@ from ensemble_md.analysis import analyze_free_energy
 @patch('ensemble_md.analysis.analyze_free_energy.extract_dHdl')
 @patch('ensemble_md.analysis.analyze_free_energy.detect_equilibration')
 @patch('ensemble_md.analysis.analyze_free_energy.subsample_correlated_data')
-def test_preprocess_data(mock_corr, mock_equil, mock_extract_dHdl, mock_extract_u_nk, mock_subsampling, mock_alchemlyb, capfd):  # noqa: E501
+def test_preprocess_data(mock_corr, mock_equil, mock_extract_dhdl, mock_extract_u_nk, mock_subsampling, mock_alchemlyb, capfd):  # noqa: E501
     mock_data, mock_data_series = MagicMock(), MagicMock()
     mock_alchemlyb.concat.return_value = mock_data
     mock_subsampling.u_nk2series.return_value = mock_data_series
     mock_subsampling._prepare_input.return_value = (mock_data, mock_data_series)
-    mock_equil.return_value = (10, 5, 50)  # t, g, Neff_max
+    mock_equil.return_value = (10, 5, 18)  # t, g, Neff_max
     mock_data_series.__len__.return_value = 100   # For one of the print statements
 
     # Set slicing to return different mock objects based on input
@@ -53,6 +53,7 @@ def test_preprocess_data(mock_corr, mock_equil, mock_extract_dHdl, mock_extract_
     mock_data_series.__getitem__.side_effect = slicing_side_effect  # so that we can use mock_data_series[t:]
     mock_data_series_equil = mock_data_series[10:]  # Mock the equilibrated data series, given t=10
 
+    # Case 1: data_type = u_nk
     files = [[f'ensemble_md/tests/data/dhdl/simulation_example/sim_{i}/iteration_{j}/dhdl.xvg' for j in range(3)] for i in range(4)]  # noqa: E501
     results = analyze_free_energy.preprocess_data(files, 300, 'u_nk')
 
@@ -74,12 +75,47 @@ def test_preprocess_data(mock_corr, mock_equil, mock_extract_dHdl, mock_extract_
         assert '  Adopted spacing: 1' in out
         assert '  10.0% of the u_nk data was in the equilibrium region and therfore discarded.' in out  # noqa: E501
         assert '  Statistical inefficiency of u_nk: 5.0' in out
-        assert '  Number of effective samples: 50' in out
+        assert '  Number of effective samples: 18' in out
         assert mock_corr.call_args_list[i] == call(mock_data_series_equil, g=5)
 
     assert len(results[0]) == 4
     assert results[1] == [10, 10, 10, 10]
     assert results[2] == [5, 5, 5, 5]
+
+    # Case 2: data_type = dHdl
+    mock_alchemlyb.concat.reset_mock()
+    mock_subsampling._prepare_input.reset_mock()
+    mock_subsampling.slicing.reset_mock()
+    mock_equil.reset_mock()
+
+    mock_subsampling.dhdl2series.return_value = mock_data_series
+    mock_subsampling._prepare_input.return_value = (mock_data, mock_data_series)
+    mock_data_series.__len__.return_value = 200
+    mock_data_series.values.__len__.return_value = 200
+
+    results = analyze_free_energy.preprocess_data(files, 300, 'dhdl', t=10, g=5)
+    out, err = capfd.readouterr()
+
+    for i in range(4):
+        for j in range(3):
+            assert mock_extract_dhdl.call_args_list[i * 3 + j] == call(files[i][j], T=300)
+        assert mock_subsampling._prepare_input.call_args_list[i] == call(mock_data, mock_data_series, drop_duplicates=True, sort=True)  # noqa: E501
+        assert mock_subsampling.slicing.call_args_list[2 * i] == call(mock_data, step=1)
+        assert mock_subsampling.slicing.call_args_list[2 * i + 1] == call(mock_data_series, step=1)
+        assert 'Subsampling and decorrelating the concatenated dhdl data ...' in out
+        assert '  Adopted spacing: 1' in out
+        assert '  5.0% of the dhdl data was in the equilibrium region and therfore discarded.' in out  # noqa: E501
+        assert '  Statistical inefficiency of dhdl: 5.0' in out
+        assert '  Number of effective samples: 38' in out
+        assert mock_corr.call_args_list[i] == call(mock_data_series_equil, g=5)
+
+    assert len(results[0]) == 4
+    assert results[1] == []
+    assert results[2] == []
+
+    # Case 3: Invalid data_type
+    with pytest.raises(ValueError, match="Invalid data_type. Expected 'u_nk' or 'dhdl'."):
+        analyze_free_energy.preprocess_data(files, 300, 'xyz')
 
 
 @pytest.mark.parametrize("method, expected_estimator", [

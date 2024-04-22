@@ -81,6 +81,20 @@ class Test_MDP:
         mdp = gmx_parser.MDP("ensemble_md/tests/data/expanded.mdp")
         mdp.write('test_1.mdp', skipempty=False)
         mdp.write('test_2.mdp', skipempty=True)
+
+        assert os.path.isfile('test_1.mdp')
+        assert os.path.isfile('test_2.mdp')
+
+        mdp = gmx_parser.MDP('test_1.mdp')
+        mdp.write(skipempty=True)  # This should overwrite the file
+
+        # Check if the files are the same
+        with open('test_1.mdp', 'r') as f:
+            lines_1 = f.readlines()
+        with open('test_2.mdp', 'r') as f:
+            lines_2 = f.readlines()
+        assert lines_1 == lines_2
+
         os.remove('test_1.mdp')
         os.remove('test_2.mdp')
 
