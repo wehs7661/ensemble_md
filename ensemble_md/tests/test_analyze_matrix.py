@@ -70,6 +70,10 @@ def test_calc_transmtx():
     assert B3 is None
     assert C3 is None
 
+    # Case 4: Invalid simulation type
+    with pytest.raises(ValueError, match='Invalid simulation type test.'):
+        analyze_matrix.calc_transmtx(os.path.join(input_path, 'log/EXE.log'), simulation_type='test')
+
 
 def test_calc_equil_prob(capfd):
     # Case 1: Right stochastic
@@ -85,6 +89,18 @@ def test_calc_equil_prob(capfd):
     out, err = capfd.readouterr()
     assert prob is None
     assert 'The input transition matrix is neither right nor left stochastic' in out
+
+
+def test_calc_t_relax():
+    # Case 1: spectral_gap_err is specified
+    results = analyze_matrix.calc_t_relax(0.5, 0.1, 0.1)
+    assert results[0] == 0.2
+    assert results[1] == 0.1 * 0.1 / 0.5 ** 2
+
+    # Case 2: spectral_gap_err is not specified
+    results = analyze_matrix.calc_t_relax(0.5, 0.1)
+    assert results[0] == 0.2
+    assert results[1] is None
 
 
 def test_calc_spectral_gap(capfd):

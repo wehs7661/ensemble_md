@@ -10,14 +10,17 @@
 """
 Unit tests for the module replica_exchange_EE.py.
 """
+import re
 import os
 import sys
 import yaml
 import copy
 import random
 import pytest
+import subprocess
 import numpy as np
 import ensemble_md
+from unittest.mock import patch
 from ensemble_md.utils import gmx_parser
 from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
 from ensemble_md.utils.exceptions import ParameterError
@@ -229,17 +232,17 @@ class Test_ReplicaExchangeEE:
 
         params_dict['mdp'] = 'ensemble_md/tests/data/expanded_test.mdp'
         params_dict['N_cutoff'] = 1000
-        REXEE_1 = get_REXEE_instance(params_dict)
+        REXEE = get_REXEE_instance(params_dict)
 
         warning_1 = 'Warning: The weight correction/weight combination method is specified but will not be used since the weights are fixed.'  # noqa: E501
         warning_2 = 'Warning: We recommend setting lmc_seed as -1 so the random seed is different for each iteration.'
         warning_3 = 'Warning: We recommend setting gen_seed as -1 so the random seed is different for each iteration.'
         warning_4 = 'Warning: We recommend generating new velocities for each iteration to avoid potential issues with the detailed balance.'  # noqa: E501
 
-        assert warning_1 in REXEE_1.warnings
-        assert warning_2 in REXEE_1.warnings
-        assert warning_3 in REXEE_1.warnings
-        assert warning_4 in REXEE_1.warnings
+        assert warning_1 in REXEE.warnings
+        assert warning_2 in REXEE.warnings
+        assert warning_3 in REXEE.warnings
+        assert warning_4 in REXEE.warnings
 
         os.remove(os.path.join(input_path, "expanded_test.mdp"))
 
@@ -338,6 +341,72 @@ class Test_ReplicaExchangeEE:
         mdp.write(os.path.join(input_path, "expanded_test.mdp"))
         REXEE = get_REXEE_instance(params_dict)
         assert REXEE.fixed_weights is True
+        assert REXEE.modify_coords_fn is None  # Just an additional test for modify_coords_fn
+
+    def test_set_params_mtrexee(self, params_dict):
+        # Test 1: Below we check if the parameter "add_swappables" is well-defined.
+        params_dict['add_swappables'] = 5
+        params_dict['mdp'] = 'expanded.mdp'  # irrelevant to MT-REXEE but just to cover some lines
+        with pytest.raises(ParameterError, match="The parameter 'add_swappables' should be a list."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['add_swappables'] = [15, 16]
+        with pytest.raises(ParameterError, match="The parameter 'add_swappables' should be a nested list."):
+            get_REXEE_instance(params_dict)
+
+        params_dict['add_swappables'] = [[-3, 1], [4, 5]]
+        with pytest.raises(ParameterError, match="Each number specified in 'add_swappables' should be a non-negative integer."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        params_dict['add_swappables'] = [[1, 2, 3], [4, 5]]
+        with pytest.raises(ParameterError, match="Each sublist in 'add_swappables' should contain two integers."):  # noqa: E501
+            get_REXEE_instance(params_dict)
+
+        # Test 2: Below are some checks for the parameter "modify_coords"
+        # 2-1. The case where a function has the same name as the module.
+        params_dict['mdp'] = 'ensemble_md/tests/data/expanded.mdp'
+        params_dict['modify_coords'] = 'ensemble_md/tests/data/edit_gro.py'
+        params_dict['add_swappables'] = [[2, 3], [4, 5]]
+        with open('ensemble_md/tests/data/edit_gro.py', 'w') as f:
+            f.write('def edit_gro():\n')
+            f.write('    pass\n')
+        REXEE = get_REXEE_instance(params_dict)
+        assert REXEE.modify_coords_fn.__name__ == 'edit_gro'
+        os.remove('ensemble_md/tests/data/edit_gro.py')
+
+        # 2-2. The case where no function has the same name as the module.
+        params_dict['modify_coords'] = 'ensemble_md/tests/data/check_gro.py'
+        with open('ensemble_md/tests/data/check_gro.py', 'w') as f:
+            f.write('def test_gro():\n')
+            f.write('    pass\n')
+        # Below we escape the error message since things like "." could be interpreted as special characters
+        err_msg = re.escape("The module for coordinate manipulation (specified through the parameter) must have a function with the same name as the module, i.e., check_gro.")  # noqa: E501
+        with pytest.raises(ParameterError, match=err_msg):  # noqa: E501
+            REXEE = get_REXEE_instance(params_dict)
+        os.remove('ensemble_md/tests/data/check_gro.py')
+
+    @patch('ensemble_md.replica_exchange_EE.subprocess.run')
+    @patch('builtins.print')
+    def test_check_gmx_executable(self, mock_print, mock_run, params_dict):
+        # Here we test the case where the GROMACS executable is not available or an unexpected error occurs.
+        # The case where the executable is found is tested in the other unit test.
+        # Note that in check_gmx_executable, exceptions are caught (i.e., not raised), with a message printed,
+        # so we can only check the printed messages.
+
+        # Test 1: The case where the GROMACS executable is not available
+        mock_run.side_effect = subprocess.CalledProcessError(1, ['which', 'gmx'])
+        get_REXEE_instance(params_dict)
+        mock_run.assert_called()
+        mock_print.assert_called_with("gmx is not available.")
+
+        # Test 2: The case where an unexpected error occurs
+        mock_run.reset_mock()
+        mock_print.reset_mock()
+
+        mock_run.side_effect = Exception("Some error")
+        get_REXEE_instance(params_dict)
+        mock_run.assert_called()
+        mock_print.assert_called_with("An error occurred:\nSome error")
 
     def test_reformat_MDP(self, params_dict):
         # Note that the function reformat_MDP is called in set_params
@@ -357,7 +426,7 @@ class Test_ReplicaExchangeEE:
         # capfd is a fixture in pytest for testing STDOUT
         REXEE = get_REXEE_instance(params_dict)
         REXEE.print_params()
-        out_1, err = capfd.readouterr()
+        out, err = capfd.readouterr()
         L = ""
         L += "Important parameters of REXEE\n=============================\n"
         L += f"Python version: {sys.version}\n"
@@ -377,15 +446,16 @@ class Test_ReplicaExchangeEE:
         L += "Additionally defined swappable states: None\n"
         L += "Additional grompp arguments: None\n"
         L += "Additional runtime arguments: None\n"
+        L += "External modules for coordinate manipulation: None\n"
         L += "MDP parameters differing across replicas: None\n"
         L += "Alchemical ranges of each replica in REXEE:\n  - Replica 0: States [0, 1, 2, 3, 4, 5]\n"
         L += "  - Replica 1: States [1, 2, 3, 4, 5, 6]\n  - Replica 2: States [2, 3, 4, 5, 6, 7]\n"
         L += "  - Replica 3: States [3, 4, 5, 6, 7, 8]\n"
-        assert out_1 == L
+        assert out == L
 
         REXEE.reformatted_mdp = True  # Just to test the case where REXEE.reformatted_mdp is True
         REXEE.print_params(params_analysis=True)
-        out_2, err = capfd.readouterr()
+        out, err = capfd.readouterr()
         L += "\nWhether to build Markov state models and perform relevant analysis: False\n"
         L += "Whether to perform free energy calculations: False\n"
         L += "The step to used in subsampling the DHDL data in free energy calculations, if any: 1\n"
@@ -394,7 +464,7 @@ class Test_ReplicaExchangeEE:
         L += "The number of bootstrap iterations in the boostrapping method, if used: 50\n"
         L += "The random seed to use in bootstrapping, if used: None\n"
         L += "Note that the input MDP file has been reformatted by replacing hypens with underscores. The original mdp file has been renamed as *backup.mdp.\n"  # noqa: E501
-        assert out_2 == L
+        assert out == L
 
         REXEE.gro = ['ensemble_md/tests/data/sys.gro', 'ensemble_md/tests/data/sys.gro']  # noqa: E501
         REXEE.top = ['ensemble_md/tests/data/sys.top', 'ensemble_md/tests/data/sys.top']
@@ -437,6 +507,9 @@ class Test_ReplicaExchangeEE:
         REXEE = get_REXEE_instance(params_dict)
         REXEE.get_ref_dist('ensemble_md/tests/data/pullx.xvg')
         REXEE.ref_dist = [0.428422]
+
+        with pytest.raises(FileNotFoundError):
+            REXEE.get_ref_dist()  # the default f"{self.working_dir}/sim_0/iteration_0/pullx.xvg" would not exist
 
     def test_update_MDP(self, params_dict):
         new_template = "ensemble_md/tests/data/expanded.mdp"
@@ -569,13 +642,20 @@ class Test_ReplicaExchangeEE:
         states = [4, 2, 2, 7]   # This would lead to the swappables: [(0, 1), (0, 2), (1, 2)] in the standard case
 
         # Case 1: Any case that is not neighboring swap has the same definition for the swappable pairs
-        swappables_1 = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring')
-        assert swappables_1 == [(0, 1), (0, 2), (1, 2)]
+        swappables = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring')
+        assert swappables == [(0, 1), (0, 2), (1, 2)]
 
         # Case 2: Neighboring exchange
         REXEE.proposal = 'neighboring'
-        swappables_2 = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring')
-        assert swappables_2 == [(0, 1), (1, 2)]
+        swappables = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring')
+        assert swappables == [(0, 1), (1, 2)]
+
+        # Case 3: Non-neighboring exchange, with add_swappables
+        REXEE.proposal = 'exhaustive'
+        REXEE.add_swappables = [[3, 7], [4, 7]]
+        states = [4, 3, 2, 7]  # Without add_swappables, the swappables would be [(0, 1), (0, 2), (1, 2)]
+        swappables = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, REXEE.proposal == 'neighboring', REXEE.add_swappables)  # noqa: E501
+        assert swappables == [(0, 1), (0, 2), (1, 2), (0, 3), (1, 3)]
 
     def test_propose_swap(self, params_dict):
         random.seed(0)
@@ -590,78 +670,102 @@ class Test_ReplicaExchangeEE:
         # state_ranges are: 0-5, 1-6, ..., 3-8
         dhdl_files = [os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(4)]
 
-        # Case 1: Empty swap list
+        # Test 1: Empty swap list, exhaustive proposal
         REXEE = get_REXEE_instance(params_dict)
         REXEE.verbose = False
         states = [0, 6, 7, 8]  # No swappable pairs
         f = copy.deepcopy(dhdl_files)
-        pattern_1, swap_list_1 = REXEE.get_swapping_pattern(f, states)
+        pattern, swap_list = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_empty_swappable == 1
         assert REXEE.n_swap_attempts == 0
         assert REXEE.n_rejected == 0
-        assert pattern_1 == [0, 1, 2, 3]
-        assert swap_list_1 == []
+        assert pattern == [0, 1, 2, 3]
+        assert swap_list == []
 
-        # Case 2: Single swap (proposal = 'single')
+        # Test 2: Empty swap list, neighboring proposal
+        REXEE = get_REXEE_instance(params_dict)
+        REXEE.proposal = 'neighboring'  # n_ex will be set to 1 automatically.
+        states = [0, 6, 7, 8]  # No swappable pairs
+        f = copy.deepcopy(dhdl_files)
+        pattern, swap_list = REXEE.get_swapping_pattern(f, states)
+        assert REXEE.n_empty_swappable == 1
+        assert REXEE.n_swap_attempts == 0
+        assert REXEE.n_rejected == 0
+        assert pattern == [0, 1, 2, 3]
+        assert swap_list == []
+
+        # Test 3: Single swap (proposal = 'single')
         random.seed(0)
         REXEE = get_REXEE_instance(params_dict)
         REXEE.verbose = True
         REXEE.proposal = 'single'  # n_ex will be set to 1 automatically.
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
         f = copy.deepcopy(dhdl_files)
-        pattern_2, swap_list_2 = REXEE.get_swapping_pattern(f, states)
+        pattern, swap_list = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 1
         assert REXEE.n_rejected == 0
-        assert pattern_2 == [0, 2, 1, 3]
-        assert swap_list_2 == [(1, 2)]
+        assert pattern == [0, 2, 1, 3]
+        assert swap_list == [(1, 2)]
 
-        # Case 3: Neighboring swap
+        # Test 4: Neighboring swap
         random.seed(0)
         REXEE = get_REXEE_instance(params_dict)
         REXEE.proposal = 'neighboring'  # n_ex will be set to 1 automatically.
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
         f = copy.deepcopy(dhdl_files)
-        pattern_3, swap_list_3 = REXEE.get_swapping_pattern(f, states)
+        pattern, swap_list = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 1
         assert REXEE.n_rejected == 0
-        assert pattern_3 == [0, 2, 1, 3]
-        assert swap_list_3 == [(1, 2)]
+        assert pattern == [0, 2, 1, 3]
+        assert swap_list == [(1, 2)]
 
-        # Case 4-1: Exhaustive swaps that end up in a single swap
+        # Test 5: Exhaustive swaps that end up in a single swap
         random.seed(0)
         REXEE = get_REXEE_instance(params_dict)
         REXEE.proposal = 'exhaustive'
         states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
         f = copy.deepcopy(dhdl_files)
-        pattern_4_1, swap_list_4_1 = REXEE.get_swapping_pattern(f, states)
+        pattern, swap_list = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 1
         assert REXEE.n_rejected == 0
-        assert pattern_4_1 == [0, 2, 1, 3]
-        assert swap_list_4_1 == [(1, 2)]
+        assert pattern == [0, 2, 1, 3]
+        assert swap_list == [(1, 2)]
 
-        # Case 4-2: Exhaustive swaps that involve multiple attempted swaps
+        # Test 6: Exhaustive swaps that involve multiple attempted swaps
         random.seed(0)
         REXEE = get_REXEE_instance(params_dict)
         REXEE.proposal = 'exhaustive'
         states = [4, 2, 4, 3]  # swappable pairs: [(0, 1), (0, 2), (0, 3), (1, 2), (2, 3)]; swap 1: (2, 3), accepted; swap 2: (0, 1), accept  # noqa: E501
         f = copy.deepcopy(dhdl_files)
-        pattern_4_2, swap_list_4_2 = REXEE.get_swapping_pattern(f, states)
+        pattern, swap_list = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 2   # \Delta is negative for both swaps -> both accepted
         assert REXEE.n_rejected == 0
-        assert pattern_4_2 == [1, 0, 3, 2]
-        assert swap_list_4_2 == [(2, 3), (0, 1)]
+        assert pattern == [1, 0, 3, 2]
+        assert swap_list == [(2, 3), (0, 1)]
 
-        # Case 4-3: REXEE.proposal is set to exhaustive but there is only one swappable pair anyway.
+        # Test 7: REXEE.proposal is set to exhaustive but there is only one swappable pair anyway.
         random.seed(0)
         REXEE = get_REXEE_instance(params_dict)
         REXEE.proposal = 'exhaustive'
         states = [0, 2, 2, 8]  # swappable pair: [(1, 2)], swap: (1, 2), accept
         f = copy.deepcopy(dhdl_files)
-        pattern_4_3, swap_list_4_3 = REXEE.get_swapping_pattern(f, states)
+        pattern, swap_list = REXEE.get_swapping_pattern(f, states)
         assert REXEE.n_swap_attempts == 1
         assert REXEE.n_rejected == 0
-        assert pattern_4_3 == [0, 2, 1, 3]
-        assert swap_list_4_3 == [(1, 2)]
+        assert pattern == [0, 2, 1, 3]
+        assert swap_list == [(1, 2)]
+
+        # Test 8: modify_coords_fn is not None, so swap_bool is always True
+        random.seed(0)
+        REXEE = get_REXEE_instance(params_dict)
+        REXEE.modify_coords_fn = 'Cool'
+        states = [5, 2, 2, 8]  # swappable pairs: [(0, 1), (0, 2), (1, 2)], swap = (1, 2), accept
+        f = copy.deepcopy(dhdl_files)
+        pattern, swap_list = REXEE.get_swapping_pattern(f, states)
+        assert REXEE.n_swap_attempts == 1
+        assert REXEE.n_rejected == 0
+        assert pattern == [0, 2, 1, 3]
+        assert swap_list == [(1, 2)]
 
     def test_calc_prob_acc(self, capfd, params_dict):
         # k = 1.380649e-23; NA = 6.0221408e23; T = 298; kT = k * NA * T / 1000 = 2.4777098766670016
@@ -673,18 +777,18 @@ class Test_ReplicaExchangeEE:
 
         # Test 1
         swap = (0, 1)
-        prob_acc_1 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
+        prob_acc = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         out, err = capfd.readouterr()
         # dU = (-9.1366697  + 11.0623788)/2.4777098766670016 ~ 0.7772 kT, so p_acc = 0.45968522728859024
-        assert prob_acc_1 == pytest.approx(0.45968522728859024)
+        assert prob_acc == pytest.approx(0.45968522728859024)
         assert 'U^i_n - U^i_m = -3.69 kT, U^j_m - U^j_n = 4.46 kT, Total dU: 0.78 kT' in out
 
         # Test 2
         swap = (0, 2)
-        prob_acc_2 = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
+        prob_acc = REXEE.calc_prob_acc(swap, dhdl_files, states, shifts)
         out, err = capfd.readouterr()
         # dU = (-9.1366697 + 4.9963939)/2.4777098766670016 ~ -1.6710 kT, so p_acc = 1
-        assert prob_acc_2 == 1
+        assert prob_acc == 1
 
     def test_accept_or_reject(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
@@ -705,10 +809,10 @@ class Test_ReplicaExchangeEE:
         # Case 1: Perform weight correction (N_cutoff reached)
         REXEE.N_cutoff = 5000
         REXEE.verbose = False  # just to increase code coverage
-        weights_1 = [[0, 10.304, 20.073, 29.364]]
-        counts_1 = [[31415, 45701, 55457, 59557]]
-        weights_1 = REXEE.weight_correction(weights_1, counts_1)
-        assert np.allclose(weights_1, [
+        weights = [[0, 10.304, 20.073, 29.364]]
+        counts = [[31415, 45701, 55457, 59557]]
+        weights = REXEE.weight_correction(weights, counts)
+        assert np.allclose(weights, [
             [
                 0,
                 10.304 + np.log(31415 / 45701),
@@ -719,10 +823,10 @@ class Test_ReplicaExchangeEE:
 
         # Case 2: Perform weight correction (N_cutoff not reached by both N_k and N_{k-1})
         REXEE.verbose = True
-        weights_2 = [[0, 10.304, 20.073, 29.364]]
-        counts_2 = [[3141, 4570, 5545, 5955]]
-        weights_2 = REXEE.weight_correction(weights_2, counts_2)
-        assert np.allclose(weights_2, [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]])
+        weights = [[0, 10.304, 20.073, 29.364]]
+        counts = [[3141, 4570, 5545, 5955]]
+        weights = REXEE.weight_correction(weights, counts)
+        assert np.allclose(weights, [[0, 10.304, 20.073, 29.364 + np.log(5545 / 5955)]])
 
     def test_combine_weights(self, params_dict):
         """
@@ -737,12 +841,12 @@ class Test_ReplicaExchangeEE:
 
         # Test 1: simple means
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]
-        w_1, g_vec_1 = REXEE.combine_weights(weights)
-        assert np.allclose(w_1, [
+        w, g_vec = REXEE.combine_weights(weights)
+        assert np.allclose(w, [
             [0, 2.1, 3.9, 3.5],
             [0, 1.8, 1.4, 2.75],
             [0, -0.4, 0.95, 1.95]])
-        assert np.allclose(list(g_vec_1), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
+        assert np.allclose(list(g_vec), [0, 2.1, 3.9, 3.5, 4.85, 5.85])
 
         # Test 2: weighted means
         weights = [[0, 2.1, 4.0, 3.7], [0, 1.7, 1.2, 2.6], [0, -0.4, 0.9, 1.9]]

@@ -157,7 +157,6 @@ def _convert_to_numeric(s):
                 return s
         except (ValueError, AttributeError):
             pass
-    raise ValueError(f"Failed to convert {s} to a numeric value.")
 
 
 def _get_subplot_dimension(n_panels):

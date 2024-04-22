@@ -153,7 +153,38 @@ def test_stitch_time_series_for_sim():
     assert os.path.exists('state_trajs_for_sim.npy')
     os.remove('state_trajs_for_sim.npy')
 
-    # Test 2: Test for discontinuous time series
+    # Test 2: The case where dhdl is False
+    # Here we again use dhdl.xvg files but use dhdl=False with col_idx=1, which corresponds to the state index
+    trajs = analyze_traj.stitch_time_series_for_sim(files, dhdl=False, col_idx=1)
+
+    trajs[0] == [
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1,
+        1, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 2, 2, 1, 0, 1, 1,
+        1, 1, 1, 0, 1, 1, 1, 0, 1, 2, 0, 2, 1, 1, 0, 0, 1, 0, 1, 0, 1
+    ]
+
+    trajs[1] == [
+        1, 1, 2, 3, 3, 3, 2, 2, 1, 1, 1, 1, 1, 2, 3, 2, 1, 1, 1, 1,
+        2, 2, 1, 1, 1, 1, 1, 2, 3, 2, 1, 1, 1, 1, 2, 3, 3, 3, 2, 2,
+        1, 1, 1, 0, 1, 1, 1, 0, 1, 2, 0, 2, 1, 1, 0, 0, 1, 0, 1, 0, 1
+    ]
+
+    trajs[2] == [
+        2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 2, 2, 2, 2, 3, 3,
+        3, 3, 3, 3, 3, 3, 3, 2, 3, 2, 3, 3, 3, 2, 2, 3, 4, 3, 3, 2,
+        3, 3, 2, 2, 2, 3, 4, 3, 4, 4, 5, 5, 5, 5, 4, 3, 4, 3, 3, 4, 4
+    ]
+
+    trajs[3] == [
+        3, 3, 3, 3, 3, 3, 3, 5, 4, 4, 5, 4, 4, 5, 4, 5, 5, 5, 4, 5,
+        4, 4, 5, 4, 5, 5, 4, 5, 5, 5, 4, 5, 5, 4, 5, 4, 5, 4, 5, 5,
+        6, 6, 6, 5, 6, 6, 6, 5, 5, 5, 5, 5, 4, 4, 5, 6, 6, 6, 7, 6, 7
+    ]
+
+    assert os.path.exists('state_trajs_for_sim.npy')
+    os.remove('state_trajs_for_sim.npy')
+
+    # Test 3: Test for discontinuous time series
     # Here, for sim_2, we exclude the last 5 lines for the dhdl.xvg file in iteration_1 to create a gap
     save_and_exclude(f'{folder}/sim_2/iteration_1/dhdl.xvg', 5)
     os.rename(f'{folder}/sim_2/iteration_1/dhdl.xvg', f'{folder}/sim_2/iteration_1/dhdl_temp.xvg')
@@ -260,6 +291,7 @@ def test_traj2transmtx():
     np.testing.assert_array_equal(analyze_traj.traj2transmtx(traj, N, normalize=False), array)
 
     # Case 2: normalize=True
+    # This test would lead to a harmless RuntimeWarnings due to 0/0 in the last row.
     array = np.array([
         [0, 0.5, 0, 0.5],
         [0.5, 0, 0.5, 0],
@@ -624,16 +656,26 @@ def test_plot_transit_time(mock_plt):
     assert mock_plt.ylabel.call_args_list[0] == call('Average transit time from states 0 to k (step)')
     assert mock_plt.ylabel.call_args_list[1] == call('Average transit time from states k to 0 (step)')
     assert mock_plt.ylabel.call_args_list[2] == call('Average round-trip time (step)')
+    assert [mock_plt.savefig.call_args_list[i][0][0] for i in range(3)] == [
+        './t_0k.png',
+        './t_k0.png',
+        './t_roundtrip.png',
+    ]
 
     # Case 2: dt = 0.2 ps, fig_prefix = 'test', here we just test the return values
     mock_plt.reset_mock()
-    t_1, t_2, t_3, u = analyze_traj.plot_transit_time(trajs, N, dt=0.2)
+    t_1, t_2, t_3, u = analyze_traj.plot_transit_time(trajs, N, dt=0.2, fig_prefix='test')
     t_1_, t_2_, t_3_ = [[1.0, 1.4], [0.8, 0.8]], [[0.8, 0.6], [1.2]], [[1.8, 2.0], [2.0]]
     for i in range(2):
         np.testing.assert_array_almost_equal(t_1[i], t_1_[i])
         np.testing.assert_array_almost_equal(t_2[i], t_2_[i])
         np.testing.assert_array_almost_equal(t_3[i], t_3_[i])
     assert u == 'ps'
+    assert [mock_plt.savefig.call_args_list[i][0][0] for i in range(3)] == [
+        './test_t_0k.png',
+        './test_t_k0.png',
+        './test_t_roundtrip.png',
+    ]
 
     # Case 3: dt = 200 ps, long trajs
     mock_plt.reset_mock()
@@ -661,7 +703,7 @@ def test_plot_transit_time(mock_plt):
     # Case 5: More than 100 round trips so that a histogram is plotted
     mock_plt.reset_mock()
     trajs = np.array([[0, 1, 2, 3, 2] * 20000, [0, 1, 3, 2, 1] * 20000])
-    t_1, t_2, t_3, u = analyze_traj.plot_transit_time(trajs, N)
+    t_1, t_2, t_3, u = analyze_traj.plot_transit_time(trajs, N, fig_prefix='test')
 
     assert t_1 == [[3] * 20000, [2] * 20000]
     assert t_2 == [[2] * 19999, [3] * 19999]
@@ -715,12 +757,12 @@ def test_plot_transit_time(mock_plt):
     ]
 
     assert [mock_plt.savefig.call_args_list[i][0][0] for i in range(6)] == [
-        './t_0k.png',
-        './hist_t_0k.png',
-        './t_k0.png',
-        './hist_t_k0.png',
-        './t_roundtrip.png',
-        './hist_t_roundtrip.png'
+        './test_t_0k.png',
+        './test_hist_t_0k.png',
+        './test_t_k0.png',
+        './test_hist_t_k0.png',
+        './test_t_roundtrip.png',
+        './test_hist_t_roundtrip.png'
     ]
 
 
