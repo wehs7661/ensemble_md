@@ -291,6 +291,7 @@ def test_traj2transmtx():
     np.testing.assert_array_equal(analyze_traj.traj2transmtx(traj, N, normalize=False), array)
 
     # Case 2: normalize=True
+    # This test would lead to a harmless RuntimeWarnings due to 0/0 in the last row.
     array = np.array([
         [0, 0.5, 0, 0.5],
         [0.5, 0, 0.5, 0],

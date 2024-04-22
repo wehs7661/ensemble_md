@@ -188,6 +188,7 @@ def test_combine_df_adjacent():
     state_ranges = [[0, 1, 2], [1, 2, 3]]
 
     # Test 1: df_err_adjacent is None (in which case err_type is ignored)
+    # Note that this test would lead to two harmless RuntimWarnings due to calculations like np.std([1], ddof=1), which return NaN  # noqa: E501
     results = analyze_free_energy._combine_df_adjacent(df_adjacent, state_ranges, None, "propagate")
     assert results[0] == [1, 3.5, 6]
     assert math.isnan(results[1][0])
