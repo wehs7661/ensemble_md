@@ -45,6 +45,11 @@ the future.
    :maxdepth: 2
    :caption: API documentation:
 
+.. toctree::
+   references
+   :maxdepth: 1
+   :caption: References:
+
 Others
 ======
 

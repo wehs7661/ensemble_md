@@ -1,12 +1,12 @@
-.. note:: This page is still a work in progress. Please check `Issue 33`_ for the current progress.
+.. note:: This page is still a work in progress. Please check `Issue 41`_ for the current progress.
 
-.. _`Issue 33`: https://github.com/wehs7661/ensemble_md/issues/33
+.. _`Issue 41`: https://github.com/wehs7661/ensemble_md/issues/41
 
 .. _doc_basic_idea:
 
 1. Basic idea
 =============
-Replica exchange of expanded ensemble (REXEE) integrates the core principles of replica exchange (REX)
+Replica exchange of expanded ensemble (REXEE) [Hsu2024]_ integrates the core principles of replica exchange (REX)
 and expanded ensemble (EE) methods.  Specifically, a REXEE simulation includes multiple
 replicas of EE simulations in parallel and periodically exchanges coordinates
 between replicas. Each replica samples a different but overlapping range of alchemical 
