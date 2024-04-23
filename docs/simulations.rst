@@ -6,6 +6,8 @@
 :code:`explore_REXEE` helps the user to figure out possible combinations of REXEE parameters, while :code:`run_REXEE` and :code:`analyze_REXEE`
 can be used to perform and analyze REXEE simulations, respectively. Below we provide more details about each of these CLIs.
 
+.. _doc_explore_REXEE:
+
 1.1. CLI :code:`explore_REXEE`
 ------------------------------
 Here is the help message of :code:`explore_REXEE`:

@@ -6,17 +6,82 @@
 
 1. Basic idea
 =============
-Replica exchange of expanded ensemble (REXEE) [Hsu2024]_ integrates the core principles of replica exchange (REX)
-and expanded ensemble (EE) methods.  Specifically, a REXEE simulation includes multiple
+Replica exchange of expanded ensembles (REXEE) [Hsu2024]_ integrates the core principles of replica exchange (REX)
+and expanded ensemble (EE) methods.  Specifically, a REXEE simulation performs multiple
 replicas of EE simulations in parallel and periodically exchanges coordinates
-between replicas. Each replica samples a different but overlapping range of alchemical 
-intermediate states to collectively sample the space bwteen the coupled (:math:`\lambda=0`)
-and decoupled states (:math:`\lambda=1`). Naturally, the REXEE method decorrelates
-the number of replicas from the number of states, allowing sampling a large number of intermediate
-states with significantly fewer replicas than those required in the Hamiltonian replica exchange (HREX)
-and other similar methods. By parallelizing replicas, the REXEE method also reduces
+between replicas. Each replica samples a different but overlapping set of alchemical 
+intermediate states to collectively sample the space bwteen the fully coupled (:math:`\lambda=0`)
+and decoupled states (:math:`\lambda=1`). By design, the REXEE method decorrelates
+the number of replicas from the number of states, enhancing the flexibility in replica configuration and 
+allowing a large number of intermediate states to be sampled with significantly fewer replicas than those
+required in the Hamiltonian replica exchange (HREX). By parallelizing replicas, the REXEE method also reduces
 the simulation wall time compared to the EE method. More importantly, such parallelism sets the
-stage for wider applications, such as relative free energy calculations for multi-topology transformations.
+stage for more complicated applications, especially one-shot free energy calculations that involve multiple
+topologies, such as serial mutations or scaffold-hopping transformations.
+
+In the following sections, we will briefly cover the theory behind the REXEE method, from its configuration, state
+transitions, proposal schemes, weight combination schemes, to data analysis. For more details, please refer to the
+paper [Hsu2024]_.
+
+.. figure:: _static/REXEE_illustration.png
+   :name: Figure 1
+   :width: 800
+   :align: center
+   :figclass: align-center
+
+   **Figure 1.** Schematic representation of the REXEE method, with the four configurational parameters annoated. In a REXEE simulation, the coordinates of replicas
+   of EE simulations are periodically exchanged. :math:`{\bf A}_1`, :math:`{\bf A}_2`, :math:`{\bf A}_3`, and :math:`{\bf A}_4`
+   denote the sets of states different replicas are sampling.
+
+2. REXEE configuration
+======================
+Here we consider a REXEE simulation composed of :math:`R` parallel replicas of expanded ensembles, each of which is
+labeled as :math:`i=1, 2, ..., R`. These :math:`R` replicas are restricted to sampling :math:`R` different yet overlapping
+sets of states (termed **state sets**) labeled by :math:`m` as :math:`{\bf A}_1`, :math:`{\bf A}_2`, ..., :math:`{\bf A}_R`,
+which collectively sample :math:`N` alchemical intermediate states in total, with :math:`N > R`. Additionally, we define :math:`s_i \in \{1, 2, ..., N\}`
+as the index of the state currently sampled by the :math:`i`-th replica. For a replica :math:`i` sampling state set :math:`{\bf A}_m`,
+:math:`s_i` is additionally constrained such that :math:`s_i \in {\bf A}_m`. Importantly, the fact that :math:`s_i` takes values
+in :math:`\{1, 2, ..., N\}` and :math:`N>R` implies a many-to-one relationship between the replica index :math:`i` and the state index
+:math:`s_i`, as a certain state may be sampled by multiple replicas. This is in contrast to the one-to-one relationship between the replica
+index :math:`i` and the state set index :math:`m`, which ensures that each replica is associated with one and unique state set.
+
+We emphasize that a valid REXEE configuration only requires overlapping state sets and is not restricted to one-dimensional grids,
+the same number of states for all replicas, nor sequential state indices within the same state sets. For example, Figure 2 shows cases where
+intermediate states are characterized by more than one thermodynamic variable (panels A and B), where different state sets
+have different number of states (panels C), and where the state indices are not consecutive within the same state sets (panels A and C).
+Still, the most common case is where the intermediate states are defined in a one-dimensional space, with consecutive state indices within
+the same state set (e.g., the case in `Figure 1`_). In a REXEE simulation with such a configuration, a state shift :math:`\phi` between adjacent
+state sets can be defined to indicate to what extent the set of states has shifted along the alchemical coordinate. Depending on whether all replicas
+have the same number of states and whether or not the state shift is consistent between all adjacent state sets, a REXEE simulation can be either
+homogeneous or heterogenous. Currently, :code:`ensemble_md` has only implemented the homogeneous REXEE method with one-dimensional alchemical intermediate
+states defined sequentially in each state set.
+
+.. figure:: _static/REXEE_more_configs.png
+   :name: Figure 2
+   :width: 800
+   :align: center
+   :figclass: align-center
+
+   **Figure 2.** Different possible replica configurations of a REXEE simulation, with each state represented as a grid labeled by the number in its center
+   and characterized by different Hamiltonians and/or temperatures. Different state sets are represented as dashed lines in different colors.
+   Note that the temperature :math:`T` and Hamiltonian :math:`H` can be replaced by other physical variables of interest, such as pressure or chemical potential.
+
+
+As shown in `Figure 1`_, a homogeneous REXEE simulation that samples sequential one-dimensional states can be configured by the following four parameters:
+  - :math:`N`: The total number of intermediate states
+  - :math:`R`: The total number of replicas
+  - :math:`n_s`: The number of states per replica
+  - :math:`\phi`: The state shift between adjacent state sets
+
+These four configurational parameters are related via the following relationship:
+
+.. math:: N = n_s + (R-1)\phi
+   :label: eq_1
+
+For example, the configuration of the REXEE simulation shown in `Figure 1`_ can be expressed as :math:`(N, R, n_s, \phi) = (9, 4, 6, 1)`. As shown in the Supporting Information
+in our paper [Hsu2024]_, solving Equation :eq:`eq_1` with a few additional constraints allows efficient enumeration of all possible REXEE configurations. In :code:`ensemble_md`,
+this enumeration is implemented in the command line interface (CLI) command :code:`explore_REXEE`, as elaborated in :ref:`doc_explore_REXEE`.
+
 
 Mathematically, we first consider a simulation ensemble that consists of :math:`M` non-interacting replicas 
 of the expanded ensemble simulations all at the same constant temperature :math:`T`. We assume 
