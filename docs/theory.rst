@@ -66,8 +66,8 @@ states defined sequentially in each state set.
    and characterized by different Hamiltonians and/or temperatures. Different state sets are represented as dashed lines in different colors.
    Note that the temperature :math:`T` and Hamiltonian :math:`H` can be replaced by other physical variables of interest, such as pressure or chemical potential.
 
-
 As shown in `Figure 1`_, a homogeneous REXEE simulation that samples sequential one-dimensional states can be configured by the following four parameters:
+
   - :math:`N`: The total number of intermediate states
   - :math:`R`: The total number of replicas
   - :math:`n_s`: The number of states per replica
@@ -78,123 +78,113 @@ These four configurational parameters are related via the following relationship
 .. math:: N = n_s + (R-1)\phi
    :label: eq_1
 
-For example, the configuration of the REXEE simulation shown in `Figure 1`_ can be expressed as :math:`(N, R, n_s, \phi) = (9, 4, 6, 1)`. As shown in the Supporting Information
-in our paper [Hsu2024]_, solving Equation :eq:`eq_1` with a few additional constraints allows efficient enumeration of all possible REXEE configurations. In :code:`ensemble_md`,
+For example, the configuration of the REXEE simulation shown in `Figure 1`_ can be expressed as :math:`(N, R, n_s, \phi) = (9, 4, 6, 1)`. Importantly, the total
+number of states :math:`N` does not have to be equal to the number of replicas :math:`R` in the REXEE method. In fact it is shown in the Supporting Information of
+our paper [Hsu2024]_ that for a REXEE simulation simulation sampling any number of replicas, there exists at least one valid REXEE
+configuration, allowing much higher flexibility in replica configuration compared to traditional replica exchange methods -- once the number of replicas
+is decided, typically as a factor of the number of available cores, the total number of states can be arbitrary. In our Supporting Information, 
+we also show that solving Equation :eq:`eq_1` with a few additional constraints allows efficient enumeration of all possible REXEE configurations. In :code:`ensemble_md`,
 this enumeration is implemented in the command line interface (CLI) command :code:`explore_REXEE`, as elaborated in :ref:`doc_explore_REXEE`.
 
+3. State transitions in REXEE simulations
+=========================================
+In a REXEE simulation, state transitions occur at both the intra-replica and inter-replica levels. Within each replica of expanded ensemble simulation,
+transitions between alchemical states within the state set and the detailed balance conditions are governed by the selected algorithm in the expanded ensemble simulation
+(i.e., the value of the GROMACS MDP parameter :code:`lmc-stats-move` in our implementation). Still, to ensure that probability influx and outflux are equal for each sets of states,
+the detailed balance condition at the intra-replica level must be satisfied.
 
-Mathematically, we first consider a simulation ensemble that consists of :math:`M` non-interacting replicas 
-of the expanded ensemble simulations all at the same constant temperature :math:`T`. We assume 
-that the expanded ensembles collectively sample :math:`N` (:math:`N < M`) alchemical states with 
-labels :math:`m=1, 2, ..., N` and each replica sampling :math:`n_i` states starting from state 
-:math:`k` to state :math:`k + n_i -1`, which correspond to :math:`\lambda` vectors :math:`\lambda_k`, 
-:math:`\lambda_{k+1}`, ..., and :math:`\lambda_{k+n_i-1}`, repsectively. Mathematically, we can 
-define a non-injective but surjective function :math:`f` that maps the labels for replicas 
-(:math:`i`) to labels for :math:`\lambda` vectors (:math:`m`): 
+Mathematically, we consider replicas :math:`i` and :math:`j` that sample the state sets :math:`{\bf A}_m` and :math:`{\bf A}_n`, respectively. To swap replicas :math:`i`
+and :math:`j`, the state sampled by replica :math:`i` at the moment, denoted as :math:`s_i \in {\bf A}_m`, must fall within the state set :math:`{\bf A}_n` that is to be swapped,
+and vice versa. In this case, we call that these replicas :math:`i` and :math:`j` are **swappable**, and we express the exchange of coordinates :math:`x_i` and :math:`x_j` between these
+two replicas as
 
-.. math::
-   m=m(i) \equiv f(i)
+.. math:: :label: eq_2
+  
+  X=\left(..., x^i_{m}, ..., x^j_{n}, ...\right) \rightarrow X' = \left(..., x^j_{m}, ..., x^i_{n}, ...\right)
 
-This essentially assumes that the discrete domain  :math:`\left \{k, k+1, ..., k+n_i-1 \right \}` 
-is always a subset of :math:`\mathcal{N} = \left \{1, 2, ..., N \right \}`. Notably, this is 
-different from Hamiltonian replica exchange molecular dynamics (HREMD) or temperature replica exchange 
-molecular dynamics (TREMD), where the mapping function should always be bijective (i.e. injective and 
-surjective) such that :math:`i=i(m) \equiv f(m)` and :math:`m=m(i) \equiv f^{-1}(i)`. That is, in HREMD 
-and TREMD, the number of alchemical states/temperatures is always the same as the number of replicas 
-(surjective) and there is always a one-to-one correpsondence between the two (injective). Physically, 
-this means that while in HREMD and TREMD, exchanging a pair of replicas is equivalent to exchanging 
-a pair of temperatures :math:`\lambda` vectors, we don't regard exchanging replicas as exchanging :math:`\lambda`
-vectors because it is a many-to-one correpsondence instead of one-to-one correspondence.
+with :math:`x^i_m \equiv (x_i, {\bf A}_m)` meaning that the :math:`i`-th replica samples the :math:`m`-th state set with the coordinates :math:`x_i`. Mathematically, the list of swappable pairs
+:math:`\mathcal{S}` can be defined as the set of replica pairs as follows:
 
-Now, we can write the "reduced Hamiltonian" of the :math:`i`-th expanded ensemble as 
+.. math:: :label: eq_3
 
-.. math::
-  H(p^{i}, q^{i}, \lambda_{m}^{i}) = k(p^{i}) + u(q^{i}, \lambda_{m}^{i})
+  \mathcal{S} = \left\{(i, j) \mid s_i \in {\bf A}_n, s_j \in {\bf A}_m, i \neq j\right\}
 
-where the reduced kinetic energy :math:`k(p^{i})` and reduced potential 
-:math:`u(q^{i}`, :math:`\lambda_{m}^{i})` can be expressed as 
+As discussed in the Supporting Information of the paper [Hsu2024]_, the most straightforward way to derive the acceptance ratio that satisfies the intra-replica detailed balance condition 
+is to assume symmetric proposal probabilities, which can be easily achieved by the design of the used proposal scheme. (See :ref:`doc_proposal` for more details.)
+Under this assumption, the acceptance ratio of swapping the coordinates :math:`x_i` and :math:`x_j` between replicas :math:`i` and :math:`j` can be expressed as
 
-.. math::
-  \begin{cases} 
-  k(p^i) = \beta K(p^{i}) \\       
-  u(q^i, \lambda^{i}_{m}) = \beta U(q^{i}, \lambda^{i}_{m}) - g^{i}_{m}\\
-  \end{cases}
+.. math:: :label: eq_4
 
-with :math:`\beta=1/kT` being the inverse temperature and :math:`g^{i}_{m}` being the weighting factor 
-applied to the :math:`m`-th alchemical state (:math:`m \in \mathcal{N}`) of 
-the :math:`i`-th replica. As such, the probability of the state being sampled (say, state :math:`m`) 
-can be written as:
-
-.. math::
-  p = \frac{\exp(-\beta H(p^{i}, q^{i}))}{\int \exp(-\beta H(p^{i}, q^{i})) dq^{i}}=\frac{\exp(-\beta K(p^{i}) -\beta U(q^i, \lambda^{i}_{m}) + g^{i}_{m})}{\int \exp(-\beta K(p^{i}) -\beta U(q^i, \lambda^{i}_{m}) + g^{i}_{m}) dq^{i}}
-
-Let :math:`X=(x^{1}_{m(1)}, x^{2}_{m(2)}, ..., x^{M}_{m(M)})` stand for a "state" in the generalized ensemble 
-sampled by EXEE, where the superscript and subscript of :math:`x^{i}_{m(i)}` are the labels for the 
-replica and :math:`\lambda` states, respectively. The state :math:`X` is specified by the :math:`M` sets of 
-coordinates :math:`q^{i}` and momenta :math:`q^{i}` in replica :math:`i` with a :math:`\lambda` vector 
-:math:`\lambda^{i}_{m}` such that :math:`x^{i}_{m}\equiv(q^{i}, p^{i})_m`. Given that the replicas of 
-expanded ensemble are non-interacting, the weight factor for a state :math:`X` in this generalized ensemble 
-is given by the product of Boltzmann factors for each replica:
-
-.. math::
-  W(X) = \exp \left [\sum^{M}_{i=1} (-\beta K(p^{i}) -\beta U(q^i, \lambda^{i}_{m}) + g^{i}_{m})\right ]
-
-Now, we consider exchanging replicas of expanded ensemble :math:`i` and :math:`j`:
-
-.. math::
-  X = (..., x_{m}^{i}, ..., x_{n}^{j}, ...) \rightarrow X' = (..., x_{f'(i)}^{i}, ..., x_{f'(j)}^{j}, ...) = (..., x_{n}^{i}, ..., x_{m}^{j}, ...)
-
-Notably, such an exchange introduces a new non-injective but surjective function :math:`f'` mapping the label 
-:math:`i` to the label :math:`m`. (Note that since both functions :math:`f` or :math:`f'` are not bijective, 
-we don't have their inverse to map the label :math:`m` back to the label :math:`i`.) That is, we have:
-
-.. math::
-  m = f(i) \rightarrow n=f'(i)
-
-To ensure the convergence of the exchange process towards an equilibrium distribution, we impose the detailed 
-balance condition on the transition probability :math:`w(X \rightarrow X')`:
-
-.. math::
-  W(X)w(X \rightarrow X') = W(X')w(X' \rightarrow X)
-
-Here, we introduce a shorthand expression for the potential energy such that terms like :math:`U(q^i, \lambda^{i}_{m})` 
-can be rewriteen as :math:`U^i_m`. With this, we have
-
-.. math::
-  \begin{aligned}
-  \frac{w(X \rightarrow X')}{w(X' \rightarrow X)} & = \frac{W(X')}{W(X)} \\
-          & = \frac{\exp(-\beta K(p^{i}) -\beta U(q^{i}, \lambda^{i}_{n}) + g^{i}_{n} -\beta K(p^{j}) -\beta U(q^{j}, \lambda^{j}_{m}) + g^{j}_{m})}{\exp(-\beta K(p^{i}) -\beta U(q^{i}, \lambda^{i}_{m}) + g^{i}_{m} -\beta K(p^{j}) -\beta U(q^{j}, \lambda^{j}_{n}) + g^{j}_{n})} \\
-          & = \exp(-\beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)] + [(g^i_n+g^j_m)-(g^i_m+g^j_n)]) \\
-  \end{aligned}
-  \label{trans}
+  P_{\text{acc}} = 
+    \begin{cases} 
+      \begin{aligned}
+        &1 &, \text{if } \Delta \leq 0 \\
+        \exp(&-\Delta) &, \text{if } \Delta >0
+      \end{aligned}
+    \end{cases}
 
 where
 
-.. math::
-  \Delta = \beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)] - [(g^i_n+g^j_m)-(g^i_m+g^j_n)] 
+.. math:: :label: eq_5
 
-Notably, in the equation above, all kinetic energy terms and the Hamiltonians of non-exchanging 
-replicas are canceled out. Now, using the usual Metropolis criterion, the transition probability 
-:math:`w(X \rightarrow X')` can be expressed as
+  \Delta = \left(u_{s_i}(x_j) + u_{s_j}(x_i) \right)-\left(u_{s_i}(x_i)+u_{s_j}(x_j)\right)
 
-.. math::
-  w(X \rightarrow X') = 
-  \begin{cases} 
-    \begin{aligned}
-      &1 &, \;\text{if} \;\Delta \leq 0 \\
-      \exp(&-\Delta) &, \;\text{if} \;\Delta >0
-    \end{aligned}
-  \end{cases}
-
-Notably, if the systems of the replicas to be exchanged are sampling the same alchemical 
-state (namely, :math:`m=n`) right before the exchange occurs, :math:`\Delta` will reduce to 
-0, meaning the the exchange will always be accepted. 
-
-
-2. Replica swapping
-===================
+In Equation :eq:`eq_5`, :math:`u_{s_i}(x_j)` and :math:`u_{s_j}(x_i)` are the reduced potentials of the states :math:`s_i` and :math:`s_j` evaluated at the coordinates :math:`x_j` and :math:`x_i`, respectively.
 
 .. _doc_proposal:
+
+4. Proposal schemes
+===================
+In this section, we discuss proposal schemes available in the current implementation of the package :code:`ensemble_md`,
+each of which has a symmetric proposal probability. These proposal schemes can be specified via the option :code:`proposal` in the input YAML file (e.g., :code:`params.yaml`)
+for running a REXEE simulation. For more details about the input YAML file, please refer to :ref:`doc_parameters`.
+
+- **Single exchange proposal scheme**:
+  In this scheme, a pair of replicas is randomly drawn from the list of swappable pairs :math:`\mathcal{S}` defined in :eq:`eq_3`, with each pair in the list
+  having an equal probability to be drawn. This method is the simplest and most straightforward proposal scheme, and it is the default proposal scheme in :code:`ensemble_md`.
+- **Multiple exchange proposal scheme**:
+  In this scheme, the number of swaps can be specified by the :code:`n_ex` parameter in the input YAML file. If :code:`n_ex` is not specified, :math:`N^3` swaps will be attempted in an exchange interval,
+  where :math:`N` is the total number of alchemical intermediate states. For each attempted swap in this method, one pair will be drawn from the list of swappable pairs (with replacement). Between attempted swaps, the acceptance
+  ratio is calculated to decide whether the swap should be accepted. Then, if the swap is accepted, the list of swappable pairs will be updated by re-identifying swappable pairs based on the updated permutation. (That is, the
+  next attempted swap is dependent on whether the current swap is accepted.) If the swap is rejected, the execution will end and there won't be a new pair drawn. This method is more efficient than the single exchange proposal scheme
+  as it allows multiple swaps to be attempted in a single exchange interval.
+
+2.1. Single exchange proposal scheme
+------------------------------------
+The single exchange proposal scheme randomly draws a pair of replicas from the list of swappable pairs :math:`\mathcal{S}` defined in :eq:`eq_3`, with each pair in the list
+having an equal probability to be drawn. 
+
+
+This method can be used by spetting :code:`proposal: 'single'` in the input YAML file.
+
+
+2.2. Multiple exchange proposal scheme
+--------------------------------------
+
+
+2.3. Exhaustive exchange proposal scheme
+----------------------------------------
+
+
+
+3. Correction schemes
+=====================
+
+3.1. Weight correction
+----------------------
+
+
+
+
+3.2. Histogram correction
+-------------------------
+
+
+
+4. Free energy calculations
+===========================
+
+
 
 2.1. Proposal schemes
 ---------------------
@@ -594,6 +584,3 @@ Notably, this correction method can possibly overcorrect the weights when the hi
 To deal with this, the user can choose to specify :code:`N_cutoff` in the input YAML file, so that the the histogram
 correction will performed only when :math:`\text{argmin}(N_k, N_{k-1})` is larger than the cutoff. Also, this histogram correction 
 should always be carried out before weight combination. This method is implemented in :obj:`.histogram_correction`.
-
-4. Parameter space of REXEE
-===========================

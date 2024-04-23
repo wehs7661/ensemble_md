@@ -20,6 +20,7 @@ from ensemble_md.utils import utils
 
 warnings.warn('This module is still a work in progress. Please note that there are no immediate plans to expand or rigorously test this module.', UserWarning)  # noqa: E501
 
+
 def plot_acf(models, n_tot, fig_name):
     """
     Plots the state index autocorrelation times for all configurations in a single plot.
