@@ -300,15 +300,18 @@ taking the geometric average of the probability ratios.
 
 5.2. Histogram correction
 -------------------------
-sss
+In our experiment, we tried applying histogram corrections upon weight combination across replicas to
+correct the effect that the targeting distribution 
 
 
 5.3. Our experience with the correction schemes
 -----------------------------------------------
-As discussed in our paper [Hsu2024]_, we found that the application of weight combination
-schemes lengthened the weight convergence time for a weight-updating REXEE simulation
-without necessarily converging to more accurate weights. Moreoever, combining weights using
-weighted averages
+As per our experiments with the correction schemes (also partly discussed in our paper [Hsu2024]_),
+here are some interesting observations about the correction schemes:
+
+- Generally, the application of weight combination schemes would lengthen the weight convergence time for a
+weight-updating REXEE simulation without necessarily converging to more accurate weights.
+- Weight combination 
 
 6. Free energy calculations
 ===========================
