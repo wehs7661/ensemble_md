@@ -286,7 +286,7 @@ in the EE simulation sampling the :math:`k`-th state set. For a more detailed de
       
         Final g     0.0       2.1       3.9       3.5       4.85      5.85 
 
-    Notably, In our implementation in :code:`ensemble_md` (or more specifically, the function :code:`combine_weights` in the class :code:`ReplicaExchangeEE` in :code:`replica_exchange_EE.py`),
+    Notably, In our implementation in :code:`ensemble_md` (or more specifically, the function :func:`combine_weights` in the class :obj:`ReplicaExchangeEE` in :code:`replica_exchange_EE.py`),
     `inverse-variance weighted averages`_ can be used instead of simple averages used above, in which case uncertainties of the input weights (e.g., calculated as the standard
     deviation of the weights since the last update of the Wang-Landau incrementor) are required.
 
@@ -424,5 +424,13 @@ here are some interesting observations about the correction schemes:
 
 6. Free energy calculations
 ===========================
-
+The free energy calculation protocol of the REXEE method is basically the same as those for the EE and HREX methods.
+Specifically, for each state set in a fixed-weight REXEE simulation, we concatenate the trajectories from all replicas, truncate the non-equilibrium
+region, and then decorrelate the concatenated data. Then, for each replica in the fixed-weight REXEE simulation, one can use
+free energy estimators such as TI, BAR, and MBAR to calculate the alchemical free energies for different state sets.
+For the overlapping states, one can then use Equations :eq:`eq_9` and :eq:`eq_10` to calculate the mean of the associated free energy differences
+:math:`\overline{\Delta G_{(s, s+1)}}` and the accompanying propagated error :math:`\delta_{(s, s+1)}`, with :math:`\Delta g^k_{(s, s+1)}`
+replaced by :math:`\Delta G^k_{(s, s+1)}`, the free energy difference computed by the chosen free energy estimator. In this context,
+:math:`\sigma^k_{(s, s+1)}` used in Equations :eq:`eq_9` and :eq:`eq_10` should be the uncertainty associated with  :math:`\Delta G^k_{(s, s+1)}`
+calculated by the estimator. In :code:`ensemble_md`, this has been implemented in the function :func:`calculate_free_energy` in :obj:`analyze_free_energy`.
 
