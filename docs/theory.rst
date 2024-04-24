@@ -139,31 +139,82 @@ In this section, we discuss proposal schemes available in the current implementa
 each of which has a symmetric proposal probability. These proposal schemes can be specified via the option :code:`proposal` in the input YAML file (e.g., :code:`params.yaml`)
 for running a REXEE simulation. For more details about the input YAML file, please refer to :ref:`doc_parameters`.
 
-- **Single exchange proposal scheme**:
-  In this scheme, a pair of replicas is randomly drawn from the list of swappable pairs :math:`\mathcal{S}` defined in :eq:`eq_3`, with each pair in the list
-  having an equal probability to be drawn. This method is the simplest and most straightforward proposal scheme, and it is the default proposal scheme in :code:`ensemble_md`.
-- **Multiple exchange proposal scheme**:
-  In this scheme, the number of swaps can be specified by the :code:`n_ex` parameter in the input YAML file. If :code:`n_ex` is not specified, :math:`N^3` swaps will be attempted in an exchange interval,
-  where :math:`N` is the total number of alchemical intermediate states. For each attempted swap in this method, one pair will be drawn from the list of swappable pairs (with replacement). Between attempted swaps, the acceptance
-  ratio is calculated to decide whether the swap should be accepted. Then, if the swap is accepted, the list of swappable pairs will be updated by re-identifying swappable pairs based on the updated permutation. (That is, the
-  next attempted swap is dependent on whether the current swap is accepted.) If the swap is rejected, the execution will end and there won't be a new pair drawn. This method is more efficient than the single exchange proposal scheme
-  as it allows multiple swaps to be attempted in a single exchange interval.
-
 2.1. Single exchange proposal scheme
 ------------------------------------
 The single exchange proposal scheme randomly draws a pair of replicas from the list of swappable pairs :math:`\mathcal{S}` defined in :eq:`eq_3`, with each pair in the list
-having an equal probability to be drawn. 
+having an equal probability to be drawn. In this case, the proposal probability can be expressed as follows:
+
+.. math:: :label: eq_6
+
+  \alpha\left(X'|X\right)= \alpha\left(x^j_{m}, x^i_{n} | x^i_{m}, x^j_{n}\right)=
+    \begin{cases} 
+    \begin{aligned}
+      &1/|\mathcal{S}|& \text{, if } (i, j) \in \mathcal{S} \\
+      & \quad 0 &\text{, if } (i, j) \notin \mathcal{S}
+  \end{aligned}
+  \end{cases}
+
+In our implementation in :code:`ensemble_md`, this method can be used by setting :code:`proposal: 'single'` in the input YAML file.
 
 
-This method can be used by spetting :code:`proposal: 'single'` in the input YAML file.
-
-
-2.2. Multiple exchange proposal scheme
+2.2. Neighbor exchange proposal scheme
 --------------------------------------
+In the neighbor exchange proposal scheme implemented in :code:`ensemble_md` (which is enabled by setting :code:`proposal: 'neighbor'` in the input YAML file),
+we add a constraint to :math:`mathcal{S}` defined in Equation :eq:`eq_3` such that the swappable pairs consist exclusively of neighboring replicas, 
+with each pair having an equal probability to be drawn. Formally, the proposal probability in this case can be expressed as
+follows:
 
+.. math:: :label: eq_7
+
+  \alpha\left(X'|X\right)= \alpha\left(x^j_{m}, x^i_{n} | x^i_{m}, x^j_{n}\right)=
+    \begin{cases} 
+    \begin{aligned}
+      &1/|\mathcal{S}_{\text{neighbor}}|& \text{, if } (i, j) \in \mathcal{S_{\text{neighbor}}} \\
+      & \quad 0 &\text{, if } (i, j) \notin \mathcal{S_{\text{neighbor}}}
+  \end{aligned}
+  \end{cases}
+
+where 
+
+.. math:: :label: eq_8
+
+  \mathcal{S}_{\text{neighbor}} = \{(i, j)|s_i \in A_n \text{ and } s_j \in A_m \text{ and } |i-j|=1\}
 
 2.3. Exhaustive exchange proposal scheme
 ----------------------------------------
+As opposed to the single exchange or neighbor exchange proposal schemes, one can propose
+multiple swaps within an exchange interval to further enhance the mixing of replicas. In :code:`ensemble_md`,
+one available method is the exhaustive exchange proposal scheme, which can be enabled by setting :code:`proposal: 'exhaustive'` in the input YAML file.
+As detailed in Algorithm 1
+
+.. pcode::
+   :linenos:
+
+    % This quicksort algorithm is extracted from Chapter 7, Introduction to Algorithms (3rd edition)
+    \begin{algorithm}
+    \caption{Quicksort}
+    \begin{algorithmic}
+    \PROCEDURE{Quicksort}{$A, p, r$}
+        \IF{$p < r$}
+            \STATE $q = $ \CALL{Partition}{$A, p, r$}
+            \STATE \CALL{Quicksort}{$A, p, q - 1$}
+            \STATE \CALL{Quicksort}{$A, q + 1, r$}
+        \ENDIF
+    \ENDPROCEDURE
+    \PROCEDURE{Partition}{$A, p, r$}
+        \STATE $x = A[r]$
+        \STATE $i = p - 1$
+        \FOR{$j = p$ \TO $r - 1$}
+            \IF{$A[j] < x$}
+                \STATE $i = i + 1$
+                \STATE exchange
+                $A[i]$ with     $A[j]$
+            \ENDIF
+            \STATE exchange $A[i]$ with $A[r]$
+        \ENDFOR
+    \ENDPROCEDURE
+    \end{algorithmic}
+    \end{algorithm}
 
 
 
@@ -410,40 +461,6 @@ was at state :math:`a=6`, so the whole vector of :math:`\Delta H` is calculated 
 :math:`U^A_6=0`, so we can still calculate :math:`U^A_c - U^A_b` by just taking the difference between :math:`\Delta H` w.r.t. :math:`(x_c, y_c)`
 and :math:`\Delta H` w.r.t. :math:`(x_b, y_b)`, where :math:`(x_c, y_c)` and :math:`(x_b, y_b)` are the vectors of coupling parameters of states c and b. 
 While all this process can sound a little confusing, it has been already taken care of by the function :obj:`.calc_prob_acc`.
-
-2.3.2. The calculation of :math:`[(g^i_n + g^j_m) - (g^i_m+g^j_n)]` 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-In the log file of a GROMACS expanded ensemble simulation, the alchemical weights have units of kT, which is why we don't have 
-the inverse temperature :math:`\beta` multiplied with the weights. Unlike the potential energy terms, in the log file we can find 
-the individual values of :math:`g^{i}_{n}`, :math:`g^{j}_{m}`, :math:`g^{i}_{m}` and :math:`g^{j}_{n}`. Now say that the log file of replica C 
-reads below at :math:`t=6` ps:
-
-:: 
-
-              Step           Time
-                500        6.00000
-
-    Writing checkpoint, step 500 at Mon Jun 13 02:59:57 2022
-
-
-                MC-lambda information
-      Wang-Landau incrementor is:        0.32
-      N  CoulL   VdwL    Count   G(in kT)  dG(in kT)
-      1  0.000  0.000       18    0.00000    2.94000
-      2  0.250  0.000       11    2.94000    1.26000
-      3  0.500  0.000       13    4.20000    2.10000 <<
-      4  0.750  0.000        2    6.30000    0.84000
-      5  1.000  0.000        2    7.14000    0.04000
-      6  1.000  0.250        4    7.18000    0.00000
-
-Then apparently we have :math:`g^C_0=0` and :math:`g^C_6=7.18` kT, respectively. And the values of 
-:math:`g^A_0` and :math:`g^A_6` can be found in the log file of replica A, which enables use to 
-calculate :math:`(g^i_n+g^j_m)-(g^i_m+g^j_n)`. Notably, although it could be interesting to know 
-the bias difference between different configurations sampling the same state in different alchemical 
-ranges (i.e. :math:`g^i_n-g^j_n` and :math:`g^j_m-g^i_m`), it does not make sense to calculate such 
-values from the log file because alchemical weights from in the log files corresponding to simulations 
-sampling different alchemical ranges would have different references. Therefore, only values such as 
-:math:`g^i_n-g^i_m` and :math:`g^j_m-g^j_n` make sense, even if they are as interesting as :math:`g^i_n-g^j_n` and :math:`g^j_m-g^i_m`.
 
 2.4. How is swapping performed?
 -------------------------------
