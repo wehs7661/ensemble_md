@@ -201,8 +201,8 @@ proposal schemes, as it potentially allows for more exchanges to occur within an
 5. Correction schemes
 =====================
 For weight-updating REXEE simulations, we experimented a few correction schemes that aim to improve the convergence of the alchemical weights.
-These correction schemes include weight combination schemes (enabled by setting :code:`w_combine: True` in the input YAML file) and histogram correction schemes
-(enabled by setting :code:`hist_corr: True` in the input YAML file). While there has not been evidence showing that these correction schemes could improve the
+These correction schemes include weight combination and histogram correction schemes, which can be enabled by setting
+:code:`w_combine: True` and :code:`hist_corr: True` in the input YAML file, respectively. While there has not been evidence showing that these correction schemes could improve the
 weight convergence in REXEE simulations (as discussed in our paper [Hsu2024]_), we still provide these options for users to experiment with.
 In the following sections, we elaborate on the details of these correction schemes.
 
@@ -219,7 +219,22 @@ accelerate the convergence of the alchemical weights and provide a better starti
 Noting that there are various ways to combine the weights of overlapping states across replicas, the simple approach we have implemented in :code:`ensemble_md`
 is to simply calculate the average of the weight differences accessible by multiple replicas, and reassign weights based on these averages to the overlapping states.
 This average can be either a simple average or an inverse-variance weighted average, which is less sensitive to the presence of outliers in the weight differences.
-For a more detailed demonstration, please refer to the example below.
+Mathematically, we write the weight difference between the states :math:`s` and :math:`s+1` in replica :math:`i$` as :math:`\Delta g_{(s, s+1)}^i=g^i_{s+1}-g^i_{s}`,
+and the set of replicas that can access both :math:`s` and :math:`s+1` as :math:`\mathcal{Q}_{(s, s+1)}`. Then, for the case where the inverse-variance weighting is used,
+we have the averaged weight difference between :math:`s` and :math:`s+1` as: 
+
+.. math:: :label: eq_9
+
+    \overline{\Delta g_{(s, s+1)}} = \dfrac{\sum_{k \in \mathcal{Q}_{(s, s+1)}}\left( \Delta g^{k}_{(s, s+1)}\middle/\left(\sigma^k_{(s, s+1)}\right)^2\right)}{\sum_{k \in \mathcal{Q}_{(s, s+1)}} \left. 1\middle/\left(\sigma^k_{(s, s+1)}\right)^2\right.}\label{w_combine}
+
+with its propagated error being
+
+.. math:: :label: eq_10
+
+    \delta_{(s, s+1)}  = \sqrt{\left(\sum_{k\in\mathcal{Q}_{(s, s+1)}}\left(\sigma^k_{(s, s+1)}\right)^{-2}\right)^{-1}}\label{w_combine_err}
+
+where :math:`\sigma^k_{(s, s+1)}` is the standard deviation calculated from the time series of :math:`\Delta g^{k}_{(s, s+1)}` since the last update of the Wang-Landau incrementor
+in the EE simulation sampling the :math:`k`-th state set. For a more detailed demonstration of weight combination, please refer to the example below.
 
 ..  collapse:: An example of weight combination
 
@@ -313,83 +328,75 @@ sum of the histograms from both simulations, in which case the weights should th
 than a single weight-updating EE simulation. Click the example below to see a more detailed demonstration/derivation
 of the histogram correction approach implemented in :code:`ensemble_md`.
 
-:: collapse:: An example of histogram correction
+.. collapse:: An example of histogram correction
 
-Here, we consider replicas A and B sampling states 0 to 4 and states 1 to 5, respectively. At time :math:`t`,
-these two replicas have the following weights for their state sets.
+    Here, we consider replicas A and B sampling states 0 to 4 and states 1 to 5, respectively. At time :math:`t`,
+    these two replicas have the following weights for their state sets.
 
-::
+    ::
 
-    Alchemical weights
+        Alchemical weights
 
-    State         0         1         2         3         4         5
-    Rep A         0         4.00      10.69     12.18     12.52     X
-    Rep B         X         0         5.15      7.14      8.48      8.16
+        State         0         1         2         3         4         5
+        Rep A         0         4.00      10.69     12.18     12.52     X
+        Rep B         X         0         5.15      7.14      8.48      8.16
 
-And the histogram counts at time :math:`t` are as follows
+    And the histogram counts at time :math:`t` are as follows
 
-::
+    ::
 
-    Histogram counts
-    State         0         1         2         3         4         5
-    Rep A         416       332       130       71        61        X
-    Rep B         X         303       181       123       143       260
-
-
-During weight combination, for states 1 and 2, we calculate the following average weight difference:
-
-.. math:: :label: eq_9
-  
-  \Delta f'_{21}=\frac{1}{2}\left(\Delta f^{A}_{21} + \Delta f^{B}_{21}\right)=\frac{1}{2}\left(\ln\left(\frac{p^A_1}{p^A_2}\right) +\ln\left(\frac{p^B_1}{p^B_2}\right)\right)=\ln\left[\left(\frac{p^A_1 p^B_1}{p^A_2 p^B_2}\right)^{1/2}\right]
-  
-Let :math:`\Delta f'_{21}=\ln\left(\frac{N_1'}{N_2'}\right)`. We then have 
-
-.. math:: :label: eq_10
-
-  \frac{N_1'}{N_2'}=\left(\frac{p^A_1 p^B_1}{p^A_2 p^B_2}\right)^{1/2}
-
-In synchronous REXEE simulations, each replica should have the same total amount of counts, so the normalization constant for replicas A
-and B are the same, i.e., :math:`p^A_1 = N^A_1/N`, :math:`p^B_1 = N^B_1/N`, ... etc. Therefore, we have 
-
-.. math:: :label: eq_11
-
-  \frac{N_1'}{N_2'}=\left(\frac{N^A_1 N^B_1}{N^A_2 N^B_2}\right)^{1/2}
-
-That is, the ratio of corrected histogram counts should be the geometric mean of the ratios of the original histogram counts.
-Using the numbers above, we calculate the ratios of histogram counts for all neighboring states. That is, for states accessible by multiple replicas, we
-calculate the geometric mean of the values of :math:`N_{i+1}/N_i`` from different replicas. Otherwise, we simply calculate :math:`N_{i+1}/N_i`. 
-
-::
-
-    States     (0, 1)     (1, 2)       (2, 3)       (3, 4)       (4, 5)
-    Final       0.798      0.484        0.609        0.999       1.818            
+        Histogram counts
+        State         0         1         2         3         4         5
+        Rep A         416       332       130       71        61        X
+        Rep B         X         303       181       123       143       260
 
 
-Note that given :math:`N_1`, we can get :math:`N_2`` by calculating :math:`N_1 \times \frac{N_2}{N_1}` and get :math:`N_2` by calculating 
-:math:`N_1 \times \frac{N_2}{N_1} \times \frac{N_3}{N_2}` and so on. So the histogram counts of the whole set of states would be as follows:
+    During weight combination, for states 1 and 2, we calculate the following average weight difference:
 
-::
+    .. math:: :label: eq_11
+      
+      \Delta f'_{21}=\frac{1}{2}\left(\Delta f^{A}_{21} + \Delta f^{B}_{21}\right)=\frac{1}{2}\left(\ln\left(\frac{p^A_1}{p^A_2}\right) +\ln\left(\frac{p^B_1}{p^B_2}\right)\right)=\ln\left[\left(\frac{p^A_1 p^B_1}{p^A_2 p^B_2}\right)^{1/2}\right]
+      
+    Let :math:`\Delta f'_{21}=\ln\left(\frac{N_1'}{N_2'}\right)`. We then have 
 
-    Final N    416    332    161    98    98    178
+    .. math:: :label: eq_12
+
+      \frac{N_1'}{N_2'}=\left(\frac{p^A_1 p^B_1}{p^A_2 p^B_2}\right)^{1/2}
+
+    In synchronous REXEE simulations, each replica should have the same total amount of counts, so the normalization constant for replicas A
+    and B are the same, i.e., :math:`p^A_1 = N^A_1/N`, :math:`p^B_1 = N^B_1/N`, ... etc. Therefore, we have 
+
+    .. math:: :label: eq_13
+
+      \frac{N_1'}{N_2'}=\left(\frac{N^A_1 N^B_1}{N^A_2 N^B_2}\right)^{1/2}
+
+    That is, the ratio of corrected histogram counts should be the geometric mean of the ratios of the original histogram counts.
+    Using the numbers above, we calculate the ratios of histogram counts for all neighboring states. That is, for states accessible by multiple replicas, we
+    calculate the geometric mean of the values of :math:`N_{i+1}/N_i` from different replicas. Otherwise, we simply calculate :math:`N_{i+1}/N_i`. 
+
+    ::
+
+        States     (0, 1)     (1, 2)       (2, 3)       (3, 4)       (4, 5)
+        Final       0.798      0.484        0.609        0.999       1.818            
 
 
- The above distribution can be used to derive the distribution for each state set easily:
+    Note that given :math:`N_1`, we can get :math:`N_2` by calculating :math:`N_1 \times \frac{N_2}{N_1}` and get :math:`N_2` by calculating 
+    :math:`N_1 \times \frac{N_2}{N_1} \times \frac{N_3}{N_2}` and so on. So the histogram counts of the whole set of states would be as follows:
 
-::
+    ::
 
-    States    0     1     2     3     4     5
-    Rep A     416   332   161   98    98
-    Rep B     X     332   161   98    98    178
+        Final N    416    332    161    98    98    178
 
-Note that originally the total histogram counts per replica was 1010, and now the total counts for replicas A and B are 1105 and 867.
-To understand how the total number of histogram counts would influence the equilibration time, we consider the following simple case:
-In an EXE simulation for a two-state system with :code:`wl-ratio=0.8`, if states 0 and 1 have counts of 50 and 100, respectively,
-the Wang-Landau ratio for states 0 and 1 would be 50/75 = 0.67 and 1.33, respectively. To reach a flatness ratio of 0.8 for state 0,
-we at least need 17 more counts in state 0 (:math:`67/(0.5 \times (67+100))=0.802`). On the other hand, if we have counts 500 and
-1000 for states 0 and 1, we would need 167 more counts in state 0, so the equilibration time would be longer. I might need a better justification,
-but I think for now it should be fine to not rescale the count for each state to match the total counts? However, if the weight combination is
-based on averaged weights, we might need to rescale since the total histogram counts would not stay the same as the time goes ...
 
+    The above distribution can be used to derive the distribution for each state set easily:
+
+    ::
+
+        States    0     1     2     3     4     5
+        Rep A     416   332   161   98    98
+        Rep B     X     332   161   98    98    178
+
+|
 
 5.3. Our experience with the correction schemes
 -----------------------------------------------
@@ -401,10 +408,11 @@ here are some interesting observations about the correction schemes:
   a weight-updating EE simulation for each state set.
 - Interestingly, in terms of the weight convergence time and the weight accuracy, here is the ranking of the performance
   of different combinations of the correction schemes, with the best performance listed first:
-  - No correction schemes at all, i.e., weight-updating EE simulation for each state set.
-  - Weight combination with simple averages + histogram correction
-  - Weight combination with simple averages
-  - Weight combination with inverse-variance weighted averages
+
+    - No correction schemes at all, i.e., weight-updating EE simulation for each state set.
+    - Weight combination with simple averages + histogram correction
+    - Weight combination with simple averages
+    - Weight combination with inverse-variance weighted averages
 - We reason these observations that combining weights does not improve convergence is because the exchanges of coordinates between replicas have already caused each
   replica to visit all of the configurations that started with different replicas, and thus have
   “seen” the different configurations and incorporated them into the accumulated weights.
