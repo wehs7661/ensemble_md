@@ -40,36 +40,36 @@ def initialize(args):
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The file path to the input YAML file used to run the REXEE simulation. (Default: params.yaml)')
+                        help='The file path of the input YAML file used to run the REXEE simulation. (Default: params.yaml)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
                         default='analyze_REXEE_log.txt',
-                        help='The file path to the output log file that contains the analysis results of REXEE. \
+                        help='The file path of the output log file that contains the analysis results of REXEE. \
                             (Default: analyze_REXEE_log.txt)')
     parser.add_argument('-rt',
                         '--rep_trajs',
                         type=str,
                         default='rep_trajs.npy',
-                        help='The file path to the NPY file containing the replica-space trajectory. (Default: rep_trajs.npy)')
+                        help='The file path of the NPY file containing the replica-space trajectory. (Default: rep_trajs.npy)')
     parser.add_argument('-st',
                         '--state_trajs',
                         type=str,
                         default='state_trajs.npy',
-                        help='The file path to the NPY file containing the stitched state-space trajectory. \
+                        help='The file path of the NPY file containing the stitched state-space trajectory. \
                             If the specified file is not found, the code will try to find all the trajectories and \
                             stitch them. (Default: state_trajs.npy)')
     parser.add_argument('-sts',
                         '--state_trajs_for_sim',
                         type=str,
                         default='state_trajs_for_sim.npy',
-                        help='The file path to the NPY file containing the stitched state-space time series for different state\
+                        help='The file path of the NPY file containing the stitched state-space time series for different state\
                              sets. If the specified file is not found, the code will try to find all the \
                              time series and stitch them. (Default: state_trajs.npy)')
     parser.add_argument('-d',
                         '--dir',
                         default='analysis',
-                        help='The path to the folder for storing the analysis results. (Default: analysis)')
+                        help='The path of the folder for storing the analysis results. (Default: analysis)')
     parser.add_argument('-m',
                         '--maxwarn',
                         type=int,

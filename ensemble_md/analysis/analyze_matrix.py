@@ -28,7 +28,7 @@ def calc_transmtx(log_file, simulation_type='EE'):
     Parameters
     ----------
     log_file : str
-        The file path to the log file to be parsed.
+        The file path of the log file to be parsed.
     simulation_type : str, Optional
         The type of simulation. It can be either a :code:`EE` (expanded ensemble) or :code:`HREX`
         (Hamiltonian replica exchange) simulation. The default is :code:`EE`.

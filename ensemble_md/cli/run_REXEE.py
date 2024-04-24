@@ -29,25 +29,25 @@ def initialize(args):
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The file path to the input YAML file that contains REXEE parameters. (Default: params.yaml)')
+                        help='The file path of the input YAML file that contains REXEE parameters. (Default: params.yaml)')
     parser.add_argument('-c',
                         '--ckpt',
                         type=str,
                         default='rep_trajs.npy',
-                        help='The file path to the NPY file containing the replica-space trajectories. This file is a \
+                        help='The file path of the NPY file containing the replica-space trajectories. This file is a \
                             necessary checkpoint file for extending the simulaiton. (Default: rep_trajs.npy)')
     parser.add_argument('-g',
                         '--g_vecs',
                         type=str,
                         default='g_vecs.npy',
-                        help='The file path to the NPY file containing the timeseries of the whole-range alchemical weights. \
+                        help='The file path of the NPY file containing the timeseries of the whole-range alchemical weights. \
                             This file is a necessary input if ones wants to update the file when extending \
                             a weight-updating simulation. (Default: g_vecs.npy)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
                         default='run_REXEE_log.txt',
-                        help='The file path to the output file for logging how replicas interact with each other. \
+                        help='The file path of the output file for logging how replicas interact with each other. \
                             (Default: run_REXEE_log.txt)')
     parser.add_argument('-m',
                         '--maxwarn',

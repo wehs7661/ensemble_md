@@ -45,30 +45,30 @@ Here is the help message of :code:`run_REXEE`:
 
     optional arguments:
       -h, --help            show this help message and exit
-      -y YAML, --yaml YAML  The file path to the input YAML file that contains REXEE
+      -y YAML, --yaml YAML  The file path of the input YAML file that contains REXEE
                               parameters. (Default: params.yaml)
-      -c CKPT, --ckpt CKPT  The file path to the NPY file containing the replica-space
+      -c CKPT, --ckpt CKPT  The file path of the NPY file containing the replica-space
                               trajectories. This file is a necessary checkpoint file for
                               extending the simulaiton. (Default: rep_trajs.npy)
       -g G_VECS, --g_vecs G_VECS
-                              The file path to the NPY file containing the timeseries of the
+                              The file path of the NPY file containing the timeseries of the
                               whole-range alchemical weights. This file is a necessary input
                               if ones wants to update the file when extending a weight-
                               updating simulation. (Default: g_vecs.npy)
       -o OUTPUT, --output OUTPUT
-                              The file path to the output file for logging how replicas
+                              The file path of the output file for logging how replicas
                               interact with each other. (Default: run_REXEE_log.txt)
       -m MAXWARN, --maxwarn MAXWARN
                               The maximum number of warnings in parameter specification to be
                               ignored. (Default: 0)
   
-In our current implementation, it is assumed that all replicas of an REXEE simulations are performed in
+In our current implementation, it is assumed that all replicas of a REXEE simulations are performed in
 parallel using MPI. Naturally, performing a REXEE simulation using :code:`run_REXEE` requires a command-line interface
 to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, on a 128-core node
-in a cluster, one may use :code:`mpirun -np 4 run_REXEE` (or :code:`mpiexec -n 4 run_REXEE`) to run an REXEE simulation composed of 4
+in a cluster, one may use :code:`mpirun -np 4 run_REXEE` (or :code:`mpiexec -n 4 run_REXEE`) to run a REXEE simulation composed of 4
 replicas with 4 MPI processes. Note that in this case, it is often recommended to explicitly specify
-more details about resources allocated for each replica. For example, one can specifies :code:`{'-nt': 32}`
-for the REXEE parameter `runtime_args` (specified in the input YAML file, see :ref:`doc_REXEE_parameters`),
+more details about resources allocated for each replica. For example, one can specify :code:`{'-nt': 32}`
+for the REXEE parameter :code:`runtime_args` in the input YAML file (see :ref:`doc_REXEE_parameters`),
 so each of the 4 replicas will use 32 threads (assuming thread-MPI GROMACS), taking the full advantage
 of 128 cores.
 
@@ -85,25 +85,25 @@ Finally, here is the help message of :code:`analyze_REXEE`:
 
     optional arguments:
       -h, --help            show this help message and exit
-      -y YAML, --yaml YAML  The file path to the input YAML file used to run the REXEE
+      -y YAML, --yaml YAML  The file path of the input YAML file used to run the REXEE
                               simulation. (Default: params.yaml)
       -o OUTPUT, --output OUTPUT
-                              The file path to the output log file that contains the analysis
+                              The file path of the output log file that contains the analysis
                               results of REXEE. (Default: analyze_REXEE_log.txt)
       -rt REP_TRAJS, --rep_trajs REP_TRAJS
-                              The file path to the NPY file containing the replica-space
+                              The file path of the NPY file containing the replica-space
                               trajectory. (Default: rep_trajs.npy)
       -st STATE_TRAJS, --state_trajs STATE_TRAJS
-                              The file path to the NPY file containing the stitched state-
+                              The file path of the NPY file containing the stitched state-
                               space trajectory. If the specified file is not found, the code
                               will try to find all the trajectories and stitch them. (Default:
                               state_trajs.npy)
       -sts STATE_TRAJS_FOR_SIM, --state_trajs_for_sim STATE_TRAJS_FOR_SIM
-                              The file path to the NPY file containing the stitched state-
+                              The file path of the NPY file containing the stitched state-
                               space time series for different state sets. If the specified
                               file is not found, the code will try to find all the time series
                               and stitch them. (Default: state_trajs.npy)
-      -d DIR, --dir DIR     The path to the folder for storing the analysis results.
+      -d DIR, --dir DIR     The path of the folder for storing the analysis results.
                               (Default: analysis)
       -m MAXWARN, --maxwarn MAXWARN
                               The maximum number of warnings in parameter specification to be
@@ -114,7 +114,7 @@ Finally, here is the help message of :code:`analyze_REXEE`:
 In this section, we introduce the workflow adopted by the CLI :code:`run_REXEE` that can be used to 
 launch REXEE simulations. While this workflow is made as flexible as possible, interested users
 can use functions defined :class:`ReplicaExchangeEE` to develop their own workflow, or consider contributing
-to the source code of the CLI :code:`run_REXEE`. As an example, a hands-on tutorial that uses this workflow (using the CLI :code:`run_REXEE`) can be found in 
+to the source code of the CLI :code:`run_REXEE`. As an example, a hands-on tutorial that uses the CLI :code:`run_REXEE` can be found in 
 `Tutorial 1: Launching a REXEE simulation`_. 
 
 .. _`Tutorial 1: Launching a REXEE simulation`: examples/run_REXEE.ipynb
@@ -122,27 +122,25 @@ to the source code of the CLI :code:`run_REXEE`. As an example, a hands-on tutor
 
 Step 1: Set up parameters
 -------------------------
-To run a REXEE simulation in GROMACS using :code:`run_REXEE.py`, one at 
-least needs to following four files:
+To run a REXEE simulation in GROMACS using the CLI :code:`run_REXEE`, one at 
+least needs to following four files. (Check :ref:`doc_input_files` for more details.)
 
-* One GRO file of the system of interest
-* One TOP file of the system of interest
-* One MDP template for customizing different MDP files for different replicas. 
-* One YAML file that specify the REXEE-relevant parameters.
+* One YAML file that specifies REXEE parameters, as specified via the CLI :code:`run_REXEE`.
+* One GRO file of the system of interest, as specified in the input YAML file.
+* One TOP file of the system of interest, as specified in the input YAML file.
+* One MDP template for customizing MDP files for different replicas, as specified in the input YAML file.
 
-Currently, we only allow all replicas to be initiated with the same configuration represented 
-by the single GRO file, but the user should also be able to initialize different replicas with different 
-configurations (represented by multiple GRO files) in the near future. Also, the MDP template should contain parameters 
-common across all replicas and define the coupling parmaeters for all possible intermediate states,
-so that we can cusotmize different MDP files by defining a subset of alchemical states in different 
-replicas. For REXEE simulations, some MDP parameters need additional care to be taken, which we describe in
-:ref:`doc_mdp_params`. Importantly, to extend an REXEE simulation, one needs to additionally provide the following
-two checkpoint files:
+Note that multiple GRO/TOP files can be provided to initiate different replicas with different configurations/topologies,
+in which case the number of GRO/TOP files must be equal to the number of replicas.
+Also, the MDP template should contain parameters shared by all replicas and define the coupling parameters for all
+intermediate states. Moreover, additional care needs to be taken for specifying some MDP parameters need additional care to be taken, which we describe in
+:ref:`doc_mdp_params`. Lastly, to extend a REXEE simulation, one needs to additionally provide the following
+two files (generated by the existing simulation) as necessary checkpoints:
 
-* One NPY file containing the replica-space trajectories of different configurations saved by the previous run of REXEE simulation with a default name as :code:`rep_trajs.npy`.
-* One NPY file containing the timeseries of the whole-range alchemical weights saved by the previous run of REXEE simulation with a default name as :code:`g_vecs.npy`.
+* One NPY file containing the replica-space trajectories of different configurations, as specified in the input YAML file.
+* One NPY file containing the timeseries of the whole-range alchemical weights, as specified in the input YAML file. This is only needed for extending a weight-updating REXEE simulation.
 
-In :code:`run_REXEE.py`, the class :class:`.ReplicaExchangeEE` is instantiated with the given YAML file, where
+In the CLI :code:`run_REXEE`, the class :class:`.ReplicaExchangeEE` is instantiated with the given YAML file, where
 the user needs to specify how the replicas should be set up or interact with each 
 other during the simulation ensemble. Check :ref:`doc_parameters` for more details.
 
@@ -216,7 +214,7 @@ iterations (:code:`n_iterations`) is reached.
 
 3. Input YAML parameters
 ========================
-In the current implementation of the algorithm, 28 parameters can be specified in the input YAML file.
+In the current implementation of the algorithm, 30 parameters can be specified in the input YAML file.
 Note that the two CLIs :code:`run_REXEE` and :code:`analyze_REXEE` share the same input YAML file, so we also
 include parameters for data analysis here.
 
@@ -225,12 +223,18 @@ include parameters for data analysis here.
 
   - :code:`gmx_executable`: (Optional, Default: :code:`gmx_mpi`)
       The GROMACS executable to be used to run the REXEE simulation. The value could be as simple as :code:`gmx`
-      or :code:`gmx_mpi` if the exeutable has been sourced. Otherwise, the full path of the executable (e.g.
+      or :code:`gmx_mpi` if the exeutable has been sourced. Otherwise, the full path of the executable (e.g.,
       :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
-      Note that REXEE only works with MPI-enabled GROMACS. 
+      Currently, our implementation only works with thread-MPI GROMACS. Implementation that works with MPI-enabled
+      GROMACS will be released soon. (Check `Issue 20`_ for the current progress.)
 
-3.2. Input settings
--------------------
+.. _`Issue 20`: https://github.com/wehs7661/ensemble_md/issues/20
+
+
+.. _doc_input_files:
+
+3.2. Input files
+----------------
 
   - :code:`gro`: (Required)
       The path of the input system configuration in the form of GRO file(s) used to initiate the REXEE simulation. If only one GRO file is specified,
@@ -243,24 +247,24 @@ include parameters for data analysis here.
       the i-th TOP file corresponds to the i-th GRO file.
   - :code:`mdp`: (Required)
       The path of the input MDP file used to initiate the REXEE simulation. Specifically, this input MDP file will serve as a template for
-      customizing MDP files for all replicas. Therefore, the MDP template must have the whole range of :math:`λ` values. 
-      and the corresponding weights (in fixed-weight simulations). This holds for REXEE simulations for multiple serial mutations as well.
-      For example, in an REXEE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if
+      customizing MDP files for all replicas. Therefore, the MDP template must specify the whole range of :math:`λ` values
+      and :math:`λ`-relevant parameters. This holds for REXEE simulations for multiple serial mutations as well.
+      For example, in a REXEE simulation that mutates methane to ethane in one replica and ethane to propane in the other replica, if
       exchanges only occur in the end states, then one could have :math:`λ` values like :code:`0.0 0.3 0.7 1.0 0.0 0.3 ...`. Notably, unlike
       the parameters :code:`gro` and :code:`top`, only one MDP file can be specified for the parameter :code:`mdp`. If you wish to use
       different parameters for different replicas, please use the parameter :code:`mdp_args`.
   - :code:`modify_coords`: (Optional, Default: :code:`None`)
-      The file path to the Python module for modifying the output coordinates of the swapping replicas
-      before the coordinate exchange, which is generally required in REXEE simulations for multiple serial mutations.
+      The file path of the Python module for modifying the output coordinates of the swapping replicas
+      before the coordinate exchange, which is generally required in multi-topology REXEE simulations.
       For the CLI :code:`run_REXEE` to work, here is the predefined contract for the module/function based on the assumptions :code:`run_REXEE` makes.
       Modules/functions not obeying the contract are unlikely to work.
 
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
         - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on the order of the input GRO files. 
         - The function must return :code:`None` (i.e., no return value). 
-        - The function must save the modified GRO file as :code:`confout.gro`. Specifically, if :code:`directory_A/output.gro` and :code:`directory_B/output.gro` are input, then :code:`directory_A/confout.gro` and :code:`directory_B/confout.gro` must be saved. (For more information, please visit `Tutorial 3: REXEE for multiple serial mutations`_.) Note that in the CLI :code:`run_REXEE`, :code:`confout.gro` generated as the simulation output will be automatically backed up (with a :code:`_backup` suffix) to prevent overwriting.
+        - The function must save the modified GRO file as :code:`confout.gro`. Specifically, if :code:`directory_A/output.gro` and :code:`directory_B/output.gro` are input, then :code:`directory_A/confout.gro` and :code:`directory_B/confout.gro` must be saved. (For more information, please visit `Tutorial 3: REXEE for multiple serial mutations`_.) Note that in the CLI :code:`run_REXEE`, :code:`confout.gro` generated by GROMACS will be automatically renamed with a :code:`_backup` suffix to prevent overwriting.
 
-.. _`Tutorial 3: REXEE for multiple serial mutations`: examples/run_REXEE_modify_inputs.ipynb
+.. _`Tutorial 3: Multi-topology REXEE (MT-REXEE) simulations`: examples/run_REXEE_modify_inputs.ipynb
         
 .. _doc_REXEE_parameters:
 
@@ -270,8 +274,8 @@ include parameters for data analysis here.
   - :code:`n_sim`: (Required)
       The number of replica simulations.
   - :code:`n_iter`: (Required)
-      The number of iterations. In an REXEE simulation, one iteration means one exchange attempt. Notably, this can be used to extend the REXEE simulation.
-      For example, if one finishes an REXEE simulation with 10 iterations (with :code:`n_iter=10`) and wants to continue the simulation from iteration 11 to 30,
+      The number of iterations. In a REXEE simulation, one iteration means one exchange attempt. Notably, this can be used to extend the REXEE simulation.
+      For example, if one finishes a REXEE simulation with 10 iterations (with :code:`n_iter=10`) and wants to continue the simulation from iteration 11 to 30,
       setting :code:`n_iter` in the next execution of :code:`run_REXEE` should suffice.
   - :code:`s`: (Required)
       The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
@@ -408,7 +412,7 @@ infinity internally.
 =======================
 As mentioned above, a template MDP file should have all the parameters that will be shared
 across all replicas. It should also define the coupling parameters for the whole range of
-states so that different MDP files can be customized for different replicas. For an REXEE simulation
+states so that different MDP files can be customized for different replicas. For a REXEE simulation
 launched by the CLI :code:`run_REXEE`, any GROMACS MDP parameter that could potentially lead to issues
 in the REXEE simulation will raise a warning. If the number of warnings is larger than the value
 specified for the flag `-m`/`--maxwarn` in the CLI :code:`run_REXEE`, the simulation will error
@@ -428,9 +432,9 @@ MDP parameters:
 - In REXEE, the MDP parameter :code:`nstdhdl` must be a factor of the MDP parameter :code:`nstexpanded`, or
   the calculation of the acceptance ratio may be wrong. 
 - Be careful with the pull code specification if you want to apply a distance restraint between two pull groups.
-  Specifically, in an REXEE simulation, all iterations should use the same reference distance. Otherwise, poor sampling
+  Specifically, in a REXEE simulation, all iterations should use the same reference distance. Otherwise, poor sampling
   can be observed in a fixed-weight REXEE simulation and the equilibration time may be much longer for a weight-updating
-  REXEE simulation. To ensure the same reference distance across all iterations in an REXEE simulation, consider the
+  REXEE simulation. To ensure the same reference distance across all iterations in a REXEE simulation, consider the
   following scenarios:
 
     - If you would like to use the COM distance between the pull groups in the input GRO file as the reference distance

@@ -181,7 +181,7 @@ class MDP(odict):
     Parameters
     ----------
     input_mdp : str, Optional
-        The path to the input MDP file. The default is None.
+        The path of the input MDP file. The default is None.
     **kwargs : Optional
         Additional keyword arguments to be passed to add additional key-value pairs to the MDP instance.
         Note that no sanity checks will be performed for the key-value pairs passed in this way. This
@@ -195,7 +195,7 @@ class MDP(odict):
     PARAMETER : :code:`re.Pattern` object
         A compiled regular expression pattern for parameters in MDP files.
     input_mdp : str
-        The real path to the input MDP file returned by :code:`os.path.realpath(input_mdp)`,
+        The real path of the input MDP file returned by :code:`os.path.realpath(input_mdp)`,
         which resolves any symbolic links in the path.
 
     Example

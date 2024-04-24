@@ -22,7 +22,7 @@ def cluster_traj(gmx_executable, inputs, grps, coupled_only=True, method='linkag
     Parameters
     ----------
     gmx_executable : str
-        The path to the GROMACS executable.
+        The path of the GROMACS executable.
     inputs : dict
         A dictionary that contains the different input files required for the clustering analysis.
         The dictionary must have the following four keys: :code:`traj` (input trajectory file in
