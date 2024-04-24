@@ -195,3 +195,5 @@ intersphinx_mapping = {
     'pymbar': ('https://pymbar.readthedocs.io/en/latest/', None),
     'alchemlyb': ('https://alchemlyb.readthedocs.io/en/latest/', None),
 }
+
+numfig = True  # necessary for the algorithm to show (see https://github.com/xxks-kkk/sphinxcontrib-pseudocode/issues/18)

@@ -185,34 +185,24 @@ where
 As opposed to the single exchange or neighbor exchange proposal schemes, one can propose
 multiple swaps within an exchange interval to further enhance the mixing of replicas. In :code:`ensemble_md`,
 one available method is the exhaustive exchange proposal scheme, which can be enabled by setting :code:`proposal: 'exhaustive'` in the input YAML file.
-As detailed in Algorithm 1
+As detailed in Algorithm 1 below.
+
 
 .. pcode::
    :linenos:
-
-    % This quicksort algorithm is extracted from Chapter 7, Introduction to Algorithms (3rd edition)
+  
     \begin{algorithm}
-    \caption{Quicksort}
+    \caption{Exhaustive exchange proposal scheme}
     \begin{algorithmic}
-    \PROCEDURE{Quicksort}{$A, p, r$}
-        \IF{$p < r$}
-            \STATE $q = $ \CALL{Partition}{$A, p, r$}
-            \STATE \CALL{Quicksort}{$A, p, q - 1$}
-            \STATE \CALL{Quicksort}{$A, q + 1, r$}
-        \ENDIF
-    \ENDPROCEDURE
-    \PROCEDURE{Partition}{$A, p, r$}
-        \STATE $x = A[r]$
-        \STATE $i = p - 1$
-        \FOR{$j = p$ \TO $r - 1$}
-            \IF{$A[j] < x$}
-                \STATE $i = i + 1$
-                \STATE exchange
-                $A[i]$ with     $A[j]$
-            \ENDIF
-            \STATE exchange $A[i]$ with $A[r]$
-        \ENDFOR
-    \ENDPROCEDURE
+    \State Identify the list of swappable pairs $\mathcal{S}$.
+    \While{$\mathcal{S}\neq\emptyset$}
+        \State Draw $(i, j)\in \mathcal{S}$ with the proposal probability defined in Equation 6.
+        \State Calculate the acceptance ratio $p_\text{acc}$ for the drawn pair using Equation 4.
+        \If{the proposed swap $(i, j)$ is rejected}
+            \State \textbf{break}
+        \EndIf
+        \State Perform the swap and update $\mathcal{S}$ by removing pair(s) involving replicas $i$ and $j$.
+    \EndWhile
     \end{algorithmic}
     \end{algorithm}
 
