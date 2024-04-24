@@ -211,97 +211,111 @@ In the following sections, we elaborate on the details of these correction schem
 
 5.1. Weight combination
 -----------------------
-The weight combination scheme aims to leverage the statistics of the overlapping states in a REXEE simulation, i.e., the states that fall within the intersection of
-at least two state sets and are therefore accessible by multiple replicas. By combining the alchemical weights of these overlapping states across replicas upon the completion of each
-iteration, the weight combination scheme aims to accelerate the convergence of the weights for the entire alchemical space, providing a better starting point for the subsequent production phase.
-To demonstrate, here we consider the following sets of weights 
-as an example, with :code:`X` denoting a state not present in the state set:
+In contrast to other generalized ensemble methods such as EE or HREX methods, the REXEE method possesses overlapping states, i.e.,
+the states that fall within the intersection of at least two state sets and are therefore accessible by multiple replicas. To leverage the statistics of
+these overlapping states, we could combine the alchemical weights of these states across replicas before
+initializing the next iteration. The hypothesis is that such on-the-fly modifications to the weights could potentially 
+accelerate the convergence of the alchemical weights and provide a better starting point for the subsequent production phase.
+Noting that there are various ways to combine the weights of overlapping states across replicas, the simple approach we have implemented in :code:`ensemble_md`
+is to simply calculate the average of the weight differences accessible by multiple replicas, and reassign weights based on these averages to the overlapping states.
+This average can be either a simple average or an inverse-variance weighted average, which is less sensitive to the presence of outliers in the weight differences.
+For a more detailed demonstration, please refer to the example below.
 
-::
+..  collapse:: An example of weight combination
 
-    State       0         1         2         3         4         5      
-    Rep A       0.0       2.1       4.0       3.7       X         X  
-    Rep B       X         0.0       1.7       1.2       2.6       X    
-    Rep C       X         X         0.0       -0.4      0.9       1.9
+    Here we consider the following sets of weights 
+    as an example, with :code:`X` denoting a state not present in the state set:
 
-As shown above, the three replicas sample different but overlapping states. Now, our goal 
-is to
+    ::
 
-* For state 1, combine the weights arcoss replicas 1 and 2.
-* For states 2 and 3, combine the weights across all three replicas.
-* For state 4, combine the weights across replicas 1 and 2. 
+        State       0         1         2         3         4         5      
+        Rep A       0.0       2.1       4.0       3.7       X         X  
+        Rep B       X         0.0       1.7       1.2       2.6       X    
+        Rep C       X         X         0.0       -0.4      0.9       1.9
 
-That is, we combine weights arcoss all replicas that sample the state of interest regardless 
-which replicas are swapping. The outcome of the whole process should be three vectors of modified 
-alchemical weights, one for each replica, that should be specified in the MDP files for the next iteration. 
-Below we elaborate the details of each step carried out by our method implemented in :code:`ensemble_md`.
+    As shown above, the three replicas sample different but overlapping states. Now, our goal 
+    is to
 
-First, we calculate the weight differences as shown below, which can be regarded rough estimates 
-of free energy differences between the adjacent states.
+    * For state 1, combine the weights arcoss replicas 1 and 2.
+    * For states 2 and 3, combine the weights across all three replicas.
+    * For state 4, combine the weights across replicas 1 and 2. 
 
-::
+    That is, we combine weights arcoss all replicas that sample the state of interest regardless 
+    which replicas are swapping. The outcome of the whole process should be three vectors of modified 
+    alchemical weights, one for each replica, that should be specified in the MDP files for the next iteration. 
+    Below we elaborate the details of each step carried out by our method implemented in :code:`ensemble_md`.
 
-    States      (0, 1)    (1, 2)    (2, 3)    (3, 4)    (4, 5)    
-    Rep 1       2.1       1.9       -0.3       X        X       
-    Rep 2       X         1.7       -0.5       1.4      X       
-    Rep 3       X         X         -0.4       1.3      1.0     
+    First, we calculate the weight differences as shown below, which can be regarded rough estimates 
+    of free energy differences between the adjacent states.
 
-Note that to calculate the difference between, say, states 1 and 2, from a certain replica, 
-both these states must be present in the alchemical range of the replica. Otherwise, a free 
-energy difference can't not be calculated and is denoted with :code:`X`. Then, for the weight differences that are available in more than 1 replica, we take the simple 
-average of the weight differences. That is, we have:
+    ::
 
-::
+        States      (0, 1)    (1, 2)    (2, 3)    (3, 4)    (4, 5)    
+        Rep 1       2.1       1.9       -0.3       X        X       
+        Rep 2       X         1.7       -0.5       1.4      X       
+        Rep 3       X         X         -0.4       1.3      1.0     
 
-    States      (0, 1)    (1, 2)    (2, 3)    (3, 4)    (4, 5)    
-    Final       2.1       1.8       -0.4      1.35      1.0
+    Note that to calculate the difference between, say, states 1 and 2, from a certain replica, 
+    both these states must be present in the alchemical range of the replica. Otherwise, a free 
+    energy difference can't not be calculated and is denoted with :code:`X`. Then, for the weight differences that are available in more than 1 replica, we take the simple 
+    average of the weight differences. That is, we have:
 
-Assigning the first state as the reference that have a weight of 0, we have the following profile:
+    ::
 
-::
-   
-    Final g     0.0       2.1       3.9       3.5       4.85      5.85 
+        States      (0, 1)    (1, 2)    (2, 3)    (3, 4)    (4, 5)    
+        Final       2.1       1.8       -0.4      1.35      1.0
 
-In our implementation in :code:`ensemble_md` (or more specifically, the function :code:`combine_weights` in the class :code:`ReplicaExchangeEE` in :code:`replica_exchange_EE.py`),
-`inverse-variance weighted averages`_ can be used instead of simple averages used above, if uncertainties of the input weights are given.
+    Assigning the first state as the reference that have a weight of 0, we have the following profile:
 
-.. _`inverse-variance weighted averages`: https://en.wikipedia.org/wiki/Inverse-variance_weighting
+    ::
+      
+        Final g     0.0       2.1       3.9       3.5       4.85      5.85 
 
-Finally, we need to determine the vector of alchemical weights for each replica. To do this,
-we just shift the weight of the first state of each replica back to 0. As a result, we have
-the following vectors:
+    Notably, In our implementation in :code:`ensemble_md` (or more specifically, the function :code:`combine_weights` in the class :code:`ReplicaExchangeEE` in :code:`replica_exchange_EE.py`),
+    `inverse-variance weighted averages`_ can be used instead of simple averages used above, in which case uncertainties of the input weights (e.g., calculated as the standard
+    deviation of the weights since the last update of the Wang-Landau incrementor) are required.
 
-::
+    .. _`inverse-variance weighted averages`: https://en.wikipedia.org/wiki/Inverse-variance_weighting
 
-    State       0           1            2            3            4            5      
-    Rep 1       0.0         2.1          3.9          3.5          X            X  
-    Rep 2       X           0.0          1.8          1.4          2.75         X    
-    Rep 3       X           X            0.0          -0.4         0.95         1.95
+    Finally, we need to determine the vector of alchemical weights for each replica. To do this,
+    we just shift the weight of the first state of each replica back to 0. As a result, we have
+    the following vectors:
 
-As a reference, here are the original weights:
+    ::
 
-::
+        State       0           1            2            3            4            5      
+        Rep 1       0.0         2.1          3.9          3.5          X            X  
+        Rep 2       X           0.0          1.8          1.4          2.75         X    
+        Rep 3       X           X            0.0          -0.4         0.95         1.95
 
-    State       0           1            2            3            4            5
-    Rep 1       0.0         2.1          4.0          3.7          X            X
-    Rep 2       X           0.0          1.7          1.2          2.6          X
-    Rep 3       X           X            0.0          -0.4         0.9          1.9
+    As a reference, here are the original weights:
 
-Notably, taking the simple average of weight differences/free energy differences is equivalent to
-taking the geometric average of the probability ratios.
+    ::
+
+        State       0           1            2            3            4            5
+        Rep 1       0.0         2.1          4.0          3.7          X            X
+        Rep 2       X           0.0          1.7          1.2          2.6          X
+        Rep 3       X           X            0.0          -0.4         0.9          1.9
+
+    Notably, taking the simple average of weight differences/free energy differences is equivalent to
+    taking the geometric average of the probability ratios.
+
+|
 
 5.2. Histogram correction
 -------------------------
-In our experiment, we tried applying histogram corrections upon weight combination across replicas to
+In our experiment, we have also tried applying histogram corrections upon weight combination across replicas to
 correct the effect that the targeting distribution is a function of time. The idea is to leverage the more
 reliable statistics we get from the overlapping states. In a limiting case where we have two weight-updating
 EE simulations sampling the same set of states, the way we take full advantage of all the samples collected
 in two simulations is to consider the histogram of both simulations and base the flatness criteria on the
 sum of the histograms from both simulations, in which case the weights should then equilibrate faster
-than a single weight-updating EE simulation. Below we demonstrate/derive the histogram correction method implemented in
-:code:`ensemble_md` with an example.
+than a single weight-updating EE simulation. Click the example below to see a more detailed demonstration/derivation
+of the histogram correction approach implemented in :code:`ensemble_md`.
 
-Specifically, we consider replicas A and B sampling states 0 to 4 and states 1 to 5, respectively. At time :math:`t`,
+:: collapse:: An example of histogram correction
+
+Here, we consider replicas A and B sampling states 0 to 4 and states 1 to 5, respectively. At time :math:`t`,
 these two replicas have the following weights for their state sets.
 
 ::
@@ -371,7 +385,7 @@ Note that originally the total histogram counts per replica was 1010, and now th
 To understand how the total number of histogram counts would influence the equilibration time, we consider the following simple case:
 In an EXE simulation for a two-state system with :code:`wl-ratio=0.8`, if states 0 and 1 have counts of 50 and 100, respectively,
 the Wang-Landau ratio for states 0 and 1 would be 50/75 = 0.67 and 1.33, respectively. To reach a flatness ratio of 0.8 for state 0,
-we at least need 17 more counts in state 0 (:math:`67/(0.5 \times (67+100))=0.802$`). On the other hand, if we have counts 500 and
+we at least need 17 more counts in state 0 (:math:`67/(0.5 \times (67+100))=0.802`). On the other hand, if we have counts 500 and
 1000 for states 0 and 1, we would need 167 more counts in state 0, so the equilibration time would be longer. I might need a better justification,
 but I think for now it should be fine to not rescale the count for each state to match the total counts? However, if the weight combination is
 based on averaged weights, we might need to rescale since the total histogram counts would not stay the same as the time goes ...

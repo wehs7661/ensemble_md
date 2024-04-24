@@ -52,6 +52,7 @@ extensions = [
     'sphinx.ext.extlinks',
     'sphinx.ext.todo',
     'nbsphinx',
+    'sphinx_collapse',
     # 'sphinxcontrib.pseudocode',
 ]
 
