@@ -236,8 +236,6 @@ which replicas are swapping. The outcome of the whole process should be three ve
 alchemical weights, one for each replica, that should be specified in the MDP files for the next iteration. 
 Below we elaborate the details of each step carried out by our method implemented in :code:`ensemble_md`.
 
-Step 1: Calculate the weight difference between adjacent states
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 First, we calculate the weight differences as shown below, which can be regarded rough estimates 
 of free energy differences between the adjacent states.
 
@@ -250,11 +248,7 @@ of free energy differences between the adjacent states.
 
 Note that to calculate the difference between, say, states 1 and 2, from a certain replica, 
 both these states must be present in the alchemical range of the replica. Otherwise, a free 
-energy difference can't not be calculated and is denoted with :code:`X`.
-
-Step 2: Take the average of the weight differences across replicas
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Then, for the weight differences that are available in more than 1 replica, we take the simple 
+energy difference can't not be calculated and is denoted with :code:`X`. Then, for the weight differences that are available in more than 1 replica, we take the simple 
 average of the weight differences. That is, we have:
 
 ::
@@ -268,13 +262,11 @@ Assigning the first state as the reference that have a weight of 0, we have the 
    
     Final g     0.0       2.1       3.9       3.5       4.85      5.85 
 
-In our implementation in :code:`ensemble_md` (or more specifically, the function :code:`combine_weights` in the class `ReplicaExchangeEE` in `replica_exchange_EE.py`),
+In our implementation in :code:`ensemble_md` (or more specifically, the function :code:`combine_weights` in the class :code:`ReplicaExchangeEE` in :code:`replica_exchange_EE.py`),
 `inverse-variance weighted averages`_ can be used instead of simple averages used above, if uncertainties of the input weights are given.
 
 .. _`inverse-variance weighted averages`: https://en.wikipedia.org/wiki/Inverse-variance_weighting
 
-Step 3: Determine the vector of alchemical weights for each replica
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Finally, we need to determine the vector of alchemical weights for each replica. To do this,
 we just shift the weight of the first state of each replica back to 0. As a result, we have
 the following vectors:
@@ -301,7 +293,88 @@ taking the geometric average of the probability ratios.
 5.2. Histogram correction
 -------------------------
 In our experiment, we tried applying histogram corrections upon weight combination across replicas to
-correct the effect that the targeting distribution 
+correct the effect that the targeting distribution is a function of time. The idea is to leverage the more
+reliable statistics we get from the overlapping states. In a limiting case where we have two weight-updating
+EE simulations sampling the same set of states, the way we take full advantage of all the samples collected
+in two simulations is to consider the histogram of both simulations and base the flatness criteria on the
+sum of the histograms from both simulations, in which case the weights should then equilibrate faster
+than a single weight-updating EE simulation. Below we demonstrate/derive the histogram correction method implemented in
+:code:`ensemble_md` with an example.
+
+Specifically, we consider replicas A and B sampling states 0 to 4 and states 1 to 5, respectively. At time :math:`t`,
+these two replicas have the following weights for their state sets.
+
+::
+
+    Alchemical weights
+
+    State         0         1         2         3         4         5
+    Rep A         0         4.00      10.69     12.18     12.52     X
+    Rep B         X         0         5.15      7.14      8.48      8.16
+
+And the histogram counts at time :math:`t` are as follows
+
+::
+
+    Histogram counts
+    State         0         1         2         3         4         5
+    Rep A         416       332       130       71        61        X
+    Rep B         X         303       181       123       143       260
+
+
+During weight combination, for states 1 and 2, we calculate the following average weight difference:
+
+.. math:: :label: eq_9
+  
+  \Delta f'_{21}=\frac{1}{2}\left(\Delta f^{A}_{21} + \Delta f^{B}_{21}\right)=\frac{1}{2}\left(\ln\left(\frac{p^A_1}{p^A_2}\right) +\ln\left(\frac{p^B_1}{p^B_2}\right)\right)=\ln\left[\left(\frac{p^A_1 p^B_1}{p^A_2 p^B_2}\right)^{1/2}\right]
+  
+Let :math:`\Delta f'_{21}=\ln\left(\frac{N_1'}{N_2'}\right)`. We then have 
+
+.. math:: :label: eq_10
+
+  \frac{N_1'}{N_2'}=\left(\frac{p^A_1 p^B_1}{p^A_2 p^B_2}\right)^{1/2}
+
+In synchronous REXEE simulations, each replica should have the same total amount of counts, so the normalization constant for replicas A
+and B are the same, i.e., :math:`p^A_1 = N^A_1/N`, :math:`p^B_1 = N^B_1/N`, ... etc. Therefore, we have 
+
+.. math:: :label: eq_11
+
+  \frac{N_1'}{N_2'}=\left(\frac{N^A_1 N^B_1}{N^A_2 N^B_2}\right)^{1/2}
+
+That is, the ratio of corrected histogram counts should be the geometric mean of the ratios of the original histogram counts.
+Using the numbers above, we calculate the ratios of histogram counts for all neighboring states. That is, for states accessible by multiple replicas, we
+calculate the geometric mean of the values of :math:`N_{i+1}/N_i`` from different replicas. Otherwise, we simply calculate :math:`N_{i+1}/N_i`. 
+
+::
+
+    States     (0, 1)     (1, 2)       (2, 3)       (3, 4)       (4, 5)
+    Final       0.798      0.484        0.609        0.999       1.818            
+
+
+Note that given :math:`N_1`, we can get :math:`N_2`` by calculating :math:`N_1 \times \frac{N_2}{N_1}` and get :math:`N_2` by calculating 
+:math:`N_1 \times \frac{N_2}{N_1} \times \frac{N_3}{N_2}` and so on. So the histogram counts of the whole set of states would be as follows:
+
+::
+
+    Final N    416    332    161    98    98    178
+
+
+ The above distribution can be used to derive the distribution for each state set easily:
+
+::
+
+    States    0     1     2     3     4     5
+    Rep A     416   332   161   98    98
+    Rep B     X     332   161   98    98    178
+
+Note that originally the total histogram counts per replica was 1010, and now the total counts for replicas A and B are 1105 and 867.
+To understand how the total number of histogram counts would influence the equilibration time, we consider the following simple case:
+In an EXE simulation for a two-state system with :code:`wl-ratio=0.8`, if states 0 and 1 have counts of 50 and 100, respectively,
+the Wang-Landau ratio for states 0 and 1 would be 50/75 = 0.67 and 1.33, respectively. To reach a flatness ratio of 0.8 for state 0,
+we at least need 17 more counts in state 0 (:math:`67/(0.5 \times (67+100))=0.802$`). On the other hand, if we have counts 500 and
+1000 for states 0 and 1, we would need 167 more counts in state 0, so the equilibration time would be longer. I might need a better justification,
+but I think for now it should be fine to not rescale the count for each state to match the total counts? However, if the weight combination is
+based on averaged weights, we might need to rescale since the total histogram counts would not stay the same as the time goes ...
 
 
 5.3. Our experience with the correction schemes
@@ -309,9 +382,25 @@ correct the effect that the targeting distribution
 As per our experiments with the correction schemes (also partly discussed in our paper [Hsu2024]_),
 here are some interesting observations about the correction schemes:
 
-- Generally, the application of weight combination schemes would lengthen the weight convergence time for a
-weight-updating REXEE simulation without necessarily converging to more accurate weights.
-- Weight combination 
+- Generally, the application of weight combination schemes would lengthen the weight convergence time for a 
+  weight-updating REXEE simulation, without necessarily converging to more accurate weights, as compared to running
+  a weight-updating EE simulation for each state set.
+- Interestingly, in terms of the weight convergence time and the weight accuracy, here is the ranking of the performance
+  of different combinations of the correction schemes, with the best performance listed first:
+  - No correction schemes at all, i.e., weight-updating EE simulation for each state set.
+  - Weight combination with simple averages + histogram correction
+  - Weight combination with simple averages
+  - Weight combination with inverse-variance weighted averages
+- We reason these observations that combining weights does not improve convergence is because the exchanges of coordinates between replicas have already caused each
+  replica to visit all of the configurations that started with different replicas, and thus have
+  “seen” the different configurations and incorporated them into the accumulated weights.
+  Therefore, additionally combining weights across replicas may not provide any additional
+  advantage. In addition, small changes in weights can drastically affect sampling,
+  as state probabilities are exponential in the free energy differences between states.
+  If one of the weights being combined is particularly bad, it will disrupt sampling for the other
+  weights, and will therefore lower the convergence rate. For more details about the experiments, please refer to our paper [Hsu2024]_.
 
 6. Free energy calculations
 ===========================
+
+

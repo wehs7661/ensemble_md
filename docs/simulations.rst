@@ -170,8 +170,7 @@ corresponding to the two replicas. This definition automatically implies one nec
 the replicas to be swapped should have overlapping alchemical ranges. Practically, if the states to be swapped are 
 not present in both alchemical ranges, information like :math:`\Delta U^i=U^i_n-U^j_m` will not be available 
 in either DHDL files and terms like :math:`\Delta g^i=g^i_n-g^i_m` cannot be calculated from the LOG files as well, which 
-makes the calculation of the acceptance ratio technicaly impossible. (For more details about the acceptance ratio is calculated
-in different schemes for swapping, check the section :ref:`doc_acceptance`.) After the swappable pairs are identified, 
+makes the calculation of the acceptance ratio technically impossible. After the swappable pairs are identified, 
 the user can propose swap(s) using :obj:`propose_swaps`. Swap(s) will be proposed given the specified proposal scheme (see
 more details about available proposal schemes in :ref:`doc_proposal`). 
 
