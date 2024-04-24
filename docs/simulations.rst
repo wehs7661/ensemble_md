@@ -16,21 +16,21 @@ Here is the help message of :code:`explore_REXEE`:
 
     usage: explore_REXEE [-h] -N N [-r R] [-n N] [-s S] [-c] [-e]
 
-    This code explores the parameter space of homogenous REXEE to help you figure out all
-    possible combinations of the number of replicas, the number of states in each replica,
-    and the number of overlapping states, and the total number states.
+    This CLI explores the parameter space of a homogenous REXEE simulation to help you
+    figure out all possible combinations of the number of replicas, the number of states in
+    each replica, and the number of overlapping states, given the total number states.
 
     optional arguments:
       -h, --help      show this help message and exit
       -N N, --N N     The total number of states of the REXEE simulation.
       -r R, --r R     The number of replicas that compose the REXEE simulation.
-      -n N, --n N     The number of states for each replica.
+      -n N, --n N     The number of states per each replica.
       -s S, --s S     The state shift between adjacent replicas.
-      -c, --cnst      Whether the apply the constraint such that the number of overlapping
-                      states does not exceed 50% of the number of states in both overlapping
-                      replicas.
+      -c, --cnst      Whether to apply the constraint such that the number of overlapping
+                      states does not exceed 50% of the number of states in adjacent
+                      replicas. (Default: False)
       -e, --estimate  Whether to provide estimates of the chance of not having any swappable
-                      pairs for each solution.
+                      pairs for each solution. (Default: False)
 
 
 1.2. CLI :code:`run_REXEE`
@@ -41,29 +41,29 @@ Here is the help message of :code:`run_REXEE`:
 
     usage: run_REXEE [-h] [-y YAML] [-c CKPT] [-g G_VECS] [-o OUTPUT] [-m MAXWARN]
 
-    This code runs a REXEE simulation given necessary inputs.
+    This CLI runs a REXEE simulation given necessary inputs.
 
     optional arguments:
-    -h, --help            show this help message and exit
-    -y YAML, --yaml YAML  The input YAML file that contains REXEE parameters. (Default:
-                            params.yaml)
-    -c CKPT, --ckpt CKPT  The NPY file containing the replica-space trajectories. This file
-                            is a necessary checkpoint file for extending the simulaiton.
-                            (Default: rep_trajs.npy)
-    -g G_VECS, --g_vecs G_VECS
-                            The NPY file containing the timeseries of the whole-range
-                            alchemical weights. This file is a necessary input if ones wants
-                            to update the file when extending the simulation. (Default:
-                            g_vecs.npy)
-    -o OUTPUT, --output OUTPUT
-                            The output file for logging how replicas interact with each
-                            other. (Default: run_REXEE_log.txt)
-    -m MAXWARN, --maxwarn MAXWARN
-                            The maximum number of warnings in parameter specification to be
-                            ignored.
-
+      -h, --help            show this help message and exit
+      -y YAML, --yaml YAML  The file path to the input YAML file that contains REXEE
+                              parameters. (Default: params.yaml)
+      -c CKPT, --ckpt CKPT  The file path to the NPY file containing the replica-space
+                              trajectories. This file is a necessary checkpoint file for
+                              extending the simulaiton. (Default: rep_trajs.npy)
+      -g G_VECS, --g_vecs G_VECS
+                              The file path to the NPY file containing the timeseries of the
+                              whole-range alchemical weights. This file is a necessary input
+                              if ones wants to update the file when extending a weight-
+                              updating simulation. (Default: g_vecs.npy)
+      -o OUTPUT, --output OUTPUT
+                              The file path to the output file for logging how replicas
+                              interact with each other. (Default: run_REXEE_log.txt)
+      -m MAXWARN, --maxwarn MAXWARN
+                              The maximum number of warnings in parameter specification to be
+                              ignored. (Default: 0)
+  
 In our current implementation, it is assumed that all replicas of an REXEE simulations are performed in
-parallel using MPI. Naturally, performing an REXEE simulation using :code:`run_REXEE` requires a command-line interface
+parallel using MPI. Naturally, performing a REXEE simulation using :code:`run_REXEE` requires a command-line interface
 to launch MPI processes, such as :code:`mpirun` or :code:`mpiexec`. For example, on a 128-core node
 in a cluster, one may use :code:`mpirun -np 4 run_REXEE` (or :code:`mpiexec -n 4 run_REXEE`) to run an REXEE simulation composed of 4
 replicas with 4 MPI processes. Note that in this case, it is often recommended to explicitly specify
@@ -79,29 +79,35 @@ Finally, here is the help message of :code:`analyze_REXEE`:
 ::
 
     usage: analyze_REXEE [-h] [-y YAML] [-o OUTPUT] [-rt REP_TRAJS] [-st STATE_TRAJS]
-                        [-d DIR] [-m MAXWARN]
+                        [-sts STATE_TRAJS_FOR_SIM] [-d DIR] [-m MAXWARN]
 
-    This code analyzes a REXEE simulation. Note that the template MDP file
-    specified in the YAML file needs to be available in the working directory.
+    This CLI analyzes a REXEE simulation.
 
     optional arguments:
-    -h, --help            show this help message and exit
-    -y YAML, --yaml YAML  The input YAML file used to run the REXEE simulation. (Default:
-                            params.yaml)
-    -o OUTPUT, --output OUTPUT
-                            The output log file that contains the analysis results of REXEE.
-                            (Default: analyze_REXEE_log.txt)
-    -rt REP_TRAJS, --rep_trajs REP_TRAJS
-                            The NPY file containing the replica-space trajectory. (Default:
-                            rep_trajs.npy)
-    -st STATE_TRAJS, --state_trajs STATE_TRAJS
-                            The NPY file containing the stitched state-space trajectory. If
-                            the specified file is not found, the code will try to find all
-                            the trajectories and stitch them. (Default: state_trajs.npy)
-    -d DIR, --dir DIR     The name of the folder for storing the analysis results.
-    -m MAXWARN, --maxwarn MAXWARN
-                            The maximum number of warnings in parameter specification to be
-                            ignored.
+      -h, --help            show this help message and exit
+      -y YAML, --yaml YAML  The file path to the input YAML file used to run the REXEE
+                              simulation. (Default: params.yaml)
+      -o OUTPUT, --output OUTPUT
+                              The file path to the output log file that contains the analysis
+                              results of REXEE. (Default: analyze_REXEE_log.txt)
+      -rt REP_TRAJS, --rep_trajs REP_TRAJS
+                              The file path to the NPY file containing the replica-space
+                              trajectory. (Default: rep_trajs.npy)
+      -st STATE_TRAJS, --state_trajs STATE_TRAJS
+                              The file path to the NPY file containing the stitched state-
+                              space trajectory. If the specified file is not found, the code
+                              will try to find all the trajectories and stitch them. (Default:
+                              state_trajs.npy)
+      -sts STATE_TRAJS_FOR_SIM, --state_trajs_for_sim STATE_TRAJS_FOR_SIM
+                              The file path to the NPY file containing the stitched state-
+                              space time series for different state sets. If the specified
+                              file is not found, the code will try to find all the time series
+                              and stitch them. (Default: state_trajs.npy)
+      -d DIR, --dir DIR     The path to the folder for storing the analysis results.
+                              (Default: analysis)
+      -m MAXWARN, --maxwarn MAXWARN
+                              The maximum number of warnings in parameter specification to be
+                              ignored. (Default: 0)
 
 2. Recommended workflow
 =======================

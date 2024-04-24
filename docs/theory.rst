@@ -286,7 +286,7 @@ in the EE simulation sampling the :math:`k`-th state set. For a more detailed de
       
         Final g     0.0       2.1       3.9       3.5       4.85      5.85 
 
-    Notably, In our implementation in :code:`ensemble_md` (or more specifically, the function :func:`combine_weights` in the class :obj:`ReplicaExchangeEE` in :code:`replica_exchange_EE.py`),
+    Notably, In our implementation in :code:`ensemble_md` (or more specifically, the function :obj:`.combine_weights` in the class :obj:`.ReplicaExchangeEE` in :obj:`.replica_exchange_EE`),
     `inverse-variance weighted averages`_ can be used instead of simple averages used above, in which case uncertainties of the input weights (e.g., calculated as the standard
     deviation of the weights since the last update of the Wang-Landau incrementor) are required.
 
@@ -432,5 +432,5 @@ For the overlapping states, one can then use Equations :eq:`eq_9` and :eq:`eq_10
 :math:`\overline{\Delta G_{(s, s+1)}}` and the accompanying propagated error :math:`\delta_{(s, s+1)}`, with :math:`\Delta g^k_{(s, s+1)}`
 replaced by :math:`\Delta G^k_{(s, s+1)}`, the free energy difference computed by the chosen free energy estimator. In this context,
 :math:`\sigma^k_{(s, s+1)}` used in Equations :eq:`eq_9` and :eq:`eq_10` should be the uncertainty associated with  :math:`\Delta G^k_{(s, s+1)}`
-calculated by the estimator. In :code:`ensemble_md`, this has been implemented in the function :func:`calculate_free_energy` in :obj:`analyze_free_energy`.
+calculated by the estimator. In :code:`ensemble_md`, this has been implemented in the function :func:`.calculate_free_energy` in :obj:`.analyze_free_energy`.
 
