@@ -207,12 +207,14 @@ As detailed in Algorithm 1 below.
     \end{algorithm}
 
 
-
 3. Correction schemes
 =====================
+For weight-updating REXEE simulations, we experimented a few correction schemes that aim to improve the convergence of the alchemical weights.
+These correction schemes include weight combination schemes (enabled by setting :code:`w_combine: True` in the input YAML file) and histogram correction schemes
+(enabled by setting :code:`hist_corr: True` in the input YAML file). While there has not been evidence showing that these correction schemes could improve the
+weight convergence in REXEE simulations (as discussed in our paper), we still provide these options for users to experiment with.
+In the following sections, we elaborate on the details of these correction schemes.
 
-3.1. Weight correction
-----------------------
 
 
 

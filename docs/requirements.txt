@@ -11,4 +11,4 @@ seaborn
 matplotlib
 pyemma
 pymbar==4.0.1
-
+sphinxcontrib-pseudocode
