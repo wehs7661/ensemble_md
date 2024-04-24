@@ -52,7 +52,7 @@ extensions = [
     'sphinx.ext.extlinks',
     'sphinx.ext.todo',
     'nbsphinx',
-    'sphinxcontrib.pseudocode',
+    # 'sphinxcontrib.pseudocode',
 ]
 
 autosummary_generate = True

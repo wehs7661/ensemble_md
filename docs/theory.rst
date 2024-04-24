@@ -139,7 +139,7 @@ In this section, we discuss proposal schemes available in the current implementa
 each of which has a symmetric proposal probability. These proposal schemes can be specified via the option :code:`proposal` in the input YAML file (e.g., :code:`params.yaml`)
 for running a REXEE simulation. For more details about the input YAML file, please refer to :ref:`doc_parameters`.
 
-2.1. Single exchange proposal scheme
+4.1. Single exchange proposal scheme
 ------------------------------------
 The single exchange proposal scheme randomly draws a pair of replicas from the list of swappable pairs :math:`\mathcal{S}` defined in :eq:`eq_3`, with each pair in the list
 having an equal probability to be drawn. In this case, the proposal probability can be expressed as follows:
@@ -157,7 +157,7 @@ having an equal probability to be drawn. In this case, the proposal probability 
 In our implementation in :code:`ensemble_md`, this method can be used by setting :code:`proposal: 'single'` in the input YAML file.
 
 
-2.2. Neighbor exchange proposal scheme
+4.2. Neighbor exchange proposal scheme
 --------------------------------------
 In the neighbor exchange proposal scheme implemented in :code:`ensemble_md` (which is enabled by setting :code:`proposal: 'neighbor'` in the input YAML file),
 we add a constraint to :math:`mathcal{S}` defined in Equation :eq:`eq_3` such that the swappable pairs consist exclusively of neighboring replicas, 
@@ -180,315 +180,42 @@ where
 
   \mathcal{S}_{\text{neighbor}} = \{(i, j)|s_i \in A_n \text{ and } s_j \in A_m \text{ and } |i-j|=1\}
 
-2.3. Exhaustive exchange proposal scheme
+4.3. Exhaustive exchange proposal scheme
 ----------------------------------------
 As opposed to the single exchange or neighbor exchange proposal schemes, one can propose
 multiple swaps within an exchange interval to further enhance the mixing of replicas. In :code:`ensemble_md`,
 one available method is the exhaustive exchange proposal scheme, which can be enabled by setting :code:`proposal: 'exhaustive'` in the input YAML file.
-As detailed in Algorithm 1 below.
+As detailed in Algorithm 1 below, the exhaustive exchange proposal scheme operates similarly to the single exchange proposal scheme, but
+exhaustively traverses the list of swappable pairs while updating the list by eliminating any pair involving replicas that
+appeared in the previously proposed pair, ensuring symmetric proposal probabilities. Intuitively, the exhaustive exchange proposal
+scheme leads to more efficient state-space and replica-space sampling than the other two
+proposal schemes, as it potentially allows for more exchanges to occur within an exchange interval.
 
+.. figure:: _static/algorithm.png
+   :width: 800
+   :align: center
+   :figclass: align-center
 
-.. pcode::
-   :linenos:
-  
-    \begin{algorithm}
-    \caption{Exhaustive exchange proposal scheme}
-    \begin{algorithmic}
-    \State Identify the list of swappable pairs $\mathcal{S}$.
-    \While{$\mathcal{S}\neq\emptyset$}
-        \State Draw $(i, j)\in \mathcal{S}$ with the proposal probability defined in Equation 6.
-        \State Calculate the acceptance ratio $p_\text{acc}$ for the drawn pair using Equation 4.
-        \If{the proposed swap $(i, j)$ is rejected}
-            \State \textbf{break}
-        \EndIf
-        \State Perform the swap and update $\mathcal{S}$ by removing pair(s) involving replicas $i$ and $j$.
-    \EndWhile
-    \end{algorithmic}
-    \end{algorithm}
+|
 
-
-3. Correction schemes
+5. Correction schemes
 =====================
 For weight-updating REXEE simulations, we experimented a few correction schemes that aim to improve the convergence of the alchemical weights.
 These correction schemes include weight combination schemes (enabled by setting :code:`w_combine: True` in the input YAML file) and histogram correction schemes
 (enabled by setting :code:`hist_corr: True` in the input YAML file). While there has not been evidence showing that these correction schemes could improve the
-weight convergence in REXEE simulations (as discussed in our paper), we still provide these options for users to experiment with.
+weight convergence in REXEE simulations (as discussed in our paper [Hsu2024]_), we still provide these options for users to experiment with.
 In the following sections, we elaborate on the details of these correction schemes.
 
 
-
-
-
-3.2. Histogram correction
--------------------------
-
-
-
-4. Free energy calculations
-===========================
-
-
-
-2.1. Proposal schemes
----------------------
-In the current implementation, the following proposal schemes are available and can be
-specified via the option :code:`proposal` in the input YAML file (e.g. :code`params.yaml`).
-
-2.1.1. Single swap
-~~~~~~~~~~~~~~~~~~
-If the option :code:`proposal` is specified as :code:`single` in the input YAML file, the method
-of single swap will be used, in which only a single swap will be randomly drawn from the list of swappable
-pairs within an exchange interval. Here, a pair of replicas can be swapped only if the states to be swapped 
-are present in both of the alchemical ranges of the two replicas. After the pair is drawn, the acceptance
-ratio will be calculated given the specified acceptance scheme to decide whether the swap should be accepted.
-
-2.1.2. Neighboring swap
-~~~~~~~~~~~~~~~~~~~~~~~
-If the option :code:`proposal` is specified as :code:`neighboring` in the input YAML file, the method
-of neighboring swap will be used. This method is exactly the same as the single swap method execpt that it
-additionally requires the swappable pairs to be neighboring replicas.
-
-2.1.3. Exhaustive swaps
-~~~~~~~~~~~~~~~~~~~~~~~
-If the option :code:`proposal` is specified as :code:`exhaustive` in the input YAML file, the method
-of exhaustive swaps will be used. In an exchange interval, this method requires repeatedly drawing a pair
-from the list of swappable pairs and remove pair(s) involving previously drawn replicas until the list is empty. 
-For each proposed swap, we calculate the acceptance ratio to decide whether the swap should be accepted or not. 
-In greater detail, this scheme can be decomposed into the following steps:
-    
-  - **Step 1**: Identify the list of swappable pairs. 
-  - **Step 2**: Randomly draw a pair from the list of swappable pairs.
-  - **Step 3**: Calculate the acceptance ratio for the drawn pair to decide whether the swap should be accepted.
-    Then, perform or reject the swap. 
-  - **Step 4**: Update the list of swappable pairs by removing pair(s) that involve any replica in the drawn pair in Step 2. 
-  - **Step 5**: Repeat Steps 2 to 4 until the list of swappable pairs is empty.
-  
-Note that
-
-  - In this method, no replicas should be involved in more than one proposed swap. 
-  - Given :math:`N` alchemical intermediate states in total, one can at most perform :math:`\lfloor N \rfloor` swaps with this method.
-  - While this method can lead to multiple attempted swaps, these swaps are entirely indepdent of each other, which is
-    different from the method of multiple swaps introduced below.
-  - Importantly, whether the swap in Step 3 is accepted or rejected does not influence the update of the list in Step 4 at all. 
-    This is different from the method of multiple swaps introduced in the next section, where the updated list of swappable pairs depends on
-    the acceptance/rejection of the current attempted swap. 
-  - Since all swaps are independent, instead of calculating and acceptance ratio and performing swaps separately (as done in Step 3 in the procedure above), one
-    can choose to calculates all acceptance ratios for all drawn pairs and perform all swaps at the same time at the end.
-    We chose to implement the former in :obj:`.get_swapping_pattern` since this is more consistent with the protocol of the other proposal schemes
-    , hence easier to code.
-
-.. _doc_multiple_swaps:
-
-2.1.4. Multiple swaps
-~~~~~~~~~~~~~~~~~~~~~
-If the option :code:`proposal` is specified as :code:`multiple` in the input YAML file, the method
-of multiple swaps will be used, where the number of swaps can be specified by the :code:`n_ex` parameter in
-the input YAML file. If :code:`n_ex` is not specified, :math:`N^3` swaps will be attmpted in an exchange interval,
-where :math:`N` is the total number of alchemical intermediate states. For each attempted swap in this method, 
-one pair will be drawn from the list of swappable pairs (with replacement). Between attempted swaps, the acceptance
-ratio is calculated to decide whether the swap should be accepted. Then, if the swap is accepted, the list of 
-swappable pairs will be updated by re-identifying swappable pairs based on the updated permutation. (That is, the
-next attempted swap is dependent on whether the current swap is accepted.) If the swap is rejected, the execution will
-end and there won't be a new pair drawn. In greater detail, this scheme can be decomposed into the following steps:
-
-  - **Step 1**: Identify the list of swappable pairs.
-  - **Step 2**: Randomly draw a pair from the list of swappable pairs.
-  - **Step 3**: Calculate the acceptance ratio to decide whether the swap drawn in Step 2 should be accepted. 
-  - **Step 4**: If the attempted swap is accepted, update the permutation of the state ranges and update the list of swappable
-    pairs accordingly. Otherwise, the list of swappable pairs stay the same. 
-  - **Step 5**: Perform Steps 2 and 3 for the desired number of times (specified by :code:`n_ex`).
-
-.. note:: Except for the method of multiple swaps, all methods introduced above obey the detailed balance condition.
-  We set the default of the paramter :code:`proposal` as :code:`exhaustive` as it allows higher sampling efficiency.
-
-.. _doc_acceptance:
-
-2.2. Acceptance schemes
------------------------
-In the current implementation, 3 acceptance schemes are available to be specified 
-in the input YAML file (e.g. :code:`params.yaml`) via the option :code:`acceptance`, including :code:`same-state`/:code:`same_state`, 
-and :code:`metropolis`. In our implementation, 
-relevant methods include :obj:`.propose_swaps`, :obj:`.calc_prob_acc`, and :obj:`.accept_or_reject`.
-Below we elaborate the details of each of the swapping schemes.
-
-.. _doc_same_state:
-
-2.2.1. Same-state swapping
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-The simplest scheme for swapping replicas is the same-state swapping scheme, which only swaps 
-replicas only if they both happen to same the same alchemical states right before the swap. That
-is, the acceptance ratio is always either :math:`1` (same state) or :math:`0` (different states).
-Notably, this swapping scheme does not obey the detailed balance condition.
-
-2.2.2. Metropolis swapping 
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-Metropolis swapping uses the Metropolis criterion to swap replicas, i.e. 
-
-.. math::
-  w(X \rightarrow X') = 
-  \begin{cases} 
-    \begin{aligned}
-      &1 &, \;\text{if} \;\Delta \leq 0 \\
-      \exp(&-\Delta) &, \;\text{if} \;\Delta >0
-    \end{aligned}
-  \end{cases}
-
-where 
-
-.. math::
-  \Delta = \beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)] - [(g^i_n+g^j_m)-(g^i_m+g^j_n)] 
-
-In theory, this swapping scheme should obey the detailed balance condition, as derived 
-in :ref:`doc_basic_idea`.
-
-2.3. Calculation of Δ in Metropolis-based acceptance schemes
-------------------------------------------------------------
-The calculation of :math:`\Delta` is important because the acceptance ratio :math:`w(X\rightarrow X')=\min(1, \exp(-\Delta))` is 
-directly related to :math:`\Delta`. To better understand how :math:`\Delta` is calculated in the Metropolise-based methods, 
-we need to first know what's available in the DHDL file of a GROMACS expanded ensemble simulation. As an example, below 
-we tabulate the data of a DHDL file, with the time column having units of ps and all energy quantities having
-units of kJ/mol. 
-
-.. list-table::
-   :widths: 10 10 10 10 10 10 10 10
-   :header-rows: 1
-
-   * - Time
-     - State
-     - Total energy
-     - :math:`dH/d\lambda` at :math:`\lambda_{\text{coul}}=0`
-     - :math:`dH/d\lambda` at :math:`\lambda_{\text{vdw}}=0`
-     - :math:`\Delta H` w.r.t :math:`(0, 0)`
-     - :math:`\Delta H` w.r.t :math:`(0, 0.2)`
-     - ...
-   * - 0.0
-     - 0
-     - -16328.070	
-     - 92.044243	
-     - -24.358231	
-     - 6.1035156e-05	
-     - 18.408772
-     - ...
-   * - 2.0	
-     - 1	
-     - -16259.254	
-     - 69.588318	
-     - -5.8508954	
-     - -13.917714	
-     - -1.5258789e-05
-     - ...
-   * - 4.0
-     - 7	
-     - -16060.098	
-     - -171.03197	
-     - -55.529320	
-     - 86505.967	
-     - 86471.757
-     - ...
-   * - 6.0	
-     - 6	
-     - -16164.012	
-     - -14.053808	
-     - 30.875639	
-     - 65.827232	
-     - 63.016821
-     - ...
-   * - ...
-     - ...
-     - ...
-     - ...
-     - ...
-     - ...
-     - ...
-     - ...
-
-Notably, in the DHDL file, the total energy (i.e. Hamiltonian, denoted as :math:`H` in the table above) 
-could be the sum of kinetic energy and potential energy or just the total potential energy, depending how the parameter 
-:code:`dhdl-print-energy` is specified in the MDP file. However, as we will see later, we only care about 
-:math:`\Delta H`, which should be equal to :math:`\Delta U` regardless of how :code:`dhdl-print-energy` is 
-specified. This is because at each time frame, the kinetic energy of the system being at differnt :math:`\lambda`
-values should be the same and cancelled out. (The kinetic energy is :math:`\lambda`-dependent.) With this, below 
-we describe more details about the calculation of the difference in the potential energies and the difference in the alchemical weights.
-
-2.3.1. The calculation of :math:`\beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)]` 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Note that for each time frame shown in the table above, there is always one :math:`\Delta H` being 0, which happens when 
-:math:`\Delta H` is calculated with respect to the state being sampled at that time frame. For example, if the vector of coupling 
-parameters of state 6 is :math:`(0.5, 0)`, then at :math:`t=6` ps, when the replica is sampling state 6, :math:`\Delta H` w.r.t. :math:`(0.5, 0)` should be 0. This 
-allows us to get the individual values of :math:`U^{i}_{n}`, :math:`U^{j}_{m}`, :math:`U^{i}_{m}`, and :math:`U^{j}_{n}` by assuming
-the state being visited as the reference (i.e. :math:`U=0`). With this, we can calulcate :math:`\beta[(U^i_n + U^j_m) - (U^i_m+U^j_n)]`
-with ease. 
-
-As an example, here we assume that we have four replicas labelled as 0, 1, 2, and 3 sampling configurations A, B, C and D and they 
-ended up at states a, b, c, and d. Schematically, we have 
-::
-
-    replica       0       1       2       3
-    state         a       b       c       d
-    config        A       B       C       D
-
-When swapping the configurations of replicas 0 and 1, we need to calculate the term :math:`\beta[(U^A_b + U^B_a) - (U^A_a+U^B_b)]`, or equivalently
-:math:`\beta[(U^A_b - U^A_a) + (U^B_a-U^B_b)]`. Since now replica 0 is at state a at the end of the simulation, :math:`U^A_b - U^A_a` is immediately 
-available in the DHDL file in replica 0, which is the final value of :math:`\Delta H` w.r.t :math:`(x, y)`, where :math:`(x, y)` 
-is the vector of the coupling parameter of state b. 
-
-Now let's say the table above comes from the DHDL file of replica 0. If at :math:`t=6` ps, we are swapping replicas A and B and 
-:math:`a=6`, :math:`b=0` (i.e. at  :math:`t=6` ps, replicas A and B are sampling states 6 and 0, respectively), then :math:`U^A_b - U^A_a=U^A_0 - U^A_6=65.827232`.
-Similarly, :math:`U^B_a - U^B_b` can be looked up in the DHDL file of replica 1, so :math:`\Delta` can be calculated. 
-(Note that we need to convert the units of :math:`\Delta U` from kJ/mol to kT, which is more convenient for the calculation of the acceptance ratio.
-
-In the case that mutiple swaps are desired (i.e. :code:`proposal` is :code:`multiple`), say :code:`n_ex` is 2, if the first swap between replicas 0 and 1 shown above is accepted and now 
-we are swapping replicas 1 and 2 in the second swap, then we must be aware that the configurations now corresponding to replicas 0 and 1 is not A and B, 
-but B and A, repsecitvely:
-::
-
-    replica       0       1       2       3
-    state         a       b       c       d
-    config        B       A       C       D
-
-Therefore, when swapping replicas 1 and 2, instead of calculating :math:`\beta[(U^B_c - U^B_b) + (U^C_b-U^C_c)]`, we calculate :math:`\beta[(U^A_c - U^A_b) + (U^C_b-U^C_c)]`.
-That is, when swapping replicas 1 and 2 in this case, instead of getting values from the DHDL files of replicas 1 and 2, we actually need to get values from 
-the DHDL files of reaplicas 0 and 2. In this case, :math:`U^A_c - U^A_b` is not immediately available in the table because configuration A 
-was at state :math:`a=6`, so the whole vector of :math:`\Delta H` is calculated against state 6. However, as mentioned above, we have 
-:math:`U^A_6=0`, so we can still calculate :math:`U^A_c - U^A_b` by just taking the difference between :math:`\Delta H` w.r.t. :math:`(x_c, y_c)`
-and :math:`\Delta H` w.r.t. :math:`(x_b, y_b)`, where :math:`(x_c, y_c)` and :math:`(x_b, y_b)` are the vectors of coupling parameters of states c and b. 
-While all this process can sound a little confusing, it has been already taken care of by the function :obj:`.calc_prob_acc`.
-
-2.4. How is swapping performed?
--------------------------------
-As implied in :ref:`doc_basic_idea`, in an REXEE simulation, we could either choose to swap configurations
-(via swapping GRO files) or replicas (via swapping MDP files). In this package, we chose the former when
-implementing the REXEE algorithm. Specifically, in the CLI :code:`run_REXEE`, the function :obj:`.get_swapping_pattern`
-is called once for each iteration and returns a list :code:`swap_pattern` that informs :code:`run_REXEE` how
-the GRO files should be swapped. (To better understand the list :code:`swap_pattern`, see the docstring of
-the function :obj:`.get_swapping_pattern`.) Internally, the function :obj:`.get_swapping_pattern` not only swaps
-the list :code:`swap_pattern` when an attempted move is accepted, but also swaps elements in lists that contains
-state shifts, weights, paths to the DHDL files, state ranges, and the attribute :code:`configs`, but not the elements
-in the list of states. Check the source code of :obj :`.get_swapping_pattern` if you want to understand the details.
-
 .. _doc_w_schemes:
 
-3. Weight combination
-=====================
-
-3.1. Basic idea
----------------
-To leverage the stastics of the states collected from multiple replicas, we recommend 
-combining the alchemical weights of these states across replicas during an weight-updating REXEE simulation.
-Ideally, the modified weights should facilitate the convergence of the alchemical weights in expanded ensemble, 
-which in the limit of inifinite simulation time correspond to dimensionless free energies of the alchemical states. 
-The modified weights also directly influence the the accpetance ratio, hence the convergence of the simulation
-ensemble. There are various possible ways to combine weights across replicas, though some of them might
-have the issue of reference-dependent results, or the issue of coupling overlapped and non-overlapped states. 
-Here, we present the most straightforward method that circumvent these two issues. This method can be enabled by
-setting the parameter :code:`w_combine` to `True` in the input YAML file. 
-
-3.2. The details of the method
-------------------------------
-Generally, weight combination is performed after the final configurations have beeen figured out and it is just for 
-the initialization of the MDP files for the next iteration. Now, to demonstrate the method implemented in 
-:code:`ensemble_md` (or more specifically, :obj:`.combine_weights`), here we consider the following sets of weights 
-as an example, with :code:`X` denoting a state not present in the alchemical range:
+5.1. Weight combination
+-----------------------
+The weight combination scheme aims to leverage the statistics of the overlapping states in a REXEE simulation, i.e., the states that fall within the intersection of
+at least two state sets and are therefore accessible by multiple replicas. By combining the alchemical weights of these overlapping states across replicas upon the completion of each
+iteration, the weight combination scheme aims to accelerate the convergence of the weights for the entire alchemical space, providing a better starting point for the subsequent production phase.
+To demonstrate, here we consider the following sets of weights 
+as an example, with :code:`X` denoting a state not present in the state set:
 
 ::
 
@@ -507,12 +234,12 @@ is to
 That is, we combine weights arcoss all replicas that sample the state of interest regardless 
 which replicas are swapping. The outcome of the whole process should be three vectors of modified 
 alchemical weights, one for each replica, that should be specified in the MDP files for the next iteration. 
-Below we elaborate the details of each step carried out by our method.
+Below we elaborate the details of each step carried out by our method implemented in :code:`ensemble_md`.
 
 Step 1: Calculate the weight difference between adjacent states
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-First, we calculate the weight differences, which can be regarded rough estimates 
-of free energy differences, between the adjacent states. We therefore have:
+First, we calculate the weight differences as shown below, which can be regarded rough estimates 
+of free energy differences between the adjacent states.
 
 ::
 
@@ -535,18 +262,16 @@ average of the weight differences. That is, we have:
     States      (0, 1)    (1, 2)    (2, 3)    (3, 4)    (4, 5)    
     Final       2.1       1.8       -0.4      1.35      1.0
 
-Assigning the fist state as the reference, we have the following profile:
+Assigning the first state as the reference that have a weight of 0, we have the following profile:
 
 ::
    
     Final g     0.0       2.1       3.9       3.5       4.85      5.85 
 
-Notably, a weighted average is typically preferred as it is less sensitive to poor estimates. (See
-the section of free energy calculations, where we use basically the same method as the one used here
-except that weighte average are calculated.) However, a weighted average requires the uncertainties 
-of the involved weight differences and calculating the uncertainties of the weight difference (which
-basically are estimates of free energy differences) is to computationally expensive, so we only calculate
-simple averages when combining the weights.
+In our implementation in :code:`ensemble_md` (or more specifically, the function :code:`combine_weights` in the class `ReplicaExchangeEE` in `replica_exchange_EE.py`),
+`inverse-variance weighted averages`_ can be used instead of simple averages used above, if uncertainties of the input weights are given.
+
+.. _`inverse-variance weighted averages`: https://en.wikipedia.org/wiki/Inverse-variance_weighting
 
 Step 3: Determine the vector of alchemical weights for each replica
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -561,7 +286,7 @@ the following vectors:
     Rep 2       X           0.0          1.8          1.4          2.75         X    
     Rep 3       X           X            0.0          -0.4         0.95         1.95
 
-Again, as a reference, here are the original weights:
+As a reference, here are the original weights:
 
 ::
 
@@ -573,23 +298,17 @@ Again, as a reference, here are the original weights:
 Notably, taking the simple average of weight differences/free energy differences is equivalent to
 taking the geometric average of the probability ratios.
 
-.. _doc_histogram: 
+5.2. Histogram correction
+-------------------------
+sss
 
-3.3. Histogram corrections
---------------------------
-In the weight-combining method shown above, we frequently exploted the relationship :math:`g(\lambda)=f(\lambda)=-\ln p(\lambda)`. 
-However, this relationship is true only when the histogram of state vistation is exactly flat, which rarely happens in reality. 
-To correct this deviation, we can convert the difference in the histogram counts into the difference in free energies. This is based 
-on the fact that the ratio of histogram counts is equal to the ratio of probabilities, whose natural
-logarithm is equal to the free energy difference of the states of interest. Specifically, we have:
 
-.. math::
-  g_k'=g_k + \ln\left(\frac{N_{k-1}}{N_k}\right)
+5.3. Our experience with the correction schemes
+-----------------------------------------------
+As discussed in our paper [Hsu2024]_, we found that the application of weight combination
+schemes lengthened the weight convergence time for a weight-updating REXEE simulation
+without necessarily converging to more accurate weights. Moreoever, combining weights using
+weighted averages
 
-where :math:`g_k'` is the corrected alchemical weight and :math:`N_{k-1}` and :math:`N_k` are the histogram 
-counts of states :math:`k-1` and :math:`k`. 
-
-Notably, this correction method can possibly overcorrect the weights when the histogram counts :math:`N_k` or :math:`N_{k-1}` are too low. 
-To deal with this, the user can choose to specify :code:`N_cutoff` in the input YAML file, so that the the histogram
-correction will performed only when :math:`\text{argmin}(N_k, N_{k-1})` is larger than the cutoff. Also, this histogram correction 
-should always be carried out before weight combination. This method is implemented in :obj:`.histogram_correction`.
+6. Free energy calculations
+===========================
