@@ -198,6 +198,8 @@ proposal schemes, as it potentially allows for more exchanges to occur within an
 
 |
 
+.. _doc_correction:
+
 5. Correction schemes
 =====================
 For weight-updating REXEE simulations, we experimented a few correction schemes that aim to improve the convergence of the alchemical weights.
@@ -325,7 +327,9 @@ reliable statistics we get from the overlapping states. In a limiting case where
 EE simulations sampling the same set of states, the way we take full advantage of all the samples collected
 in two simulations is to consider the histogram of both simulations and base the flatness criteria on the
 sum of the histograms from both simulations, in which case the weights should then equilibrate faster
-than a single weight-updating EE simulation. Click the example below to see a more detailed demonstration/derivation
+than a single weight-updating EE simulation. Notably, a cutoff in the histogram counts can be applied to make sure
+that the histogram correction is only applied if all states counts are above a certain threshold to avoid
+the correction being applied to states that are not well-sampled. Click the example below to see a more detailed demonstration/derivation
 of the histogram correction approach implemented in :code:`ensemble_md`.
 
 .. collapse:: An example of histogram correction

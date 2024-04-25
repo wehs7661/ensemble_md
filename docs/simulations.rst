@@ -109,9 +109,9 @@ Finally, here is the help message of :code:`analyze_REXEE`:
                               The maximum number of warnings in parameter specification to be
                               ignored. (Default: 0)
 
-2. Recommended workflow
+2. Implemented workflow
 =======================
-In this section, we introduce the workflow adopted by the CLI :code:`run_REXEE` that can be used to 
+In this section, we introduce the workflow implemented in the CLI :code:`run_REXEE` that can be used to 
 launch REXEE simulations. While this workflow is made as flexible as possible, interested users
 can use functions defined :class:`ReplicaExchangeEE` to develop their own workflow, or consider contributing
 to the source code of the CLI :code:`run_REXEE`. As an example, a hands-on tutorial that uses the CLI :code:`run_REXEE` can be found in 
@@ -146,69 +146,74 @@ other during the simulation ensemble. Check :ref:`doc_parameters` for more detai
 
 Step 2: Run the 1st iteration
 -----------------------------
-With all the input files/parameters set up in the previous run, one can use run the first iteration,
-using :obj:`.run_REXEE`, which uses :code:`subprocess.run` to launch GROMACS :code:`grompp`
-and :code:`mdrun` commands in parallel.
+After setting things up in the previous step, the CLI :code:`run_REXEE` uses the function :obj:`.run_REXEE` to run subprocess calls to
+launch GROMACS :code:`grompp` and :code:`mdrun` commands in parallel for the first iteration. 
 
 Step 3: Set up the new iteration
 --------------------------------
-In general, this step can be further divided into the following substeps.
+In the CLI :code:`run_REXEE`, this step can be further divided into the following substeps.
 
 Step 3-1: Extract the final status of the previous iteration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 To calculate the acceptance ratio and modify the mdp files in later steps, we first need to extract the information
 of the final status of the previous iteration. Specifically, for all the replica simulations, we need to
 
-* Find the last sampled state and the corresponding lambda values from the DHDL files
-* Find the final Wang-Landau incrementors and weights from the LOG files. 
+* Find the last sampled state and the corresponding lambda values from the DHDL files, which are necessary for both fixed-weight and weight-updating simulations.
+* Find the final Wang-Landau incrementors and weights from the LOG files, which are necessary for a weight-updating simulation.
 
 These two tasks are done by :obj:`.extract_final_dhdl_info` and :obj:`.extract_final_log_info`.
 
 .. _doc_swap_basics:
 
-Step 3-2: Identify swappable pairs and propose simulation swap(s)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-After the information of the final status of the previous iteration is extracted, we then identify swappable pairs.
-Specifically, replicas can be swapped only if the states to be swapped are present in both of the alchemical ranges 
-corresponding to the two replicas. This definition automatically implies one necessary but not sufficient condition that 
-the replicas to be swapped should have overlapping alchemical ranges. Practically, if the states to be swapped are 
-not present in both alchemical ranges, information like :math:`\Delta U^i=U^i_n-U^j_m` will not be available 
-in either DHDL files and terms like :math:`\Delta g^i=g^i_n-g^i_m` cannot be calculated from the LOG files as well, which 
-makes the calculation of the acceptance ratio technically impossible. After the swappable pairs are identified, 
-the user can propose swap(s) using :obj:`propose_swaps`. Swap(s) will be proposed given the specified proposal scheme (see
-more details about available proposal schemes in :ref:`doc_proposal`). 
-
-Step 3-3: Decide whether to reject/accept the swap(s)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-This step is mainly done by :obj:`.get_swapped_configs`, which calls functions :obj:`.calc_prob_acc` and :obj:`.accept_or_reject`. 
-The former calculates the acceptance ratio from the DHDL/LOG files of the swapping replicas, while the latter draws a random number 
-and compare with the acceptance ratio to decide whether the proposed swap should be accepted or not. If mutiple swaps are wanted,
-in :obj:`.get_swapped_configs`, the acceptance ratio of each swap will be evaluated so to decide whether the swap should be accepted
-or not. Based on this :obj:`get_swapped_configs` returns a list of indices that represents the final configurations after all the swaps. 
-
-Step 3-4: Combine the weights if needed
+Step 3-2: Identify the swapping pattern
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-For the states that are present in the alchemical ranges of multiple replicas, it is likely that they are 
-sampled more frequenly overall. To leverage the fact that we collect more statistics for these states, it is recoomended 
-that the weights of these states be combined across all replicas that sampled these states. This task can be completed by
-:obj:`combine_wieghts`, with the desired method specified in the input YAML file. For more details about different 
-methods for combining weights across different replicas, please refer to the section :ref:`doc_w_schemes`.
+Given the information of the final status of the previous simulation, the CLI :code:`run_REXEE` runs the function :obj:`.get_swapping_pattern` to figure out how the coordinates should be swapped between replicas.
+Specifically, the function does the following:
 
-Step 3-5: Modify the MDP files and swap out the GRO files (if needed)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-After the final configuration has been figured out by :obj:`get_swapped_configs` (and weights have bee combined by :obj:`combine_weights`
-when needed), the user should set up the input files for the next iteration. In principle, the new iteration should inherit the final
+- Identify swappable pairs using the function :obj:`.identify_swappable_pairs`. Notably, replicas can be
+  swapped only if the states to be swapped are present in both of the state sets
+  corresponding to the two replicas. This definition automatically implies one necessary but not sufficient condition that 
+  the replicas to be swapped should have overlapping state sets. Practically, if the states to be swapped are 
+  not present in both state sets, potential energy differences required for the calculation of :math:`\Delta`
+  will not be available, which makes the calculation of the acceptance ratio technically impossible.
+- Propose a swap using the function :obj:`.propose_swap`.
+- Calculates the acceptance ratio using :math:`\Delta u` values
+  obtained from the DHDL files using the function :obj:`.calc_prob_acc`.
+- Use the funciton :obj:`.accept_or_reject` to draw a random number and compare with the acceptance ratio
+  to decide whether the swap should be accepted or not. 
+- Propose and evaluate multiple swaps if needed (e.g., when the exhaustive exchange proposal scheme is used), and finally returns a list
+  that represents how the configurations should be swapped in the next iteration. 
+
+For more details, please refer to the API documentation of the involved functions.
+
+Step 3-3: Apply correction schemes if needed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+For a weight-updating REXEE simulation, correction schemes may be applied if specified. Specifically,
+the CLI :code:`run_REXEE` applies the weight combination scheme using the function :obj:`.combine_weights`
+and the histogram correction scheme using the function :obj:`.histogram_correction`.
+For more details about correction schemes, please refer to the section :ref:`doc_correction`.
+
+Step 3-4: Set up the input files for the next iteration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+After the final configuration has been figured out by :obj:`.get_swapping_pattern` (and the weights/counts have been adjusted by the specified correction schemes, if any),
+the CLI :code:`run_REXEE` sets up input files for the next iteration. In principle, the new iteration should inherit the final
 status of the previous iteration. 
 This means:
 
-* For each replica, the input configuration for initializing a new iterations should be the output configuraiton of the previous iteration. For example, if the final configurations are represented by :code:`[1, 2, 0, 3]` (returned by :obj:`.get_swapped_configs`), then in the next iteration, replica 0 should be initialized by the output configuration of replica 1 in the previous iteration, while replica 3 can just inherit the output configuration from previous iteration of the same replica. Notably, instead of exchanging the MDP files, we recommend swapping out the coordinate files to exchange replicas.
-* For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteartion of the same replica except that parameters like :code:`tinit`, :code:`init_lambda_state`, :code:`init_wl_delta`, and :code:`init_lambda_weights` should be modified to the final values in the previous iteration. This can be done by :class:`.gmx_parser.MDP` and :obj:`.update_MDP`.
+* For each replica, the input configuration for initializing a new iteration should be the output configuration of the previous iteration. For example,
+  if the final configurations are represented by :code:`[1, 2, 0, 3]` (returned by :obj:`.get_swapping_pattern`), then in the next iteration, replica 0
+  should be initialized by the output configuration of replica 1 in the previous iteration, while replica 3 can just inherit the output configuration from
+  previous iteration of the same replica. Notably, instead of exchanging the MDP files, the CLI :code:`run_REXEE` swaps out the coordinate files to exchange
+  replicas, which is equivalent to exchanging the MDP files.
+* For each replica, the MDP file for the new iteration should be the same as the one used in the previous iteration of the same replica except that parameters
+  like :code:`tinit`, :code:`init_lambda_state`, :code:`init_wl_delta`, and :code:`init_lambda_weights` should be modified to the final values in the previous
+  iteration. In the CLI :code:`run_REXEE`, this is done by :obj:`.update_MDP`.
 
 Step 4: Run the new iteration
 -----------------------------
 After the input files for a new iteration have been set up, we use the procedure in Step 2 to 
-run a new iteration. Then, the user should loop between Steps 3 and 4 until the desired number of 
-iterations (:code:`n_iterations`) is reached. 
+run a new iteration. Then, the CLI :code:`run_REXEE` loops between Steps 3 and 4 until the desired number of 
+iterations (:code:`n_iterations` specified in the input YAML file) is reached. 
 
 .. _doc_parameters:
 
@@ -262,7 +267,7 @@ include parameters for data analysis here.
         - Multiple functions can be defined in the module, but the function for coordinate manipulation must have the same name as the module itself.
         - The function must only have two compulsory arguments, which are the two GRO files to be modified. The function must not depend on the order of the input GRO files. 
         - The function must return :code:`None` (i.e., no return value). 
-        - The function must save the modified GRO file as :code:`confout.gro`. Specifically, if :code:`directory_A/output.gro` and :code:`directory_B/output.gro` are input, then :code:`directory_A/confout.gro` and :code:`directory_B/confout.gro` must be saved. (For more information, please visit `Tutorial 3: REXEE for multiple serial mutations`_.) Note that in the CLI :code:`run_REXEE`, :code:`confout.gro` generated by GROMACS will be automatically renamed with a :code:`_backup` suffix to prevent overwriting.
+        - The function must save the modified GRO file as :code:`confout.gro`. Specifically, if :code:`directory_A/output.gro` and :code:`directory_B/output.gro` are input, then :code:`directory_A/confout.gro` and :code:`directory_B/confout.gro` must be saved. (For more information, please visit `Tutorial 3: Multi-topology REXEE (MT-REXEE) simulations`_.) Note that in the CLI :code:`run_REXEE`, :code:`confout.gro` generated by GROMACS will be automatically renamed with a :code:`_backup` suffix to prevent overwriting.
 
 .. _`Tutorial 3: Multi-topology REXEE (MT-REXEE) simulations`: examples/run_REXEE_modify_inputs.ipynb
         
