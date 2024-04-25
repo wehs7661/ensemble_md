@@ -319,7 +319,16 @@ in the EE simulation sampling the :math:`k`-th state set. For a more detailed de
 
 |
 
-5.2. Histogram correction
+.. _doc_weight_correction:
+
+5.2. Weight correction
+----------------------
+In a weight-updating REXEE simulations
+
+
+.. _doc_hist_correction:
+
+5.3. Histogram correction
 -------------------------
 In our experiment, we have also tried applying histogram corrections upon weight combination across replicas to
 correct the effect that the targeting distribution is a function of time. The idea is to leverage the more
@@ -327,9 +336,7 @@ reliable statistics we get from the overlapping states. In a limiting case where
 EE simulations sampling the same set of states, the way we take full advantage of all the samples collected
 in two simulations is to consider the histogram of both simulations and base the flatness criteria on the
 sum of the histograms from both simulations, in which case the weights should then equilibrate faster
-than a single weight-updating EE simulation. Notably, a cutoff in the histogram counts can be applied to make sure
-that the histogram correction is only applied if all states counts are above a certain threshold to avoid
-the correction being applied to states that are not well-sampled. Click the example below to see a more detailed demonstration/derivation
+than a single weight-updating EE simulation. Click the example below to see a more detailed demonstration/derivation
 of the histogram correction approach implemented in :code:`ensemble_md`.
 
 .. collapse:: An example of histogram correction

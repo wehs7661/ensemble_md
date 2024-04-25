@@ -279,32 +279,36 @@ include parameters for data analysis here.
   - :code:`n_sim`: (Required)
       The number of replica simulations.
   - :code:`n_iter`: (Required)
-      The number of iterations. In a REXEE simulation, one iteration means one exchange attempt. Notably, this can be used to extend the REXEE simulation.
-      For example, if one finishes a REXEE simulation with 10 iterations (with :code:`n_iter=10`) and wants to continue the simulation from iteration 11 to 30,
-      setting :code:`n_iter` in the next execution of :code:`run_REXEE` should suffice.
+      The number of iterations. In a REXEE simulation, one iteration means one exchange interval, which can involve multiple proposed swaps
+      (if the exhaustive exchange proposal scheme is used). Note that when extending a simulation is desired and the necessary checkpoint files are provided,
+      this parameter takes into account the number of iterations that have already been performed. That is, if a simulation has already been performed for 100 iterations,
+      and one wants to extend it for 50 more iterations, then the value of this parameter should be 150.
   - :code:`s`: (Required)
-      The shift in the alchemical ranges between adjacent replicas (e.g. :math:`s = 2` if :math:`λ_2 = (2, 3, 4)` and :math:`λ_3 = (4, 5, 6)`.
+      The shift in the state sets between adjacent replicas. For example, if replica 1 samples states 0, 1, 2, 3 and replica 2 samples
+      states, 2, 3, 4, 5, then :code:`s = 2` should be specified.
   - :code:`nst_sim`: (Optional, Default: :code:`nsteps` in the template MDP file)
-      The number of simulation steps to carry out for one iteration, i.e. stpes between exchanges proposed between replicas. The value specified here will
-      overwrite the :code:`nsteps` parameter in the MDP file of each iteration. This option also assumes replicas with homogeneous simulation lengths.
+      The number of simulation steps to carry out for one iteration. The value specified here will
+      overwrite the :code:`nsteps` parameter in the MDP file of each iteration. Note that this option assumes replicas with homogeneous simulation lengths.
   - :code:`add_swappables`: (Optional, Default: :code:`None`)
       A list of lists that additionally consider states (in global indices) that can be swapped. For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that
       if a replica samples state 4, it can be swapped with another replica that samples state 5 and vice versa. The same logic applies to states 14 and 15. 
-      This could be useful for REXEE simulations for multiple serial mutations, where we enforce exchanges between states 4 and 5 (and 14 and 15) and perform
-      coordinate manipulation.
+      This could be useful for multi-topology REXEE (MT-REXEE) simulations, where we enforce the consideration of exchanges between states 4 and 5 (and 14 and 15) and perform
+      coordinate manipulation when necessary.
   - :code:`proposal`: (Optional, Default: :code:`exhaustive`)
       The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`neighboring`, and :code:`exhaustive`.
       For more details, please refer to :ref:`doc_proposal`.
   - :code:`w_combine`: (Optional, Default: :code:`False`)
-      Whether to perform weight combination or not. Note that weights averaged over from the last time the Wang-Landau incrementor was updated (instead of 
-      final weights) will be used for weight combination. For more details about weight combination, please refer to :ref:`doc_w_schemes`.
+      Whether to perform weight combination or not. Note that weights averaged over from the last updated of the Wang-Landau incrementor (instead of the
+      final weights) will be used for weight combination. For more details about, please refer to :ref:`doc_w_schemes`.
   - :code:`w_mean_type`: (Optional, Default: code:`simple`)
       The type of mean to use when combining weights. Available options include :code:`simple` and :code:`weighted`.
-      For the later case, inverse-variance weighted means are used. 
+      For the later case, inverse-variance weighted means are used. For more details about, please refer to :ref:`doc_w_schemes`.
   - :code:`N_cutoff`: (Optional, Default: 1000)
-      The histogram cutoff for weight corrections. -1 means that no histogram correction will be performed.
+      The histogram cutoff for weight corrections. A cutoff of 1000 means that weight corrections will be applied only if
+      the counts of the involved states are both larger than 1000. A value of -1 means that no histogram correction will be performed.
+      For more details, please please refer to :ref:`_doc_weight_correction`.
   - :code:`hist_corr` (Optional, Default: :code:`False`)
-      Whether to perform histogram correction. 
+      Whether to perform histogram correction. For more details, please refer to :ref:`_doc_hist_correction`.
   - :code:`mdp_args`: (Optional, Default: :code:`None`)
       MDP parameters differing across replicas provided in a dictionary. For each key in the dictionary, the value should
       always be a list of length of the number of replicas. For example, :code:`{'ref_p': [1.0, 1.01, 1.02, 1.03]}` means that the
