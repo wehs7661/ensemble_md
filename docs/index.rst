@@ -29,7 +29,7 @@ the future.
 .. toctree::
    examples/run_REXEE
    examples/analyze_REXEE
-   examples/run_REXEE_modify_inputs
+   examples/MT_REXEE
    :maxdepth: 2
    :caption: Tutorials:
 
