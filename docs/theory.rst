@@ -323,8 +323,17 @@ in the EE simulation sampling the :math:`k`-th state set. For a more detailed de
 
 5.2. Weight correction
 ----------------------
-In a weight-updating REXEE simulations
+In the weight combination method shown above, we frequently exploited the relationship :math:`g(\lambda)=f(\lambda)=-\ln p(\lambda)`.
+However, this relationship is true only when the histogram of state visitation is exactly flat, which rarely happens in reality.
+To correct this deviation, we can convert the difference in the histogram counts into the difference in free energies. This is based on the
+fact that the ratio of histogram counts is equal to the ratio of probabilities, whose natural logarithm is equal
+to the free energy difference of the states of interest. Specifically, we have:
 
+.. math:: :label: eq_11
+
+    g'_k = g_k + \ln\left(\frac{N_{k-1}}{N_k}\right)
+
+where :math:`g'_k` is the corrected alchemical weight of state :math:`k`, and :math:`N_{k-1}` and :math:`N_k` are the histogram counts of states :math:`k-1` and :math:`k`, respectively.
 
 .. _doc_hist_correction:
 
@@ -364,20 +373,20 @@ of the histogram correction approach implemented in :code:`ensemble_md`.
 
     During weight combination, for states 1 and 2, we calculate the following average weight difference:
 
-    .. math:: :label: eq_11
+    .. math:: :label: eq_12
       
       \Delta f'_{21}=\frac{1}{2}\left(\Delta f^{A}_{21} + \Delta f^{B}_{21}\right)=\frac{1}{2}\left(\ln\left(\frac{p^A_1}{p^A_2}\right) +\ln\left(\frac{p^B_1}{p^B_2}\right)\right)=\ln\left[\left(\frac{p^A_1 p^B_1}{p^A_2 p^B_2}\right)^{1/2}\right]
       
     Let :math:`\Delta f'_{21}=\ln\left(\frac{N_1'}{N_2'}\right)`. We then have 
 
-    .. math:: :label: eq_12
+    .. math:: :label: eq_13
 
       \frac{N_1'}{N_2'}=\left(\frac{p^A_1 p^B_1}{p^A_2 p^B_2}\right)^{1/2}
 
     In synchronous REXEE simulations, each replica should have the same total amount of counts, so the normalization constant for replicas A
     and B are the same, i.e., :math:`p^A_1 = N^A_1/N`, :math:`p^B_1 = N^B_1/N`, ... etc. Therefore, we have 
 
-    .. math:: :label: eq_13
+    .. math:: :label: eq_14
 
       \frac{N_1'}{N_2'}=\left(\frac{N^A_1 N^B_1}{N^A_2 N^B_2}\right)^{1/2}
 

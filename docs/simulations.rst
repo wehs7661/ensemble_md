@@ -226,7 +226,7 @@ include parameters for data analysis here.
 3.1. GROMACS executable
 -----------------------
 
-  - :code:`gmx_executable`: (Optional, Default: :code:`gmx_mpi`)
+  - :code:`gmx_executable`: (Optional, Default: :code:`'gmx_mpi'`)
       The GROMACS executable to be used to run the REXEE simulation. The value could be as simple as :code:`gmx`
       or :code:`gmx_mpi` if the exeutable has been sourced. Otherwise, the full path of the executable (e.g.,
       :code:`/usr/local/gromacs/bin/gmx`, the path returned by the command :code:`which gmx`) should be used.
@@ -294,46 +294,45 @@ include parameters for data analysis here.
       if a replica samples state 4, it can be swapped with another replica that samples state 5 and vice versa. The same logic applies to states 14 and 15. 
       This could be useful for multi-topology REXEE (MT-REXEE) simulations, where we enforce the consideration of exchanges between states 4 and 5 (and 14 and 15) and perform
       coordinate manipulation when necessary.
-  - :code:`proposal`: (Optional, Default: :code:`exhaustive`)
+  - :code:`proposal`: (Optional, Default: :code:`'exhaustive'`)
       The method for proposing simulations to be swapped. Available options include :code:`single`, :code:`neighboring`, and :code:`exhaustive`.
       For more details, please refer to :ref:`doc_proposal`.
   - :code:`w_combine`: (Optional, Default: :code:`False`)
       Whether to perform weight combination or not. Note that weights averaged over from the last updated of the Wang-Landau incrementor (instead of the
       final weights) will be used for weight combination. For more details about, please refer to :ref:`doc_w_schemes`.
-  - :code:`w_mean_type`: (Optional, Default: code:`simple`)
+  - :code:`w_mean_type`: (Optional, Default: :code:`'simple'`)
       The type of mean to use when combining weights. Available options include :code:`simple` and :code:`weighted`.
       For the later case, inverse-variance weighted means are used. For more details about, please refer to :ref:`doc_w_schemes`.
   - :code:`N_cutoff`: (Optional, Default: 1000)
       The histogram cutoff for weight corrections. A cutoff of 1000 means that weight corrections will be applied only if
-      the counts of the involved states are both larger than 1000. A value of -1 means that no histogram correction will be performed.
-      For more details, please please refer to :ref:`_doc_weight_correction`.
+      the counts of the involved states are both larger than 1000. A value of -1 means that no weight correction will be performed.
+      For more details, please please refer to :ref:`doc_weight_correction`.
   - :code:`hist_corr` (Optional, Default: :code:`False`)
-      Whether to perform histogram correction. For more details, please refer to :ref:`_doc_hist_correction`.
+      Whether to perform histogram correction. For more details, please refer to :ref:`doc_hist_correction`.
   - :code:`mdp_args`: (Optional, Default: :code:`None`)
-      MDP parameters differing across replicas provided in a dictionary. For each key in the dictionary, the value should
+      A dictionary that contains MDP parameters differing across replicas. For each key in the dictionary, the value should
       always be a list of length of the number of replicas. For example, :code:`{'ref_p': [1.0, 1.01, 1.02, 1.03]}` means that the
       MDP parameter :code:`ref_p` will be set as 1.0 bar, 1.01 bar, 1.02 bar, and 1.03 bar for replicas 0, 1, 2, and 3, respectively.
       Note that while this feature allows high flexibility in parameter specification, not all parameters are suitable to be
-      varied across replicas. For example, varying :code:`nsteps` across replicas for synchronous REXEE simulations does not make sense. 
-      Additionally, this feature is a work in progress and differing :code:`ref_t` or :code:`dt` across replicas might cause issues. 
+      varied across replicas. Users should use this parameter with caution, as there is no check for the validity of the MDP parameters.
+      Additionally, this feature is a work in progress and differing :code:`ref_t` or :code:`dt` across replicas would not work. 
   - :code:`grompp_args`: (Optional: Default: :code:`None`)
-      Additional arguments to be appended to the GROMACS :code:`grompp` command provided in a dictionary.
+      A dictionary that contains additional arguments to be appended to the GROMACS :code:`grompp` command. 
       For example, one could have :code:`{'-maxwarn', '1'}` to specify the :code:`maxwarn` argument for the :code:`grompp` command.
   - :code:`runtime_args`: (Optional, Default: :code:`None`)
-      Additional runtime arguments to be appended to the GROMACS :code:`mdrun` command provided in a dictionary. 
+      A dictionary that contains additional runtime arguments to be appended to the GROMACS :code:`mdrun` command.
       For example, one could have :code:`{'-nt': 16}` to run the simulation using tMPI-enabled GROMACS with 16 threads.
-      Notably, if MPI-enabled GROMACS is used, one should specify :code:`-np` to better use the resources. If it is
-      not specified, the default will be the number of simulations and a warning will occur.
 
 3.4. Output settings
 --------------------
   - :code:`verbose`: (Optional, Default: :code:`True`)
-      Whether a verbse log is wanted. 
+      Whether a verbse log file is desired. 
   - :code:`n_ckpt`: (Optional, Default: 100)
-      The frequency for checkpointing in the number of iterations.
+      The number of iterations between each checkpoint. Specifically, the CLI :code:`run_REXEE` will save the replica-space trajectories
+      and the timeseries of the whole-range alchemical weights (in a weight-updating simulation) every :code:`n_ckpt` iterations. This is useful for extending a simulation.
   - :code:`rm_cpt`: (Optional, Default: :code:`True`)
       Whether the GROMACS checkpoint file (:code:`state.cpt`) from each iteration should be deleted.
-      Normally we don't need CPT files for REXEE simulations (even for extension) so we recommend just
+      Normally we don't need GROMACS CPT files for REXEE simulations (even for extension) so we recommend just
       deleting the CPT files (which could save a lot of space if you perform a huge number of iterations).
       If you wish to keep them, specify this parameter as :code:`False`.
   
@@ -344,35 +343,32 @@ include parameters for data analysis here.
   - :code:`msm`: (Optional, Default: :code:`False`)
       Whether to build Markov state models (MSMs) for the REXEE simulation and perform relevant analysis.
   - :code:`free_energy`: (Optional, Default: :code:`False`)
-      Whether to perform free energy calculations in data analysis or not. Note that free energy calculations 
-      could be computationally expensive depending on the relevant settings.
+      Whether to perform free energy calculations or not.
   - :code:`subsampling_avg`: (Optional, Default: :code:`False`)
       Whether to take the arithmetic average of the truncation fractions and the geometric average of the
       statistical inefficiencies over replicas when subsampling data for free energy calculations. For systems
       where the sampling is challenging, the truncation fraction or statistical inefficiency may vary largely
-      across alchemical ranges, in which case this option could be useful.
+      across state sets, in which case this option could be useful.
   - :code:`df_spacing`: (Optional, Default: 1)
-      The step to used in subsampling the DHDL data in free energy calculations.
+      The spacing (in the number of data points) to consider when subsampling the data, which is assumed to
+      be the same for all replicas.
   - :code:`df_ref`: (Optional, Default: :code:`None`)
-      The reference free energy profile for the whole range of states input as a list having the length of the number of states.
-  - :code:`df_method`: (Optional, Default: :code:`MBAR`)
-      The free energy estimator to use in free energy calcuulation. Available options include :code:`TI`, :code:`BAR`, and :code:`MBAR`.
-  - :code:`err_method`: (Optional, Default: :code:`propagate`)
+      The reference free energy profile for the whole range of states. The input should be a list having the length of the total number of states.
+  - :code:`df_method`: (Optional, Default: :code:`'MBAR'`)
+      The free energy estimator to use in free energy calculations. Available options include :code:`'TI'`, :code:`'BAR'`, and :code:`'MBAR'`.
+  - :code:`err_method`: (Optional, Default: :code:`'propagate'`)
       The method for estimating the uncertainty of the free energy combined across multiple replicas. 
-      Available options include :code:`propagate` and :code:`bootstrap`. The boostrapping method is more accurate but much more 
+      Available options include :code:`'propagate'` and :code:`'bootstrap'`. The boostrapping method is more accurate but much more 
       computationally expensive than simple error propagation.
   - :code:`n_bootstrap`: (Optional, Default: 50)
-      The number of bootstrap iterations to perform when estimating the uncertainties of the free energy differences between 
-      overlapping states.
-  - :code:`seed`: (Optional, Default: None)
+      The number of bootstrap iterations to perform when estimating the uncertainties of the free energy differences.
+  - :code:`seed`: (Optional, Default: :code:`None`)
       The random seed to use in bootstrapping.
 
 3.6. A template input YAML file
 -------------------------------
 For convenience, here is a template of the input YAML file, with each optional parameter specified with the default and required 
-parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e. :code:`None`).
-Note that the default value :code:`None` for the parameter :code:`rmse_cutoff` will be converted to
-infinity internally.
+parameters left with a blank. Note that specifying :code:`null` is the same as leaving the parameter unspecified (i.e., :code:`None`).
 
 .. code-block:: yaml
 
@@ -403,15 +399,16 @@ infinity internally.
     # Section 4: Output settings
     verbose: True
     n_ckpt: 100
-    rm_cpt: False
+    rm_cpt: True
 
     # Section 5: Data analysis
     msm: False
     free_energy: False 
+    subsampling_avg: False
     df_spacing: 1
     df_ref: null
-    df_method: "MBAR"
-    err_method: "propagate"
+    df_method: 'MBAR'
+    err_method: 'propagate'
     n_bootstrap: 50
     seed : null
 
