@@ -36,13 +36,13 @@ def initialize(args):
                         type=str,
                         default='rep_trajs.npy',
                         help='The file path of the NPY file containing the replica-space trajectories. This file is a \
-                            necessary checkpoint file for extending the simulaiton. (Default: rep_trajs.npy)')
+                            necessary checkpoint file for extending the simulation. (Default: rep_trajs.npy)')
     parser.add_argument('-g',
                         '--g_vecs',
                         type=str,
                         default='g_vecs.npy',
-                        help='The file path of the NPY file containing the timeseries of the whole-range\
-                            alchemical weights. This file is a necessary input if ones wants to update the \
+                        help='The file path of the NPY file containing the time series of the whole-range\
+                            alchemical weights. This file is a necessary input if one wants to update the \
                             file when extending a weight-updating simulation. (Default: g_vecs.npy)')
     parser.add_argument('-o',
                         '--output',

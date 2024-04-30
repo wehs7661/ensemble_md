@@ -1,7 +1,3 @@
-.. note:: This page is still a work in progress. Please check `Issue 41`_ for the current progress.
-
-.. _`Issue 41`: https://github.com/wehs7661/ensemble_md/issues/41
-
 .. _doc_basic_idea:
 
 1. Basic idea
@@ -10,26 +6,26 @@ Replica exchange of expanded ensembles (REXEE) [Hsu2024]_ integrates the core pr
 and expanded ensemble (EE) methods.  Specifically, a REXEE simulation performs multiple
 replicas of EE simulations in parallel and periodically exchanges coordinates
 between replicas. Each replica samples a different but overlapping set of alchemical 
-intermediate states to collectively sample the space bwteen the fully coupled (:math:`\lambda=0`)
+intermediate states to collectively sample the space between the fully coupled (:math:`\lambda=0`)
 and decoupled states (:math:`\lambda=1`). By design, the REXEE method decorrelates
 the number of replicas from the number of states, enhancing the flexibility in replica configuration and 
 allowing a large number of intermediate states to be sampled with significantly fewer replicas than those
-required in the Hamiltonian replica exchange (HREX). By parallelizing replicas, the REXEE method also reduces
+required in the Hamiltonian replica exchange (HREX) method. By parallelizing replicas, the REXEE method also reduces
 the simulation wall time compared to the EE method. More importantly, such parallelism sets the
 stage for more complicated applications, especially one-shot free energy calculations that involve multiple
 topologies, such as serial mutations or scaffold-hopping transformations.
 
 In the following sections, we will briefly cover the theory behind the REXEE method, from its configuration, state
-transitions, proposal schemes, weight combination schemes, to data analysis. For more details, please refer to the
+transitions, proposal schemes, weight combination schemes, to data analysis. For more details, please refer to our
 paper [Hsu2024]_.
 
 .. figure:: _static/REXEE_illustration.png
-   :name: Figure 1
+   :name: Fig. 1
    :width: 800
    :align: center
    :figclass: align-center
 
-   **Figure 1.** Schematic representation of the REXEE method, with the four configurational parameters annoated. In a REXEE simulation, the coordinates of replicas
+   **Figure 1.** Schematic representation of the REXEE method, with the four configurational parameters annotated. In a REXEE simulation, the coordinates of replicas
    of EE simulations are periodically exchanged. :math:`{\bf A}_1`, :math:`{\bf A}_2`, :math:`{\bf A}_3`, and :math:`{\bf A}_4`
    denote the sets of states different replicas are sampling.
 
@@ -43,21 +39,21 @@ as the index of the state currently sampled by the :math:`i`-th replica. For a r
 :math:`s_i` is additionally constrained such that :math:`s_i \in {\bf A}_m`. Importantly, the fact that :math:`s_i` takes values
 in :math:`\{1, 2, ..., N\}` and :math:`N>R` implies a many-to-one relationship between the replica index :math:`i` and the state index
 :math:`s_i`, as a certain state may be sampled by multiple replicas. This is in contrast to the one-to-one relationship between the replica
-index :math:`i` and the state set index :math:`m`, which ensures that each replica is associated with one and unique state set.
+index :math:`i` and the state set index :math:`m`, which ensures that each replica is associated with one unique state set.
 
-We emphasize that a valid REXEE configuration only requires overlapping state sets and is not restricted to one-dimensional grids,
-the same number of states for all replicas, nor sequential state indices within the same state sets. For example, Figure 2 shows cases where
+Importantly, a valid REXEE configuration only requires overlapping state sets and is not restricted to one-dimensional grids,
+the same number of states for all replicas, nor sequential state indices within the same state sets. For example, `Fig. 2`_ shows cases where
 intermediate states are characterized by more than one thermodynamic variable (panels A and B), where different state sets
-have different number of states (panels C), and where the state indices are not consecutive within the same state sets (panels A and C).
+have different numbers of states (panels C), and where the state indices are not consecutive within the same state sets (panels A and C).
 Still, the most common case is where the intermediate states are defined in a one-dimensional space, with consecutive state indices within
-the same state set (e.g., the case in `Figure 1`_). In a REXEE simulation with such a configuration, a state shift :math:`\phi` between adjacent
+the same state set (e.g., the case in `Fig. 1`_). In a REXEE simulation with such a configuration, a state shift :math:`\phi` between adjacent
 state sets can be defined to indicate to what extent the set of states has shifted along the alchemical coordinate. Depending on whether all replicas
 have the same number of states and whether or not the state shift is consistent between all adjacent state sets, a REXEE simulation can be either
-homogeneous or heterogenous. Currently, :code:`ensemble_md` has only implemented the homogeneous REXEE method with one-dimensional alchemical intermediate
+homogeneous or heterogeneous. Currently, :code:`ensemble_md` has only implemented the homogeneous REXEE method with one-dimensional alchemical intermediate
 states defined sequentially in each state set.
 
 .. figure:: _static/REXEE_more_configs.png
-   :name: Figure 2
+   :name: Fig. 2
    :width: 800
    :align: center
    :figclass: align-center
@@ -66,7 +62,7 @@ states defined sequentially in each state set.
    and characterized by different Hamiltonians and/or temperatures. Different state sets are represented as dashed lines in different colors.
    Note that the temperature :math:`T` and Hamiltonian :math:`H` can be replaced by other physical variables of interest, such as pressure or chemical potential.
 
-As shown in `Figure 1`_, a homogeneous REXEE simulation that samples sequential one-dimensional states can be configured by the following four parameters:
+As shown in `Fig. 1`_, a homogeneous REXEE simulation that samples sequential one-dimensional states can be configured by the following four parameters:
 
   - :math:`N`: The total number of intermediate states
   - :math:`R`: The total number of replicas
@@ -78,8 +74,8 @@ These four configurational parameters are related via the following relationship
 .. math:: N = n_s + (R-1)\phi
    :label: eq_1
 
-For example, the configuration of the REXEE simulation shown in `Figure 1`_ can be expressed as :math:`(N, R, n_s, \phi) = (9, 4, 6, 1)`. Importantly, the total
-number of states :math:`N` does not have to be equal to the number of replicas :math:`R` in the REXEE method. In fact it is shown in the Supporting Information of
+For example, the configuration of the REXEE simulation shown in `Fig. 1`_ can be expressed as :math:`(N, R, n_s, \phi) = (9, 4, 6, 1)`. Importantly, the total
+number of states :math:`N` does not have to be equal to the number of replicas :math:`R` in the REXEE method. In fact, it is shown in the Supporting Information of
 our paper [Hsu2024]_ that for a REXEE simulation simulation sampling any number of replicas, there exists at least one valid REXEE
 configuration, allowing much higher flexibility in replica configuration compared to traditional replica exchange methods -- once the number of replicas
 is decided, typically as a factor of the number of available cores, the total number of states can be arbitrary. In our Supporting Information, 
@@ -90,7 +86,7 @@ this enumeration is implemented in the command line interface (CLI) command :cod
 =========================================
 In a REXEE simulation, state transitions occur at both the intra-replica and inter-replica levels. Within each replica of expanded ensemble simulation,
 transitions between alchemical states within the state set and the detailed balance conditions are governed by the selected algorithm in the expanded ensemble simulation
-(i.e., the value of the GROMACS MDP parameter :code:`lmc-stats-move` in our implementation). Still, to ensure that probability influx and outflux are equal for each sets of states,
+(i.e., the value of the GROMACS MDP parameter :code:`lmc-stats-move` in our implementation). Still, to ensure that probability influx and outflux are equal for each set of states,
 the detailed balance condition at the intra-replica level must be satisfied.
 
 Mathematically, we consider replicas :math:`i` and :math:`j` that sample the state sets :math:`{\bf A}_m` and :math:`{\bf A}_n`, respectively. To swap replicas :math:`i`
@@ -202,7 +198,7 @@ proposal schemes, as it potentially allows for more exchanges to occur within an
 
 5. Correction schemes
 =====================
-For weight-updating REXEE simulations, we experimented a few correction schemes that aim to improve the convergence of the alchemical weights.
+For weight-updating REXEE simulations, we experimented with a few correction schemes that aim to improve the convergence of the alchemical weights.
 These correction schemes include weight combination and histogram correction schemes, which can be enabled by setting
 :code:`w_combine: True` and :code:`hist_corr: True` in the input YAML file, respectively. While there has not been evidence showing that these correction schemes could improve the
 weight convergence in REXEE simulations (as discussed in our paper [Hsu2024]_), we still provide these options for users to experiment with.
@@ -236,7 +232,7 @@ with its propagated error being
     \delta_{(s, s+1)}  = \sqrt{\left(\sum_{k\in\mathcal{Q}_{(s, s+1)}}\left(\sigma^k_{(s, s+1)}\right)^{-2}\right)^{-1}}\label{w_combine_err}
 
 where :math:`\sigma^k_{(s, s+1)}` is the standard deviation calculated from the time series of :math:`\Delta g^{k}_{(s, s+1)}` since the last update of the Wang-Landau incrementor
-in the EE simulation sampling the :math:`k`-th state set. For a more detailed demonstration of weight combination, please refer to the example below.
+in the EE simulation sampling the :math:`k`-th state set. For a more detailed demonstration of weight combinations, please refer to the example below.
 
 ..  collapse:: An example of weight combination
 
@@ -257,12 +253,12 @@ in the EE simulation sampling the :math:`k`-th state set. For a more detailed de
     * For states 2 and 3, combine the weights across all three replicas.
     * For state 4, combine the weights across replicas 1 and 2. 
 
-    That is, we combine weights arcoss all replicas that sample the state of interest regardless 
+    That is, we combine weights arcoss all replicas that sample the state of interest regardless of
     which replicas are swapping. The outcome of the whole process should be three vectors of modified 
     alchemical weights, one for each replica, that should be specified in the MDP files for the next iteration. 
-    Below we elaborate the details of each step carried out by our method implemented in :code:`ensemble_md`.
+    Below we elaborate on the details of each step carried out by our method implemented in :code:`ensemble_md`.
 
-    First, we calculate the weight differences as shown below, which can be regarded rough estimates 
+    First, we calculate the weight differences as shown below, which can be regarded as rough estimates 
     of free energy differences between the adjacent states.
 
     ::
@@ -282,7 +278,7 @@ in the EE simulation sampling the :math:`k`-th state set. For a more detailed de
         States      (0, 1)    (1, 2)    (2, 3)    (3, 4)    (4, 5)    
         Final       2.1       1.8       -0.4      1.35      1.0
 
-    Assigning the first state as the reference that have a weight of 0, we have the following profile:
+    Assigning the first state as the reference that has a weight of 0, we have the following profile:
 
     ::
       

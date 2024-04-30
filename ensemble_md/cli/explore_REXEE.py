@@ -19,7 +19,7 @@ def initialize(args):
     parser = argparse.ArgumentParser(
         description='This CLI explores the parameter space of a homogenous REXEE simulation to help you figure \
                 out all possible combinations of the number of replicas, the number of \
-                states in each replica, and the number of overlapping states, given the total number states.')
+                states in each replica, and the number of overlapping states, given the total number of states.')
     parser.add_argument('-N',
                         '--N',
                         required=True,
@@ -32,7 +32,7 @@ def initialize(args):
     parser.add_argument('-n',
                         '--n',
                         type=int,
-                        help='The number of states per each replica.')
+                        help='The number of states per replica.')
     parser.add_argument('-s',
                         '--s',
                         type=int,
