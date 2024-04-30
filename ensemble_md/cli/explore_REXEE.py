@@ -17,9 +17,9 @@ from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
 
 def initialize(args):
     parser = argparse.ArgumentParser(
-        description='This code explores the parameter space of homogenous REXEE to help you figure \
+        description='This CLI explores the parameter space of a homogenous REXEE simulation to help you figure \
                 out all possible combinations of the number of replicas, the number of \
-                states in each replica, and the number of overlapping states, and the total number states.')
+                states in each replica, and the number of overlapping states, given the total number of states.')
     parser.add_argument('-N',
                         '--N',
                         required=True,
@@ -32,7 +32,7 @@ def initialize(args):
     parser.add_argument('-n',
                         '--n',
                         type=int,
-                        help='The number of states for each replica.')
+                        help='The number of states per replica.')
     parser.add_argument('-s',
                         '--s',
                         type=int,
@@ -41,14 +41,14 @@ def initialize(args):
                         '--cnst',
                         default=False,
                         action='store_true',
-                        help='Whether the apply the constraint such that the number of overlapping states \
-                            does not exceed 50%% of the number of states in both overlapping replicas.')
+                        help='Whether to apply the constraint such that the number of overlapping states \
+                            does not exceed 50%% of the number of states in adjacent replicas. (Default: False)')
     parser.add_argument('-e',
                         '--estimate',
                         default=False,
                         action='store_true',
                         help='Whether to provide estimates of the chance of not having any swappable \
-                            pairs for each solution.')
+                            pairs for each solution. (Default: False)')
     args_parse = parser.parse_args(args)
 
     return args_parse

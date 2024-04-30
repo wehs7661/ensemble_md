@@ -52,6 +52,8 @@ extensions = [
     'sphinx.ext.extlinks',
     'sphinx.ext.todo',
     'nbsphinx',
+    'sphinx_collapse',
+    # 'sphinxcontrib.pseudocode',
 ]
 
 autosummary_generate = True
@@ -105,6 +107,8 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+html_css_files = ['css/custom.css']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -192,3 +196,5 @@ intersphinx_mapping = {
     'pymbar': ('https://pymbar.readthedocs.io/en/latest/', None),
     'alchemlyb': ('https://alchemlyb.readthedocs.io/en/latest/', None),
 }
+
+numfig = True  # necessary for the algorithm to show (see https://github.com/xxks-kkk/sphinxcontrib-pseudocode/issues/18)

@@ -11,4 +11,6 @@ seaborn
 matplotlib
 pyemma
 pymbar==4.0.1
-
+sphinx-collapse
+ruptures
+# sphinxcontrib-pseudocode

@@ -35,47 +35,48 @@ from ensemble_md.utils.exceptions import ParameterError  # noqa: E402
 
 def initialize(args):
     parser = argparse.ArgumentParser(
-        description='This code analyzes a REXEE simulation. Note that the template MDP\
-                file specified in the YAML file needs to be available in the working directory.')
+        description='This CLI analyzes a REXEE simulation.')
     parser.add_argument('-y',
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The input YAML file used to run the REXEE simulation. (Default: params.yaml)')
+                        help='The file path of the input YAML file used to run the REXEE simulation. \
+                            (Default: params.yaml)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
                         default='analyze_REXEE_log.txt',
-                        help='The output log file that contains the analysis results of REXEE. \
+                        help='The file path of the output log file that contains the analysis results of REXEE. \
                             (Default: analyze_REXEE_log.txt)')
     parser.add_argument('-rt',
                         '--rep_trajs',
                         type=str,
                         default='rep_trajs.npy',
-                        help='The NPY file containing the replica-space trajectory. (Default: rep_trajs.npy)')
+                        help='The file path of the NPY file containing the replica-space trajectory. \
+                            (Default: rep_trajs.npy)')
     parser.add_argument('-st',
                         '--state_trajs',
                         type=str,
                         default='state_trajs.npy',
-                        help='The NPY file containing the stitched state-space trajectory. \
+                        help='The file path of the NPY file containing the stitched state-space trajectory. \
                             If the specified file is not found, the code will try to find all the trajectories and \
                             stitch them. (Default: state_trajs.npy)')
     parser.add_argument('-sts',
                         '--state_trajs_for_sim',
                         type=str,
                         default='state_trajs_for_sim.npy',
-                        help='The NPY file containing the stitched state-space time series for different alchemical\
-                             ranges. If the specified file is not found, the code will try to find all the \
-                             time series and stitch them. (Default: state_trajs.npy)')
+                        help='The file path of the NPY file containing the stitched state-space time series for \
+                             different state sets. If the specified file is not found, the code will try to find \
+                             all the time series and stitch them. (Default: state_trajs.npy)')
     parser.add_argument('-d',
                         '--dir',
                         default='analysis',
-                        help='The name of the folder for storing the analysis results.')
+                        help='The path of the folder for storing the analysis results. (Default: analysis)')
     parser.add_argument('-m',
                         '--maxwarn',
                         type=int,
                         default=0,
-                        help='The maximum number of warnings in parameter specification to be ignored.')
+                        help='The maximum number of warnings in parameter specification to be ignored. (Default: 0)')
     args_parse = parser.parse_args(args)
 
     return args_parse

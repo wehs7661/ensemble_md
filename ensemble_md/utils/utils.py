@@ -28,7 +28,7 @@ class Logger:
     Parameters
     ----------
     logfile : str
-        The file path to which the standard output and standard error should be logged.
+        The file path of which the standard output and standard error should be logged.
 
     Attributes
     ----------

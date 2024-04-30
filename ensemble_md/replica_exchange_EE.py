@@ -621,7 +621,7 @@ class ReplicaExchangeEE:
         Parameters
         ----------
         pullx_file : str, Optional
-            The path to the pullx file whose initial value will be used as the reference distance.
+            The path of the pullx file whose initial value will be used as the reference distance.
             Usually, this should be the path of the pullx file of the first iteration. The default
             is :code:`sim_0/iteration_0/pullx.xvg`.
         """

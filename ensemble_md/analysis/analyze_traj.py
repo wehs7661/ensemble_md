@@ -29,7 +29,7 @@ def extract_state_traj(dhdl):
     Parameters
     ----------
     dhdl : str
-        The file path to the GROMACS DHDL file to be parsed.
+        The file path of the GROMACS DHDL file to be parsed.
 
     Returns
     -------
@@ -230,7 +230,7 @@ def stitch_xtc_trajs(gmx_executable, files, rep_trajs):
     Parameters
     ----------
     gmx_executable : str
-        The path to the GROMACS executable.
+        The path of the GROMACS executable.
     files : list
         A list of lists of file paths to GROMACS XTC files. Specifically, :code:`files[i]` should be a list containing
         the paths to the files of interest from all iterations in replica :code:`i`. The files should be sorted
@@ -1260,7 +1260,7 @@ def get_delta_w_updates(log_file, plot=False):
     Parameters
     ----------
     log_file : str
-        The file path to the LOG file.
+        The file path of the LOG file.
     plot : bool, Optional
         Whether to plot the Wang-Landau incrementor as a function of time.
         The default is :code:`False`.

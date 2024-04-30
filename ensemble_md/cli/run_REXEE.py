@@ -24,36 +24,37 @@ from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
 
 def initialize(args):
     parser = argparse.ArgumentParser(
-        description='This code runs a REXEE simulation given necessary inputs.')
+        description='This CLI runs a REXEE simulation given necessary inputs.')
     parser.add_argument('-y',
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The input YAML file that contains REXEE parameters. (Default: params.yaml)')
+                        help='The file path of the input YAML file that contains REXEE parameters. \
+                            (Default: params.yaml)')
     parser.add_argument('-c',
                         '--ckpt',
                         type=str,
                         default='rep_trajs.npy',
-                        help='The NPY file containing the replica-space trajectories. This file is a \
-                            necessary checkpoint file for extending the simulaiton. (Default: rep_trajs.npy)')
+                        help='The file path of the NPY file containing the replica-space trajectories. This file is a \
+                            necessary checkpoint file for extending the simulation. (Default: rep_trajs.npy)')
     parser.add_argument('-g',
                         '--g_vecs',
                         type=str,
                         default='g_vecs.npy',
-                        help='The NPY file containing the timeseries of the whole-range alchemical weights. \
-                            This file is a necessary input if ones wants to update the file when extending \
-                            the simulation. (Default: g_vecs.npy)')
+                        help='The file path of the NPY file containing the time series of the whole-range\
+                            alchemical weights. This file is a necessary input if one wants to update the \
+                            file when extending a weight-updating simulation. (Default: g_vecs.npy)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
                         default='run_REXEE_log.txt',
-                        help='The output file for logging how replicas interact with each other. \
+                        help='The file path of the output file for logging how replicas interact with each other. \
                             (Default: run_REXEE_log.txt)')
     parser.add_argument('-m',
                         '--maxwarn',
                         type=int,
                         default=0,
-                        help='The maximum number of warnings in parameter specification to be ignored.')
+                        help='The maximum number of warnings in parameter specification to be ignored. (Default: 0)')
     args_parse = parser.parse_args(args)
 
     return args_parse

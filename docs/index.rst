@@ -25,11 +25,6 @@ the future.
    simulations
    :maxdepth: 2
    :caption: Launching REXEE simulations:
-
-.. toctree::
-   analysis
-   :maxdepth: 2
-   :caption: Data analysis:
    
 .. toctree::
    examples/run_REXEE
@@ -39,11 +34,16 @@ the future.
    :caption: Tutorials:
 
 .. toctree::
-   api/api_ensemble_EXE
+   api/api_replica_exchange_EE.rst
    api/api_analysis
    api/api_utils
    :maxdepth: 2
    :caption: API documentation:
+
+.. toctree::
+   references
+   :maxdepth: 1
+   :caption: References:
 
 Others
 ======
