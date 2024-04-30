@@ -40,7 +40,8 @@ def initialize(args):
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The file path of the input YAML file used to run the REXEE simulation. (Default: params.yaml)')
+                        help='The file path of the input YAML file used to run the REXEE simulation. \
+                            (Default: params.yaml)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
@@ -51,7 +52,8 @@ def initialize(args):
                         '--rep_trajs',
                         type=str,
                         default='rep_trajs.npy',
-                        help='The file path of the NPY file containing the replica-space trajectory. (Default: rep_trajs.npy)')
+                        help='The file path of the NPY file containing the replica-space trajectory. \
+                            (Default: rep_trajs.npy)')
     parser.add_argument('-st',
                         '--state_trajs',
                         type=str,
@@ -63,9 +65,9 @@ def initialize(args):
                         '--state_trajs_for_sim',
                         type=str,
                         default='state_trajs_for_sim.npy',
-                        help='The file path of the NPY file containing the stitched state-space time series for different state\
-                             sets. If the specified file is not found, the code will try to find all the \
-                             time series and stitch them. (Default: state_trajs.npy)')
+                        help='The file path of the NPY file containing the stitched state-space time series for \
+                             different state sets. If the specified file is not found, the code will try to find \
+                             all the time series and stitch them. (Default: state_trajs.npy)')
     parser.add_argument('-d',
                         '--dir',
                         default='analysis',

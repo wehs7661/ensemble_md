@@ -287,7 +287,7 @@ include parameters for data analysis here.
       The shift in the state sets between adjacent replicas. For example, if replica 1 samples states 0, 1, 2, 3 and replica 2 samples
       states, 2, 3, 4, 5, then :code:`s = 2` should be specified.
   - :code:`nst_sim`: (Optional, Default: :code:`nsteps` in the template MDP file)
-      The number of simulation steps to carry out for one iteration. The value specified here will
+      The exchange period, i.e., the number of simulation steps to carry out for one iteration. The value specified here will
       overwrite the :code:`nsteps` parameter in the MDP file of each iteration. Note that this option assumes replicas with homogeneous simulation lengths.
   - :code:`add_swappables`: (Optional, Default: :code:`None`)
       A list of lists that additionally consider states (in global indices) that can be swapped. For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that
@@ -416,13 +416,13 @@ parameters left with a blank. Note that specifying :code:`null` is the same as l
 
 4. Input MDP parameters
 =======================
-As mentioned above, a template MDP file should have all the parameters that will be shared
+As mentioned above, a template MDP file should have all the parameters commonly shared
 across all replicas. It should also define the coupling parameters for the whole range of
 states so that different MDP files can be customized for different replicas. For a REXEE simulation
 launched by the CLI :code:`run_REXEE`, any GROMACS MDP parameter that could potentially lead to issues
 in the REXEE simulation will raise a warning. If the number of warnings is larger than the value
-specified for the flag `-m`/`--maxwarn` in the CLI :code:`run_REXEE`, the simulation will error
-out. To avoid warnings arised from MDP specification, we need to take extra care for the following
+specified for the flag :code:`-m`/:code:`--maxwarn` in the CLI :code:`run_REXEE`, the simulation will error
+out. To avoid warnings arised from MDP specification, users need to take extra care for the following
 MDP parameters:
 
 - We recommend setting :code:`lmc_seed = -1` so that a different random seed
@@ -451,3 +451,65 @@ MDP parameters:
       the MDP parameter :code:`pull_nstxout` should not be 0.
     - If you want to explicitly specify a reference distance (:code:`d`) to use for all iterations, simply use 
       :code:`pull_coord1_start = no` with :code:`pull_coord1_init = d` in your input MDP template.
+
+5. Some rules of thumb
+======================
+Here are some rules of thumb for specifying some key YAML parameters, as discussed/concluded from our paper [Hsu2024]_.
+
+- **Number of replicas** (:code:`n_sim`): Just like other replica exchange methods, it is generally recommended that the number of replicas be
+  a factor of available computational resources, such as the number of CPU cores. For example, if you have 128 CPU cores, you may
+  consider using 4, 8, 16, or 32 replicas.
+- **Total number of states**: One advantage of the REXEE method over other replica exchange methods is that it completely
+  decouples the number of replicas from the number of states. Therefore, once the number of replicas is decided, the total number of states
+  can be arbitrary. Still, just like other generalized ensemble methods, the total number of states should be large enough
+  to ensure sufficient overlap between adjacent states, but not too large to make the simulation computationally expensive.
+- **Number of states per replica**/**State shift**: After deciding the total number of states and the the number of replicas, one can use the CLI
+  :code:`explore_REXEE` to list all possible REXEE configurations, from which one can decide the number of states per replica or the state shift
+  depending on how much overlap is desired between adjacent replicas. For example, if one has decided to use 4 replicas to sample 12
+  alchemical intermediate states, one can run :code:`explore_REXEE -N 12 -r 4`, which returns the following:
+  
+  .. code-block::
+
+      Exploration of the REXEE parameter space
+      =======================================
+      [ REXEE parameters of interest ]
+      - N: The total number of states
+      - r: The number of replicas
+      - n: The number of states for each replica
+      - s: The state shift between adjacent replicas
+
+      [ Solutions ]
+      - Solution 1: (N, r, n, s) = (12, 4, 6, 2)
+        - Replica 0: [0, 1, 2, 3, 4, 5]
+        - Replica 1: [2, 3, 4, 5, 6, 7]
+        - Replica 2: [4, 5, 6, 7, 8, 9]
+        - Replica 3: [6, 7, 8, 9, 10, 11]
+
+      - Solution 2: (N, r, n, s) = (12, 4, 9, 1)
+        - Replica 0: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        - Replica 1: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        - Replica 2: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+        - Replica 3: [3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+  Generally, a higher overlap would lead to a higher sampling efficiency in both replica-space and state-space sampling,
+  but will also lead to a higher computational cost. However, the influence of different overlaps on the accuracy of
+  free energy calculations in a fixed-weight REXEE simulation is usually negligible. If one decides to use "Solution 1" in the above example,
+  then the YAML parameters :code:`n_sim` and :code:`s` should be set as 4, 2, respectively. Note that the total number of
+  states should be reflected in the input MDP templated (specified through the YAML parameter :code:`mdp`) and the number of states
+  per replica will be automatically calculated by the CLI :code:`run_REXEE` (given the other three REXEE configurational parameters)
+  when customizing MDP files for different replicas.
+
+- **Exchange period** (:code:`nst_sim`): Generally, a higher swapping frequency (i.e., lower exchange period) would lead to a higher
+  sampling efficiency in both replica-space and state-space sampling, as well as higher accuracy in free energy calculations. However, 
+  it would also lead to a higher computational cost. According to our experience, an exchange period between 500 to 2000 steps is
+  usually a good choice for most systems.
+
+- **Number of iterations**: After deciding the exchange period, the number of iterations should be decided only based on desired effective
+  simulation length. For example, for a REXEE simulation running 4 replicas with an exchange period of 1000 steps (or 2 ps given a 2 fs time step),
+  one may consider running 12500 iterations to achieve a total simulation length of 100 ns.
+
+- **Correction schemes**: As discussed in our paper, for a weight-updating REXEE simulation, there has been no evidence showing any advantages of
+  using any implemented correction schemes, including weight combination, weight correction and histogram correction schemes, which can be
+  enabled by YAML parameters :code:`w_combine`, :code:`N_cutoff`, and :code:`hist_corr`, respectively. To converge alchemical weights, we recommend
+  just using weight-updating EE simulations, or weight-updating REXEE simulations without any correction schemes, i.e., using default values for
+  these parameters.

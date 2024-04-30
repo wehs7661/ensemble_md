@@ -29,7 +29,8 @@ def initialize(args):
                         '--yaml',
                         type=str,
                         default='params.yaml',
-                        help='The file path of the input YAML file that contains REXEE parameters. (Default: params.yaml)')
+                        help='The file path of the input YAML file that contains REXEE parameters. \
+                            (Default: params.yaml)')
     parser.add_argument('-c',
                         '--ckpt',
                         type=str,
@@ -40,9 +41,9 @@ def initialize(args):
                         '--g_vecs',
                         type=str,
                         default='g_vecs.npy',
-                        help='The file path of the NPY file containing the timeseries of the whole-range alchemical weights. \
-                            This file is a necessary input if ones wants to update the file when extending \
-                            a weight-updating simulation. (Default: g_vecs.npy)')
+                        help='The file path of the NPY file containing the timeseries of the whole-range\
+                            alchemical weights. This file is a necessary input if ones wants to update the \
+                            file when extending a weight-updating simulation. (Default: g_vecs.npy)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
