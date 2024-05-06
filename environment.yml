@@ -7,7 +7,7 @@ apt_packages:
 dependencies:
   - gromacs=2023.3=nompi*
   - nglview
-  - openmpi
+  - mpi4py
   - pip
   - pip:
     - ensemble-md
