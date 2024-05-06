@@ -4,5 +4,7 @@ channels:
   - defaults
 dependencies:
   - gromacs=2023.3=nompi*
-  - ensemble-md
   - nglview
+  - pip
+  - pip:
+    - ensemble-md
