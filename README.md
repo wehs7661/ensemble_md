@@ -12,9 +12,7 @@ Ensemble Molecular Dynamics
 [![Downloads](https://static.pepy.tech/badge/ensemble-md)](https://pepy.tech/project/ensemble-md)
 [![Twitter Follow](https://img.shields.io/twitter/follow/WeiTseHsu?style=social)](https://twitter.com/WeiTseHsu)
 
-`ensemble_md` is a Python package that provides methods for setting up, running, and analyzing GROMACS simulation ensembles. Currently, the package implements all the necessary algorithms for running synchronous replica exchange (REX) of expanded ensembles (EE), abbreviated as REXEE, as well as its multi-topology (MT) variation MT-REXEE. Our future work includes implementing asynchronous REXEE and other possible variations of the REXEE method.
-
-For installation instructions, theory overview, tutorials, and API references, please visit the [documentation](https://ensemble-md.readthedocs.io/en/latest/?badge=latest).
+`ensemble_md` is a Python package that provides methods for setting up, running, and analyzing GROMACS simulation ensembles. Currently, the package implements all the necessary algorithms for running synchronous replica exchange (REX) of expanded ensembles (EE), abbreviated as REXEE, as well as its multi-topology (MT) variation MT-REXEE. Our future work includes implementing asynchronous REXEE and other possible variations of the REXEE method. For installation instructions, theory overview, tutorials, and API references, please visit the [documentation](https://ensemble-md.readthedocs.io/en/latest/?badge=latest).
 
 ### Copyright
 

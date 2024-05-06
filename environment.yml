@@ -1,0 +1,8 @@
+name: tutorials
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - gromacs=2023.3=nompi*
+  - ensemble-md
+  - nglview
