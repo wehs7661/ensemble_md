@@ -2,6 +2,7 @@ name: tutorials
 channels:
   - conda-forge
   - defaults
+  - main
 dependencies:
   - mpich
   - libmpich-dev
