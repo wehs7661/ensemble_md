@@ -2,10 +2,10 @@ name: tutorials
 channels:
   - conda-forge
   - defaults
-  - main
-dependencies:
+apt_packages:
   - mpich
   - libmpich-dev
+dependencies:
   - gromacs=2023.3=nompi*
   - nglview
   - pip
