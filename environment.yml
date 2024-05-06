@@ -1,13 +1,13 @@
 name: tutorials
 channels:
   - conda-forge
-  - defaults
 apt_packages:
   - mpich
   - libmpich-dev
 dependencies:
   - gromacs=2023.3=nompi*
   - nglview
+  - openmpi
   - pip
   - pip:
     - ensemble-md
