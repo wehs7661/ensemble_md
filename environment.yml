@@ -1,10 +1,7 @@
-name: tutorials
-channels:
-  - conda-forge
 dependencies:
   - gromacs=2023.3=nompi*
   - nglview
   - mpi4py
   - pip
   - pip:
-    - ensemble-md
+    - git+https://github.com/wehs7661/ensemble_md.git --single-branch --branch add_tutorials
