@@ -27,9 +27,9 @@ the future.
    :caption: Launching REXEE simulations:
    
 .. toctree::
-   examples/run_REXEE
-   examples/analyze_REXEE
-   examples/MT_REXEE
+   examples/tutorial_1/run_REXEE
+   examples/tutorial_2/analyze_REXEE
+   examples/tutorial_3/MT_REXEE
    :maxdepth: 2
    :caption: Tutorials:
 

@@ -1,0 +1,9 @@
+# User-defined parameters
+gmx_executable: 'gmx'               
+gro: sys.gro
+top: sys.top
+mdp: expanded.mdp             
+n_sim: 4
+n_iter: 5         
+s: 1                         
+nst_sim: 500
