@@ -4,4 +4,4 @@ dependencies:
   - mpi4py
   - pip
   - pip:
-    - git+https://github.com/wehs7661/repo.git@add_tutorials#egg=ensemble_md
+    - git+https://github.com/wehs7661/ensemble_md.git@add_tutorials#egg=ensemble_md
