@@ -248,6 +248,8 @@ def main():
                 # Note we use states (copy of states_) instead of states_ in update_MDP.
                 for j in list(range(REXEE.n_sim)):
                     os.mkdir(f'{REXEE.working_dir}/sim_{j}/iteration_{i}')
+                    if self.fixed_weights is True:
+                        counts = None    # So that this should work also for GROMACS version < 2022.5
                     MDP = REXEE.update_MDP(f"sim_{j}/iteration_{i - 1}/expanded.mdp", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
                     MDP.write(f"{REXEE.working_dir}/sim_{j}/iteration_{i}/expanded.mdp", skipempty=True)
                     # In run_REXEE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
