@@ -1,110 +1,110 @@
 ; Run control
-integrator               = md-vv
-tinit                    = 0
-dt                       = 0.002
-nsteps                   = 500  ; 10 ps
-comm-mode                = Linear
-nstcomm                  = 1
-nstfout                  = 0
+integrator = md-vv
+tinit = 0
+dt = 0.002
+nsteps = 500
+comm_mode = Linear
+nstcomm = 1
+nstfout = 0
 
 ; Output control
-nstlog                   = 100
-nstcalcenergy            = 1
-nstenergy                = 1000
-nstxout-compressed       = 1000
+nstlog = 100
+nstcalcenergy = 1
+nstenergy = 1000
+nstxout_compressed = 1000
 
 ; Neighborsearching and short-range nonbonded interactions
-nstlist                  = 10
-ns_type                  = grid
-pbc                      = xyz
-rlist                    = 1.0
+nstlist = 10
+ns_type = grid
+pbc = xyz
+rlist = 1.0
 
 ; Electrostatics
-cutoff-scheme		     = verlet
-coulombtype              = PME
-coulomb-modifier	     = Potential-shift-Verlet
-rcoulomb-switch          = 0.89
-rcoulomb                 = 0.9
+cutoff_scheme = verlet
+coulombtype = PME
+coulomb_modifier = Potential-shift-Verlet
+rcoulomb_switch = 0.89
+rcoulomb = 0.9
 
 ; van der Waals
-vdw-type                 = Cut-off
-vdw-modifier             = Potential-switch
-rvdw-switch              = 0.85
-rvdw                     = 0.9
+vdw_type = Cut-off
+vdw_modifier = Potential-switch
+rvdw_switch = 0.85
+rvdw = 0.9
 
-; Apply long range dispersion corrections for Energy and Pressure 
-DispCorr                 = AllEnerPres
+; Apply long range dispersion corrections for Energy and Pressure
+DispCorr = AllEnerPres
 
 ; Spacing for the PME/PPPM FFT grid
-fourierspacing           = 0.10
+fourierspacing = 0.1
 
 ; EWALD/PME/PPPM parameters
-fourier_nx               = 0
-fourier_ny               = 0
-fourier_nz               = 0
-pme_order                = 4
-ewald_rtol               = 1e-05
-ewald_geometry           = 3d
-epsilon_surface          = 0
+fourier_nx = 0
+fourier_ny = 0
+fourier_nz = 0
+pme_order = 4
+ewald_rtol = 1e-05
+ewald_geometry = 3d
+epsilon_surface = 0
 
 ; Temperature coupling
-tcoupl                   = v-rescale
-nsttcouple               = 1
-tc_grps                  = System
-tau_t                    = 0.5
-ref_t                    = 298
+tcoupl = v-rescale
+nsttcouple = 1
+tc_grps = System
+tau_t = 0.5
+ref_t = 298
 
 ; Pressure coupling is on for NPT
-pcoupl                   = no
+pcoupl = no
 
 ; refcoord_scaling should do nothing since there are no position restraints.
 
-gen_vel                  = yes
-gen-temp                 = 298
-gen-seed                 = 6722267; need to randomize the seed each time.
+gen_vel = yes
+gen_temp = 298
+gen_seed = -1
 
 ; options for bonds
-constraints              = h-bonds  ; we only have C-H bonds here
+constraints = h-bonds
 
 ; Type of constraint algorithm
-constraint-algorithm     = lincs
-continuation             = no
+constraint_algorithm = lincs
+continuation = no
 
 ; Highest order in the expansion of the constraint coupling matrix
-lincs-order              = 12
-lincs-iter               = 2
+lincs_order = 12
+lincs_iter = 2
 
 ; Free energy calculation
-free_energy              = expanded
-calc-lambda-neighbors    = -1
-sc-alpha                 = 0.5
-couple-moltype           = LIG
-couple-lambda0           = vdw-q
-couple-lambda1           = none
-couple-intramol          = no
-init-lambda-state        = 0
+free_energy = expanded
+calc_lambda_neighbors = -1
+sc_alpha = 0.5
+couple_moltype = LIG
+couple_lambda0 = vdw-q
+couple_lambda1 = none
+couple_intramol = no
+init_lambda_state = 0
 
-nstdhdl                  = 10
-dhdl-print-energy        = total
+nstdhdl = 10
+dhdl_print_energy = total
 
 ; Seed for Monte Carlo in lambda space
-lmc-seed                 = 1000
-lmc-gibbsdelta           = -1
-lmc-forced-nstart        = 0
-symmetrized-transition-matrix = yes
-nst-transition-matrix    = 100000
-wl-scale                 = 0.8
-wl-ratio                 = 0.8 
-init-wl-delta            = 0.5 
+lmc_seed = -1
+lmc_gibbsdelta = -1
+lmc_forced_nstart = 0
+symmetrized_transition_matrix = yes
+nst_transition_matrix = 100000
+wl_scale = 0.8
+wl_ratio = 0.8
+init_wl_delta = 0.5
 
 ; expanded ensemble variables
-nstexpanded              = 10
-lmc-stats                = wang-landau
-lmc-move                 = metropolized-gibbs
-lmc-weights-equil        = wl-delta
-weight-equil-wl-delta    = 0.001
+nstexpanded = 10
+lmc_stats = wang-landau
+lmc_move = metropolized-gibbs
+lmc_weights_equil = wl-delta
+weight_equil_wl_delta = 0.001
 
 ; lambda-states          = 1      2      3      4      5      6      7      8      9
-coul-lambdas             = 0.00   0.25   0.50   0.75   1.00   1.00   1.00   1.00   1.00 
-vdw-lambdas              = 0.00   0.00   0.00   0.00   0.00   0.25   0.50   0.75   1.00   
-init-lambda-weights      = 0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00
+coul_lambdas = 0.0 0.25 0.5 0.75 1.0 1.0 1.0 1.0 1.0
+vdw_lambdas = 0.0 0.0 0.0 0.0 0.0 0.25 0.5 0.75 1.0
+init_lambda_weights = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
