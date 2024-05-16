@@ -2,7 +2,7 @@
 integrator = md-vv
 tinit = 0
 dt = 0.002
-nsteps = 500
+nsteps = 50000000
 comm_mode = Linear
 nstcomm = 1
 nstfout = 0
@@ -93,18 +93,13 @@ lmc_gibbsdelta = -1
 lmc_forced_nstart = 0
 symmetrized_transition_matrix = yes
 nst_transition_matrix = 100000
-wl_scale = 0.8
-wl_ratio = 0.8
-init_wl_delta = 0.5
 
 ; expanded ensemble variables
 nstexpanded = 10
-lmc_stats = wang-landau
+lmc_stats = no
 lmc_move = metropolized-gibbs
-lmc_weights_equil = wl-delta
-weight_equil_wl_delta = 0.001
 
 ; lambda-states          = 1      2      3      4      5      6      7      8      9
 coul_lambdas = 0.0 0.25 0.5 0.75 1.0 1.0 1.0 1.0 1.0
 vdw_lambdas = 0.0 0.0 0.0 0.0 0.0 0.25 0.5 0.75 1.0
-init_lambda_weights = 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0
+init_lambda_weights = 0.00000 1.61343 2.71400 3.40859 3.60446 4.78543 5.37983 3.29843 0.36336

@@ -235,7 +235,7 @@ def main():
                         print('Performing weight correction ...')
                     else:
                         print('Performing weight correction ...', end='')
-                    weights = REXEE.weights_correction(weights_avg, counts)
+                    weights = REXEE.weight_correction(weights_avg, counts)
                     _ = REXEE.combine_weights(weights, print_values=False)[1]  # just to print the combined weights  # noqa: E501
                 else:
                     print('Note: No weight correction will be performed.')
