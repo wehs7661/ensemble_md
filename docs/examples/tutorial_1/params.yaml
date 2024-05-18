@@ -7,4 +7,4 @@ n_sim: 4
 n_iter: 5         
 s: 1                         
 nst_sim: 500
-runtime_args: {'-nt': '1', '-ntmpi': '1'}
+runtime_args: {'-nt': '1'}
