@@ -1,4 +1,4 @@
-# User-defined parameters
+# Simulation parameters
 gmx_executable: 'gmx'               
 gro: sys.gro
 top: sys.top
@@ -8,3 +8,6 @@ n_iter: 5
 s: 1                         
 nst_sim: 500
 runtime_args: {'-nt': '1'}
+
+# Data analysis parameters
+free_energy: True
