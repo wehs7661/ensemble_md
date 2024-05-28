@@ -4,7 +4,7 @@ jobs:
   test:
     machine:
       # Note that ubuntu with versions later than 2022 triggers an interative prompt that gets CI stuck
-      image: ubuntu-2204:edge
+      image: default
     environment:
       PYTHON_VERSION: "3.8"
     steps:
