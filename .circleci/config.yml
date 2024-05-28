@@ -5,6 +5,8 @@ jobs:
     machine:
       # Note that ubuntu with versions later than 2022 triggers an interative prompt that gets CI stuck
       image: default
+    environment:
+      PYTHON_VERSION: "3.8"
     steps:
       - checkout
 
@@ -23,6 +25,11 @@ jobs:
             sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
             wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
             sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' -y
+            
+            # The following three lines are required to install libss1.1, which is required by cmake in Unbuntu 22.04
+            wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.0g-2ubuntu4_amd64.deb
+            sudo dpkg -i ./libssl1.1_1.1.0g-2ubuntu4_amd64.deb
+            rm -i libssl1.1_1.1.0g-2ubuntu4_amd64.deb
             sudo apt install cmake && cmake --version
 
       - run:
