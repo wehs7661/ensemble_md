@@ -91,7 +91,7 @@ setup(
         'alchemlyb>=2.0.0',
         'pyyaml',
         'seaborn',
-        'matplotlib',
+        'matplotlib<=3.8.4',
         'pyemma',
         'mpi4py'
     ],
