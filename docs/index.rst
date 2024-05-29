@@ -27,9 +27,8 @@ the future.
    :caption: Launching REXEE simulations:
    
 .. toctree::
-   examples/run_REXEE
-   examples/analyze_REXEE
-   examples/run_REXEE_modify_inputs
+   examples/tutorial_1/standard_REXEE
+   examples/tutorial_2/MT_REXEE
    :maxdepth: 2
    :caption: Tutorials:
 
@@ -41,9 +40,10 @@ the future.
    :caption: API documentation:
 
 .. toctree::
+   external_tutorials
    references
    :maxdepth: 1
-   :caption: References:
+   :caption: Resources:
 
 Others
 ======

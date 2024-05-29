@@ -303,7 +303,7 @@ include parameters for data analysis here.
   - :code:`w_mean_type`: (Optional, Default: :code:`'simple'`)
       The type of mean to use when combining weights. Available options include :code:`simple` and :code:`weighted`.
       For the latter case, inverse-variance weighted means are used. For more details about, please refer to :ref:`doc_w_schemes`.
-  - :code:`N_cutoff`: (Optional, Default: 1000)
+  - :code:`N_cutoff`: (Optional, Default: -1)
       The histogram cutoff for weight corrections. A cutoff of 1000 means that weight corrections will be applied only if
       the counts of the involved states are both larger than 1000. A value of -1 means that no weight correction will be performed.
       For more details, please please refer to :ref:`doc_weight_correction`.

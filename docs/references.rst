@@ -4,3 +4,11 @@ References
 ==========
 
 .. [Hsu2024] Hsu, Wei-Tse, and Michael R. Shirts. "Replica exchange of expanded ensembles: A generalized ensemble approach with enhanced flexibility and parallelizability." arXiv preprint arXiv:2308.06938 (2023). doi: `10.48550/arXiv.2308.06938 <https://doi.org/10.48550/arXiv.2308.06938>`_.
+
+.. [Sugita1999] Sugita, Yuji, and Yuko Okamoto. "Replica-exchange molecular dynamics method for protein folding." Chemical physics letters 314.1-2 (1999): 141-151. doi: `10.1016/S0009-2614(99)01123-9 <https://doi.org/10.1016/S0009-2614(99)01123-9>`_.
+
+.. [Lyubartsev1992] Lyubartsev, A. P., et al. "New approach to Monte Carlo calculation of the free energy: Method of expanded ensembles." The Journal of chemical physics 96.3 (1992): 1776-1783. doi: `10.1063/1.462133 <https://doi.org/10.1063/1.462133>`_.
+
+.. [Sugita2000] Sugita, Yuji, Akio Kitao, and Yuko Okamoto. "Multidimensional replica-exchange method for free-energy calculations." The Journal of chemical physics 113.15 (2000): 6042-6051. doi: `10.1063/1.1308516 <https://doi.org/10.1063/1.1308516>`_.
+
+

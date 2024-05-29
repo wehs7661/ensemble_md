@@ -272,7 +272,7 @@ class Test_ReplicaExchangeEE:
         # 2. Check the default values of the parameters not specified in params.yaml
         assert REXEE.proposal == "exhaustive"
         assert REXEE.w_combine is False
-        assert REXEE.N_cutoff == 1000
+        assert REXEE.N_cutoff == -1
         assert REXEE.verbose is True
         assert REXEE.runtime_args is None
         assert REXEE.n_ckpt == 100
@@ -439,7 +439,7 @@ class Test_ReplicaExchangeEE:
         L += "Whether to perform weight combination: False\n"
         L += "Type of means for weight combination: simple\n"
         L += "Whether to perform histogram correction: False\n"
-        L += "Histogram cutoff for weight correction: 1000\n"
+        L += "Histogram cutoff for weight correction: -1\n"
         L += "Number of replicas: 4\nNumber of iterations: 10\n"
         L += "Length of each replica: 1.0 ps\nFrequency for checkpointing: 100 iterations\n"
         L += "Total number of states: 9\n"

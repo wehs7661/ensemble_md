@@ -3,14 +3,14 @@
 1. Basic idea
 =============
 Replica exchange of expanded ensembles (REXEE) [Hsu2024]_ integrates the core principles of replica exchange (REX)
-and expanded ensemble (EE) methods.  Specifically, a REXEE simulation performs multiple
+[Sugita1999]_ and expanded ensemble (EE) [Lyubartsev1992]_ method.  Specifically, a REXEE simulation performs multiple
 replicas of EE simulations in parallel and periodically exchanges coordinates
 between replicas. Each replica samples a different but overlapping set of alchemical 
 intermediate states to collectively sample the space between the fully coupled (:math:`\lambda=0`)
 and decoupled states (:math:`\lambda=1`). By design, the REXEE method decorrelates
 the number of replicas from the number of states, enhancing the flexibility in replica configuration and 
 allowing a large number of intermediate states to be sampled with significantly fewer replicas than those
-required in the Hamiltonian replica exchange (HREX) method. By parallelizing replicas, the REXEE method also reduces
+required in the Hamiltonian replica exchange (HREX) method [Sugita2000]_. By parallelizing replicas, the REXEE method also reduces
 the simulation wall time compared to the EE method. More importantly, such parallelism sets the
 stage for more complicated applications, especially one-shot free energy calculations that involve multiple
 topologies, such as serial mutations or scaffold-hopping transformations.
