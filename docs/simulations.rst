@@ -325,6 +325,7 @@ include parameters for data analysis here.
 
 3.4. Output settings
 --------------------
+
   - :code:`verbose`: (Optional, Default: :code:`True`)
       Whether a verbose log file is desired. 
   - :code:`n_ckpt`: (Optional, Default: 100)
@@ -340,6 +341,10 @@ include parameters for data analysis here.
 
 3.5. Data analysis
 ------------------
+
+Note that parameters in this section are ignored by the CLI :code:`run_REXEE` and are only
+considered by the CLI :code:`analyze_REXEE`.
+
   - :code:`msm`: (Optional, Default: :code:`False`)
       Whether to build Markov state models (MSMs) for the REXEE simulation and perform relevant analysis.
   - :code:`free_energy`: (Optional, Default: :code:`False`)

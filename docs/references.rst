@@ -3,7 +3,7 @@
 References
 ==========
 
-.. [Hsu2024] Hsu, Wei-Tse, and Michael R. Shirts. "Replica exchange of expanded ensembles: A generalized ensemble approach with enhanced flexibility and parallelizability." arXiv preprint arXiv:2308.06938 (2023). doi: `10.48550/arXiv.2308.06938 <https://doi.org/10.48550/arXiv.2308.06938>`_.
+.. [Hsu2024] Hsu, Wei-Tse, and Michael R. Shirts. "Replica exchange of expanded ensembles: A generalized ensemble approach with enhanced flexibility and parallelizability." Journal of Chemical Theory and Computation (2024). doi: `10.1021/acs.jctc.4c00484 <https://pubs.acs.org/doi/epdf/10.1021/acs.jctc.4c00484>`_.
 
 .. [Sugita1999] Sugita, Yuji, and Yuko Okamoto. "Replica-exchange molecular dynamics method for protein folding." Chemical physics letters 314.1-2 (1999): 141-151. doi: `10.1016/S0009-2614(99)01123-9 <https://doi.org/10.1016/S0009-2614(99)01123-9>`_.
 

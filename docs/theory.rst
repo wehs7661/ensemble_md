@@ -156,7 +156,7 @@ In our implementation in :code:`ensemble_md`, this method can be used by setting
 4.2. Neighbor exchange proposal scheme
 --------------------------------------
 In the neighbor exchange proposal scheme implemented in :code:`ensemble_md` (which is enabled by setting :code:`proposal: 'neighbor'` in the input YAML file),
-we add a constraint to :math:`mathcal{S}` defined in Equation :eq:`eq_3` such that the swappable pairs consist exclusively of neighboring replicas, 
+we add a constraint to the swappable pairs defined in Equation :eq:`eq_3` such that the swappable pairs consist exclusively of neighboring replicas, 
 with each pair having an equal probability to be drawn. Formally, the proposal probability in this case can be expressed as
 follows:
 
