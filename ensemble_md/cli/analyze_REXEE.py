@@ -141,8 +141,9 @@ def main():
     analyze_matrix.plot_matrix(reps_mtx, f'{args.dir}/rep_transmtx_allconfigs.png')
 
     # 1-3. Calculate the spectral gap for the replica-space transition amtrix
-    print(f'1-3. The spectral gap of the replica-space transition matrix: {spectral_gap:.3f}')
+    print('1-3. Calculating the spectral gap of the replica-space transition matrix ...')
     spectral_gap, eig_vals = analyze_matrix.calc_spectral_gap(reps_mtx)
+    print(f'The spectral gap of the replica-space transition matrix: {spectral_gap:.3f}')
 
     # Section 2. Analysis based on transitions between states
     print('\n[ Section 2. Analysis based on transitions between states ]')
