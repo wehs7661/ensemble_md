@@ -4,5 +4,6 @@ dependencies:
   - nglview
   - mpi4py
   - pip
+  - tree
   - pip:
     - -e .

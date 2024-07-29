@@ -176,6 +176,7 @@ def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50, seed=None):
     spectral_gap_list = []
     n_performed = 0
     while n_performed < n_bootstrap:
+        n_performed += 1
         mtx_boot = synthesize_data.synthesize_transmtx(trans_mtx, seed=seed)[0]
         check_row_boot = sum([np.isclose(np.sum(mtx_boot[i]), 1, atol=atol) for i in range(len(mtx_boot))])
         check_col_boot = sum([np.isclose(np.sum(mtx_boot[:, i]), 1, atol=atol) for i in range(len(mtx_boot))])
@@ -186,7 +187,6 @@ def calc_spectral_gap(trans_mtx, atol=1e-8, n_bootstrap=50, seed=None):
         else:
             continue
 
-        n_performed += 1
         eig_vals_boot = np.sort(eig_vals_boot)[::-1]
         spectral_gap_list.append(np.abs(eig_vals_boot[0]) - np.abs(eig_vals_boot[1]))
 
