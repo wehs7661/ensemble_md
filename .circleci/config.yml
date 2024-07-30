@@ -2,9 +2,8 @@ version: 2.1
 
 jobs:
   test:
-    machine:
-      # Note that ubuntu with versions later than 2022 triggers an interative prompt that gets CI stuck
-      image: default
+    docker:
+      - image: circleci/python:3.8
     environment:
       PYTHON_VERSION: "3.8"
     steps:
