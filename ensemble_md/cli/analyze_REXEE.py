@@ -222,7 +222,7 @@ def main():
     print('\n2-8. Calculating the spectral gap of the state transition matrices ...')
     results = [analyze_matrix.calc_spectral_gap(mtx) for mtx in mtx_list]  # a list of tuples
     spectral_gaps = [results[i][0] if None not in results else None for i in range(len(results))]
-    eig_vals = [results[i][1] if None not in results else None for i in range(len(results))]
+    eig_vals = [results[i][2] if None not in results else None for i in range(len(results))]
     if None not in spectral_gaps:
         for i in range(REXEE.n_sim):
             print(f'   - Trajectory {i}: {spectral_gaps[i]:.3f} (λ_1: {eig_vals[i][0]:.5f}, λ_2: {eig_vals[i][1]:.5f})')  # noqa: E501

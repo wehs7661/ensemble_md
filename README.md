@@ -9,14 +9,14 @@ Ensemble Molecular Dynamics
 [![DOI](https://img.shields.io/badge/DOI-10.1021/acs.jctc.4c00484-green)](https://pubs.acs.org/doi/epdf/10.1021/acs.jctc.4c00484)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-license.org/)
 [![Downloads](https://static.pepy.tech/badge/ensemble-md)](https://pepy.tech/project/ensemble-md)
-[![Twitter Follow](https://img.shields.io/twitter/follow/WeiTseHsu?style=social)](https://twitter.com/WeiTseHsu)
+
 
 `ensemble_md` is a Python package that provides methods for setting up, running, and analyzing GROMACS simulation ensembles. Currently, the package implements all the necessary algorithms for running synchronous replica exchange (REX) of expanded ensembles (EE), abbreviated as REXEE, as well as its multi-topology (MT) variation, MT-REXEE. Our future work includes implementing asynchronous REXEE and other possible variations of the REXEE method. For installation instructions, theory overview, tutorials, and API references, please visit the [documentation](https://ensemble-md.readthedocs.io/en/latest/?badge=latest) and our [JCTC paper](https://pubs.acs.org/doi/epdf/10.1021/acs.jctc.4c00484).
 
 ### Reference
 If you use any components of the Python package `ensemble_md` or the REXEE method in your research, please cite the following paper:
 
-Hsu, W. T., & Shirts, M. R. (2024). Replica Exchange of Expanded Ensembles: A Generalized Ensemble Approach with Enhanced Flexibility and Parallelizability. Journal of Chemical Theory and Computation. doi: [10.1021/acs.jctc.4c00484](https://doi.org/10.1021/acs.jctc.4c00484)
+Hsu, W. T., & Shirts, M. R. (2024). Replica Exchange of Expanded Ensembles: A Generalized Ensemble Approach with Enhanced Flexibility and Parallelizability. *Journal of Chemical Theory and Computation*. doi: [10.1021/acs.jctc.4c00484](https://doi.org/10.1021/acs.jctc.4c00484)
 
 ### Copyright
 
