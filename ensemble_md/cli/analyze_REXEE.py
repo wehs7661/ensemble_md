@@ -187,7 +187,7 @@ def main():
     else:
         # This may take a while.
         print('2-4. Stitching time series of state index for each alchemical range ...')
-        shifts = list(self.s * np.arange(self.n_sim))
+        shifts = list(REXEE.s * np.arange(REXEE.n_sim))
         dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(REXEE.n_sim)]
         state_trajs_for_sim = analyze_traj.stitch_time_series_for_sim(dhdl_files, shifts)
 
