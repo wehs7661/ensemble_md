@@ -177,7 +177,7 @@ def main():
         REXEE.state_ranges,
         f'{args.dir}/state_hist.png'
     )
-    rmse = analyze_traj.calculate_hist_rmse(hist_data, REXEE.state_ranges)
+    rmse = analyze_traj.calc_hist_rmse(hist_data, REXEE.state_ranges)
     print(f'The RMSE of accumulated histogram counts of the state index: {rmse:.0f}')
 
     # 2-4. Stitch the time series of state index for different alchemical ranges
