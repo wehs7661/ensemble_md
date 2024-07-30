@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   test:
     docker:
-      - image: circleci/python:<<parameters.python-version>>
+      - image: cimg/python:<<parameters.python-version>>
     environment:
       PYTHON_VERSION: "<<parameters.python-version>>"
     parameters:
@@ -98,5 +98,8 @@ workflows:
       - test:
           name: test-python-3.11
           python-version: "3.11"
+      - test:
+          name: test-python-3.12
+          python-version: "3.12"
 
 
