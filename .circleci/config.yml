@@ -26,10 +26,11 @@ jobs:
             wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
             sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' -y
             
-            # The following three lines are required to install libss1.1, which is required by cmake in Unbuntu 22.04
-            wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-            sudo dpkg -i ./libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-            rm -f libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+            # In the case where machine: image: default is used, the following three lines are required to install libss1.1, which is required by cmake in Unbuntu 22.04
+            # wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+            # sudo dpkg -i ./libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+            # rm -f libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+
             sudo apt install cmake && cmake --version
 
       - run:
