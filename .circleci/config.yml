@@ -20,6 +20,7 @@ jobs:
           name: Installing dependencies for GROMACS
           command: |
             sudo apt-get update
+            sudo apt-get install -y software-properties-common
             sudo apt install build-essential
             sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
             wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
