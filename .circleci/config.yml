@@ -83,6 +83,7 @@ jobs:
       - store_test_results:
           path: test-results
 
+# we are not testing Python 3.12. as it seems to have some conflicts with versioneer.py. Will look into this more in the future.
 workflows:
   continuous-integration:
     jobs:
@@ -98,8 +99,3 @@ workflows:
       - test:
           name: test-python-3.11
           python-version: "3.11"
-      - test:
-          name: test-python-3.12
-          python-version: "3.12"
-
-
