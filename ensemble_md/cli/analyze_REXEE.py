@@ -120,8 +120,8 @@ def main():
     print('\nData analysis of the simulation ensemble')
     print('========================================')
 
-    # Section 1. Analysis based on transitions between alchemical ranges
-    print('[ Section 1. Analysis based on transitions between alchemical ranges ]')
+    # Section 1. Analysis based on transitions between state sets
+    print('[ Section 1. Analysis based on transitions between state sets/replicas ]')
     section_idx += 1
 
     # 1-0. Read in replica-space trajectories
@@ -129,7 +129,7 @@ def main():
     rep_trajs = np.load(args.rep_trajs)  # Shape: (n_sim, n_iter)
 
     # 1-1. Plot the replica-sapce trajectory
-    print('1-1. Plotting transitions between alchemical ranges ...')
+    print('1-1. Plotting transitions between state sets/replicas ...')
     dt_swap = REXEE.nst_sim * REXEE.dt    # dt for swapping replicas
     analyze_traj.plot_rep_trajs(rep_trajs, f'{args.dir}/rep_trajs.png', dt_swap)
 
@@ -180,33 +180,33 @@ def main():
     rmse = analyze_traj.calc_hist_rmse(hist_data, REXEE.state_ranges)
     print(f'The RMSE of accumulated histogram counts of the state index: {rmse:.0f}')
 
-    # 2-4. Stitch the time series of state index for different alchemical ranges
+    # 2-4. Stitch the time series of state index for different replicas
     if os.path.isfile(args.state_trajs_for_sim) is True:
-        print('\n2-4. Reading in the stitched time series of state index for different alchemical ranges ...')
+        print('\n2-4. Reading in the stitched time series of state index for different replicas ...')
         state_trajs_for_sim = np.load(args.state_trajs_for_sim)
     else:
         # This may take a while.
-        print('2-4. Stitching time series of state index for each alchemical range ...')
+        print('2-4. Stitching time series of state index for each replica ...')
         shifts = list(REXEE.s * np.arange(REXEE.n_sim))
         dhdl_files = [natsort.natsorted(glob.glob(f'sim_{i}/iteration_*/*dhdl*xvg')) for i in range(REXEE.n_sim)]
         state_trajs_for_sim = analyze_traj.stitch_time_series_for_sim(dhdl_files, shifts)
 
-    # 2-5. Plot the time series of state index for different alchemical ranges
-    print('\n2-5. Plotting the time series of state index for different alchemical ranges ...')
+    # 2-5. Plot the time series of state index for different state sets
+    print('\n2-5. Plotting the time series of state index for different state sets ...')
     analyze_traj.plot_state_trajs(
         state_trajs_for_sim,
         REXEE.state_ranges,
         f'{args.dir}/state_trajs_for_sim.png',
-        title_prefix='Alchemical range'
+        title_prefix='State set'
     )
 
-    # 2-6. Plot the histograms of state index for different alchemical ranges
-    print('\n2-6. Plotting the histograms of state index for different alchemical ranges')
+    # 2-6. Plot the histograms of state index for different state sets
+    print('\n2-6. Plotting the histograms of state index for different state sets')
     analyze_traj.plot_state_hist(
         state_trajs_for_sim,
         REXEE.state_ranges,
         f'{args.dir}/state_hist_for_sim.png',
-        prefix='Alchemical range',
+        prefix='State set',
         subplots=True
     )
 
@@ -315,7 +315,7 @@ def main():
         mtx_list = [m.transition_matrix for m in models]
         mtx_list_modified = []  # just for plotting (if all trajs sampled the fulle range frequently, this will be the same as mtx_list)  # noqa: E501
         for i in range(len(mtx_list)):
-            # check if each mtx in mtx_list spans the full alchemical range. (If the system did not visit
+            # check if each mtx in mtx_list spans the full state set. (If the system did not visit
             # certain states, the dimension will be less than REXEE.n_tot * REXEE.n_tot. In this case, we
             # add rows and columns of 0. Note that the modified matrix will not be a transition matrix,
             # so this is only for plotting. For later analysis such as spectral gap calculation, we
@@ -350,7 +350,7 @@ def main():
             analyze_matrix.plot_matrix(mtx_list[i], f'{args.dir}/traj_{i}_state_transmtx_msm.png')
         analyze_matrix.plot_matrix(avg_mtx, f'{args.dir}/state_transmtx_avg_msm.png')
 
-        # Note that if a trajectory never visited a certain replica, the rows in the alchemical range of that
+        # Note that if a trajectory never visited a certain replica, the rows in the state set of that
         # replica will only have 0 entries. Below we check if this is the case.
         print('     Checking the sum of each row of each transition matrix is 1 ...')
         is_transmtx = [is_transition_matrix(i) for i in mtx_list]
