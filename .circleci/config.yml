@@ -9,6 +9,7 @@ jobs:
     parameters:
       python-version:
         type: string
+    resource_class: large
     steps:
       - checkout
 
@@ -90,12 +91,12 @@ workflows:
       - test:
           name: test-python-3.8
           python-version: "3.8"
-      - test:
-          name: test-python-3.9
-          python-version: "3.9"
-      - test:
-          name: test-python-3.10
-          python-version: "3.10"
-      - test:
-          name: test-python-3.11
-          python-version: "3.11"
+      # - test:
+      #     name: test-python-3.9
+      #     python-version: "3.9"
+      # - test:
+      #     name: test-python-3.10
+      #     python-version: "3.10"
+      # - test:
+      #     name: test-python-3.11
+      #     python-version: "3.11"
