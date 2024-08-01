@@ -161,7 +161,7 @@ class ReplicaExchangeEE:
             "proposal": 'exhaustive',
             "w_combine": False,
             "w_mean_type": 'simple',
-            "N_cutoff": 1000,
+            "N_cutoff": -1,
             "hist_corr": False,
             "verbose": True,
             "mdp_args": None,

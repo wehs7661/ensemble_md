@@ -1,0 +1,9 @@
+# Note that this file is only for setting up the Binder environment for tutorials
+dependencies:
+  - gromacs=2023.3=nompi*
+  - nglview
+  - mpi4py
+  - pip
+  - tree
+  - pip:
+    - -e .

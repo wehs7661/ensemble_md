@@ -91,9 +91,10 @@ setup(
         'alchemlyb>=2.0.0',
         'pyyaml',
         'seaborn',
-        'matplotlib',
+        'matplotlib<=3.8.4',
         'pyemma',
-        'mpi4py'
+        'mpi4py',
+        'ruptures'
     ],
 
     # (OBSOLETE) The following extra_require directive provides optional dependencies by, in our case, pip install ensemble[gmxapi].

@@ -1,0 +1,105 @@
+; Run control
+integrator = md-vv
+tinit = 0
+dt = 0.002
+nsteps = 50000000
+comm_mode = Linear
+nstcomm = 1
+nstfout = 0
+
+; Output control
+nstlog = 100
+nstcalcenergy = 1
+nstenergy = 1000
+nstxout_compressed = 1000
+
+; Neighborsearching and short-range nonbonded interactions
+nstlist = 10
+ns_type = grid
+pbc = xyz
+rlist = 1.0
+
+; Electrostatics
+cutoff_scheme = verlet
+coulombtype = PME
+coulomb_modifier = Potential-shift-Verlet
+rcoulomb_switch = 0.89
+rcoulomb = 0.9
+
+; van der Waals
+vdw_type = Cut-off
+vdw_modifier = Potential-switch
+rvdw_switch = 0.85
+rvdw = 0.9
+
+; Apply long range dispersion corrections for Energy and Pressure
+DispCorr = AllEnerPres
+
+; Spacing for the PME/PPPM FFT grid
+fourierspacing = 0.1
+
+; EWALD/PME/PPPM parameters
+fourier_nx = 0
+fourier_ny = 0
+fourier_nz = 0
+pme_order = 4
+ewald_rtol = 1e-05
+ewald_geometry = 3d
+epsilon_surface = 0
+
+; Temperature coupling
+tcoupl = v-rescale
+nsttcouple = 1
+tc_grps = System
+tau_t = 0.5
+ref_t = 298
+
+; Pressure coupling is on for NPT
+pcoupl = no
+
+; refcoord_scaling should do nothing since there are no position restraints.
+
+gen_vel = yes
+gen_temp = 298
+gen_seed = -1
+
+; options for bonds
+constraints = h-bonds
+
+; Type of constraint algorithm
+constraint_algorithm = lincs
+continuation = no
+
+; Highest order in the expansion of the constraint coupling matrix
+lincs_order = 12
+lincs_iter = 2
+
+; Free energy calculation
+free_energy = expanded
+calc_lambda_neighbors = -1
+sc_alpha = 0.5
+couple_moltype = LIG
+couple_lambda0 = vdw-q
+couple_lambda1 = none
+couple_intramol = no
+init_lambda_state = 0
+
+nstdhdl = 10
+dhdl_print_energy = total
+
+; Seed for Monte Carlo in lambda space
+lmc_seed = -1
+lmc_gibbsdelta = -1
+lmc_forced_nstart = 0
+symmetrized_transition_matrix = yes
+nst_transition_matrix = 100000
+
+; expanded ensemble variables
+nstexpanded = 10
+lmc_stats = no
+lmc_move = metropolized-gibbs
+
+; lambda-states          = 1      2      3      4      5      6      7      8      9
+coul_lambdas = 0.0 0.25 0.5 0.75 1.0 1.0 1.0 1.0 1.0
+vdw_lambdas = 0.0 0.0 0.0 0.0 0.0 0.25 0.5 0.75 1.0
+init_lambda_weights = 0.00000 1.61343 2.71400 3.40859 3.60446 4.78543 5.37983 3.29843 0.36336
