@@ -1,49 +1,45 @@
 version: 2.1
 
-jobs:
-  test:
-    docker:
-      - image: cimg/python:<<parameters.python-version>>
+commands:
+  setup_python:
+    description: "Install the specified Python version"
     parameters:
       python-version:
         type: string
-    resource_class: large
     steps:
-      - checkout
-
       - run:
-          name: Show the system information and resource limits
-          command: |
-            uname -a
-            df -h
-            ulimit -a
-
-      - run:
-          name: Installing dependencies for GROMACS
+          name: Install Python << parameters.python-version >>
           command: |
             sudo apt-get update
-            sudo apt-get install -y software-properties-common
-            sudo apt install build-essential
-            sudo apt-get install ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
+            sudo apt-get install -y python<< parameters.python-version >> python<< parameters.python-version >>-pip
+            python<< parameters.python-version >> -m pip install --upgrade pip
+
+  setup_dependencies:
+    description: "Install dependencies for GROMACS"
+    steps:
+      - run:
+          name: Install dependencies
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y software-properties-common build-essential ccache libblas-dev libfftw3-dev liblapack-dev libmpich-dev libxml2-dev mpich ninja-build
             wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
             sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ focal main' -y
-            
-            # The following three lines are required to install libss1.1, which is not available in the default environment
             wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
             sudo dpkg -i ./libssl1.1_1.1.1f-1ubuntu2_amd64.deb
             rm -f libssl1.1_1.1.1f-1ubuntu2_amd64.deb
-
             sudo apt install cmake && cmake --version
 
+  install_gromacs:
+    description: "Install the latest version of GROMACS"
+    steps:
       - run:
-          name: Install the latest version of GROMACS
+          name: Install GROMACS
           command: |
             gcc --version
             g++ --version 
-            python3 --version
+            python<< parameters.python-version >> --version
             export CC=`which gcc`
             export CXX=`which g++`
-
             cd $HOME && mkdir pkgs 
             git clone https://gitlab.com/gromacs/gromacs.git
             cd gromacs && mkdir build && cd build
@@ -52,53 +48,68 @@ jobs:
             source $HOME/pkgs/bin/GMXRC
             gmx --version
 
+  install_ensemble_md:
+    description: "Install the ensemble_md package"
+    steps:
       - run:
-          name: Install the ensemble_md package
+          name: Install ensemble_md
           command: |
-            python3 -m pip install --upgrade pip
-            python3 -m pip install .
+            python<< parameters.python-version >> -m pip install --upgrade pip
+            python<< parameters.python-version >> -m pip install .
 
+  run_tests:
+    description: "Run unit tests"
+    steps:
       - run:
           name: Run unit tests
-          # no_output_timeout: 1h
           command: |
             source $HOME/pkgs/bin/GMXRC
-            pip3 install pytest
-            pip3 install pytest-mpi
-            pip3 install pytest-cov
-
-            # sleep 3000  # only for debugging purposes
-            
+            python<< parameters.python-version >> -m pip install pytest pytest-mpi pytest-cov
             coverage run -m pytest -vv --disable-pytest-warnings --color=yes ensemble_md/tests
-            mpirun -np 4 coverage run --rcfile setup.cfg -m pytest ensemble_md/tests/test_mpi_func.py --with-mpi -vv --disable-pytest-warnings --color=yes  # this will generate multiple .coverage* files that can be combined
-            coverage combine  # This will combine multiple .coverage* files into a single .coverage file that will be uploaded and reported.
+            mpirun -np 4 coverage run --rcfile setup.cfg -m pytest ensemble_md/tests/test_mpi_func.py --with-mpi -vv --disable-pytest-warnings --color=yes
+            coverage combine
 
-            # Below are some old commands:
-            # pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
-            # COVERAGE_FILE=.coverage_1 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
-            # COVERAGE_FILE=.coverage_2 mpirun -np 4 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/test_mpi_func.py --with-mpi
-
+  codecov:
+    description: "Upload coverage results to CodeCov"
+    steps:
       - run:
           name: CodeCov
           command: |
             bash <(curl -s https://codecov.io/bash)
 
-      - store_test_results:
-          path: test-results
+jobs:
+  test:
+    machine:
+      image: default
+    parameters:
+      python-version:
+        type: string
+    resource_class: large
+    steps:
+      - checkout
+      - setup_python:
+          python-version: << parameters.python-version >>
+      - setup_dependencies
+      - install_gromacs:
+          python-version: << parameters.python-version >>
+      - install_ensemble_md:
+          python-version: << parameters.python-version >>
+      - run_tests:
+          python-version: << parameters.python-version >>
+      - codecov
 
-# we are not testing Python 3.12. as it seems to have some conflicts with versioneer.py. Will look into this more in the future.
 workflows:
   continuous-integration:
     jobs:
       - test:
           name: test-python-3.8
           python-version: "3.8"
-      # - test:
-      #     name: test-python-3.9
-      #     python-version: "3.9"
-      # - test:
-      #     name: test-python-3.10
-      #     python-version: "3.10"
-      # - test:
-      #     name: test-python-3.11
-      #     python-version: "3.11"
+      - test:
+          name: test-python-3.9
+          python-version: "3.9"
+      - test:
+          name: test-python-3.10
+          python-version: "3.10"
+      - test:
+          name: test-python-3.11
+          python-version: "3.11"
