@@ -4,8 +4,6 @@ jobs:
   test:
     docker:
       - image: cimg/python:<<parameters.python-version>>
-    environment:
-      PYTHON_VERSION: "<<parameters.python-version>>"
     parameters:
       python-version:
         type: string
@@ -42,6 +40,7 @@ jobs:
           command: |
             gcc --version
             g++ --version 
+            python3 --version
             export CC=`which gcc`
             export CXX=`which g++`
 
@@ -56,7 +55,6 @@ jobs:
       - run:
           name: Install the ensemble_md package
           command: |
-            python3 --version
             python3 -m pip install --upgrade pip
             python3 -m pip install .
 
