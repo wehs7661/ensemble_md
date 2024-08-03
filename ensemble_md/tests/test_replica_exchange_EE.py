@@ -25,6 +25,9 @@ from ensemble_md.utils import gmx_parser
 from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
 from ensemble_md.utils.exceptions import ParameterError
 
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 current_path = os.path.dirname(os.path.abspath(__file__))
 input_path = os.path.join(current_path, "data")
 
@@ -74,8 +77,10 @@ def check_param_error(REXEE_dict, param, match, wrong_val='cool', right_val=None
 
 class Test_ReplicaExchangeEE:
     def test_init(self, params_dict):
+        logging.debug("Initializing ReplicaExchangeEE")
         REXEE = get_REXEE_instance(params_dict)
         assert REXEE.yaml == 'params.yaml'
+        logging.debug("Finished initializing ReplicaExchangeEE")
 
     def test_set_params_error(self, params_dict):
         # 1. Required parameters

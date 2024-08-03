@@ -4,8 +4,6 @@ jobs:
   test:
     docker:
       - image: cimg/python:<<parameters.python-version>>
-    environment:
-      PYTHON_VERSION: "<<parameters.python-version>>"
     parameters:
       python-version:
         type: string
@@ -61,17 +59,20 @@ jobs:
 
       - run:
           name: Run unit tests
+          # no_output_timeout: 1h
           command: |
             source $HOME/pkgs/bin/GMXRC
             pip3 install pytest
             pip3 install pytest-mpi
             pip3 install pytest-cov
+
+            # sleep 3000  # only for debugging purposes
             
             coverage run -m pytest -vv --disable-pytest-warnings --color=yes ensemble_md/tests
-            mpirun -np 4 coverage run --rcfile setup.cfg -m pytest ensemble_md/tests/test_mpi_func.py --with-mpi -vv --disable-pytest-warnings --color=yes  # this will generate multiple .coverage* files that can be combined
-            coverage combine  # This will combine multiple .coverage* files into a single .coverage file that will be uploaded and reported.
+            # mpirun -np 4 coverage run --rcfile setup.cfg -m pytest ensemble_md/tests/test_mpi_func.py --with-mpi -vv --disable-pytest-warnings --color=yes  # this will generate multiple .coverage* files that can be combined
+            # coverage combine  # This will combine multiple .coverage* files into a single .coverage file that will be uploaded and reported.
 
-            # Below are some old commands:
+            # Another section of old commands
             # pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
             # COVERAGE_FILE=.coverage_1 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/
             # COVERAGE_FILE=.coverage_2 mpirun -np 4 pytest -vv --disable-pytest-warnings --cov=ensemble_md --cov-report=xml --color=yes ensemble_md/tests/test_mpi_func.py --with-mpi
@@ -88,12 +89,6 @@ jobs:
 workflows:
   continuous-integration:
     jobs:
-      - test:
-          name: test-python-3.8
-          python-version: "3.8"
-      # - test:
-      #     name: test-python-3.9
-      #     python-version: "3.9"
       - test:
           name: test-python-3.10
           python-version: "3.10"
