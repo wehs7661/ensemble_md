@@ -40,7 +40,6 @@ jobs:
           command: |
             gcc --version
             g++ --version 
-            python3 --version
             export CC=`which gcc`
             export CXX=`which g++`
 
@@ -102,3 +101,6 @@ workflows:
       - test:
           name: test-python-3.11
           python-version: "3.11"
+      - test:
+          name: test-python-3.12
+          python-version: "3.12"
