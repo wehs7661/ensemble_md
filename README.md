@@ -17,7 +17,7 @@ Ensemble Molecular Dynamics
 ### Reference
 If you use any components of the Python package `ensemble_md` or the REXEE method in your research, please cite the following paper:
 
-Hsu, W. T., & Shirts, M. R. (2024). Replica Exchange of Expanded Ensembles: A Generalized Ensemble Approach with Enhanced Flexibility and Parallelizability. *Journal of Chemical Theory and Computation*. doi: [10.1021/acs.jctc.4c00484](https://doi.org/10.1021/acs.jctc.4c00484)
+Hsu, W. T., & Shirts, M. R. (2024). Replica Exchange of Expanded Ensembles: A Generalized Ensemble Approach with Enhanced Flexibility and Parallelizability. *Journal of Chemical Theory and Computation*. 20.14 (2024): 6062-6081. doi: [10.1021/acs.jctc.4c00484](https://doi.org/10.1021/acs.jctc.4c00484)
 
 ### Copyright
 
