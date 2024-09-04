@@ -29,6 +29,7 @@ from alchemlyb.parsing.gmx import _extract_dataframe as extract_dataframe
 import ensemble_md
 from ensemble_md.utils import utils
 from ensemble_md.utils import gmx_parser
+from ensemble_md.utils import coordinate_swap
 from ensemble_md.utils.exceptions import ParameterError
 
 comm = MPI.COMM_WORLD
@@ -157,6 +158,8 @@ class ReplicaExchangeEE:
         optional_args = {
             "add_swappables": None,
             "modify_coords": None,
+            "resname_list": None,
+            "swap_rep_pattern": None,
             "nst_sim": None,
             "proposal": 'exhaustive',
             "w_combine": False,
@@ -254,11 +257,15 @@ class ReplicaExchangeEE:
                 raise ParameterError(f"The parameter '{i}' should be a boolean variable.")
 
         params_list = ['add_swappables', 'df_ref']
+        if self.resname_list is not None:
+            params_list.append('resname_list')
         for i in params_list:
             if getattr(self, i) is not None and not isinstance(getattr(self, i), list):
                 raise ParameterError(f"The parameter '{i}' should be a list.")
 
         params_dict = ['mdp_args', 'grompp_args', 'runtime_args']
+        if self.swap_rep_pattern is not None:
+            params_dict.append('swap_rep_pattern')
         for i in params_dict:
             if getattr(self, i) is not None and not isinstance(getattr(self, i), dict):
                 raise ParameterError(f"The parameter '{i}' should be a dictionary.")
@@ -441,17 +448,24 @@ class ReplicaExchangeEE:
 
         # 7-12. External module for coordinate modification
         if self.modify_coords is not None:
-            module_file = os.path.basename(self.modify_coords)
-            module_dir = os.path.dirname(self.modify_coords)
-            if module_dir not in sys.path:
-                sys.path.append(module_dir)  # so that the module can be imported
-            module_name = os.path.splitext(module_file)[0]
-            module = importlib.import_module(module_name)
-            if not hasattr(module, module_name):
-                err_msg = f'The module for coordinate manipulation (specified through the parameter) must have a function with the same name as the module, i.e., {module_name}.'  # noqa: E501
-                raise ParameterError(err_msg)
+            if self.modify_coords.lower == 'default':
+                if self.swap_rep_pattern is None and (not os.path.exists('residue_connect.csv') or not os.path.exists('residue_swap_map.csv')):
+                    raise Exception('swap_rep_pattern option must be filled in if using default swapping function and not swap guide')
+                if self.resname_list is None and (not os.path.exists('residue_connect.csv') or not os.path.exists('residue_swap_map.csv')):
+                    raise Exception('resname_list option must be filled in if using default swapping function and not swap guide')
+                self.modify_coords_fn = self.default_coords_fn
             else:
-                self.modify_coords_fn = getattr(module, module_name)
+                module_file = os.path.basename(self.modify_coords)
+                module_dir = os.path.dirname(self.modify_coords)
+                if module_dir not in sys.path:
+                    sys.path.append(module_dir)  # so that the module can be imported
+                module_name = os.path.splitext(module_file)[0]
+                module = importlib.import_module(module_name)
+                if not hasattr(module, module_name):
+                    err_msg = f'The module for coordinate manipulation (specified through the parameter) must have a function with the same name as the module, i.e., {module_name}.'  # noqa: E501
+                    raise ParameterError(err_msg)
+                else:
+                    self.modify_coords_fn = getattr(module, module_name)
         else:
             self.modify_coords_fn = None
 
@@ -1496,3 +1510,143 @@ class ReplicaExchangeEE:
         # want it to start parsing the dhdl file (in the if condition of if rank == 0) of simulation 3 being run by
         # rank 3 that has not been generated, which will lead to an I/O error.
         comm.barrier()
+    
+    def default_coords_fn(self, molA_file_name: str, molB_file_name: str):
+        """
+        Swap coordinates between two GRO files
+
+        Parameters
+        ----------
+        molA_file_name : str
+            GRO file name for the moleucle to be swapped
+        molB_file_name : str
+            GRO file name for the other moleucle to be swapped
+        Return
+        ------
+            None
+        """
+        # Step 1: Load necessary files
+        import mdtraj as md
+        import pandas as pd
+        
+        #Determine name for transformed residue
+        molA_dir = molA_file_name.rsplit('/', 1)[0] + '/'
+        molB_dir = molB_file_name.rsplit('/', 1)[0] + '/'
+
+        #Load trajectory trr for higher precison coordinates
+        molA = md.load_trr(f'{molA_dir}/traj.trr', top=molA_file_name).slice(-1) #Load last frame of trr trajectory
+        molB = md.load_trr(f'{molB_dir}/traj.trr', top=molB_file_name).slice(-1)
+
+        #Load the coordinate swapping map
+        connection_map = pd.read_csv('residue_connect.csv')
+        swap_map = pd.read_csv('residue_swap_map.csv')
+
+        # Step 2: Read the GRO input coordinate files and open temporary Output files
+        molA_file = open(molA_file_name, 'r').readlines() #open input file
+        molB_new_file_name = 'B_hybrid_swap.gro'
+        molB_new = open(molB_new_file_name, 'w')
+        molB_file = open(molB_file_name, 'r').readlines() #open input file
+        molA_new_file_name = 'A_hybrid_swap.gro'
+        molA_new = open(molA_new_file_name, 'w')
+
+        # Step 3: Determine atoms for alignment and swapping
+        nameA = coordinate_swap.deter_res(molA.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())
+        nameB = coordinate_swap.deter_res(molB.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())
+        df_atom_swap = coordinate_swap.deter_common(molA_file, molB_file, nameA, nameB)
+    
+        # Step 4: Fix break if present for solvated systems only
+        if len(molA.topology.select('water')) != 0:
+            A_dimensions = coordinate_swap.get_dimensions(molA_file)
+            B_dimensions = coordinate_swap.get_dimensions(molB_file)
+            molA = coordinate_swap.fix_break(molA, nameA, A_dimensions, connection_map[connection_map['Resname'] == nameA])
+            molB = coordinate_swap.fix_break(molB, nameB, B_dimensions, connection_map[connection_map['Resname'] == nameB])
+
+        # Step 5: Determine coordinates of atoms which need to be reconstructed as we swap coordinates between molecules
+        miss_B = df_atom_swap[(df_atom_swap['Swap']=='B2A') & (df_atom_swap['Direction'] == 'miss')]['Name'].to_list()
+        miss_A = df_atom_swap[(df_atom_swap['Swap']=='A2B') & (df_atom_swap['Direction'] == 'miss')]['Name'].to_list()
+        if len(miss_B) != 0:
+            df_atom_swap = coordinate_swap.get_miss_coord(molB, molA, nameB, nameA, df_atom_swap, 'B2A', swap_map[(swap_map['Swap A'] == nameA) & (swap_map['Swap B'] == nameB)])
+        if len(miss_A) != 0:
+            df_atom_swap = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_atom_swap, 'A2B', swap_map[(swap_map['Swap A'] == nameB) & (swap_map['Swap B'] == nameA)])
+    
+        #Reprint preamble text
+        line_start = coordinate_swap.print_preamble(molA_file, molB_new, len(miss_B), len(miss_A))
+
+        #Print new coordinates to file for molB
+        coordinate_swap.write_new_file(df_atom_swap, 'A2B', 'B2A', line_start, molA_file, molB_new, nameA, nameB, copy.deepcopy(molA.xyz[0]), miss_A)
+    
+        #Print new coordinates to file 
+        #Reprint preamble text
+        line_start = coordinate_swap.print_preamble(molB_file, molA_new, len(miss_A), len(miss_B))
+    
+        #Print new coordinates for molA
+        coordinate_swap.write_new_file(df_atom_swap, 'B2A', 'A2B', line_start, molB_file, molA_new, nameB, nameA, copy.deepcopy(molB.xyz[0]), miss_B)
+
+        #Rename temp files
+        os.rename('A_hybrid_swap.gro', molB_dir + '/confout.gro')
+        os.rename('B_hybrid_swap.gro', molA_dir + '/confout.gro')
+
+    def process_top(self):
+        """
+        Process the input topologies in order to determine the atoms for alignment in the default GRO swapping function. 
+        Output as csv files to prevent needing to re-run this step.
+
+        Parameters
+        ----------
+            None
+        Return
+        ------
+            None
+        """
+        import pandas as pd
+
+        if not os.path.exists('residue_connect.csv'):
+            df_top = pd.DataFrame()
+            for f, file_name in enumerate(self.top):
+                #Read file
+                input = coordinate_swap.read_top(file_name, self.resname_list[f])
+
+            #Determine the atom names corresponding to the atom numbers
+            start_line, atom_name, state = coordinate_swap.get_names(input)
+    
+            #Determine the connectivity of all atoms
+            connect_1, connect_2, state_1, state_2 = [], [], [], [] #Atom 1 and atom 2 which are connected and which state they are dummy atoms
+            for l, line in enumerate(input[start_line:]):
+                line_sep = line.split(' ')
+                if line_sep[0] == ';':
+                    continue
+                if line_sep[0] == '\n':
+                    break
+                while '' in line_sep:
+                    line_sep.remove('')
+                connect_1.append(atom_name[int(line_sep[0])-1])
+                connect_2.append(atom_name[int(line_sep[1])-1])
+                state_1.append(state[int(line_sep[0])-1])
+                state_2.append(state[int(line_sep[1])-1])
+                df = pd.DataFrame({'Resname': self.resname_list[f], 'Connect 1': connect_1, 'Connect 2': connect_2, 'State 1': state_1, 'State 2': state_2})
+                df_top = pd.concat([df_top, df])
+            df_top.to_csv('residue_connect.csv')
+        else:
+            df_top = pd.read_csv('residue_connect.csv')
+
+        if not os.path.exists('residue_swap_map.csv'):
+            df_map = pd.DataFrame()
+
+            for swap in self.swap_rep_pattern:
+                #Determine atoms not present in both molecules
+                X, Y = swap.keys()
+                for A, B in zip([X, Y], [Y, X]):
+                    input_A = coordinate_swap.read_top(self.top_files[A], self.resname_list[A])
+                    start_line, A_name, state = coordinate_swap.get_names(input_A)
+                    input_B = coordinate_swap.read_top(self.top_files[B], self.resname_list[B])
+                    start_line, B_name, state = coordinate_swap.get_names(input_B)
+        
+                    A_only = [x for x in A_name if x not in B_name]
+                    B_only = [x for x in B_name if x not in A_name]
+        
+                    #Seperate real to dummy switches
+                    df = coordinate_swap.deter_connection(A_only, B_only, self.resname_list[A], self.resname_list[B], df_top, swap[A])
+    
+                    df_map = pd.concat([df_map, df])
+        
+            df_map.to_csv('residue_swap_map.csv')
