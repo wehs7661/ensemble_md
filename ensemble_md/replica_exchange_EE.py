@@ -259,13 +259,13 @@ class ReplicaExchangeEE:
         params_list = ['add_swappables', 'df_ref']
         if self.resname_list is not None:
             params_list.append('resname_list')
+        if self.swap_rep_pattern is not None:
+            params_list.append('swap_rep_pattern')
         for i in params_list:
             if getattr(self, i) is not None and not isinstance(getattr(self, i), list):
                 raise ParameterError(f"The parameter '{i}' should be a list.")
 
         params_dict = ['mdp_args', 'grompp_args', 'runtime_args']
-        if self.swap_rep_pattern is not None:
-            params_dict.append('swap_rep_pattern')
         for i in params_dict:
             if getattr(self, i) is not None and not isinstance(getattr(self, i), dict):
                 raise ParameterError(f"The parameter '{i}' should be a dictionary.")
