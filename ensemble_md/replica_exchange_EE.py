@@ -448,7 +448,7 @@ class ReplicaExchangeEE:
 
         # 7-12. External module for coordinate modification
         if self.modify_coords is not None:
-            if self.modify_coords.lower == 'default':
+            if self.modify_coords == 'default':
                 if self.swap_rep_pattern is None and (not os.path.exists('residue_connect.csv') or not os.path.exists('residue_swap_map.csv')):
                     raise Exception('swap_rep_pattern option must be filled in if using default swapping function and not swap guide')
                 if self.resname_list is None and (not os.path.exists('residue_connect.csv') or not os.path.exists('residue_swap_map.csv')):
@@ -1565,9 +1565,9 @@ class ReplicaExchangeEE:
         miss_B = df_atom_swap[(df_atom_swap['Swap']=='B2A') & (df_atom_swap['Direction'] == 'miss')]['Name'].to_list()
         miss_A = df_atom_swap[(df_atom_swap['Swap']=='A2B') & (df_atom_swap['Direction'] == 'miss')]['Name'].to_list()
         if len(miss_B) != 0:
-            df_atom_swap = coordinate_swap.get_miss_coord(molB, molA, nameB, nameA, df_atom_swap, 'B2A', swap_map[(swap_map['Swap A'] == nameA) & (swap_map['Swap B'] == nameB)])
+            df_atom_swap = coordinate_swap.get_miss_coord(molB, molA, nameB, nameA, df_atom_swap, 'B2A', swap_map[(swap_map['Swap A'] == nameB) & (swap_map['Swap B'] == nameA)])
         if len(miss_A) != 0:
-            df_atom_swap = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_atom_swap, 'A2B', swap_map[(swap_map['Swap A'] == nameB) & (swap_map['Swap B'] == nameA)])
+            df_atom_swap = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_atom_swap, 'A2B', swap_map[(swap_map['Swap A'] == nameA) & (swap_map['Swap B'] == nameB)])
     
         #Reprint preamble text
         line_start = coordinate_swap.print_preamble(molA_file, molB_new, len(miss_B), len(miss_A))
@@ -1604,25 +1604,25 @@ class ReplicaExchangeEE:
             df_top = pd.DataFrame()
             for f, file_name in enumerate(self.top):
                 #Read file
-                input = coordinate_swap.read_top(file_name, self.resname_list[f])
+                input_file = coordinate_swap.read_top(file_name, self.resname_list[f])
 
-            #Determine the atom names corresponding to the atom numbers
-            start_line, atom_name, state = coordinate_swap.get_names(input)
+                #Determine the atom names corresponding to the atom numbers
+                start_line, atom_name, state = coordinate_swap.get_names(input_file)
     
-            #Determine the connectivity of all atoms
-            connect_1, connect_2, state_1, state_2 = [], [], [], [] #Atom 1 and atom 2 which are connected and which state they are dummy atoms
-            for l, line in enumerate(input[start_line:]):
-                line_sep = line.split(' ')
-                if line_sep[0] == ';':
-                    continue
-                if line_sep[0] == '\n':
-                    break
-                while '' in line_sep:
-                    line_sep.remove('')
-                connect_1.append(atom_name[int(line_sep[0])-1])
-                connect_2.append(atom_name[int(line_sep[1])-1])
-                state_1.append(state[int(line_sep[0])-1])
-                state_2.append(state[int(line_sep[1])-1])
+                #Determine the connectivity of all atoms
+                connect_1, connect_2, state_1, state_2 = [], [], [], [] #Atom 1 and atom 2 which are connected and which state they are dummy atoms
+                for l, line in enumerate(input_file[start_line:]):
+                    line_sep = line.split(' ')
+                    if line_sep[0] == ';':
+                        continue
+                    if line_sep[0] == '\n':
+                        break
+                    while '' in line_sep:
+                        line_sep.remove('')
+                    connect_1.append(atom_name[int(line_sep[0])-1])
+                    connect_2.append(atom_name[int(line_sep[1])-1])
+                    state_1.append(state[int(line_sep[0])-1])
+                    state_2.append(state[int(line_sep[1])-1])
                 df = pd.DataFrame({'Resname': self.resname_list[f], 'Connect 1': connect_1, 'Connect 2': connect_2, 'State 1': state_1, 'State 2': state_2})
                 df_top = pd.concat([df_top, df])
             df_top.to_csv('residue_connect.csv')
@@ -1631,21 +1631,21 @@ class ReplicaExchangeEE:
 
         if not os.path.exists('residue_swap_map.csv'):
             df_map = pd.DataFrame()
-
             for swap in self.swap_rep_pattern:
                 #Determine atoms not present in both molecules
-                X, Y = swap.keys()
+                X, Y = [int(swap[0][0]), int(swap[1][0])]
+                lam = {X: int(swap[0][1]), Y: int(swap[1][1])}
                 for A, B in zip([X, Y], [Y, X]):
-                    input_A = coordinate_swap.read_top(self.top_files[A], self.resname_list[A])
+                    input_A = coordinate_swap.read_top(self.top[A], self.resname_list[A])
                     start_line, A_name, state = coordinate_swap.get_names(input_A)
-                    input_B = coordinate_swap.read_top(self.top_files[B], self.resname_list[B])
+                    input_B = coordinate_swap.read_top(self.top[B], self.resname_list[B])
                     start_line, B_name, state = coordinate_swap.get_names(input_B)
         
                     A_only = [x for x in A_name if x not in B_name]
                     B_only = [x for x in B_name if x not in A_name]
         
                     #Seperate real to dummy switches
-                    df = coordinate_swap.deter_connection(A_only, B_only, self.resname_list[A], self.resname_list[B], df_top, swap[A])
+                    df = coordinate_swap.deter_connection(A_only, B_only, self.resname_list[A], self.resname_list[B], df_top, lam[A])
     
                     df_map = pd.concat([df_map, df])
         
