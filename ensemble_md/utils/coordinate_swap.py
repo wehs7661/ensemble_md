@@ -395,8 +395,8 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
     for i, row in df_swap.iterrows():
         conn_align = [row['Anchor Atom Name A'], row['Alignment Atom A']]
         conn_ref = [row['Anchor Atom Name B'], row['Alignment Atom B']]
-        geom_fix_select = [row['Missing Atom Name'][0], row['Anchor Atom Name A'], row['Angle Atom A']]
-        miss_names_select = row['Missing Atom Name']
+        miss_names_select = row['Missing Atom Name'].split(' ')
+        geom_fix_select = [miss_names_select[0], row['Anchor Atom Name A'], row['Angle Atom A']]
         #Limit to region of interest
         align_select = []
         for a in conn_align + miss_names_select + geom_fix_select:
@@ -404,7 +404,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
             if atom not in align_select:
                 align_select.append(atom)
         align_select.sort()
-        ref_select = mol_ref.topology.select(f'resname {name_ref} and (name {conn_ref[0]} or name {conn_ref[1]} or name {geom_fix_select[-1]})')
+        ref_select = mol_ref.topology.select(f"resname {name_ref} and (name {conn_ref[0]} or name {conn_ref[1]} or name {row['Angle Atom B']})")
         
         mol_ref_select = copy.deepcopy(mol_ref.atom_slice(ref_select))
         mol_align_select = copy.deepcopy(mol_align.atom_slice(align_select))
@@ -443,7 +443,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         min_dev_angle = 3
         init_coords = mol_align_select.xyz[0,change_atoms,:][0].copy()
         constant_coords = [mol_align_select.xyz[0,mol_align_select.topology.select(f'resname {name_align} and name {geom_fix_select[1]}')[0],:],
-                           mol_ref_select.xyz[0,mol_ref_select.topology.select(f'resname {name_ref} and name {geom_fix_select[2]}')[0],:]]
+                           mol_ref_select.xyz[0,mol_ref_select.topology.select(f"resname {name_ref} and name {row['Angle Atom B']}")[0],:]]
         for theta in np.linspace(0, 2*np.pi, num=10):
             new_coors = np.zeros((3,3))
             new_coors[0,:] = rotate_point_around_axis(init_coords, mol_ref_select.xyz[0,conn0_ref,:], axis_rot, theta)
@@ -606,7 +606,6 @@ def deter_res(mol_top, resname_options):
     """
     for name in resname_options:
         if len(mol_top.select(f"resname {name}")) != 0:
-            print('check')
             resname = name
             break
     return resname
@@ -978,7 +977,10 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A])
         elif resname == old_res_name: #Atom manipulation required for acyl chain
             #determine the number for the atom being written in the current line
-            current_num = int(line[1].strip('CVHDSON'))
+            if len(line[1]) > 1:
+                current_num = int(line[1].strip('CVHDSON'))
+            else:
+                current_num = np.NaN
             current_element = line[1].strip('0123456789')
             if line[1] in miss: #Do not write coordinates if atoms are not present in B
                 atom_num_B -= 1
@@ -1265,10 +1267,17 @@ def deter_connection(main_only, other_only, main_name, other_name, df_top, main_
     anchor_atoms_B = swap_name(anchor_atoms, other_name, df_top)
     angle_atoms_B = swap_name(angle_atoms, other_name, df_top)
     align_atoms_B = swap_name(align_atoms, other_name, df_top)
-    df = pd.DataFrame({'Swap A': main_name, 'Swap B': other_name, 'Connecting Atom Name A': anchor_atoms, 'Anchor Atom Name B': anchor_atoms_B, 'Alignment Atom A': align_atoms, 'Alignment Atom B': align_atoms_B, 'Angle Atom A': angle_atoms, 'Angle Atom B': angle_atoms_B})
-    df['Missing Atom Name'] = np.NaN
-    df['Missing Atom Name'] = df['Missing Atom Name'].astype(object)
-    df['Missing Atom Name'] = miss_sep
+    df = pd.DataFrame({'Swap A': main_name, 'Swap B': other_name, 'Anchor Atom Name A': anchor_atoms, 'Anchor Atom Name B': anchor_atoms_B, 'Alignment Atom A': align_atoms, 'Alignment Atom B': align_atoms_B, 'Angle Atom A': angle_atoms, 'Angle Atom B': angle_atoms_B})
+    miss_sep_reformat = []
+    for missing in miss_sep:
+        if isinstance(missing, list):
+            missing_reformat = missing[0]
+            for atom in missing[1:]:
+                missing_reformat += f' {atom}'
+        else:
+            missing_reformat = missing
+        miss_sep_reformat.append(missing_reformat)
+    df['Missing Atom Name'] = miss_sep_reformat
 
     return df
 
