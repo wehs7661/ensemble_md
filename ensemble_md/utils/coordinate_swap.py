@@ -677,6 +677,7 @@ def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords):
     line_num : int
         Since the atom may be added in a different order than it was in the previous file save the line number so that we skip it when we come to it
     """
+    print(df)
     #Get the name for the atom we are writting
     name_orig = df['Name'].to_list()[0]
     
@@ -982,6 +983,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             else:
                 current_num = np.NaN
             current_element = line[1].strip('0123456789')
+            print(line[1])
             if line[1] in miss: #Do not write coordinates if atoms are not present in B
                 atom_num_B -= 1
                 atom_num_A += 1
