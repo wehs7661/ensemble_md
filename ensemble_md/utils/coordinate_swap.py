@@ -983,7 +983,6 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             else:
                 current_num = np.NaN
             current_element = line[1].strip('0123456789')
-            print(line[1])
             if line[1] in miss: #Do not write coordinates if atoms are not present in B
                 atom_num_B -= 1
                 atom_num_A += 1
