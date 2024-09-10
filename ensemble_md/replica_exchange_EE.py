@@ -1553,7 +1553,8 @@ class ReplicaExchangeEE:
         nameA = coordinate_swap.deter_res(molA.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())
         nameB = coordinate_swap.deter_res(molB.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())
         df_atom_swap = coordinate_swap.deter_common(molA_file, molB_file, nameA, nameB)
-    
+        df_atom_swap.to_csv('swap_test.csv') 
+
         # Step 4: Fix break if present for solvated systems only
         if len(molA.topology.select('water')) != 0:
             A_dimensions = coordinate_swap.get_dimensions(molA_file)
