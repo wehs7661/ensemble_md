@@ -677,7 +677,6 @@ def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords):
     line_num : int
         Since the atom may be added in a different order than it was in the previous file save the line number so that we skip it when we come to it
     """
-    print(df)
     #Get the name for the atom we are writting
     name_orig = df['Name'].to_list()[0]
     
