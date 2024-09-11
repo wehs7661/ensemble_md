@@ -50,6 +50,6 @@ def test_compute_angle():
     coords_2 = coords_1[-1::-1]
     coords_3 = [coords_1[1], coords_1[0], coords_1[2]]
 
-    assert np.isclose(coordinate_swap.compute_angle(coords_1), np.sqrt(2) / 2)
-    assert np.isclose(coordinate_swap.compute_angle(coords_2), np.sqrt(2) / 2)
-    assert np.isclose(coordinate_swap.compute_angle(coords_3), 0)
+    assert np.isclose(coordinate_swap.compute_angle(coords_1), np.pi / 4)
+    assert np.isclose(coordinate_swap.compute_angle(coords_2), np.pi / 4)
+    assert np.isclose(coordinate_swap.compute_angle(coords_3), np.pi / 2)
