@@ -977,8 +977,8 @@ def compute_angle(coords):
 
     Parameters
     ----------
-    coords : numpy.ndarray
-        Four points which define two vectors to compute the angle between.
+    coords : list
+        A list of numpy arrays containing the XYZ coordinates of 3 points, for which the angle 1-2-3 is to be computed.
 
     Returns
     -------
