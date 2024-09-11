@@ -19,6 +19,8 @@ import random
 import warnings
 import importlib
 import subprocess
+import mdtraj as md
+import pandas as pd
 import numpy as np
 from mpi4py import MPI
 from itertools import combinations
@@ -1511,24 +1513,17 @@ class ReplicaExchangeEE:
         # rank 3 that has not been generated, which will lead to an I/O error.
         comm.barrier()
 
-    def default_coords_fn(self, molA_file_name: str, molB_file_name: str):
+    def default_coords_fn(self, molA_file_name, molB_file_name):
         """
-        Swap coordinates between two GRO files
+        Swaps coordinates between two GRO files.
 
         Parameters
         ----------
         molA_file_name : str
-            GRO file name for the moleucle to be swapped
+            GRO file name for the moleucle to be swapped.
         molB_file_name : str
-            GRO file name for the other moleucle to be swapped
-        Return
-        ------
-            None
+            GRO file name for the other moleucle to be swapped.
         """
-        # Step 1: Load necessary files
-        import mdtraj as md
-        import pandas as pd
-
         # Determine name for transformed residue
         molA_dir = molA_file_name.rsplit('/', 1)[0] + '/'
         molB_dir = molB_file_name.rsplit('/', 1)[0] + '/'
@@ -1541,7 +1536,7 @@ class ReplicaExchangeEE:
         connection_map = pd.read_csv('residue_connect.csv')
         swap_map = pd.read_csv('residue_swap_map.csv')
 
-        # Step 2: Read the GRO input coordinate files and open temporary Output files
+        # Step 1: Read the GRO input coordinate files and open temporary Output files
         molA_file = open(molA_file_name, 'r').readlines()  # open input file
         molB_new_file_name = 'B_hybrid_swap.gro'
         molB_new = open(molB_new_file_name, 'w')
@@ -1549,19 +1544,19 @@ class ReplicaExchangeEE:
         molA_new_file_name = 'A_hybrid_swap.gro'
         molA_new = open(molA_new_file_name, 'w')
 
-        # Step 3: Determine atoms for alignment and swapping
+        # Step 2: Determine atoms for alignment and swapping
         nameA = coordinate_swap.identify_res(molA.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())  # noqa: E501
         nameB = coordinate_swap.identify_res(molB.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())  # noqa: E501
         df_atom_swap = coordinate_swap.find_common(molA_file, molB_file, nameA, nameB)
 
-        # Step 4: Fix break if present for solvated systems only
+        # Step 3: Fix break if present for solvated systems only
         if len(molA.topology.select('water')) != 0:
             A_dimensions = coordinate_swap.get_dimensions(molA_file)
             B_dimensions = coordinate_swap.get_dimensions(molB_file)
             molA = coordinate_swap.fix_break(molA, nameA, A_dimensions, connection_map[connection_map['Resname'] == nameA])  # noqa: E501
             molB = coordinate_swap.fix_break(molB, nameB, B_dimensions, connection_map[connection_map['Resname'] == nameB])  # noqa: E501
 
-        # Step 5: Determine coordinates of atoms which need to be reconstructed as we swap coordinates between molecules  # noqa: E501
+        # Step 4: Determine coordinates of atoms which need to be reconstructed as we swap coordinates between molecules  # noqa: E501
         miss_B = df_atom_swap[(df_atom_swap['Swap'] == 'B2A') & (df_atom_swap['Direction'] == 'miss')]['Name'].to_list()  # noqa: E501
         miss_A = df_atom_swap[(df_atom_swap['Swap'] == 'A2B') & (df_atom_swap['Direction'] == 'miss')]['Name'].to_list()  # noqa: E501
         if len(miss_B) != 0:
@@ -1588,18 +1583,9 @@ class ReplicaExchangeEE:
 
     def process_top(self):
         """
-        Process the input topologies in order to determine the atoms for alignment in the default GRO swapping
+        Processes the input topologies in order to determine the atoms for alignment in the default GRO swapping
         function. Output as csv files to prevent needing to re-run this step.
-
-        Parameters
-        ----------
-            None
-        Return
-        ------
-            None
         """
-        import pandas as pd
-
         if not os.path.exists('residue_connect.csv'):
             df_top = pd.DataFrame()
             for f, file_name in enumerate(self.top):
