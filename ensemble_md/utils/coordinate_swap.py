@@ -25,7 +25,7 @@ from itertools import product
 def get_dimensions(file):
     """
     Determines the dimensions of the cubic box based on the input GRO file.
-    
+
     Parameters
     ----------
     file : list
@@ -42,6 +42,7 @@ def get_dimensions(file):
 
     dim_vector = [float(i) for i in box_raw]
     return dim_vector
+
 
 def find_common(molA_file, molB_file, nameA, nameB):
     """
@@ -96,6 +97,7 @@ def find_common(molA_file, molB_file, nameA, nameB):
     df = pd.concat([df_A2B, df_B2A])
     df.reset_index(inplace=True)
     return df
+
 
 def find_R2D_D2R_miss(name_list, name_other_list, common_atoms, line_list, swap):
     """
@@ -154,6 +156,7 @@ def find_R2D_D2R_miss(name_list, name_other_list, common_atoms, line_list, swap)
                 else:
                     final_type.append('real')
     return pd.DataFrame({'Name': names, 'Atom Name Number': an_num, 'Element': elements, 'Direction': directions, 'Swap': swaps, 'File line': lines, 'Final Type': final_type})
+
 
 def fix_break(mol, resname, box_dimensions, atom_connect_all):
     """
@@ -224,6 +227,7 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
     
     return mol
 
+
 def perform_shift_1D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     """
     Shifts the input trajectory across the periodic boundaries in 1D.
@@ -267,6 +271,7 @@ def perform_shift_1D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     if fixed:
         prev_shift_atom.append(broken_atom)
     return mol, fixed, prev_shift_atom
+
 
 def perform_shift_2D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     """
@@ -316,6 +321,7 @@ def perform_shift_2D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
         prev_shift_atom.append(broken_atom)
     return mol, fixed
 
+
 def perform_shift_3D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     """
     Shifts the input trajectory across the periodic boundaries in 3D
@@ -361,6 +367,7 @@ def perform_shift_3D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
         prev_shift_atom.append(broken_atom)
     return mol, fixed
 
+
 def check_break(mol, atom_pairs):
     """
     Determines whether a break is present between the atom pairs of interest.
@@ -383,6 +390,7 @@ def check_break(mol, atom_pairs):
         if d > 0.2:
             broken_pairs.append(atom_pairs[i])
     return broken_pairs
+
 
 def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, df_swap):
     """
@@ -506,6 +514,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
     
     return df_atom_swap
 
+
 def process_line(mol_file, i):
     """
     Seperates the line by spaces and corrects for when the atom number merges the atom name
@@ -540,6 +549,7 @@ def process_line(mol_file, i):
 
     return line, prev_line
 
+
 def print_preamble(old_file, new_file, num_add_names, num_rm_names):
     """
     Prints the preamble of the gro file before the atom specifications begin.
@@ -569,6 +579,7 @@ def print_preamble(old_file, new_file, num_add_names, num_rm_names):
             line_start = i + 1
             break
     return line_start
+
 
 def write_line(mol_new, raw_line, line, atom_num, vel, coor, resnum=None, nameB=None):
     """
@@ -618,6 +629,7 @@ def write_line(mol_new, raw_line, line, atom_num, vel, coor, resnum=None, nameB=
     else:
         mol_new.write(raw_line)
 
+
 def identify_res(mol_top, resname_options):
     """
     Determines which of the potential residues of interest are in this molecule.
@@ -639,6 +651,7 @@ def identify_res(mol_top, resname_options):
             resname = name
             break
     return resname
+
 
 def add_atom(mol_new, resnum, resname, df, vel, atom_num):
     """
@@ -680,6 +693,7 @@ def add_atom(mol_new, resnum, resname, df, vel, atom_num):
                       str(z).rjust(12, ' ') + vel[0].rjust(8, ' ') + vel[1].rjust(8, ' ') + vel[2].rjust(9, ' '))
     atom_num += 1  
     return atom_num
+
 
 def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords):
     """
@@ -738,6 +752,7 @@ def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords):
                       str(z).rjust(12, ' ') + vel[0].rjust(8, ' ') + vel[1].rjust(8, ' ') + vel[2].rjust(9, ' '))
     return line_num
 
+
 def sep_merge(line):
     """
     Seperates two GRO file columns which no longer have a space sperating them.
@@ -761,6 +776,7 @@ def sep_merge(line):
     for n in line[2:]:
         temp_line.append(n)
     return temp_line
+
 
 def rotate_point_around_axis(point, vertex, axis, angle):
     """
@@ -815,6 +831,7 @@ def rotate_point_around_axis(point, vertex, axis, angle):
     rotated_point = final_arry[0:3]
 
     return rotated_point
+
 
 def find_rotation_angle(initial_point, vertex, rotated_point, axis):
     """
@@ -876,6 +893,7 @@ def find_rotation_angle(initial_point, vertex, rotated_point, axis):
 
     return angle
 
+
 def compute_angle(coords):
     """
     Computes the angle between two vectors.
@@ -896,6 +914,7 @@ def compute_angle(coords):
     angle = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
     return angle
+
 
 def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, skip_line, R_o_D_num, pick):
     """
@@ -941,6 +960,7 @@ def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, 
     R_o_D_num_new = np.delete(R_o_D_num, pick) # Atom no longer needs added
     
     return skip_line, R_o_D_num_new
+
 
 def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, old_res_name, new_res_name, orig_coords, miss):
     """
@@ -1127,6 +1147,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
     new_file.write(orig_file[-1])
     new_file.close()
 
+
 def swap_name(init_atom_names, new_resname, df_top):
     """
     Determines the corresponding atom name in new molecule
@@ -1173,6 +1194,7 @@ def swap_name(init_atom_names, new_resname, df_top):
             raise Exception(f'Compatible atom could not be found for {atom}')
     return new_atom_names
 
+
 def get_names(input):
     """
     Determines the names of all atoms in the topology and which :math:`lambda` state for which they are dummy atoms.
@@ -1215,6 +1237,7 @@ def get_names(input):
         if line == '[ atoms ]\n':
             atom_section = True
     return start_line, atom_name, state
+
 
 def determine_connection(main_only, other_only, main_name, other_name, df_top, main_state):
     """
@@ -1337,6 +1360,7 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
     df['Missing Atom Name'] = miss_sep_reformat
 
     return df
+
 
 def read_top(file_name, resname):
     """
