@@ -1550,8 +1550,8 @@ class ReplicaExchangeEE:
         molA_new = open(molA_new_file_name, 'w')
 
         # Step 3: Determine atoms for alignment and swapping
-        nameA = coordinate_swap.identify_res(molA.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())
-        nameB = coordinate_swap.identify_res(molB.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())
+        nameA = coordinate_swap.identify_res(molA.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())  # noqa: E501
+        nameB = coordinate_swap.identify_res(molB.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())  # noqa: E501
         df_atom_swap = coordinate_swap.find_common(molA_file, molB_file, nameA, nameB)
 
         # Step 4: Fix break if present for solvated systems only
@@ -1645,7 +1645,7 @@ class ReplicaExchangeEE:
                     B_only = [x for x in B_name if x not in A_name]
 
                     # Seperate real to dummy switches
-                    df = coordinate_swap.deter_connection(A_only, B_only, self.resname_list[A], self.resname_list[B], df_top, lam[A])  # noqa: E501
+                    df = coordinate_swap.determine_connection(A_only, B_only, self.resname_list[A], self.resname_list[B], df_top, lam[A])  # noqa: E501
 
                     df_map = pd.concat([df_map, df])
 
