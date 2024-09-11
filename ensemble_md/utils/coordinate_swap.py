@@ -433,7 +433,8 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
     dir : str
         The swapping direction.
     df_swap : pandas.DataFrame
-        For each missing atoms.
+        Swapping map for the given conformational swap direction to determine which atoms
+        to use for anchor, alignment, and angle determination.
 
     Returns
     -------
