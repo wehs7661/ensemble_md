@@ -1000,7 +1000,7 @@ def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, 
     Parameters
     ----------
     df_select : pandas.DataFrame
-        (To be added.)
+        This dataframe should include only the atom which is currently being added or having it's name swapped.
     file_new : file-like object
         The temporary file for the new GRO
     resnum : int
