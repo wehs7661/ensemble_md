@@ -12,16 +12,25 @@ Ensemble Molecular Dynamics
 [![Downloads](https://static.pepy.tech/badge/ensemble-md)](https://pepy.tech/project/ensemble-md)
 
 
-`ensemble_md` is a Python package that provides methods for setting up, running, and analyzing GROMACS simulation ensembles. Currently, the package implements all the necessary algorithms for running synchronous replica exchange (REX) of expanded ensembles (EE), abbreviated as REXEE, as well as its multi-topology (MT) variation, MT-REXEE. Our future work includes implementing asynchronous REXEE and other possible variations of the REXEE method. For installation instructions, theory overview, tutorials, and API references, please visit the [documentation](https://ensemble-md.readthedocs.io/en/latest/?badge=latest) and our [JCTC paper](https://pubs.acs.org/doi/epdf/10.1021/acs.jctc.4c00484).
+`ensemble_md` is a Python package that provides methods for setting up, running, and analyzing GROMACS simulation ensembles. Currently, the package implements all the necessary algorithms for running synchronous replica exchange (REX) of expanded ensembles (EE), abbreviated as REXEE, as well as its multi-topology (MT) variation, MT-REXEE. Our future work includes implementing asynchronous REXEE and other possible variations of the REXEE method. For installation instructions, theory overview, tutorials, and API references, please visit the [documentation](https://ensemble-md.readthedocs.io/en/latest/?badge=latest) and our papers (listed in the next section).
 
-### Reference
+### References
 If you use any components of the Python package `ensemble_md` or the REXEE method in your research, please cite the following paper:
 
-Hsu, W. T., & Shirts, M. R. (2024). Replica Exchange of Expanded Ensembles: A Generalized Ensemble Approach with Enhanced Flexibility and Parallelizability. *Journal of Chemical Theory and Computation*. 20.14 (2024): 6062-6081. doi: [10.1021/acs.jctc.4c00484](https://doi.org/10.1021/acs.jctc.4c00484)
+> Hsu, W. T., & Shirts, M. R. (2024). Replica Exchange of Expanded Ensembles: A Generalized Ensemble Approach with Enhanced Flexibility and Parallelizability. *Journal of Chemical Theory and Computation*. 20.14 (2024): 6062-6081. doi: [10.1021/acs.jctc.4c00484](https://doi.org/10.1021/acs.jctc.4c00484)
 
-### Copyright
+If you use the MT-REXEE method in your research, please cite the following paper:
 
-Copyright (c) 2022, Wei-Tse Hsu
+> Friedman, A. J., Hsu, W. T., & Shirts, M. R. (2024). Multiple Topology Replica Exchange of Expanded Ensembles (MT-REXEE) for Multidimensional Alchemical Calculations. arXiv preprint arXiv:2408.11038. doi: [10.48550/arXiv.2408.11038](
+https://doi.org/10.48550/arXiv.2408.11038)
+
+### Authors
+- Wei-Tse Hsu, University of Colorado, Boulder (weitse.hsu@colorado.edu)
+- Anika Friedman, University of Colorado, Boulder (anika.friedman@colorado.edu)
+
+### Contributing
+
+We welcome contributions to this project! Please see our [contributing guidelines](CONTRIBUTING.md) for more information on how to get started.
 
 
 ### Acknowledgements
