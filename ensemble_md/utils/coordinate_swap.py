@@ -988,7 +988,7 @@ def compute_angle(coords):
     vec1 = coords[0] - coords[1]
     vec2 = coords[2] - coords[1]
 
-    angle = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+    angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
 
     return angle
 
