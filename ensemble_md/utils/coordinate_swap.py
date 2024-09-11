@@ -1,52 +1,71 @@
-import mdtraj as md
-import re
-import numpy as np
+####################################################################
+#                                                                  #
+#    ensemble_md,                                                  #
+#    a python package for running GROMACS simulation ensembles     #
+#                                                                  #
+#    Written by                                                    #
+#      - Anika Friedman <anika.friedman@colorado.edu>              #
+#      - Wei-Tse Hsu <wehs7661@colorado.edu>                       #
+#    Copyright (c) 2022 University of Colorado Boulder             #
+#                                                                  #
+####################################################################
+"""
+The :obj:`.coordinate_swap` module provides functions for swapping coordinates
+in a MT-REXEE simulation.
+"""
 import os
-from itertools import product
-import pandas as pd
+import re
 import copy
+import mdtraj as md
+import numpy as np
+import pandas as pd
+from itertools import product
+
 
 def get_dimensions(file):
     """
-    Determine the dimensions of the cubic box based on the input GRO file
+    Determines the dimensions of the cubic box based on the input GRO file.
     
     Parameters
     ----------
-    file : List of strings 
-        containing all of the lines in the input gro file
+    file : list
+        A list of strings containing all of the lines in the input GRO file.
 
     Returns
     -------
-    [x, y, z] : List of floats 
-        X, Y, and Z coordinates for the periodic box
+    dim_vector : list
+        A list of floats containing the dimensions of the cubic box.
     """
     box_raw = file[-1].split(' ')
     while '' in box_raw:
         box_raw.remove('')
-    
-    return [float(box_raw[0]), float(box_raw[1]), float(box_raw[2])]
 
-def deter_common(molA_file, molB_file,  nameA : str, nameB : str):
+    dim_vector = [float(i) for i in box_raw]
+    return dim_vector
+
+def find_common(molA_file, molB_file, nameA, nameB):
     """
-    Determine the atoms which are common, which are switched between dummy and real atoms, and which are unique between the two molecule
+    Determine the atoms which are common, which are switched between dummy and real atoms,
+    and which are unique between the two input molecules.
 
     Parameters
     ----------
-    molA_file : List of strings
-        Lines of the GRO file for molecule A
-    molB_file : List of strings
-        Lines of the GRO file for molecule B
+    molA_file : list
+        A list of strings containing lines of the GRO file for molecule A.
+    molB_file : list
+        A list of strings containing lines of the GRO file for molecule B.
     nameA : str
-        The name of the residue being altered in molecule A
+        The name of the residue being altered in molecule A.
     nameB : str
-        The name of the residue being altered in molecule B
+        The name of the residue being altered in molecule B.
     
     Returns
     -------
-    df : pandas DataFrame
-        Containing the atoms which are not the same between the two molecules and how they are changed
+    df : pandas.DataFrame
+        A pandas DataFrame containing the atoms which are not the same between the two molecules
+        and how they are changed.
     """
-    #Gather atom names from each file
+    # Gather atom names from each file
     nameA_list, lineA_list, nameB_list, lineB_list = [], [], [], []
     for l, line in enumerate(molA_file):
         split_line = line.split(' ')
@@ -66,41 +85,48 @@ def deter_common(molA_file, molB_file,  nameA : str, nameB : str):
             nameB_list.append(split_line[1])
             lineB_list.append(l)
 
-    #Determine the atom names present in both molecules
+    # Determine the atom names present in both molecules
     common_atoms_all = list(set(nameA_list) & set(nameB_list))
 
-    #Determine the swaps for each transformation
-    df_A2B = deter_R2D_D2R_miss(nameA_list, nameB_list, common_atoms_all, lineA_list, 'A2B')
-    df_B2A = deter_R2D_D2R_miss(nameB_list, nameA_list, common_atoms_all, lineB_list, 'B2A')
+    # Determine the swaps for each transformation
+    df_A2B = find_R2D_D2R_miss(nameA_list, nameB_list, common_atoms_all, lineA_list, 'A2B')
+    df_B2A = find_R2D_D2R_miss(nameB_list, nameA_list, common_atoms_all, lineB_list, 'B2A')
 
-    #Add D2R
+    # Add D2R
     df = pd.concat([df_A2B, df_B2A])
     df.reset_index(inplace=True)
     return df
 
-def deter_R2D_D2R_miss(name_list, name_other_list, common_atoms, line_list, swap):
+def find_R2D_D2R_miss(name_list, name_other_list, common_atoms, line_list, swap):
     """
-    Determine which atoms are swapped between dummy and real states and which are missing
+    Determines which atoms are swapped between dummy and real states and which are missing.
 
     Parameters
     ----------
-    name_list : str
-        List of all the atom names for the atoms in the molecule of interest
-    name_other_list : str
-        List of all the atom names for the atoms that the molecule of interest is swapping with
-    common_atoms : str
-        List of all the atom names for atoms known to be common between the two molecules
-    Line_list : int
-        List of the line in the file which corresponds to each atom name in the molecule of interest
+    name_list : list
+        A list of all the atom names for the atoms in the molecule of interest.
+    name_other_list : list
+        A list of all the atom names for the atoms that the molecule of interest is swapping with.
+    common_atoms : list
+        A list of all the atom names for atoms known to be common between the two molecules.
+    line_list : list
+        A list of the line in the file which corresponds to each atom name in the molecule of interest.
     swap : str
         The direction of the swap based on the molecules identified as A and B
 
     Returns
     -------
-    df : pandas DataFrame
-        For each atom that is not in the common list the dataframe gives the name of the atom, the atom number, the atom element, whether the atom is switchin between dummy and real or missing, the swap direction (same as input), whether the final atom type is real or dummy 
+    df : pandas.DataFrame
+        A pandas DataFrame that contains the following information for each at omthat is no in the common list:
+
+          - The name of the atom,
+          - The atom number
+          - The atom element
+          - Whether the atom is switching between dummy and real or missing,
+          - The swap direction (same as input)
+          - Whether the final atom type is real or dummy 
     """
-    #Determine atoms unique to either molecule
+    # Determine atoms unique to either molecule
     names, an_num, elements, directions, swaps, lines, final_type = [], [], [], [], [], [], []
     for a, atom in enumerate(name_list):
         element = atom.strip('0123456789')
@@ -131,24 +157,25 @@ def deter_R2D_D2R_miss(name_list, name_other_list, common_atoms, line_list, swap
 
 def fix_break(mol, resname, box_dimensions, atom_connect_all):
     """
-    Determine if there are any breaks across periodic boundary conditions in the residue of interest and shift the molecule across those boudaries to make it whole
+    Determines if there are any breaks across periodic boundary conditions in the residue of interest and
+    shifts the molecule across those boudaries to make it whole.
 
     Parameters
     ----------
-    mol : mdtraj Trajectory object
-        Trajectory object for the molecule or interest
+    mol : :func:`mdtraj.Trajectory` object
+        Trajectory for the molecule or interest.
     resname : str
-        Name of the residue of interest for coordinate swapping
+        The name of the residue of interest for coordinate swapping.
     box_dimensions : list
-        Dimensions of the periodic box for the system of interest
-    atom_connect_all : pd.DataFrame
-        DataFrame which contains the name of all atoms which are connected to one another in the residue of interest
+        Dimensions of the periodic box for the system of interest.
+    atom_connect_all : pandas.DataFrame
+        A pandas DataFrame which contains the name of all atoms which are connected to one another
+        in the residue of interest
     
     Returns
     -------
-    mol : mdtraj Trajecotry object
-        Trajectory with all breaks in the necessary portions of the molecule fixed
-
+    mol : :func:`mdtraj.Trajectory` object
+        A :func:`mdtraj.Trajectory` object with all breaks in the necessary portions of the molecule fixed.
     """
     mol_top = mol.topology
     
@@ -160,7 +187,7 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
     for atoms in atom_connect:
         atom_pairs.append(list(mol_top.select(f"resname {resname} and (name {atoms[0]} or name {atoms[1]})")))
     
-    #Find any broken bonds
+    # Find any broken bonds
     broken_pairs = check_break(mol, atom_pairs)
 
     if len(broken_pairs) == 0:
@@ -169,27 +196,27 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
     else:
         print('Fixing break')
 
-    iter = 0 #Keep track of while loop iterations
+    iter = 0 # Keep track of while loop iterations
     shift_atom = []
     while len(broken_pairs) > 0:
-        #Prevent infinite loop
+        # Prevent infinite loop
         if iter > len(atom_pairs):
             raise Exception('Break could not be fixed') 
         iter += 1
         
-        #Fix this break
-        mol, Fixed, shift_atom = perform_shift_1D(mol, box_dimensions, broken_pairs, atom_pairs, shift_atom)
-        if Fixed:
+        # Fix this break
+        mol, fixed, shift_atom = perform_shift_1D(mol, box_dimensions, broken_pairs, atom_pairs, shift_atom)
+        if fixed:
             broken_pairs = check_break(mol, atom_pairs)
             continue
         else:
-            mol, Fixed = perform_shift_2D(mol, box_dimensions, broken_pairs, shift_atom)
-            if Fixed:
+            mol, fixed = perform_shift_2D(mol, box_dimensions, broken_pairs, shift_atom)
+            if fixed:
                 broken_pairs = check_break(mol, atom_pairs)
                 continue
             else:
-                mol, Fixed = perform_shift_3D(mol, box_dimensions, broken_pairs, shift_atom)
-                if Fixed:
+                mol, fixed = perform_shift_3D(mol, box_dimensions, broken_pairs, shift_atom)
+                if fixed:
                     broken_pairs = check_break(mol, atom_pairs)
                     continue
                 else:
@@ -199,25 +226,25 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
 
 def perform_shift_1D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     """
-    Shift across the periodic boundaries in 1D
+    Shifts the input trajectory across the periodic boundaries in 1D.
 
     Parameters
     ----------
-    mol : mdtraj Trajectory object
-        Trajecotry with the original coordinates prior to the fhist
-    box_dimensions : list of floats
-        Dimensions of the periodic boundary box
+    mol : :func:`mdtraj.Trajectory` object
+        A :func:`mdtraj.Trajectory` object with the original coordinates prior to the shift.
+    box_dimensions : list
+        Dimensions of the periodic boundary box.
     broken_pairs_init : int
-        which pairs of atoms were found to be broken
+        Which pairs of atoms were found to be broken.
     prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done 
+        Which atoms have already been shifted so we don't undo what we've done.
 
     Returns
     -------
-    mol : mdtraj Trajectory object
-        Trajectory with the new coordintes
-    Fixed : bool
-        Was the break actually fixed 
+    mol : :func:`mdtraj.Trajectory` object
+        Trajectory with the new coordinates.
+    fixed : bool
+        A boolean indicating whether the break was actually fixed.
     prev_shift_atom : int
         Which atoms have already been shifted so we don't undo what we've done
     """
@@ -225,130 +252,130 @@ def perform_shift_1D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     broken_atom = atom_pair[1]
     if broken_atom in prev_shift_atom:
         broken_atom = atom_pair[0]
-    Fixed = False
+    fixed = False
     for x in range(3): #Loop through x, y, and z
         for shift_dir in [1, -1]:
-            mol.xyz[0,broken_atom,x] = mol.xyz[0,broken_atom,x] + (shift_dir[0] * box_dimensions[x]) #positive shift
+            mol.xyz[0,broken_atom,x] = mol.xyz[0,broken_atom,x] + (shift_dir[0] * box_dimensions[x]) # positive shift
             dist_check = md.compute_distances(mol, atom_pairs=[atom_pair], periodic=False)
-            if dist_check > 0.2: #Didn't work so reverse and try again
+            if dist_check > 0.2: # Didn't work so reverse and try again
                 mol.xyz[0,broken_atom,x] = mol.xyz[0,broken_atom,x] - (shift_dir[0] * box_dimensions[x])
-            else: #Yay fixed break
-                Fixed = True
+            else: # Yay fixed break
+                fixed = True
                 break
-        if Fixed:
+        if fixed:
             break
-    if Fixed:
+    if fixed:
         prev_shift_atom.append(broken_atom)
-    return mol, Fixed, prev_shift_atom
+    return mol, fixed, prev_shift_atom
 
 def perform_shift_2D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     """
-    Shift across the periodic boundaries in 2D
+    Shifts the input trajectory across the periodic boundaries in 2D.
 
     Parameters
     ----------
-    mol : mdtraj Trajectory object
-        Trajecotry with the original coordinates prior to the fhist
-    box_dimensions : list of floats
-        Dimensions of the periodic boundary box
+    mol : :func:`mdtraj.Trajectory` object
+        Trajecotry with the original coordinates prior to the shift.
+    box_dimensions : list
+        Dimensions of the periodic boundary box.
     broken_pairs_init : int
-        which pairs of atoms were found to be broken
+        Which pairs of atoms were found to be broken.
     prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done 
+        Which atoms have already been shifted so we don't undo what we've done.
 
     Returns
     -------
-    mol : mdtraj Trajectory object
-        Trajectory with the new coordintes
-    Fixed : bool
-        Was the break actually fixed 
+    mol : :func:`mdtraj.Trajectory` object
+        Trajectory with the new coordintes.
+    fixed : bool
+        A boolean indicating whether the break was actually fixed.
     prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done
+        Which atoms have already been shifted so we don't undo what we've done.
     """
     atom_pair = broken_pairs_init[0]
     broken_atom = atom_pair[1]
     if broken_atom in prev_shift_atom:
         broken_atom = atom_pair[0]
-    Fixed = False
+    fixed = False
     shift_combos = product([0, 1, 2], [0, 1, 2])
-    for pair in shift_combos: #Loop through x, y, and z
-        for shift_dir in product([1, -1], [1,-1]): #Try all combos of shift direction
+    for pair in shift_combos: # Loop through x, y, and z
+        for shift_dir in product([1, -1], [1,-1]): # Try all combos of shift direction
             x, y = pair
-            mol.xyz[0,broken_atom,x] = mol.xyz[0,broken_atom,x] + (shift_dir[0] * box_dimensions[x]) #positive shift
+            mol.xyz[0,broken_atom,x] = mol.xyz[0,broken_atom,x] + (shift_dir[0] * box_dimensions[x]) # positive shift
             mol.xyz[0,broken_atom,y] = mol.xyz[0,broken_atom,y] + (shift_dir[1] * box_dimensions[y])
             dist_check = md.compute_distances(mol, atom_pairs=[atom_pair], periodic=False)
-            if dist_check > 0.2: #Didn't work so reverse and try again
+            if dist_check > 0.2: # Didn't work so reverse and try again
                 mol.xyz[0,broken_atom,x] = mol.xyz[0,broken_atom,x] - (shift_dir[0] * box_dimensions[x])
                 mol.xyz[0,broken_atom,y] = mol.xyz[0,broken_atom,y] - (shift_dir[1] * box_dimensions[y])
-            else: #Yay fixed break
-                Fixed = True
+            else: # Yay fixed break
+                fixed = True
                 break
-        if Fixed:
+        if fixed:
             break
-    if Fixed:
+    if fixed:
         prev_shift_atom.append(broken_atom)
-    return mol, Fixed
+    return mol, fixed
 
 def perform_shift_3D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     """
-    Shift across the periodic boundaries in 3D
+    Shifts the input trajectory across the periodic boundaries in 3D
 
     Parameters
     ----------
-    mol : mdtraj Trajectory object
-        Trajecotry with the original coordinates prior to the fhist
-    box_dimensions : list of floats
-        Dimensions of the periodic boundary box
+    mol : :func:`mdtraj.Trajectory` object
+        Trajecotry with the original coordinates prior to the shift.
+    box_dimensions : list
+        Dimensions of the periodic boundary box.
     broken_pairs_init : int
-        which pairs of atoms were found to be broken
+        Which pairs of atoms were found to be broken.
     prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done 
+        Which atoms have already been shifted so we don't undo what we've done.
 
     Returns
     -------
-    mol : mdtraj Trajectory object
-        Trajectory with the new coordintes
-    Fixed : bool
-        Was the break actually fixed 
+    mol : :func:`mdtraj.Trajectory` object
+        Trajectory with the new coordintes.
+    fixed : bool
+        A boolean indicating whether the break was actually fixed.
     prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done
+        Which atoms have already been shifted so we don't undo what we've done.
     """
     atom_pair = broken_pairs_init[0]
     broken_atom = atom_pair[1]
     if broken_atom in prev_shift_atom:
         broken_atom = atom_pair[0]
-    Fixed = False
-    for shift_dir in product([1, -1], [1,-1], [1, -1]): #Try all combos of shift direction
+    fixed = False
+    for shift_dir in product([1, -1], [1,-1], [1, -1]): # Try all combos of shift direction
         mol.xyz[0,broken_atom,0] = mol.xyz[0,broken_atom,0] + (shift_dir[0] * box_dimensions[0]) 
         mol.xyz[0,broken_atom,1] = mol.xyz[0,broken_atom,1] + (shift_dir[1] * box_dimensions[1])
         mol.xyz[0,broken_atom,2] = mol.xyz[0,broken_atom,2] + (shift_dir[2] * box_dimensions[2])
         dist_check = md.compute_distances(mol, atom_pairs=[atom_pair], periodic=False)
-        if dist_check > 0.2: #Didn't work so reverse and try again
+        if dist_check > 0.2: # Didn't work so reverse and try again
             mol.xyz[0,broken_atom,0] = mol.xyz[0,broken_atom,0] - (shift_dir[0] * box_dimensions[0]) 
             mol.xyz[0,broken_atom,1] = mol.xyz[0,broken_atom,1] - (shift_dir[1] * box_dimensions[1])
             mol.xyz[0,broken_atom,2] = mol.xyz[0,broken_atom,2] - (shift_dir[2] * box_dimensions[2])
-        else: #Yay fixed break
-            Fixed = True
+        else: # Yay fixed break
+            fixed = True
             break
-    if Fixed:
+    if fixed:
         prev_shift_atom.append(broken_atom)
-    return mol, Fixed
+    return mol, fixed
 
 def check_break(mol, atom_pairs):
     """
-    Determine whether a break is present between the atom pairs of interest
+    Determines whether a break is present between the atom pairs of interest.
 
     Parameters
     ----------
-    mol : mdtraj Trajectory object
-        Trajectory to examine for breaks
+    mol : :func:`mdtraj.Trajectory` object
+        Trajectory to examine for breaks.
     atom_pairs : int
-        The atom number pairs which should be connected in the residue of interest
+        The atom number pairs which should be connected in the residue of interest.
     
     Returns
     -------
     broken_pairs : int
-        which pairs of atoms have breaks across the periodic boundary
+        Which pairs of atoms have breaks across the periodic boundary.
     """
     dist = md.compute_distances(mol, atom_pairs=atom_pairs, periodic=False)
     broken_pairs = []
@@ -359,31 +386,38 @@ def check_break(mol, atom_pairs):
 
 def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, df_swap):
     """
-    Get coordinates for the missing atoms after the conformational swap
+    Gets coordinates for the missing atoms after the conformational swap
 
     Parameters
     ----------
-    mol_align : mdtraj Trajectory object
-        trajectory for the molecule being aligned
-    mol_ref : mdtraj Trajectory object
-        trajectory for the reference molecule
+    mol_align : :func:`mdtraj.Trajectory` object
+        Trajectory for the molecule being aligned.
+    mol_ref : :func:`mdtraj.Trajectory` object
+        Trajectory for the reference molecule.
     name_align : str
-        resname for the molecule which is being aligned
+        The resname for the molecule which is being aligned.
     name_ref : str
-        resname for the molecule which has the reference coordinates
-    df_atom_swap : pandas DataFrame
-        For each atom that is not in the common list the dataframe gives the name of the atom, the atom number, the atom element, whether the atom is switchin between dummy and real or missing, the swap direction (same as input), whether the final atom type is real or dummy 
+        The resname for the molecule which has the reference coordinates.
+    df_atom_swap : pandas.DataFrame
+        A pandas DataFrame that contains the following information for each at omthat is no in the common list:
+
+          - The name of the atom
+          - The atom number
+          - The atom element
+          - Whether the atom is switchin between dummy and real or missing
+          - The swap direction (same as input)
+          - Thether the final atom type is real or dummy
     dir : str
-        swapping direction
-    df_swap : pandas DataFrame
-        For each missing atoms 
+        The swapping direction.
+    df_swap : pandas.DataFrame
+        For each missing atoms.
     
     Returns
     -------
-    df_atom_swap : pandas DataFrame
-        Same dataframe as the input, but with coordinates for the missing atoms
+    df_atom_swap : pandas.DataFrame
+        Same dataframe as the input, but with coordinates for the missing atoms.
     """
-    #Create a new column for coordinates if one does not exist
+    # Create a new column for coordinates if one does not exist
     if 'X Coordinates' not in df_atom_swap.columns:
         df_atom_swap['X Coordinates'] = np.NaN
         df_atom_swap['Y Coordinates'] = np.NaN
@@ -397,7 +431,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         conn_ref = [row['Anchor Atom Name B'], row['Alignment Atom B']]
         miss_names_select = row['Missing Atom Name'].split(' ')
         geom_fix_select = [miss_names_select[0], row['Anchor Atom Name A'], row['Angle Atom A']]
-        #Limit to region of interest
+        # Limit to region of interest
         align_select = []
         for a in conn_align + miss_names_select + geom_fix_select:
             atom = mol_align.topology.select(f'resname {name_align} and name {a}')[0]
@@ -409,28 +443,28 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         mol_ref_select = copy.deepcopy(mol_ref.atom_slice(ref_select))
         mol_align_select = copy.deepcopy(mol_align.atom_slice(align_select))
 
-        #Select atoms in connection bond
+        # Select atoms in connection bond
         conn0_align = mol_align_select.topology.select(f'resname {name_align} and name {conn_align[0]}')[0]
         conn1_align = mol_align_select.topology.select(f'resname {name_align} and name {conn_align[1]}')[0]
         conn0_ref = mol_ref_select.topology.select(f'resname {name_ref} and name {conn_ref[0]}')[0]
         conn1_ref = mol_ref_select.topology.select(f'resname {name_ref} and name {conn_ref[1]}')[0]
 
-        #Step 1: Perform translation to align point 1
+        # Step 1: Perform translation to align point 1
         shift_vec = mol_ref_select.xyz[0,conn0_ref,:] - mol_align_select.xyz[0,conn0_align,:]
         for a in range(mol_align_select.n_atoms):
             mol_align_select.xyz[0,a,:] = mol_align_select.xyz[0,a,:] + shift_vec
 
-        #Step 2: Perform rotational motion to line up point 2
-        ref_vec = mol_ref_select.xyz[0,conn1_ref,:] - mol_ref_select.xyz[0,conn0_ref,:] #defing 0-1 vector in ref
-        align_vec = mol_align_select.xyz[0,conn1_align,:] - mol_ref_select.xyz[0,conn0_ref,:] #defing 0-1 vector in align
-        axis_rot = np.cross(ref_vec/np.linalg.norm(ref_vec), (align_vec/np.linalg.norm(align_vec))) #Perpendicular vector to ref and align vectors
+        # Step 2: Perform rotational motion to line up point 2
+        ref_vec = mol_ref_select.xyz[0,conn1_ref,:] - mol_ref_select.xyz[0,conn0_ref,:] # defing 0-1 vector in ref
+        align_vec = mol_align_select.xyz[0,conn1_align,:] - mol_ref_select.xyz[0,conn0_ref,:] # defing 0-1 vector in align
+        axis_rot = np.cross(ref_vec/np.linalg.norm(ref_vec), (align_vec/np.linalg.norm(align_vec))) # Perpendicular vector to ref and align vectors
         theta = find_rotation_angle(mol_align_select.xyz[0,conn1_align,:], mol_ref_select.xyz[0,conn0_ref,:], mol_ref_select.xyz[0,conn1_ref,:], axis_rot)
 
         for a in range(mol_align_select.n_atoms):
             if a != conn0_align:
                 mol_align_select.xyz[0,a,:] = rotate_point_around_axis(mol_align_select.xyz[0,a,:], mol_ref_select.xyz[0,conn0_ref,:], axis_rot, theta)
 
-        #Step 3: Rotate around 0-1 bond to get the correct angle for connecting atom
+        # Step 3: Rotate around 0-1 bond to get the correct angle for connecting atom
         angle_atoms = [mol_align.topology.select(f'resname {name_align} and name {geom_fix_select[0]}')[0], 
                        mol_align.topology.select(f'resname {name_align} and name {geom_fix_select[1]}')[0], 
                        mol_align.topology.select(f'resname {name_align} and name {geom_fix_select[2]}')[0]]
@@ -439,7 +473,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         axis_rot = mol_align_select.xyz[0,conn0_align,:] -  mol_align_select.xyz[0,conn1_align,:]
         axis_rot = axis_rot / np.linalg.norm(axis_rot)
 
-        #Determine angle of rotation to get the right internal angle
+        # Determine angle of rotation to get the right internal angle
         min_dev_angle = 3
         init_coords = mol_align_select.xyz[0,change_atoms,:][0].copy()
         constant_coords = [mol_align_select.xyz[0,mol_align_select.topology.select(f'resname {name_align} and name {geom_fix_select[1]}')[0],:],
@@ -454,12 +488,12 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
                 min_dev_angle = abs(iangle - internal_angle)
                 if min_dev_angle < 0.05:
                     break
-        #Perform the rotation
+        # Perform the rotation
         for a in range(mol_align_select.n_atoms):
             if a != conn0_align:
                 mol_align_select.xyz[0,a,:] = rotate_point_around_axis(mol_align_select.xyz[0,a,:], mol_ref_select.xyz[0,conn0_ref,:], axis_rot, theta_min)
 
-        #Add coordinates to df
+        # Add coordinates to df
         for r in range(len(df_atom_swap.index)):
             if df_atom_swap.iloc[r]['Direction'] == 'miss' and df_atom_swap.iloc[r]['Swap'] == dir:
                 for name in miss_names_select:
@@ -474,14 +508,14 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
 
 def process_line(mol_file, i):
     """
-    Seperate the line by spaces and correct for when the atom number merges the atom name
+    Seperates the line by spaces and corrects for when the atom number merges the atom name
 
     Parameters
     ----------
-    mol_file : list of str
-        Reading the lines of the input gro file
+    mol_file : list
+        A list of strings containing the lines of the input GRO file.
     i : int
-        The iterator for the line in the file
+        The index the line in the file.
     
     Returns
     -------
@@ -490,15 +524,15 @@ def process_line(mol_file, i):
     prev_line : str
         Line i-1 in the file
     """
-    #Load previous line to determine identity of previous atom
+    # Load previous line to determine identity of previous atom
     prev_line = mol_file[i-1].split(' ')
     while("" in prev_line): prev_line.remove("")
     
-    #Load current line in file and seperate
+    # Load current line in file and seperate
     line = mol_file[i].split(' ')
     while("" in line): line.remove("")
     
-    #Control for atom name and atom number merging
+    # Control for atom name and atom number merging
     if len(line[1]) > 5:
         line = sep_merge(line)
     if i > 2 and len(prev_line[1]) > 5:
@@ -508,23 +542,23 @@ def process_line(mol_file, i):
 
 def print_preamble(old_file, new_file, num_add_names, num_rm_names):
     """
-    Print the preamble of the gro file before the atom specifications begin
+    Prints the preamble of the gro file before the atom specifications begin.
 
     Parameters
     ----------
-    old_file : list of str
-
-    new_file : list of str
-
+    old_file : list
+        A list of strings containing lines from the original GRO file.
+    new_file : file-like object
+        A writable file-like object where the modified content is written.
     num_add_names : int
-        Number of atoms to be added to the pre-swap molecule
+        The number of atoms to be added to the pre-swap molecule.
     num_rm_names : int
-        Number of atoms to be removed to the post-swap molecule
+        The number of atoms to be added to the post-swap molecule.
 
     Returns
     -------
     line_start : int
-        The line number to start when you continue to read the file
+        The line number to start when you continue to read the file.
     """
     for i in range(len(old_file)):
         if not re.match(r'[ \t]', old_file[i]) and not re.match('^[0-9]+$', old_file[i]):
@@ -538,30 +572,26 @@ def print_preamble(old_file, new_file, num_add_names, num_rm_names):
 
 def write_line(mol_new, raw_line, line, atom_num, vel, coor, resnum=None, nameB=None):
     """
-    Write a line in the file in which some parameter needs changed and maintain spacing
+    Writes a line in the file in which some parameter needs to be changed.
 
     Parameters
     ----------
-    mol_new : File object
-        The new file that is being written to
+    mol_new : file-like object
+        A writable file-like object where the formatted molecular data is written.
     raw_line : str
-        The unseperated and unchanged line
-    Line : List of str
-
+        The unseperated and unchanged line.
+    line : list
+        A list of strings representing parsed parts of the input line, such as atom names, numbers, etc.
     atom_num : int
-        The new atom number to be assigned to the atom in this line
-    vel : list of float
-        The velocities to be assigned to the atom in this line
-    coor : list of float
-        The coordinates for the atom in this line
+        The new atom number to be assigned to the atom in this line.
+    vel : list
+        The list of velocities in the x, y, and z directions to be assigned to the atom in this line.
+    coor : list
+        The list coordinates in the x, y, and z directions for the atom in this line.
     resnun : int
-        The new residue number if it changes else leave deafult of None
+        The new residue number if it changes. The default is :code:`None`:.
     nameB : str
-        The new residue name if if changes from what was in the previous file else leave deafult of None
-
-    Returns
-    -------
-        None
+        The new residue name if if changes from what was in the previous file. The default is :code:`None`:.
     """
     coor = ["{:.7f}".format(coor[0]), "{:.7f}".format(coor[1]), "{:.7f}".format(coor[2])]
     if len(line) == 9:
@@ -588,21 +618,21 @@ def write_line(mol_new, raw_line, line, atom_num, vel, coor, resnum=None, nameB=
     else:
         mol_new.write(raw_line)
 
-def deter_res(mol_top, resname_options):
+def identify_res(mol_top, resname_options):
     """
-    Determine which of the potential residues of interest are in this molecule
+    Determines which of the potential residues of interest are in this molecule.
 
     Parameters
     ----------
     mol_top : mdtraj topology
-        The molecule topology
-    resname_options : list of str
-        The potential residue names which may be in the moleucle
+        The molecule topology.
+    resname_options : list
+        The potential residue names which may be in the moleucle.
 
     Returns
     -------
     resname : str
-        The name of the residue of interest which is in the molecule
+        The name of the residue of interest which is in the molecule.
     """
     for name in resname_options:
         if len(mol_top.select(f"resname {name}")) != 0:
@@ -612,30 +642,30 @@ def deter_res(mol_top, resname_options):
 
 def add_atom(mol_new, resnum, resname, df, vel, atom_num):
     """
-    Add a new atom to the GRO file
+    Add a new atom to the GRO file.
 
     Parameters
     ----------
     mol_new : file
-        The temporary file for the new GRO
+        The temporary file for the new GRO.
     resnum : int
-        The residue number of the atom being added
+        The residue number of the atom being added.
     resname : str
-        The name of the residue which the atom being added belongs to
+        The name of the residue which the atom being added belongs to.
     df : pandas.DataFrame
-        The master dataframe which contains the coordinates for the atom being added
-    vel : list of float
-        The velocity to assign to the atom being added
+        The master DataFrame which contains the coordinates for the atom being added.
+    vel : list
+        The list of velocities in the x, y, and z directions to be assigned to the atom in this line.
     atom_num : int
-        The atom number to assign to the atom being added
+        The atom number to assign to the atom being added.
 
     Returns
     -------
     atom_num : int
-        The atom number for the next atom in the file
+        The atom number for the next atom in the file.
     """
     name_new = df['Name'].to_list()[0]
-    #Reformat coordiantes
+    # Reformat coordiantes
     x_init = df['X Coordinates'].to_list()
     y_init = df['Y Coordinates'].to_list()
     z_init = df['Z Coordinates'].to_list()
@@ -645,7 +675,7 @@ def add_atom(mol_new, resnum, resname, df, vel, atom_num):
     y = format(y_temp, '.7f')
     z_temp = np.round(z_init[0], decimals=7)
     z = format(z_temp, '.7f')
-    #Write line for new atom
+    # Write line for new atom
     mol_new.write(f'{resnum}{resname}'.rjust(8, ' ') + name_new.rjust(7, ' ') + str(atom_num).rjust(5, ' ') + str(x).rjust(12, ' ')  + str(y).rjust(12, ' ') + 
                       str(z).rjust(12, ' ') + vel[0].rjust(8, ' ') + vel[1].rjust(8, ' ') + vel[2].rjust(9, ' '))
     atom_num += 1  
