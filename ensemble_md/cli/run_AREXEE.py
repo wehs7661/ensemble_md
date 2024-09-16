@@ -7,26 +7,32 @@
 #    Copyright (c) 2022 University of Colorado Boulder             #
 #                                                                  #
 ####################################################################
+import os
 import sys
+import copy
 import time
-import argparse
+import traceback
 import warnings
 from mpi4py import MPI
+from datetime import datetime
 
 from ensemble_md.utils import utils
 from ensemble_md.cli.run_REXEE import initialize
+from ensemble_md.replica_exchange_EE import ReplicaExchangeEE
 
 warnings.warn('This module is only for experimental purposes and still in progress. Please do not use it for any production research.', UserWarning)  # noqa: E501
 
 """
-Currently, this CLI still uses MPI to run REXEE simulations, but it tries to mock some behaviors of asynchronous REXEE in the following way:
-1. Finish an iteration of the REXEE simulation. 
-2. Based on the time it took for each simulation to finish, figure out the order in which the replicas should be added to the queue. 
+Currently, this CLI still uses MPI to run REXEE simulations, but it tries to mock some behaviors of asynchronous REXEE
+in the following way:
+1. Finish an iteration of the REXEE simulation.
+2. Based on the time it took for each simulation to finish, figure out the order in which the replicas should be
+   added to the queue.
 3. Apply a queueing algorithm to figure out what replicas to swap first.
 
-Eventually, we would like to get rid of the use of MPI and really rely on asynchronous parallelization schemes. The most likely
-direction is to use functionalities in airflowHPC to manage the queueing and launching of replicas. If possible, this CLI should be
-integrated into the CLI run_REXEE.
+Eventually, we would like to get rid of the use of MPI and really rely on asynchronous parallelization schemes.
+The most likely direction is to use functionalities in airflowHPC to manage the queueing and launching of
+replicas. If possible, this CLI should be integrated into the CLI run_REXEE.
 """
 
 
@@ -81,7 +87,8 @@ def main():
         try:
             if rank == 0:
                 # Step 3: Swap the coordinates
-                # Note that here we leave out Steps 3-3 and 3-4, which are for weight combination/correction and coordinate modification, respectively.
+                # Note that here we leave out Steps 3-3 and 3-4, which are for weight combination/correction and
+                # coordinate modification, respectively.
 
                 # 3-1. Extract the final dhdl and log files from the previous iteration
                 dhdl_files = [f'{REXEE.working_dir}/sim_{j}/iteration_{i - 1}/dhdl.xvg' for j in range(REXEE.n_sim)]
@@ -91,20 +98,20 @@ def main():
                 print()
 
                 # 3-2. Identify swappable pairs, propose swap(s), calculate P_acc, and accept/reject swap(s)
-                states = copy.deepcopy(states_)
-                weights = copy.deepcopy(weights_)
-                counts = copy.deepcopy(counts_)
+                states = copy.deepcopy(states_)  # noqa: F841
+                weights = copy.deepcopy(weights_)  # noqa: F841
+                counts = copy.deepcopy(counts_)  # noqa: F841
                 swap_pattern, swap_list = REXEE.get_swapping_pattern(dhdl_files, states_)  # swap_list will only be used for modify_coords  # noqa: E501
             else:
-                    swap_pattern, swap_list = None, None
+                swap_pattern, swap_list = None, None  # noqa: F841
 
-            except Exception:
-                print('\n--------------------------------------------------------------------------\n')
-                print(f'An error occurred on rank 0:\n{traceback.format_exc()}')
-                MPI.COMM_WORLD.Abort(1)
+        except Exception:
+            print('\n--------------------------------------------------------------------------\n')
+            print(f'An error occurred on rank 0:\n{traceback.format_exc()}')
+            MPI.COMM_WORLD.Abort(1)
 
             # Note that we leave out the block for exiting the for loop when the weights got equilibrated, as this CLI
-            # won't be tested for weight-updating simulations for now. 
+            # won't be tested for weight-updating simulations for now.
 
             # Step 4: Perform another iteration
             # Here we leave out the block that uses swap_list, which is only for coordinate modifications.
@@ -113,7 +120,8 @@ def main():
             # Here we run another set of simulations (i.e. Step 4-2 in CLI run_REXEE)
             REXEE.run_REXEE(i, swap_pattern)
 
-            # Here we leave out the block for saving data (i.e. Step 4-3 in CLI run_REXEE) since we won't run for too many iterations when testing this CLI.
+            # Here we leave out the block for saving data (i.e. Step 4-3 in CLI run_REXEE) since we won't
+            # run for too many iterations when testing this CLI.
 
             # Step 5: Write a summary for the simulation ensemble
             if rank == 0:
