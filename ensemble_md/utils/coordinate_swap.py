@@ -72,21 +72,23 @@ def find_common(molA_file, molB_file, nameA, nameB):
         split_line = line.split(' ')
         while ("" in split_line):
             split_line.remove("")
-        if len(split_line[1]) > 5:
-            split_line = sep_merge(split_line)
-        if nameA in split_line[0]:
-            nameA_list.append(split_line[1])
-            lineA_list.append(l)
+        if len(split_line) > 2:
+            if len(split_line[1]) > 5:
+                split_line = sep_merge(split_line)
+            if nameA in split_line[0]:
+                nameA_list.append(split_line[1])
+                lineA_list.append(l)
 
     for l, line in enumerate(molB_file):  # noqa: E741
         split_line = line.split(' ')
         while ("" in split_line):
             split_line.remove("")
-        if len(split_line[1]) > 5:
-            split_line = sep_merge(split_line)
-        if nameB in split_line[0]:
-            nameB_list.append(split_line[1])
-            lineB_list.append(l)
+        if len(split_line) > 2:
+            if len(split_line[1]) > 5:
+                split_line = sep_merge(split_line)
+            if nameB in split_line[0]:
+                nameB_list.append(split_line[1])
+                lineB_list.append(l)
 
     # Determine the atom names present in both molecules
     common_atoms_all = list(set(nameA_list) & set(nameB_list))
