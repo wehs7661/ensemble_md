@@ -72,21 +72,23 @@ def find_common(molA_file, molB_file, nameA, nameB):
         split_line = line.split(' ')
         while ("" in split_line):
             split_line.remove("")
-        if len(line[1]) > 5:
-            split_line = sep_merge(split_line)
-        if nameA in split_line[0]:
-            nameA_list.append(split_line[1])
-            lineA_list.append(l)
+        if len(split_line) > 2:
+            if len(split_line[1]) > 5:
+                split_line = sep_merge(split_line)
+            if nameA in split_line[0]:
+                nameA_list.append(split_line[1])
+                lineA_list.append(l)
 
     for l, line in enumerate(molB_file):  # noqa: E741
         split_line = line.split(' ')
         while ("" in split_line):
             split_line.remove("")
-        if len(line[1]) > 5:
-            split_line = sep_merge(split_line)
-        if nameB in split_line[0]:
-            nameB_list.append(split_line[1])
-            lineB_list.append(l)
+        if len(split_line) > 2:
+            if len(split_line[1]) > 5:
+                split_line = sep_merge(split_line)
+            if nameB in split_line[0]:
+                nameB_list.append(split_line[1])
+                lineB_list.append(l)
 
     # Determine the atom names present in both molecules
     common_atoms_all = list(set(nameA_list) & set(nameB_list))
@@ -223,7 +225,7 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
         iter += 1
 
         # Fix this break
-        mol, fixed, shift_atom = perform_shift_1D(mol, box_dimensions, broken_pairs, atom_pairs, shift_atom)
+        mol, fixed, shift_atom = perform_shift_1D(mol, box_dimensions, broken_pairs, shift_atom)
         if fixed:
             broken_pairs = check_break(mol, atom_pairs)
             continue
@@ -1088,6 +1090,10 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             continue
         # Iterate atom number to keep track of file progress
         atom_num_B += 1
+
+        #Account for the fact that the max atom number is 99999
+        if atom_num_B == 100000:
+            atom_num_B = 0
 
         # Process input lines
         line, prev_line = process_line(orig_file, i)

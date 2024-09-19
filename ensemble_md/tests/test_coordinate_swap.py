@@ -53,3 +53,10 @@ def test_compute_angle():
     assert np.isclose(coordinate_swap.compute_angle(coords_1), np.pi / 4)
     assert np.isclose(coordinate_swap.compute_angle(coords_2), np.pi / 4)
     assert np.isclose(coordinate_swap.compute_angle(coords_3), np.pi / 2)
+
+
+def test_get_dimenstion():
+    test_file1 = open('ensemble_md/tests/data/coord_swap/input_A.gro', 'r')
+    test_file2 = open('ensemble_md/tests/data/coord_swap/input_B.gro', 'r')
+    assert coordinate_swap.get_dimensions(test_file1) == []
+    assert coordinate_swap.get_dimensions(test_file2) == []
