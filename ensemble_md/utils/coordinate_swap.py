@@ -276,10 +276,10 @@ def perform_shift_1D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     fixed = False
     for x in range(3):  # Loop through x, y, and z
         for shift_dir in [1, -1]:
-            mol.xyz[0, broken_atom, x] = mol.xyz[0, broken_atom, x] + (shift_dir[0] * box_dimensions[x])  # positive shift  # noqa: E501
+            mol.xyz[0, broken_atom, x] = mol.xyz[0, broken_atom, x] + (shift_dir * box_dimensions[x])  # positive shift  # noqa: E501
             dist_check = md.compute_distances(mol, atom_pairs=[atom_pair], periodic=False)
             if dist_check > 0.2:  # Didn't work so reverse and try again
-                mol.xyz[0, broken_atom, x] = mol.xyz[0, broken_atom, x] - (shift_dir[0] * box_dimensions[x])
+                mol.xyz[0, broken_atom, x] = mol.xyz[0, broken_atom, x] - (shift_dir * box_dimensions[x])
             else:  # Yay fixed break
                 fixed = True
                 break
