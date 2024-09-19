@@ -86,6 +86,10 @@ def main():
     for i in range(start_idx, REXEE.n_iter):
         try:
             if rank == 0:
+                # (New) This is where we use the queueing algorithm
+                
+
+
                 # Step 3: Swap the coordinates
                 # Note that here we leave out Steps 3-3 and 3-4, which are for weight combination/correction and
                 # coordinate modification, respectively.
