@@ -13,18 +13,39 @@ Unit tests for the module coordinate_swap.py.
 from ensemble_md.utils import coordinate_swap
 import numpy as np
 import pandas as pd
+import os
 
-def test_get_dimenstion():
-    test_file1 = open('ensemble_md/tests/data/coord_swap/input_A.gro', 'r')
-    test_file2 = open('ensemble_md/tests/data/coord_swap/input_B.gro', 'r')
-    assert coordinate_swap.get_dimensions(test_file1) == [2.74964, 2.74964, 2.74964]
-    assert coordinate_swap.get_dimensions(test_file2) == [2.74243, 2.74243, 2.74243]
+current_path = os.path.dirname(os.path.abspath(__file__))
+input_path = os.path.join(current_path, "data")
+
+
+def test_get_dimensions():
+    gro = os.path.join(input_path, 'sys.gro')
+    f = open(gro, 'r')
+    lines = f.readlines()
+    f.close()
+    vec = coordinate_swap.get_dimensions(lines)
+    assert vec == [3.32017, 3.32017, 2.34772, 0.00000, 0.00000, 0.00000, 0.00000, 1.66009, 1.66009]
+
+    # Write a flat file with cubic box dimensions
+    f = open('test.gro', 'w')
+    f.write('test\n')
+    f.write('    1.00000    2.00000    3.00000\n')
+    f.close()
+
+    f = open('test.gro', 'r')
+    lines = f.readlines()
+    f.close()
+    vec = coordinate_swap.get_dimensions(lines)
+    assert vec == [1.0, 2.0, 3.0]
+
+    os.remove('test.gro')
 
 def test_find_common():
-    test_file1 = open('ensemble_md/tests/data/coord_swap/input_A.gro', 'r')
-    test_file2 = open('ensemble_md/tests/data/coord_swap/input_B.gro', 'r')
+    test_file1 = open(f'{input_path}/coord_swap/input_A.gro', 'r')
+    test_file2 = open(f'{input_path}/coord_swap/input_B.gro', 'r')
     test_df = coordinate_swap.find_common(test_file1, test_file2, 'C2D', 'D2E')
-    df = pd.read_csv('ensemble_md/tests/data/coord_swap/find_common.csv')
+    df = pd.read_csv(f'{input_path}/coord_swap/find_common.csv')
 
     for index, row in df.iterrows():
         test_row = test_df[test_df['Name'] == row['Name']]
@@ -53,8 +74,14 @@ def test_find_rotation_angle():
     assert np.isclose(angle, test_angle, 10**(-5))
 
 def test_compute_angle():
-    vec1_start = [0.13, 0.15, 0.16]
-    vec1_end = [0.16, 0.18, 0.17]
-    vec2_start = [0.13, 0.15, 0.16]
-    vec2_end = [0.11, 0.23, 0.05]
-    assert np.isclose(coordinate_swap.compute_angle([vec1_start, vec1_end, vec2_start, vec2_end]), 0.991836017536949, atol=10**(-4))
+    coords_1 = [
+        np.array([0.0, 0.0, 0.0]),
+        np.array([1.0, 0.0, 0.0]),
+        np.array([0.0, 1.0, 0.0])
+    ]
+    coords_2 = coords_1[-1::-1]
+    coords_3 = [coords_1[1], coords_1[0], coords_1[2]]
+
+    assert np.isclose(coordinate_swap.compute_angle(coords_1), np.pi / 4)
+    assert np.isclose(coordinate_swap.compute_angle(coords_2), np.pi / 4)
+    assert np.isclose(coordinate_swap.compute_angle(coords_3), np.pi / 2)
