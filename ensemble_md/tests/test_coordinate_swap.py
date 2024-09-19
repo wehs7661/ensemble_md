@@ -60,8 +60,10 @@ def test_find_common():
 
 
 def test_R2D_D2R_miss():
-    nameA_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'H1', 'H2', 'H3', 'H4', 'H6', 'H7', 'H8', 'H9', 'H10', 'DC9', 'HV5', 'HV11', 'HV12', 'HV13']
-    nameB_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 'DC8', 'HV8', 'HV9', 'HV10']
+    nameA_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 
+                  'H1', 'H2', 'H3', 'H4', 'H6', 'H7', 'H8', 'H9', 'H10', 'DC9', 'HV5', 'HV11', 'HV12', 'HV13']
+    nameB_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 
+                  'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 'DC8', 'HV8', 'HV9', 'HV10']
     common_atoms_all = ['N3', 'C5', 'C4', 'H3', 'H7', 'H1', 'C2', 'C6', 'C7', 'S1', 'H2', 'H6']
     lineB_list = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
 
@@ -75,6 +77,37 @@ def test_R2D_D2R_miss():
         assert row['Direction'] == test_row['Direction'].to_list()[0]
         assert row['Swap'] == test_row['Swap'].to_list()[0]
         assert row['File line'] == int(test_row['File line'].to_list()[0])
+
+
+def test_fix_break():
+    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
+    df_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
+
+    test_fix = coordinate_swap.fix_break(broken_mol, 'C2D', [2.74964, 2.74964, 2.74964], df_connect[df_connect['Resname']=='C2D'])
+
+    fixed_mol = md.load(f'{input_path}/coord_swap/fixed_mol.gro')
+
+    assert (test_fix.xyz == fixed_mol.xyz).all
+
+
+def test_check_break():
+    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
+    df_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
+
+    atom_connect_all = df_connect[df_connect['Resname']=='C2D']
+    mol_top = broken_mol.topology
+    resname = 'C2D'
+    atom_connect = []
+    for i, row in atom_connect_all.iterrows():
+        atom_connect.append([row['Connect 1'], row['Connect 2']])
+
+    atom_pairs = []
+    for atoms in atom_connect:
+        atom_pairs.append(list(mol_top.select(f"resname {resname} and (name {atoms[0]} or name {atoms[1]})")))
+
+    broken_pairs = coordinate_swap.check_break(broken_mol, atom_pairs)
+
+    assert broken_pairs == [[0, 4], [1, 2]] or broken_pairs == [[1, 2], [0, 4]]
 
 
 def test_sep_merge():
