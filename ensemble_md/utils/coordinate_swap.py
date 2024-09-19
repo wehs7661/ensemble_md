@@ -1091,7 +1091,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
         # Iterate atom number to keep track of file progress
         atom_num_B += 1
 
-        #Account for the fact that the max atom number is 99999
+        # Account for the fact that the max atom number is 99999
         if atom_num_B == 100000:
             atom_num_B = 0
 
