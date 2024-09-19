@@ -1,0 +1,20 @@
+,index,Name,Atom Name Number,Element,Direction,Swap,File line,Final Type
+0,0,C8,8,C,R2D,A2B,9,dummy
+1,1,H4,4,H,miss,A2B,13,real
+2,2,H8,8,H,R2D,A2B,16,dummy
+3,3,H9,9,H,R2D,A2B,17,dummy
+4,4,H10,10,H,R2D,A2B,18,dummy
+5,5,DC9,9,C,D2R,A2B,19,real
+6,6,HV5,5,H,D2R,A2B,20,real
+7,7,HV11,11,H,D2R,A2B,21,real
+8,8,HV12,12,H,D2R,A2B,22,real
+9,9,HV13,13,H,D2R,A2B,23,real
+10,0,C9,9,C,R2D,B2A,9,dummy
+11,1,H5,5,H,R2D,B2A,13,dummy
+12,2,H11,11,H,R2D,B2A,16,dummy
+13,3,H12,12,H,R2D,B2A,17,dummy
+14,4,H13,13,H,R2D,B2A,18,dummy
+15,5,DC8,8,C,D2R,B2A,19,real
+16,6,HV8,8,H,D2R,B2A,20,real
+17,7,HV9,9,H,D2R,B2A,21,real
+18,8,HV10,10,H,D2R,B2A,22,real
