@@ -60,14 +60,14 @@ def test_find_common():
 
 
 def test_R2D_D2R_miss():
-    nameA_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 
-                  'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 
+    nameA_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9',
+                  'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13',
                   'DC8', 'HV8', 'HV9', 'HV10']
-    nameB_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 
-                  'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13', 
+    nameB_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9',
+                  'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13',
                   'DC10', 'HV4', 'HV14', 'HV15', 'HV16']
 
-    common_atoms_all = ['C6', 'H7', 'C4', 'S1', 'H6', 'H11', 'C7', 'H12', 'H2', 'H1', 
+    common_atoms_all = ['C6', 'H7', 'C4', 'S1', 'H6', 'H11', 'C7', 'H12', 'H2', 'H1',
                         'C9', 'H3', 'C2', 'N3', 'H13', 'C5']
     lineB_list = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
 
@@ -96,13 +96,14 @@ def test_fix_break():
 
 def test_perform_shift_1D():
     broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
-    
-    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol, [2.74964, 2.74964, 2.74964], [[0,4]], [])
+
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol,
+                                                                                     [2.74964, 2.74964, 2.74964], [[0, 4]], [])
 
     broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
 
     assert prev_shifted_atoms == [4]
-    assert was_it_fixed == True
+    assert was_it_fixed is True
     assert len(broken_pairs) == 0
 
 
@@ -147,8 +148,10 @@ def test_get_miss_coord():
     df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
     df_no_nan = df.dropna()
 
-    df_test = coordinate_swap.get_miss_coord(molB, molA, nameB, nameA, df_no_coords, 'B2A', swap_map[(swap_map['Swap A'] == nameB) & (swap_map['Swap B'] == nameA)])
-    df_test = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_test, 'A2B', swap_map[(swap_map['Swap A'] == nameA) & (swap_map['Swap B'] == nameB)])
+    df_test = coordinate_swap.get_miss_coord(molB, molA, nameB, nameA, df_no_coords, 'B2A',
+                                             swap_map[(swap_map['Swap A'] == nameB) & (swap_map['Swap B'] == nameA)])
+    df_test = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_test, 'A2B',
+                                             swap_map[(swap_map['Swap A'] == nameA) & (swap_map['Swap B'] == nameB)])
 
     for index, row in df_no_nan.iterrows():
         test_row = df_test[df_test['Name'] == row['Name']]
