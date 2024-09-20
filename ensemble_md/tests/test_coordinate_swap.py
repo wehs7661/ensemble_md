@@ -44,9 +44,9 @@ def test_get_dimensions():
 
 
 def test_find_common():
-    test_file1 = open(f'{input_path}/coord_swap/input_A.gro', 'r')
-    test_file2 = open(f'{input_path}/coord_swap/input_B.gro', 'r')
-    test_df = coordinate_swap.find_common(test_file1, test_file2, 'C2D', 'D2E')
+    test_file1 = open(f'{input_path}/coord_swap/input_A.gro', 'r').readlines()
+    test_file2 = open(f'{input_path}/coord_swap/input_B.gro', 'r').readlines()
+    test_df = coordinate_swap.find_common(test_file1, test_file2, 'D2E', 'E2F')
     df = pd.read_csv(f'{input_path}/coord_swap/find_common.csv')
 
     for index, row in df.iterrows():
@@ -60,12 +60,16 @@ def test_find_common():
 
 
 def test_R2D_D2R_miss():
-    nameA_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 
-                  'H1', 'H2', 'H3', 'H4', 'H6', 'H7', 'H8', 'H9', 'H10', 'DC9', 'HV5', 'HV11', 'HV12', 'HV13']
-    nameB_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 
-                  'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 'DC8', 'HV8', 'HV9', 'HV10']
-    common_atoms_all = ['N3', 'C5', 'C4', 'H3', 'H7', 'H1', 'C2', 'C6', 'C7', 'S1', 'H2', 'H6']
-    lineB_list = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+    nameA_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 
+                  'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 
+                  'DC8', 'HV8', 'HV9', 'HV10']
+    nameB_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 
+                  'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13', 
+                  'DC10', 'HV4', 'HV14', 'HV15', 'HV16']
+
+    common_atoms_all = ['C6', 'H7', 'C4', 'S1', 'H6', 'H11', 'C7', 'H12', 'H2', 'H1', 
+                        'C9', 'H3', 'C2', 'N3', 'H13', 'C5']
+    lineB_list = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
 
     test_df = coordinate_swap.find_R2D_D2R_miss(nameB_list, nameA_list, common_atoms_all, lineB_list, 'B2A')
     df = pd.read_csv(f'{input_path}/coord_swap/find_R2D_D2R_miss.csv')
@@ -82,19 +86,31 @@ def test_R2D_D2R_miss():
 def test_fix_break():
     broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
     df_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
-
-    test_fix = coordinate_swap.fix_break(broken_mol, 'C2D', [2.74964, 2.74964, 2.74964], df_connect[df_connect['Resname']=='C2D'])
+    df_connect_res = df_connect[df_connect['Resname'] == 'C2D']
+    test_fix = coordinate_swap.fix_break(broken_mol, 'C2D', [2.74964, 2.74964, 2.74964], df_connect_res)
 
     fixed_mol = md.load(f'{input_path}/coord_swap/fixed_mol.gro')
 
     assert (test_fix.xyz == fixed_mol.xyz).all
 
 
+def test_perform_shift_1D():
+    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
+    
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol, [2.74964, 2.74964, 2.74964], [[0,4]], [])
+
+    broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
+
+    assert prev_shifted_atoms == [4]
+    assert was_it_fixed == True
+    assert len(broken_pairs) == 0
+
+
 def test_check_break():
     broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
     df_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
 
-    atom_connect_all = df_connect[df_connect['Resname']=='C2D']
+    atom_connect_all = df_connect[df_connect['Resname'] == 'C2D']
     mol_top = broken_mol.topology
     resname = 'C2D'
     atom_connect = []
@@ -108,6 +124,63 @@ def test_check_break():
     broken_pairs = coordinate_swap.check_break(broken_mol, atom_pairs)
 
     assert broken_pairs == [[0, 4], [1, 2]] or broken_pairs == [[1, 2], [0, 4]]
+
+
+def test_get_miss_coord():
+    molA_file = f'{input_path}/coord_swap/input_A.gro'
+    molB_file = f'{input_path}/coord_swap/input_B.gro'
+    nameA = 'D2E'
+    nameB = 'E2F'
+
+    connection_map = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
+    swap_map = pd.read_csv(f'{input_path}/coord_swap/residue_swap_map.csv')
+
+    molA = md.load(f'{input_path}/coord_swap/input_A.trr', top=molA_file).slice(-1)
+    molB = md.load(f'{input_path}/coord_swap/input_B.trr', top=molB_file).slice(-1)
+
+    A_dimensions = coordinate_swap.get_dimensions(open(molA_file, 'r').readlines())
+    B_dimensions = coordinate_swap.get_dimensions(open(molB_file, 'r').readlines())
+    molA = coordinate_swap.fix_break(molA, nameA, A_dimensions, connection_map[connection_map['Resname'] == nameA])
+    molB = coordinate_swap.fix_break(molB, nameB, B_dimensions, connection_map[connection_map['Resname'] == nameB])
+
+    df_no_coords = pd.read_csv(f'{input_path}/coord_swap/find_common.csv')
+    df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
+    df_no_nan = df.dropna()
+
+    df_test = coordinate_swap.get_miss_coord(molB, molA, nameB, nameA, df_no_coords, 'B2A', swap_map[(swap_map['Swap A'] == nameB) & (swap_map['Swap B'] == nameA)])
+    df_test = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_test, 'A2B', swap_map[(swap_map['Swap A'] == nameA) & (swap_map['Swap B'] == nameB)])
+
+    for index, row in df_no_nan.iterrows():
+        test_row = df_test[df_test['Name'] == row['Name']]
+        assert np.isclose(row['X Coordinates'], test_row['X Coordinates'], atol=10**(-6))
+        assert np.isclose(row['Y Coordinates'], test_row['Y Coordinates'], atol=10**(-6))
+        assert np.isclose(row['Z Coordinates'], test_row['Z Coordinates'], atol=10**(-6))
+
+
+def test_process_line():
+    file = open(f'{input_path}/coord_swap/input_A.gro', 'r').readlines()
+
+    line, prev_line = coordinate_swap.process_line(file, 5)
+
+    assert prev_line == ['1D2E', 'N3', '3', '2.229', '1.274', '2.620', '0.0270', '-0.2197', '0.0105\n']
+    assert line == ['1D2E', 'C4', '4', '2.226', '1.138', '2.607', '-0.8557', '0.2885', '0.1035\n']
+
+    line, prev_line = coordinate_swap.process_line(file, 22)
+    assert prev_line == ['1D2E', 'HV9', '20', '2.510', '1.423', '2.489', '1.4858', '0.4341', '-3.5063\n']
+    assert line == ['1D2E', 'HV10', '21', '2.676', '1.415', '2.541', '-0.1731', '-0.2227', '-0.1934\n']
+
+
+def test_print_preamble():
+    file = open(f'{input_path}/coord_swap/input_A.gro', 'r').readlines()
+    temp_file = open('test_print_preamble.gro', 'w')
+
+    coordinate_swap.print_preamble(file, temp_file, 5, 1)
+    temp_file.close()
+
+    read_temp_file = open('test_print_preamble.gro', 'r').readlines()
+    num_atoms_temp_file = int(read_temp_file[1])
+    assert num_atoms_temp_file == 2062
+    os.remove('test_print_preamble.gro')
 
 
 def test_sep_merge():
