@@ -1545,8 +1545,9 @@ class ReplicaExchangeEE:
         molA_new = open(molA_new_file_name, 'w')
 
         # Step 2: Determine atoms for alignment and swapping
-        nameA = coordinate_swap.identify_res(molA.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())  # noqa: E501
-        nameB = coordinate_swap.identify_res(molB.topology, swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list())  # noqa: E501
+        residue_options = swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list()
+        nameA = coordinate_swap.identify_res(molA.topology, residue_options)
+        nameB = coordinate_swap.identify_res(molB.topology, residue_options)
         df_atom_swap = coordinate_swap.find_common(molA_file, molB_file, nameA, nameB)
 
         # Step 3: Fix break if present for solvated systems only
