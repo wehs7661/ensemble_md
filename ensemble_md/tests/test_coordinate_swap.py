@@ -268,7 +268,7 @@ def test_rotate_point_around_axis():
     axis = np.array([0.15, 0.82, 0.14])
     angle = 0.13
     rotated_point = [0.1693233, 0.18548463, -0.0335421]
-    assert coordinate_swap.rotate_point_around_axis(initial_point, vertex, axis, angle) == rotated_point
+    assert (coordinate_swap.rotate_point_around_axis(initial_point, vertex, axis, angle) == rotated_point).all
 
 
 def test_find_rotation_angle():
