@@ -881,7 +881,6 @@ class Test_ReplicaExchangeEE:
         os.system(f'cp {input_path}/coords_swap/input_B.gro {input_path}/coords_swap/test_input_B.gro')
         os.system(f'cp {input_path}/coords_swap/input_A.trr {input_path}/coords_swap/test_input_A.trr')
         os.system(f'cp {input_path}/coords_swap/input_B.trr {input_path}/coords_swap/test_input_B.trr')
-
         REXEE.default_coords_fn(f'{input_path}/coords_swap/test_input_A.gro', f'{input_path}/coords_swap/test_input_B.gro')  # noqa: E501
 
         true_output_A = open(f'{input_path}/coords_swap/output_A.gro', 'r').readlines()
@@ -901,16 +900,13 @@ class Test_ReplicaExchangeEE:
         import pandas as pd
 
         REXEE = get_REXEE_instance(params_dict)
-
         REXEE.resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
         REXEE.top = [f'{input_path}/coord_swap/A-B.top',
                      f'{input_path}/coord_swap/B-C.top',
                      f'{input_path}/coord_swap/C-D.top',
                      f'{input_path}/coord_swap/D-E.top',
                      f'{input_path}/coord_swap/E-F.top']
-        
         REXEE.process_top()
-
         test_res_connect = pd.read_csv('residue_connect.csv')
         test_swap_map = pd.read_csv('residue_swap_map.csv')
         true_res_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
