@@ -97,7 +97,7 @@ def test_fix_break():
 def test_perform_shift_1D():
     broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
 
-    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], []) # noqa: E501
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], [])  # noqa: E501
 
     broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
 
@@ -224,8 +224,8 @@ def test_add_atom():
     df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
     temp_file = open('test_add_atom.gro', 'w')
 
-    coordinate_swap.add_atom(temp_file, 1, 'D2E', df[(df['Name'] == 'H5') & (df['Swap'] == 'A2B')], ['0.000', '0.000', '0.000\n'], 12) # noqa: E501
-    coordinate_swap.add_atom(temp_file, 1, 'E2F', df[(df['Name'] == 'DC10') & (df['Swap'] == 'B2A')], ['0.000', '0.000', '0.000\n'], 21) # noqa: E501
+    coordinate_swap.add_atom(temp_file, 1, 'D2E', df[(df['Name'] == 'H5') & (df['Swap'] == 'A2B')], ['0.000', '0.000', '0.000\n'], 12)  # noqa: E501
+    coordinate_swap.add_atom(temp_file, 1, 'E2F', df[(df['Name'] == 'DC10') & (df['Swap'] == 'B2A')], ['0.000', '0.000', '0.000\n'], 21)  # noqa: E501
     temp_file.close()
 
     read_temp_file = open('test_add_atom.gro', 'r').readlines()
@@ -240,7 +240,7 @@ def test_dummy_real_swap():
     orig_coords = np.zeros((22, 3))
     orig_coords[18] = [2.5837841, 1.4738766, 2.5511920]
 
-    coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords) # noqa: E501
+    coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords)  # noqa: E501
     test_file.close()
 
     reopen_test_file = open('test_dummy_real_swap.gro', 'r').readlines()
@@ -303,8 +303,8 @@ def test_add_or_swap():
     skip_line = []
 
     R_o_D_num = ['4', '8', '9', '10']
-    skip_line, R_o_D_num = coordinate_swap.add_or_swap(df[df['Name'] == 'HV4'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 22, orig_coords, skip_line, R_o_D_num, 0) # noqa: E501
-    skip_line, R_o_D_num = coordinate_swap.add_or_swap(df[df['Name'] == 'HV8'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 15, orig_coords, skip_line, R_o_D_num, 0) # noqa: E501
+    skip_line, R_o_D_num = coordinate_swap.add_or_swap(df[df['Name'] == 'HV4'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 22, orig_coords, skip_line, R_o_D_num, 0)  # noqa: E501
+    skip_line, R_o_D_num = coordinate_swap.add_or_swap(df[df['Name'] == 'HV8'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 15, orig_coords, skip_line, R_o_D_num, 0)  # noqa: E501
     test_file.close()
 
     reopen_test_file = open('test_add_or_swap.gro', 'r').readlines()
@@ -331,10 +331,9 @@ def test_swap_name():
 
 def test_get_names():
     top_files = ['A-B.itp', 'B-C.itp', 'C-D.itp', 'D-E.itp', 'E-F.itp']
-    resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
 
     start_lines = [26, 29, 33, 32, 36]
-    names = [['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'H1', 'H2', 'H3', 'H4', 'H17', 'DC7', 'HV5', 'HV6', 'HV7'], ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'DC8', 'HV8', 'HV9', 'HV10'], ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'H1', 'H2', 'H3', 'H4', 'H6', 'H7', 'H8', 'H9', 'H10', 'DC9', 'HV5', 'HV11', 'HV12', 'HV13'], ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 'DC8', 'HV8', 'HV9', 'HV10'], ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13', 'DC10', 'HV4', 'HV14', 'HV15', 'HV16']] # noqa: E501
+    names = [['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'H1', 'H2', 'H3', 'H4', 'H17', 'DC7', 'HV5', 'HV6', 'HV7'], ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'DC8', 'HV8', 'HV9', 'HV10'], ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'H1', 'H2', 'H3', 'H4', 'H6', 'H7', 'H8', 'H9', 'H10', 'DC9', 'HV5', 'HV11', 'HV12', 'HV13'], ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 'DC8', 'HV8', 'HV9', 'HV10'], ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13', 'DC10', 'HV4', 'HV14', 'HV15', 'HV16']]  # noqa: E501
 
     lambda_states = [[-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, 0, 0, 0, 0],
                      [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, 0, 0, 0, 0],
@@ -355,32 +354,32 @@ def test_determine_connection():
     df_top = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
 
     A2B_names = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'H1', 'H2', 'H3', 'H4', 'H17', 'DC7', 'HV5', 'HV6', 'HV7']
-    B2C_names = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'DC8', 'HV8', 'HV9', 'HV10'] # noqa: E501
-    D2E_names = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 'DC8', 'HV8', 'HV9', 'HV10'] # noqa: E501
-    E2F_names = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13', 'DC10', 'HV4', 'HV14', 'HV15', 'HV16'] # noqa: E501
+    B2C_names = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'H7', 'DC8', 'HV8', 'HV9', 'HV10']  # noqa: E501
+    D2E_names = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9', 'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13', 'DC8', 'HV8', 'HV9', 'HV10']  # noqa: E501
+    E2F_names = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13', 'DC10', 'HV4', 'HV14', 'HV15', 'HV16']  # noqa: E501
 
     A_only = [x for x in A2B_names if x not in B2C_names]
     B_only = [x for x in B2C_names if x not in A2B_names]
     test_df = coordinate_swap.determine_connection(A_only, B_only, 'A2B', 'B2C', df_top, 1)
     select_cmpr_df = cmpr_df[(cmpr_df['Swap A'] == 'A2B') & (cmpr_df['Swap B'] == 'B2C')]
-    for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']: # noqa: E501
+    for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']:  # noqa: E501
         assert test_df[col].to_list()[0] == select_cmpr_df[col].to_list()[0]
 
     test_df = coordinate_swap.determine_connection(B_only, A_only, 'B2C', 'A2B', df_top, 0)
     select_cmpr_df = cmpr_df[(cmpr_df['Swap B'] == 'A2B') & (cmpr_df['Swap A'] == 'B2C')]
-    for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']: # noqa: E501
+    for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']:  # noqa: E501
         assert test_df[col].to_list()[0] == select_cmpr_df[col].to_list()[0]
 
     A_only = [x for x in D2E_names if x not in E2F_names]
     B_only = [x for x in E2F_names if x not in D2E_names]
     test_df = coordinate_swap.determine_connection(A_only, B_only, 'D2E', 'E2F', df_top, 1)
     select_cmpr_df = cmpr_df[(cmpr_df['Swap A'] == 'D2E') & (cmpr_df['Swap B'] == 'E2F')]
-    for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']: # noqa: E501
+    for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']:  # noqa: E501
         assert test_df[col].to_list()[0] == select_cmpr_df[col].to_list()[0]
 
     test_df = coordinate_swap.determine_connection(B_only, A_only, 'E2F', 'D2E', df_top, 0)
     select_cmpr_df = cmpr_df[(cmpr_df['Swap A'] == 'E2F') & (cmpr_df['Swap B'] == 'D2E')]
-    for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']: # noqa: E501
+    for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']:  # noqa: E501
         assert test_df[col].to_list()[0] == select_cmpr_df[col].to_list()[0]
 
 
