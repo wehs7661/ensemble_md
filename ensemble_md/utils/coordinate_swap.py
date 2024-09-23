@@ -1482,8 +1482,9 @@ def read_top(file_name, resname):
             while '' in line_sep:
                 line_sep.remove('')
             itp_files.append(line_sep[-1].strip('\n""'))
+    file_dir, file_name = os.path.split(file_name)
     for file in itp_files:
-        if os.path.exists(file):
+        if os.path.exists(f'{file_dir}/{file}'):
             input_file = open(file).readlines()
             atom_sect = False
             for line in input_file:
