@@ -297,7 +297,7 @@ def test_compute_angle():
 
 def test_add_or_swap():
     test_file = open('test_add_or_swap.gro', 'w')
-    df = pd.read_csv('df_atom_swap.csv')
+    df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
     orig_coords = np.zeros((21, 3))
     orig_coords[18] = [2.5970387, 1.5708300, 2.5017865]
     skip_line = []

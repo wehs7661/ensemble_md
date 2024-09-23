@@ -877,24 +877,24 @@ class Test_ReplicaExchangeEE:
 
     def test_default_coords_fn(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
-        os.system(f'cp {input_path}/coords_swap/input_A.gro {input_path}/coords_swap/test_input_A.gro')
-        os.system(f'cp {input_path}/coords_swap/input_B.gro {input_path}/coords_swap/test_input_B.gro')
-        os.system(f'cp {input_path}/coords_swap/input_A.trr {input_path}/coords_swap/test_input_A.trr')
-        os.system(f'cp {input_path}/coords_swap/input_B.trr {input_path}/coords_swap/test_input_B.trr')
+        os.system(f'cp {input_path}/coord_swap/input_A.gro {input_path}/coord_swap/test_input_A.gro')
+        os.system(f'cp {input_path}/coord_swap/input_B.gro {input_path}/coord_swap/test_input_B.gro')
+        os.system(f'cp {input_path}/coord_swap/input_A.trr {input_path}/coord_swap/test_input_A.trr')
+        os.system(f'cp {input_path}/coord_swap/input_B.trr {input_path}/coord_swap/test_input_B.trr')
         REXEE.default_coords_fn(f'{input_path}/coords_swap/test_input_A.gro', f'{input_path}/coords_swap/test_input_B.gro')  # noqa: E501
 
-        true_output_A = open(f'{input_path}/coords_swap/output_A.gro', 'r').readlines()
-        test_output_A = open(f'{input_path}/coords_swap/test_input_B.gro', 'r').readlines()
-        true_output_B = open(f'{input_path}/coords_swap/output_B.gro', 'r').readlines()
-        test_output_B = open(f'{input_path}/coords_swap/test_input_A.gro', 'r').readlines()
+        true_output_A = open(f'{input_path}/coord_swap/output_A.gro', 'r').readlines()
+        test_output_A = open(f'{input_path}/coord_swap/test_input_B.gro', 'r').readlines()
+        true_output_B = open(f'{input_path}/coord_swap/output_B.gro', 'r').readlines()
+        test_output_B = open(f'{input_path}/coord_swap/test_input_A.gro', 'r').readlines()
 
         assert (true_output_A == test_output_A).all
         assert (true_output_B == test_output_B).all
 
-        os.remove(f'{input_path}/coords_swap/test_input_A.gro')
-        os.remove(f'{input_path}/coords_swap/test_input_A.trr')
-        os.remove(f'{input_path}/coords_swap/test_input_B.gro')
-        os.remove(f'{input_path}/coords_swap/test_input_B.trr')
+        os.remove(f'{input_path}/coord_swap/test_input_A.gro')
+        os.remove(f'{input_path}/coord_swap/test_input_A.trr')
+        os.remove(f'{input_path}/coord_swap/test_input_B.gro')
+        os.remove(f'{input_path}/coord_swap/test_input_B.trr')
 
     def test_process_top(self, params_dict):
         import pandas as pd
