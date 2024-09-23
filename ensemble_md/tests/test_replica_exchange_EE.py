@@ -874,3 +874,50 @@ class Test_ReplicaExchangeEE:
 
         hist_modified = REXEE.histogram_correction(hist)
         assert hist_modified == [[416, 332, 161, 98, 98], [332, 161, 98, 98, 178]]
+
+    def test_default_coords_fn(self, params_dict):
+        REXEE = get_REXEE_instance(params_dict)
+        os.system(f'cp {input_path}/coords_swap/input_A.gro {input_path}/coords_swap/test_input_A.gro')
+        os.system(f'cp {input_path}/coords_swap/input_B.gro {input_path}/coords_swap/test_input_B.gro')
+        os.system(f'cp {input_path}/coords_swap/input_A.trr {input_path}/coords_swap/test_input_A.trr')
+        os.system(f'cp {input_path}/coords_swap/input_B.trr {input_path}/coords_swap/test_input_B.trr')
+        
+        REXEE.default_coords_fn(f'{input_path}/coords_swap/test_input_A.gro', f'{input_path}/coords_swap/test_input_B.gro')
+
+        true_output_A = open(f'{input_path}/coords_swap/output_A.gro', 'r').readlines()
+        test_output_A = open(f'{input_path}/coords_swap/test_input_B.gro', 'r').readlines()
+        true_output_B = open(f'{input_path}/coords_swap/output_B.gro', 'r').readlines()
+        test_output_B = open(f'{input_path}/coords_swap/test_input_A.gro', 'r').readlines()
+
+        assert (true_output_A == test_output_A).all
+        assert (true_output_B == test_output_B).all
+
+        os.remove(f'{input_path}/coords_swap/test_input_A.gro')    
+        os.remove(f'{input_path}/coords_swap/test_input_A.trr')    
+        os.remove(f'{input_path}/coords_swap/test_input_B.gro')    
+        os.remove(f'{input_path}/coords_swap/test_input_B.trr')    
+
+    def test_process_top(self, params_dict):
+        import pandas as pd
+
+        REXEE = get_REXEE_instance(params_dict)
+        
+        REXEE.resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
+        REXEE.top = [f'{input_path}/coord_swap/A-B.top',
+                     f'{input_path}/coord_swap/B-C.top',
+                     f'{input_path}/coord_swap/C-D.top',
+                     f'{input_path}/coord_swap/D-E.top',
+                     f'{input_path}/coord_swap/E-F.top']
+        
+        REXEE.process_top()
+
+        test_res_connect = pd.read_csv('residue_connect.csv')
+        test_swap_map = pd.read_csv('residue_swap_map.csv')
+        true_res_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
+        true_swap_map = pd.read_csv(f'{input_path}/coord_swap/residue_swap_map.csv')
+
+        assert true_res_connect.equals(test_res_connect)
+        assert true_swap_map.equals(test_swap_map)
+
+
+
