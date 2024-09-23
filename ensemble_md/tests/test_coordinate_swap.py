@@ -97,8 +97,7 @@ def test_fix_break():
 def test_perform_shift_1D():
     broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
 
-    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol,
-                                                                                     [2.74964, 2.74964, 2.74964], [[0, 4]], [])
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], []) # noqa: E501
 
     broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
 
@@ -193,7 +192,7 @@ def test_write_line():
     line = ['36F2G', 'C10', '11574', '3.917', '6.393', '5.463', '0.2985', '-0.1406', '0.4882']
     new_coord = [3.9165084, 6.3927655, 5.4633074]
     vel = ['0.000', '0.000', '0.000\n']
-    atom_num=11574
+    atom_num = 11574
 
     coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord, 36, 'E2F')
 
@@ -225,8 +224,8 @@ def test_add_atom():
     df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
     temp_file = open('test_add_atom.gro', 'w')
 
-    coordinate_swap.add_atom(temp_file, 1, 'D2E', df[(df['Name'] == 'H5') & (df['Swap'] == 'A2B')], ['0.000', '0.000', '0.000\n'], 12)
-    coordinate_swap.add_atom(temp_file, 1, 'E2F', df[(df['Name'] == 'DC10') & (df['Swap'] == 'B2A')], ['0.000', '0.000', '0.000\n'], 21)
+    coordinate_swap.add_atom(temp_file, 1, 'D2E', df[(df['Name'] == 'H5') & (df['Swap'] == 'A2B')], ['0.000', '0.000', '0.000\n'], 12) # noqa: E501
+    coordinate_swap.add_atom(temp_file, 1, 'E2F', df[(df['Name'] == 'DC10') & (df['Swap'] == 'B2A')], ['0.000', '0.000', '0.000\n'], 21) # noqa: E501
     temp_file.close()
 
     read_temp_file = open('test_add_atom.gro', 'r').readlines()
@@ -241,7 +240,7 @@ def test_dummy_real_swap():
     orig_coords = np.zeros((21, 3))
     orig_coords[17] = [2.5837841, 1.4738766, 2.5511920]
 
-    coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords)
+    coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords) # noqa: E501
     test_file.close()
 
     reopen_test_file = open('test_dummy_real_swap.gro', 'r').readlines()
