@@ -186,6 +186,69 @@ def test_print_preamble():
     os.remove('test_print_preamble.gro')
 
 
+def test_write_line():
+    test_file = open('test_write_line.gro', 'w')
+
+    line_merged = '   36F2G    C1011574   3.917   6.393   5.463  0.2985 -0.1406  0.4882'
+    line = ['36F2G', 'C10', '11574', '3.917', '6.393', '5.463', '0.2985', '-0.1406', '0.4882']
+    new_coord = [3.9165084, 6.3927655, 5.4633074]
+    vel = ['0.000', '0.000', '0.000\n']
+    atom_num=11574
+
+    coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord, 36, 'E2F')
+
+    line_merged = '  812SOL     OW12270   5.440   0.656   8.311  0.4628 -0.0392  0.2554'
+    line = ['812SOL', 'OW', '12270', '5.440', '0.656', '8.311', '0.4628', '-0.0392', '0.2554']
+    new_coord = [5.4400544, 0.6561325, 8.3108530]
+    atom_num = 12264
+    coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord)
+    test_file.close()
+
+    reopen_test = open('test_write_line.gro', 'r').readlines()
+
+    assert reopen_test[0] == '   36E2F    C1011574   3.9165084   6.3927655   5.4633074   0.000   0.000   0.000\n'
+    assert reopen_test[1] == '  812SOL     OW12264   5.4400544   0.6561325   8.3108530   0.000   0.000   0.000\n'
+    os.remove('test_write_line.gro')
+
+
+def test_identify_res():
+    swap_map = pd.read_csv(f'{input_path}/coord_swap/residue_swap_map.csv')
+
+    for file_name, real_name in zip(['A-B', 'B-C', 'C-D', 'D-E', 'E-F'], ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']):
+        mol = md.load(f'{input_path}/coord_swap/{file_name}.gro')
+        residue_options = swap_map['Swap A'].to_list() + swap_map['Swap B'].to_list()
+        name = coordinate_swap.identify_res(mol.topology, residue_options)
+        assert name == real_name
+
+
+def test_add_atom():
+    df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
+    temp_file = open('test_add_atom.gro', 'w')
+
+    coordinate_swap.add_atom(temp_file, 1, 'D2E', df[(df['Name'] == 'H5') & (df['Swap'] == 'A2B')], ['0.000', '0.000', '0.000\n'], 12)
+    coordinate_swap.add_atom(temp_file, 1, 'E2F', df[(df['Name'] == 'DC10') & (df['Swap'] == 'B2A')], ['0.000', '0.000', '0.000\n'], 21)
+    temp_file.close()
+
+    read_temp_file = open('test_add_atom.gro', 'r').readlines()
+    assert read_temp_file[0] == '    1D2E     H5   12   0.0926050   1.6340195   0.3355029   0.000   0.000   0.000\n'
+    assert read_temp_file[1] == '    1E2F   DC10   21   2.6200285   1.4039259   2.7885396   0.000   0.000   0.000\n'
+    os.remove('test_add_atom.gro')
+
+
+def test_dummy_real_swap():
+    test_file = open('test_dummy_real_swap.gro', 'w')
+    df = pd.read_csv('df_atom_swap.csv')
+    orig_coords = np.zeros((21, 3))
+    orig_coords[17] = [2.5837841, 1.4738766, 2.5511920]
+
+    coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords)
+    test_file.close()
+
+    reopen_test_file = open('test_dummy_real_swap.gro', 'r').readlines()
+    assert reopen_test_file[0] == '    1E2F     C8    8   2.5837841   1.4738766   2.5511920   0.000   0.000   0.000\n'
+    os.remove('test_dummy_real_swap.gro')
+
+
 def test_sep_merge():
     sample_line = ['36B2C', 'N11549', '3.964', '6.464', '6.901', '-0.0888', '-0.6098', '0.8167']
     test_split = coordinate_swap.sep_merge(sample_line)
