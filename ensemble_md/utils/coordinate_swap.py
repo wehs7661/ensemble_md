@@ -1485,7 +1485,7 @@ def read_top(file_name, resname):
     file_dir, file_name = os.path.split(file_name)
     for file in itp_files:
         if os.path.exists(f'{file_dir}/{file}'):
-            input_file = open(file).readlines()
+            input_file = open(f'{file_dir}/{file}').readlines()
             atom_sect = False
             for line in input_file:
                 if line == '[ atoms ]\n':

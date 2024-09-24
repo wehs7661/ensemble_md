@@ -236,7 +236,7 @@ def test_add_atom():
 
 def test_dummy_real_swap():
     test_file = open('test_dummy_real_swap.gro', 'w')
-    df = pd.read_csv('df_atom_swap.csv')
+    df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
     orig_coords = np.zeros((22, 3))
     orig_coords[18] = [2.5837841, 1.4738766, 2.5511920]
 
