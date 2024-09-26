@@ -877,7 +877,7 @@ class Test_ReplicaExchangeEE:
 
     def test_default_coords_fn(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
-        REXEE.default_coords_fn(f'{input_path}/coords_swap/test_input_A.gro', f'{input_path}/coords_swap/test_input_B.gro')  # noqa: E501
+        REXEE.default_coords_fn(f'{input_path}/coord_swap/test_input_A.gro', f'{input_path}/coord_swap/test_input_B.gro')  # noqa: E501
 
         true_output_A = open(f'{input_path}/coord_swap/output_A.gro', 'r').readlines()
         test_output_A = open(f'{input_path}/coord_swap/test_input_B.gro', 'r').readlines()
@@ -892,6 +892,7 @@ class Test_ReplicaExchangeEE:
 
         REXEE = get_REXEE_instance(params_dict)
         REXEE.resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
+        REXEE.swap_rep_pattern = [[[0, 1], [1, 0]], [[1, 1], [2, 0]], [[2, 1], [3, 0]], [[3, 1], [4, 0]]]
         REXEE.top = [f'{input_path}/coord_swap/A-B.top',
                      f'{input_path}/coord_swap/B-C.top',
                      f'{input_path}/coord_swap/C-D.top',

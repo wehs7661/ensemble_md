@@ -238,7 +238,9 @@ def test_dummy_real_swap():
     test_file = open('test_dummy_real_swap.gro', 'w')
     df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
     orig_coords = np.zeros((22, 3))
-    orig_coords[18] = [2.5837841, 1.4738766, 2.5511920]
+    line_num = df['File line'].to_list()[0]
+    c = line_num - 2
+    orig_coords[c] = [2.5837841, 1.4738766, 2.5511920]
 
     coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords)  # noqa: E501
     test_file.close()
