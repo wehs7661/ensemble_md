@@ -877,12 +877,12 @@ class Test_ReplicaExchangeEE:
 
     def test_default_coords_fn(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
-        REXEE.default_coords_fn(f'{input_path}/coord_swap/test_input_A.gro', f'{input_path}/coord_swap/test_input_B.gro')  # noqa: E501
+        REXEE.default_coords_fn(f'{input_path}/coord_swap/sim_A/confout.gro', f'{input_path}/coord_swap/sim_B/confout.gro')  # noqa: E501
 
         true_output_A = open(f'{input_path}/coord_swap/output_A.gro', 'r').readlines()
-        test_output_A = open(f'{input_path}/coord_swap/test_input_B.gro', 'r').readlines()
+        test_output_A = open(f'{input_path}/coord_swap/sim_B/confout.gro', 'r').readlines()
         true_output_B = open(f'{input_path}/coord_swap/output_B.gro', 'r').readlines()
-        test_output_B = open(f'{input_path}/coord_swap/test_input_A.gro', 'r').readlines()
+        test_output_B = open(f'{input_path}/coord_swap/sim_A/confout.gro', 'r').readlines()
 
         assert (true_output_A == test_output_A).all
         assert (true_output_B == test_output_B).all
