@@ -878,12 +878,17 @@ class Test_ReplicaExchangeEE:
     def test_default_coords_fn(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
         REXEE.default_coords_fn(f'{input_path}/coord_swap/sim_A/confout.gro', f'{input_path}/coord_swap/sim_B/confout.gro')  # noqa: E501
+        os.system(f'cp {input_path}/coord_swap/residue_connect.csv .')
+        os.system(f'cp {input_path}/coord_swap/residue_swap_map.csv .')
 
         true_output_A = open(f'{input_path}/coord_swap/output_A.gro', 'r').readlines()
         test_output_A = open(f'{input_path}/coord_swap/sim_B/confout.gro', 'r').readlines()
         true_output_B = open(f'{input_path}/coord_swap/output_B.gro', 'r').readlines()
         test_output_B = open(f'{input_path}/coord_swap/sim_A/confout.gro', 'r').readlines()
 
+        os.remove('residue_connect.csv')
+        os.remove('residue_swap_map.csv')
+        
         assert (true_output_A == test_output_A).all
         assert (true_output_B == test_output_B).all
 
