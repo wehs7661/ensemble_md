@@ -281,20 +281,6 @@ def test_find_rotation_angle():
     assert np.isclose(angle, test_angle, 10**(-5))
 
 
-def test_compute_angle():
-    coords_1 = [
-        np.array([0.0, 0.0, 0.0]),
-        np.array([1.0, 0.0, 0.0]),
-        np.array([0.0, 1.0, 0.0])
-    ]
-    coords_2 = coords_1[-1::-1]
-    coords_3 = [coords_1[1], coords_1[0], coords_1[2]]
-
-    assert np.isclose(coordinate_swap.compute_angle(coords_1), np.pi / 4)
-    assert np.isclose(coordinate_swap.compute_angle(coords_2), np.pi / 4)
-    assert np.isclose(coordinate_swap.compute_angle(coords_3), np.pi / 2)
-
-
 def test_add_or_swap():
     test_file = open('test_add_or_swap.gro', 'w')
     df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')

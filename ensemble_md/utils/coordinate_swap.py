@@ -443,6 +443,28 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
     df_atom_swap : pandas.DataFrame
         Same dataframe as the input, but with coordinates for the missing atoms.
     """
+    def compute_angle(coords):
+        """
+        Computes the angle between two vectors.
+
+        Parameters
+        ----------
+        coords : list
+            A list of numpy arrays containing the XYZ coordinates of 3 points, for which the angle 1-2-3 is to be computed.
+
+        Returns
+        -------
+        angle : int
+            Angle in radians between the two points.
+        """
+        vec1 = coords[0] - coords[1]
+        vec2 = coords[2] - coords[1]
+
+        angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
+
+        return angle
+    
+    
     # Create a new column for coordinates if one does not exist
     if 'X Coordinates' not in df_atom_swap.columns:
         df_atom_swap['X Coordinates'] = np.NaN
@@ -974,26 +996,7 @@ def find_rotation_angle(initial_point, vertex, rotated_point, axis):
     return angle
 
 
-def compute_angle(coords):
-    """
-    Computes the angle between two vectors.
 
-    Parameters
-    ----------
-    coords : list
-        A list of numpy arrays containing the XYZ coordinates of 3 points, for which the angle 1-2-3 is to be computed.
-
-    Returns
-    -------
-    angle : int
-        Angle in radians between the two points.
-    """
-    vec1 = coords[0] - coords[1]
-    vec2 = coords[2] - coords[1]
-
-    angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
-
-    return angle
 
 
 def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, skip_line, R_o_D_num, pick):
