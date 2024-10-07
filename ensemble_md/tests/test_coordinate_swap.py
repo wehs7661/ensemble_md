@@ -94,10 +94,30 @@ def test_fix_break():
     assert (test_fix.xyz == fixed_mol.xyz).all
 
 
-def test_perform_shift_1D():
-    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
+def test_perform_shift():
+    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol_1D.gro')
 
-    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], [])  # noqa: E501
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 1)  # noqa: E501
+
+    broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
+
+    assert prev_shifted_atoms == [4]
+    assert was_it_fixed is True
+    assert len(broken_pairs) == 0
+
+    broken_mol_2D = md.load(f'broken_mol_2D.gro')
+
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift(broken_mol_2D, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 2)  # noqa: E501
+
+    broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
+
+    assert prev_shifted_atoms == [4]
+    assert was_it_fixed is True
+    assert len(broken_pairs) == 0
+
+    broken_mol_3D = md.load(f'broken_mol_3D.gro')
+
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift(broken_mol_3D, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 3)  # noqa: E501
 
     broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
 

@@ -225,17 +225,17 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
         iter += 1
 
         # Fix this break
-        mol, fixed, shift_atom = perform_shift_1D(mol, box_dimensions, broken_pairs, shift_atom)
+        mol, fixed, shift_atom = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 1)
         if fixed:
             broken_pairs = check_break(mol, atom_pairs)
             continue
         else:
-            mol, fixed = perform_shift_2D(mol, box_dimensions, broken_pairs, shift_atom)
+            mol, fixed = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 2)
             if fixed:
                 broken_pairs = check_break(mol, atom_pairs)
                 continue
             else:
-                mol, fixed = perform_shift_3D(mol, box_dimensions, broken_pairs, shift_atom)
+                mol, fixed = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 3)
                 if fixed:
                     broken_pairs = check_break(mol, atom_pairs)
                     continue
@@ -245,7 +245,7 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
     return mol
 
 
-def perform_shift_1D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
+def perform_shift(mol, box_dimensions, broken_pairs_init, prev_shift_atom, num_shift_dimensions):
     """
     Shifts the input trajectory across the periodic boundaries in 1D.
 
@@ -259,6 +259,7 @@ def perform_shift_1D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
         Which pairs of atoms were found to be broken.
     prev_shift_atom : int
         Which atoms have already been shifted so we don't undo what we've done.
+    num_shift_dimensions : int
 
     Returns
     -------
@@ -274,101 +275,25 @@ def perform_shift_1D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
     if broken_atom in prev_shift_atom:
         broken_atom = atom_pair[0]
     fixed = False
-    for x in range(3):  # Loop through x, y, and z
-        for shift_dir in [1, -1]:
-            mol.xyz[0, broken_atom, x] = mol.xyz[0, broken_atom, x] + (shift_dir * box_dimensions[x])  # positive shift  # noqa: E501
-            dist_check = md.compute_distances(mol, atom_pairs=[atom_pair], periodic=False)
-            if dist_check > 0.2:  # Didn't work so reverse and try again
-                mol.xyz[0, broken_atom, x] = mol.xyz[0, broken_atom, x] - (shift_dir * box_dimensions[x])
-            else:  # Yay fixed break
-                fixed = True
-                break
-        if fixed:
-            break
-    if fixed:
-        prev_shift_atom.append(broken_atom)
-    return mol, fixed, prev_shift_atom
-
-
-def perform_shift_2D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
-    """
-    Shifts the input trajectory across the periodic boundaries in 2D.
-
-    Parameters
-    ----------
-    mol : :func:`mdtraj.Trajectory` object
-        Trajecotry with the original coordinates prior to the shift.
-    box_dimensions : list
-        Dimensions of the periodic boundary box.
-    broken_pairs_init : int
-        Which pairs of atoms were found to be broken.
-    prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done.
-
-    Returns
-    -------
-    mol : :func:`mdtraj.Trajectory` object
-        Trajectory with the new coordintes.
-    fixed : bool
-        A boolean indicating whether the break was actually fixed.
-    prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done.
-    """
-    atom_pair = broken_pairs_init[0]
-    broken_atom = atom_pair[1]
-    if broken_atom in prev_shift_atom:
-        broken_atom = atom_pair[0]
-    fixed = False
-    shift_combos = product([0, 1, 2], [0, 1, 2])
-    for pair in shift_combos:  # Loop through x, y, and z
-        for shift_dir in product([1, -1], [1, -1]):  # Try all combos of shift direction
-            x, y = pair
-            mol.xyz[0, broken_atom, x] = mol.xyz[0, broken_atom, x] + (shift_dir[0] * box_dimensions[x])  # positive shift  # noqa: E501
-            mol.xyz[0, broken_atom, y] = mol.xyz[0, broken_atom, y] + (shift_dir[1] * box_dimensions[y])
-            dist_check = md.compute_distances(mol, atom_pairs=[atom_pair], periodic=False)
-            if dist_check > 0.2:  # Didn't work so reverse and try again
-                mol.xyz[0, broken_atom, x] = mol.xyz[0, broken_atom, x] - (shift_dir[0] * box_dimensions[x])
-                mol.xyz[0, broken_atom, y] = mol.xyz[0, broken_atom, y] - (shift_dir[1] * box_dimensions[y])
-            else:  # Yay fixed break
-                fixed = True
-                break
-        if fixed:
-            break
-    if fixed:
-        prev_shift_atom.append(broken_atom)
-    return mol, fixed
-
-
-def perform_shift_3D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
-    """
-    Shifts the input trajectory across the periodic boundaries in 3D
-
-    Parameters
-    ----------
-    mol : :func:`mdtraj.Trajectory` object
-        Trajecotry with the original coordinates prior to the shift.
-    box_dimensions : list
-        Dimensions of the periodic boundary box.
-    broken_pairs_init : int
-        Which pairs of atoms were found to be broken.
-    prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done.
-
-    Returns
-    -------
-    mol : :func:`mdtraj.Trajectory` object
-        Trajectory with the new coordintes.
-    fixed : bool
-        A boolean indicating whether the break was actually fixed.
-    prev_shift_atom : int
-        Which atoms have already been shifted so we don't undo what we've done.
-    """
-    atom_pair = broken_pairs_init[0]
-    broken_atom = atom_pair[1]
-    if broken_atom in prev_shift_atom:
-        broken_atom = atom_pair[0]
-    fixed = False
-    for shift_dir in product([1, -1], [1, -1], [1, -1]):  # Try all combos of shift direction
+    if num_shift_dimensions == 1:
+        shift_combos = np.concatenate((np.identity(3), -1*np.identity(3)), axis=0)
+    elif num_shift_dimensions == 2:
+        shift_combos = [[1, 1, 0], 
+                        [1, -1, 0],
+                        [-1, 1, 0],
+                        [-1, -1, 0],
+                        [0, 1, 1], 
+                        [0, 1, -1],
+                        [0, -1, 1],
+                        [0, -1, -1],
+                        [1, 0, 1], 
+                        [1, 0, -1],
+                        [-1, 0, 1],
+                        [-1, 0, -1]]
+    else:
+        shift_combos = product([1, -1], [1, -1], [1, -1])
+    
+    for shift_dir in shift_combos:  # Try all combos of shift direction
         mol.xyz[0, broken_atom, 0] = mol.xyz[0, broken_atom, 0] + (shift_dir[0] * box_dimensions[0])
         mol.xyz[0, broken_atom, 1] = mol.xyz[0, broken_atom, 1] + (shift_dir[1] * box_dimensions[1])
         mol.xyz[0, broken_atom, 2] = mol.xyz[0, broken_atom, 2] + (shift_dir[2] * box_dimensions[2])
@@ -382,8 +307,7 @@ def perform_shift_3D(mol, box_dimensions, broken_pairs_init, prev_shift_atom):
             break
     if fixed:
         prev_shift_atom.append(broken_atom)
-    return mol, fixed
-
+    return mol, fixed, prev_shift_atom
 
 def check_break(mol, atom_pairs):
     """
@@ -464,7 +388,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
 
         return angle
     
-    
+
     # Create a new column for coordinates if one does not exist
     if 'X Coordinates' not in df_atom_swap.columns:
         df_atom_swap['X Coordinates'] = np.NaN
