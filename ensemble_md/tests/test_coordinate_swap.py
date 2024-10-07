@@ -84,7 +84,7 @@ def test_R2D_D2R_miss():
 
 
 def test_fix_break():
-    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
+    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol_1D.gro')
     df_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
     df_connect_res = df_connect[df_connect['Resname'] == 'C2D']
     test_fix = coordinate_swap.fix_break(broken_mol, 'C2D', [2.74964, 2.74964, 2.74964], df_connect_res)
@@ -97,7 +97,7 @@ def test_fix_break():
 def test_perform_shift():
     broken_mol = md.load(f'{input_path}/coord_swap/broken_mol_1D.gro')
 
-    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift_1D(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 1)  # noqa: E501
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 1)  # noqa: E501
 
     broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
 
@@ -127,7 +127,7 @@ def test_perform_shift():
 
 
 def test_check_break():
-    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol.gro')
+    broken_mol = md.load(f'{input_path}/coord_swap/broken_mol_1D.gro')
     df_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
 
     atom_connect_all = df_connect[df_connect['Resname'] == 'C2D']
