@@ -105,7 +105,7 @@ def test_perform_shift():
     assert was_it_fixed is True
     assert len(broken_pairs) == 0
 
-    broken_mol_2D = md.load(f'broken_mol_2D.gro')
+    broken_mol_2D = md.load(f'{input_path}/coord_swap/broken_mol_2D.gro')
 
     partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift(broken_mol_2D, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 2)  # noqa: E501
 
@@ -115,7 +115,7 @@ def test_perform_shift():
     assert was_it_fixed is True
     assert len(broken_pairs) == 0
 
-    broken_mol_3D = md.load(f'broken_mol_3D.gro')
+    broken_mol_3D = md.load(f'{input_path}/coord_swap/broken_mol_3D.gro')
 
     partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift(broken_mol_3D, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 3)  # noqa: E501
 
