@@ -13,7 +13,6 @@
 The :obj:`.coordinate_swap` module provides functions for swapping coordinates
 in a MT-REXEE simulation.
 """
-import os
 import re
 import copy
 import mdtraj as md
@@ -260,6 +259,7 @@ def perform_shift(mol, box_dimensions, broken_pairs_init, prev_shift_atom, num_s
     prev_shift_atom : int
         Which atoms have already been shifted so we don't undo what we've done.
     num_shift_dimensions : int
+        Whether the shift should be attempted in 1, 2, or 3 dimensions
 
     Returns
     -------
@@ -278,21 +278,20 @@ def perform_shift(mol, box_dimensions, broken_pairs_init, prev_shift_atom, num_s
     if num_shift_dimensions == 1:
         shift_combos = np.concatenate((np.identity(3), -1*np.identity(3)), axis=0)
     elif num_shift_dimensions == 2:
-        shift_combos = [[1, 1, 0], 
+        shift_combos = [[1, 1, 0],
                         [1, -1, 0],
                         [-1, 1, 0],
                         [-1, -1, 0],
-                        [0, 1, 1], 
+                        [0, 1, 1],
                         [0, 1, -1],
                         [0, -1, 1],
                         [0, -1, -1],
-                        [1, 0, 1], 
+                        [1, 0, 1],
                         [1, 0, -1],
                         [-1, 0, 1],
                         [-1, 0, -1]]
     else:
         shift_combos = product([1, -1], [1, -1], [1, -1])
-    
     for shift_dir in shift_combos:  # Try all combos of shift direction
         mol.xyz[0, broken_atom, 0] = mol.xyz[0, broken_atom, 0] + (shift_dir[0] * box_dimensions[0])
         mol.xyz[0, broken_atom, 1] = mol.xyz[0, broken_atom, 1] + (shift_dir[1] * box_dimensions[1])
@@ -308,6 +307,7 @@ def perform_shift(mol, box_dimensions, broken_pairs_init, prev_shift_atom, num_s
     if fixed:
         prev_shift_atom.append(broken_atom)
     return mol, fixed, prev_shift_atom
+
 
 def check_break(mol, atom_pairs):
     """
@@ -374,7 +374,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         Parameters
         ----------
         coords : list
-            A list of numpy arrays containing the XYZ coordinates of 3 points, for which the angle 1-2-3 is to be computed.
+            A list of numpy arrays containing the XYZ coordinates of 3 points, for which the angle 1-2-3 is to be computed. # noqa: E501
 
         Returns
         -------
@@ -387,7 +387,6 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
 
         return angle
-    
 
     # Create a new column for coordinates if one does not exist
     if 'X Coordinates' not in df_atom_swap.columns:
@@ -918,9 +917,6 @@ def find_rotation_angle(initial_point, vertex, rotated_point, axis):
             angle = angle - 2*np.pi
 
     return angle
-
-
-
 
 
 def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, skip_line, R_o_D_num, pick):
