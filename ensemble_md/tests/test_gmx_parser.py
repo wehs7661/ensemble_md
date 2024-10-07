@@ -120,3 +120,12 @@ def test_compare_MDPs():
 
     assert result_1 == dict_1
     assert result_2 == dict_2
+
+
+def test_read_top():
+    top_files = ['A-B.top', 'B-C.top', 'C-D.top', 'D-E.top', 'E-F.top']
+    resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
+
+    for resname, top_file in zip(resname_list, top_files):
+        top = gmx_parser.read_top(f'{input_path}/coord_swap/{top_file}', resname)
+        assert len(top) > 0

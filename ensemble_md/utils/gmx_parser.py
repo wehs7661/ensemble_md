@@ -353,3 +353,58 @@ def compare_MDPs(mdp_list, print_diff=False):
             print()
 
     return diff_params
+
+
+def read_top(file_name, resname):
+    """
+    Reads the topology to find the file containing the molecule of interest
+
+    Parameters
+    ----------
+    file_name : str
+        Name for the topology file.
+    resname : str
+        Name of the residue of interest we are searching for.
+
+    Returns
+    -------
+    input_file : list
+        A list of strings containing the content of the topology file which contains the
+        residue of interest.
+    """
+    input_file = open(file_name).readlines()
+    itp_files = []
+    atom_sect = True
+    for line in input_file:
+        if line == '[ atoms ]\n':
+            atom_sect = True
+        if atom_sect:
+            if line == '\n':
+                atom_sect = False
+            line_sep = line.split(' ')
+            while '' in line_sep:
+                line_sep.remove('')
+            if len(line_sep) > 4 and line_sep[3] == resname:
+                return input_file
+        if '#include' in line:
+            line_sep = line.split(' ')
+            while '' in line_sep:
+                line_sep.remove('')
+            itp_files.append(line_sep[-1].strip('\n""'))
+    file_dir, file_name = os.path.split(file_name)
+    for file in itp_files:
+        if os.path.exists(f'{file_dir}/{file}'):
+            input_file = open(f'{file_dir}/{file}').readlines()
+            atom_sect = False
+            for line in input_file:
+                if line == '[ atoms ]\n':
+                    atom_sect = True
+                if atom_sect:
+                    if line == '\n':
+                        break
+                    line_sep = line.split(' ')
+                    while '' in line_sep:
+                        line_sep.remove('')
+                    if len(line_sep) > 4 and line_sep[3] == resname:
+                        return input_file
+    raise Exception(f'Residue {resname} can not be found in {file_name}')

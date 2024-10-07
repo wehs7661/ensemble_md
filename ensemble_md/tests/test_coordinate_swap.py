@@ -380,12 +380,3 @@ def test_determine_connection():
     select_cmpr_df = cmpr_df[(cmpr_df['Swap A'] == 'E2F') & (cmpr_df['Swap B'] == 'D2E')]
     for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']:  # noqa: E501
         assert test_df[col].to_list()[0] == select_cmpr_df[col].to_list()[0]
-
-
-def test_read_top():
-    top_files = ['A-B.top', 'B-C.top', 'C-D.top', 'D-E.top', 'E-F.top']
-    resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
-
-    for resname, top_file in zip(resname_list, top_files):
-        top = coordinate_swap.read_top(f'{input_path}/coord_swap/{top_file}', resname)
-        assert len(top) > 0

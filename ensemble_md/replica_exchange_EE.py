@@ -1591,7 +1591,7 @@ class ReplicaExchangeEE:
             df_top = pd.DataFrame()
             for f, file_name in enumerate(self.top):
                 # Read file
-                input_file = coordinate_swap.read_top(file_name, self.resname_list[f])
+                input_file = gmx_parser.read_top(file_name, self.resname_list[f])
 
                 # Determine the atom names corresponding to the atom numbers
                 start_line, atom_name, state = coordinate_swap.get_names(input_file)
@@ -1623,9 +1623,9 @@ class ReplicaExchangeEE:
                 X, Y = [int(swap[0][0]), int(swap[1][0])]
                 lam = {X: int(swap[0][1]), Y: int(swap[1][1])}
                 for A, B in zip([X, Y], [Y, X]):
-                    input_A = coordinate_swap.read_top(self.top[A], self.resname_list[A])
+                    input_A = gmx_parser.read_top(self.top[A], self.resname_list[A])
                     start_line, A_name, state = coordinate_swap.get_names(input_A)
-                    input_B = coordinate_swap.read_top(self.top[B], self.resname_list[B])
+                    input_B = gmx_parser.read_top(self.top[B], self.resname_list[B])
                     start_line, B_name, state = coordinate_swap.get_names(input_B)
 
                     A_only = [x for x in A_name if x not in B_name]
