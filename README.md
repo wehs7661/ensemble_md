@@ -28,6 +28,10 @@ https://doi.org/10.48550/arXiv.2408.11038)
 - Wei-Tse Hsu, University of Colorado, Boulder (weitse.hsu@colorado.edu)
 - Anika Friedman, University of Colorado, Boulder (anika.friedman@colorado.edu)
 
+### Contributing
+
+We welcome contributions to this project! Please see our [contributing guidelines](CONTRIBUTING.md) for more information on how to get started.
+
 
 ### Acknowledgements
  
