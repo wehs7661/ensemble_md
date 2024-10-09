@@ -390,6 +390,20 @@ class Test_ReplicaExchangeEE:
             REXEE = get_REXEE_instance(params_dict)
         os.remove('ensemble_md/tests/data/check_gro.py')
 
+        # 2-2. The case where we use the dafult function
+        params_dict['modify_coords'] = 'default' 
+        # Without swap_rep_pattern defined
+        with pytest.raises(Exception, 'swap_rep_pattern option must be filled in if using default swapping function and not swap guide'): # noqa: E501
+            REXEE = get_REXEE_instance(params_dict)
+        #Without resname_list defined
+        params_dict['swap_rep_pattern'] = [[[0, 1], [1, 0]], [[[1, 1], [2, 0]]]]
+        with pytest.raises(Exception, 'resname_list option must be filled in if using default swapping function and not swap guide'): # noqa: E501
+            REXEE = get_REXEE_instance(params_dict)            
+        #With everything defined
+        params_dict['resname_list'] = ['A', 'B']
+        REXEE = get_REXEE_instance(params_dict)
+        assert REXEE.modify_coords_fn.__name__ == 'default_coords_fn'
+        
     @patch('ensemble_md.replica_exchange_EE.subprocess.run')
     @patch('builtins.print')
     def test_check_gmx_executable(self, mock_print, mock_run, params_dict):
