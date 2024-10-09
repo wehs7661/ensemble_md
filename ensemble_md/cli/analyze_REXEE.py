@@ -25,6 +25,7 @@ from deeptime.markov.tools.analysis import is_transition_matrix
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 from ensemble_md.utils import utils  # noqa: E402
+from ensemble_md.utils import gmx_parser  # noqa: E402
 from ensemble_md.analysis import analyze_traj  # noqa: E402
 from ensemble_md.analysis import analyze_matrix  # noqa: E402
 from ensemble_md.analysis import msm_analysis  # noqa: E402
@@ -120,6 +121,7 @@ def main():
     print('\nData analysis of the simulation ensemble')
     print('========================================')
 
+
     # Section 1. Analysis based on transitions between state sets
     print('[ Section 1. Analysis based on transitions between state sets/replicas ]')
     section_idx += 1
@@ -127,6 +129,15 @@ def main():
     # 1-0. Read in replica-space trajectories
     print('1-0. Reading in the replica-space trajectory ...')
     rep_trajs = np.load(args.rep_trajs)  # Shape: (n_sim, n_iter)
+
+    # ***** Testing Section *******
+    if REXEE.modify_coords is not None:
+        l0, l1, ps_per_frame = gmx_parser.get_end_states(f'{REXEE.working_dir}/sim_0/iteration_0/expanded.mdp')
+        n_sim, n_iter = np.shape(rep_trajs)
+        if REXEE.swap_rep_pattern is None:
+            raise Exception('MT-REXEE trajectory analysis requires swap_rep_pattern to be defined')
+        analyze_traj.end_states_only_traj(REXEE.working_dir, n_sim, n_iter, l0, l1, REXEE.swap_rep_pattern, ps_per_frame)
+    exit()
 
     # 1-1. Plot the replica-sapce trajectory
     print('1-1. Plotting transitions between state sets/replicas ...')

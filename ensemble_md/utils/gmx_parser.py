@@ -408,3 +408,22 @@ def read_top(file_name, resname):
                     if len(line_sep) > 4 and line_sep[3] == resname:
                         return input_file
     raise Exception(f'Residue {resname} can not be found in {file_name}')
+
+def get_end_states(mdp_path):
+    mdp = MDP(mdp_path)
+    end_0, end_1 = [], []
+    coul_lambda = mdp['coul_lambdas']
+    vdw_lambda = mdp['vdw_lambdas']
+    n = 0
+    for vdw, coul in zip(coul_lambda, vdw_lambda):
+        if vdw == 0.0 and coul == 0.0:
+            end_0.append(n)
+        elif vdw == 1.0 and coul == 1.0:
+            end_1.append(n)
+        n += 1
+    dt = mdp['dt']
+    steps_per_frame = mdp['nstxout']
+    ps_per_frame = dt*steps_per_frame
+    
+    return end_0, end_1, ps_per_frame
+
