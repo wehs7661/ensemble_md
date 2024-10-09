@@ -599,38 +599,6 @@ def write_line(mol_new, raw_line, line, atom_num, vel, coor, resnum=None, nameB=
                 vel[1].rjust(8, ' ') +
                 vel[2].rjust(9, ' ')
             )
-    elif len(line) == 8:  # Atom name and number blend together because of number size so they need seperated
-        if 'HW1' in line[1]:
-            atom_name = 'HW1'
-        elif 'HW2' in line[1]:
-            atom_name = 'HW2'
-        else:
-            atom_name = re.sub(r'[0-9]', '', line[1])
-
-        if nameB is None:
-            mol_new.write(
-                line[0].rjust(8, ' ') +
-                atom_name.rjust(7, ' ') +
-                str(atom_num).rjust(5, ' ') +
-                str(coor[0]).rjust(12, ' ') +
-                str(coor[1]).rjust(12, ' ') +
-                str(coor[2]).rjust(12, ' ') +
-                vel[0].rjust(8, ' ') +
-                vel[1].rjust(8, ' ') +
-                vel[2].rjust(9, ' ')
-            )
-        else:
-            mol_new.write(
-                f'{resnum}{nameB}'.rjust(8, ' ') +
-                atom_name.rjust(7, ' ') +
-                str(atom_num).rjust(5, ' ') +
-                str(coor[0]).rjust(12, ' ') +
-                str(coor[1]).rjust(12, ' ') +
-                str(coor[2]).rjust(12, ' ') +
-                vel[0].rjust(8, ' ') +
-                vel[1].rjust(8, ' ') +
-                vel[2].rjust(9, ' ')
-            )
     else:
         mol_new.write(raw_line)
 

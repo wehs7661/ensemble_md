@@ -89,9 +89,17 @@ def test_fix_break():
     df_connect_res = df_connect[df_connect['Resname'] == 'C2D']
     test_fix = coordinate_swap.fix_break(broken_mol, 'C2D', [2.74964, 2.74964, 2.74964], df_connect_res)
 
+    broken_mol_3D = md.load(f'{input_path}/coord_swap/broken_mol_3D.gro')
+    test_fix_3D = coordinate_swap.fix_break(broken_mol_3D, 'C2D', [2.74964, 2.74964, 2.74964], df_connect_res)
+
+    already_fixed = md.load(f'{input_path}/coord_swap/fixed_mol.gro')
+    still_fixed = coordinate_swap.fix_break(already_fixed, 'C2D', [2.74964, 2.74964, 2.74964], df_connect_res)
+
     fixed_mol = md.load(f'{input_path}/coord_swap/fixed_mol.gro')
 
     assert (test_fix.xyz == fixed_mol.xyz).all
+    assert (test_fix_3D.xyz == fixed_mol.xyz).all
+    assert (still_fixed.xyz == fixed_mol.xyz).all
 
 
 def test_perform_shift():
@@ -208,18 +216,22 @@ def test_print_preamble():
 def test_write_line():
     test_file = open('test_write_line.gro', 'w')
 
-    line_merged = '   36F2G    C1011574   3.917   6.393   5.463  0.2985 -0.1406  0.4882'
-    line = ['36F2G', 'C10', '11574', '3.917', '6.393', '5.463', '0.2985', '-0.1406', '0.4882']
+    line_merged = '   36F2G    C1011574   3.917   6.393   5.463  0.2985 -0.1406  0.4882/n'
+    line = ['36F2G', 'C10', '11574', '3.917', '6.393', '5.463', '0.2985', '-0.1406', '0.4882/n']
     new_coord = [3.9165084, 6.3927655, 5.4633074]
     vel = ['0.000', '0.000', '0.000\n']
     atom_num = 11574
 
     coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord, 36, 'E2F')
 
-    line_merged = '  812SOL     OW12270   5.440   0.656   8.311  0.4628 -0.0392  0.2554'
-    line = ['812SOL', 'OW', '12270', '5.440', '0.656', '8.311', '0.4628', '-0.0392', '0.2554']
+    line_merged = '  812SOL     OW12270   5.440   0.656   8.311  0.4628 -0.0392  0.2554/n'
+    line = ['812SOL', 'OW', '12270', '5.440', '0.656', '8.311', '0.4628', '-0.0392', '0.2554/n']
     new_coord = [5.4400544, 0.6561325, 8.3108530]
     atom_num = 12264
+    coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord)
+    
+    line_merged = '   2.74964   2.74964   2.74964\n'
+    line = ['2.74964', '2.74964', '2.74964\n']
     coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord)
     test_file.close()
 
@@ -227,6 +239,7 @@ def test_write_line():
 
     assert reopen_test[0] == '   36E2F    C1011574   3.9165084   6.3927655   5.4633074   0.000   0.000   0.000\n'
     assert reopen_test[1] == '  812SOL     OW12264   5.4400544   0.6561325   8.3108530   0.000   0.000   0.000\n'
+    assert reopen_test[2] == '   2.74964   2.74964   2.74964\n'
     os.remove('test_write_line.gro')
 
 
