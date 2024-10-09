@@ -374,7 +374,7 @@ def read_top(file_name, resname):
     """
     input_file = open(file_name).readlines()
     itp_files = []
-    atom_sect = True
+    atom_sect = False
     for line in input_file:
         if line == '[ atoms ]\n':
             atom_sect = True
