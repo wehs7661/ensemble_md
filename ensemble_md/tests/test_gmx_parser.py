@@ -129,7 +129,6 @@ def test_read_top(self):
     for resname, top_file in zip(resname_list, top_files):
         top = gmx_parser.read_top(f'{input_path}/coord_swap/{top_file}', resname)
         assert len(top) > 0
-    
     wrong_resname = ['B2C', 'C2D', 'D2E']
     for resname, top_file in zip(wrong_resname, top_files):
         with pytest.raises(Exception, match=f'Residue {resname} can not be found in {top_file}'):

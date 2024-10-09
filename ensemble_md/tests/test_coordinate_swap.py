@@ -229,7 +229,6 @@ def test_write_line():
     new_coord = [5.4400544, 0.6561325, 8.3108530]
     atom_num = 12264
     coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord)
-    
     line_merged = '   2.74964   2.74964   2.74964\n'
     line = ['2.74964', '2.74964', '2.74964\n']
     coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord)
