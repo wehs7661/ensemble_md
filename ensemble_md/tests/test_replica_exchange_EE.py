@@ -403,6 +403,7 @@ class Test_ReplicaExchangeEE:
         params_dict['resname_list'] = ['A', 'B']
         REXEE = get_REXEE_instance(params_dict)
         assert REXEE.modify_coords_fn.__name__ == 'default_coords_fn'
+    
     @patch('ensemble_md.replica_exchange_EE.subprocess.run')
     @patch('builtins.print')
     def test_check_gmx_executable(self, mock_print, mock_run, params_dict):
