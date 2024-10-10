@@ -392,6 +392,8 @@ def read_top(file_name, resname):
                 line_sep.remove('')
             itp_files.append(line_sep[-1].strip('\n""'))
     file_dir, file_name = os.path.split(file_name)
+    if file_dir == '':
+        file_dir = '.'
     for file in itp_files:
         if os.path.exists(f'{file_dir}/{file}'):
             input_file = open(f'{file_dir}/{file}').readlines()
