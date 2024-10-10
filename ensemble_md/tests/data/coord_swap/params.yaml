@@ -1,0 +1,27 @@
+n_sim: 5                     # Number of replica simulations
+n_iter: 1000                 # Number of iterations
+s: 9                        # Shift in λ ranges [e.g. s = 2 if λ_2 = [2, 3, 4] & λ_3 = [4, 5, 6]]
+nst_sim: 10000               # Number of simulation steps for each homogeneous replica
+proposal: 'exhaustive'
+mdp: 'expanded.mdp'
+add_swappables: [[6, 9], [6, 10], [6, 11], [7, 9], [7, 10], [7, 11], [8, 9], [8, 10], [8, 11], [15, 18], [15, 19], [15, 20], [16, 18], [16, 19], [16, 20], [17, 18], [17, 19], [17, 20], [24, 27], [24, 28], [24, 29], [25, 27], [25, 28], [25, 29], [26, 27], [26, 28], [26, 29], [33, 36], [33, 37], [33, 38], [34, 36], [34, 37], [34, 38], [35, 36], [35, 37], [35, 38], [42, 45], [42, 46], [42, 47], [43, 45], [43, 46], [43, 47], [44, 45], [44, 46], [44, 47]] 
+n_ckpt: 25
+N_cutoff: -1
+w_combine: False    # The method for combining weights. Choices include "None" [unspecified], exp_avg, ...
+runtime_args: {'-ntomp': '5', '-ntmpi': '1'}
+grompp_args: {'-maxwarn': '2'}
+gro: ['A-B.gro', 'B-C.gro', 'C-D.gro', 'D-E.gro', 'E-F.gro'] 
+top: ['A-B.top', 'B-C.top', 'C-D.top', 'D-E.top', 'E-F.top'] 
+gmx_executable: 'gmx'
+verbose: True
+modify_coords: 'default'
+resname_list: ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
+swap_rep_pattern: [[[0,1],[1,0]], [[1,1],[2,0]], [[2,1],[3,0]], [[3,1],[4,0]]]
+
+msm: False
+free_energy: True
+df_spacing: 1
+df_method: "MBAR"
+err_method: "propagate"
+n_bootstrap: 50
+seed : null
