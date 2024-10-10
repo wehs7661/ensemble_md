@@ -708,9 +708,6 @@ def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords, na
         Since the atom may be added in a different order than it was in the previous file save the line
         number so that we skip it when we come to it.
     """
-    # Get the name for the atom we are writting
-    name_orig = df['Name'].to_list()[0]
-
     # These may be added out of order so lets make sure we have the right coordinates
     line_num = df['File line'].to_list()[0]
     c = line_num - 2
@@ -991,7 +988,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
                 atom_num_B -= 1
                 atom_num_A += 1
                 continue
-            elif line[1] == atom_order[res_interest_atom]:  # Just change atom or residue number as needed since atom is in the right order
+            elif line[1] == atom_order[res_interest_atom]:  # Just change atom or residue number as needed since atom is in the right order  # noqa: E501
                 write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # noqa: E501
                 res_interest_atom += 1
             elif (f'{current_element}{current_num}' == atom_order[res_interest_atom]) or (f'{current_element}V{current_num}' == atom_order[res_interest_atom]) or (f'D{current_element}{current_num}' == atom_order[res_interest_atom]):  # Since atom is not in missing it must be a D2R flip  # noqa: E501

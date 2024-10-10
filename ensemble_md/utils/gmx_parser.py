@@ -415,7 +415,7 @@ def read_top(file_name, resname):
 def deter_atom_order(mol_file, resname):
     """
     Determine the order of atoms in the residue we will modify to ensure the output GRO is formatted properly
-    
+
     Parameters
     ----------
     file_name : list of str
@@ -427,7 +427,7 @@ def deter_atom_order(mol_file, resname):
     -------
     atom_order : list of str
         List of the atom names in the order they appear in the GRO file
-    
+
     """
     from ensemble_md.utils import coordinate_swap
 
@@ -442,5 +442,5 @@ def deter_atom_order(mol_file, resname):
             atom_order.append(split_line[1])
         elif len(atom_order) != 0:
             break
-            
+
     return atom_order
