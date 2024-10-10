@@ -679,7 +679,7 @@ def add_atom(mol_new, resnum, resname, df, vel, atom_num):
     return atom_num
 
 
-def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords):
+def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords, name_new):
     """
     Adds an atom to the file which is switching between dummy and real state or vice versa.
 
@@ -699,6 +699,8 @@ def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords):
         The atom number to assign to the atom being added.
     orig_coords : list
         The XYZ coordinates for the atom being added.
+    name_new : str
+        The new name for the atom after the swap
 
     Returns
     -------
@@ -708,22 +710,6 @@ def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords):
     """
     # Get the name for the atom we are writting
     name_orig = df['Name'].to_list()[0]
-
-    # Determine the new atom name based on whether the new atom should be real or dummy
-    final_state = df['Final Type'].to_list()[0]
-    if final_state == 'dummy':
-        element = name_orig.strip('0123456789')
-        atom_name_num = name_orig.strip('DCVH')
-        # Add D or C
-        if element == 'C':
-            name_new = f'D{element}{atom_name_num}'
-        else:
-            name_new = f'{element}V{atom_name_num}'
-    else:
-        if 'DC' in name_orig:
-            name_new = name_orig.replace('DC', 'C')
-        else:
-            name_new = name_orig.replace('HV', 'H')
 
     # These may be added out of order so lets make sure we have the right coordinates
     line_num = df['File line'].to_list()[0]
@@ -887,7 +873,7 @@ def find_rotation_angle(initial_point, vertex, rotated_point, axis):
     return angle
 
 
-def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, skip_line, R_o_D_num, pick):
+def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, skip_line, name_new):
     """
     Determine if the atom needs added or swapped between real and dummy state and then add the atom to the new file
 
@@ -909,31 +895,26 @@ def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, 
         The XYZ coordinates for the atom being added.
     skip_line : list
         A list of line numbers that should be skipped when we come across them while reading the file.
-    R_o_D_num : list of str
-        A list of atoms that need to be added.
-    pick : int
-        Index in the list to add now
+    name_new : str
+        The new name for the atom after the swap
+
     Returns
     -------
     skip_line : list
         Updated list of line numbers that should be skipped when we come across them while reading the file.
-    R_o_D_num_new : list
-        Updated list of atoms that need added.
     """
     c = df_select.index.values.tolist()
 
     if df_select.loc[c[0], 'Direction'] == 'miss':  # Add atom if missing
         add_atom(file_new, resnum, resname, df_select, vel, atom_num)
     else:  # Swap from dummy to real
-        line = dummy_real_swap(file_new, resnum, resname, df_select, vel, atom_num, orig_coor)  # Add the dummy atom from A as a real atom in B and save the line so it can be skipped later  # noqa: E501
+        line = dummy_real_swap(file_new, resnum, resname, df_select, vel, atom_num, orig_coor, name_new)  # Add the dummy atom from A as a real atom in B and save the line so it can be skipped later  # noqa: E501
         skip_line.append(line)
 
-    R_o_D_num_new = np.delete(R_o_D_num, pick)  # Atom no longer needs added
-
-    return skip_line, R_o_D_num_new
+    return skip_line
 
 
-def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, old_res_name, new_res_name, orig_coords, miss):  # noqa: E501
+def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, old_res_name, new_res_name, orig_coords, miss, atom_order):  # noqa: E501
     """
     Writes a new GRO file.
 
@@ -959,21 +940,16 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
         Coordinates for all atoms in the system before the swap.
     miss : list
         Residues which are needed after the swap which are not present before the swap.
+    atom_order : list of str
+        List of the atom names in the order they appear in the GRO file
     """
     # Add vero velocity to all atoms
     vel = ['0.000', '0.000', '0.000\n']
 
     atom_num_A, atom_num_B = 0, 0
+    res_interest_atom = 0
     skip_line = []
     df_interest = df_atom_swap[((df_atom_swap['Swap'] == swap) & ((df_atom_swap['Direction'] == 'R2D') | (df_atom_swap['Direction'] == 'D2R'))) | ((df_atom_swap['Swap'] == r_swap) & (df_atom_swap['Direction'] == 'miss'))]  # noqa: E501
-    R_C_num = df_interest[(df_interest['Element'] == 'C') & ((df_interest['Direction'] == 'D2R') | ((df_interest['Direction'] == 'miss') & (df_interest['Final Type'] == 'real')))]['Atom Name Number'].to_numpy(dtype=int)  # noqa: E501
-    D_C_num = df_interest[(df_interest['Element'] == 'C') & ((df_interest['Direction'] == 'R2D') | ((df_interest['Direction'] == 'miss') & (df_interest['Final Type'] == 'dummy')))]['Atom Name Number'].to_numpy(dtype=int)  # noqa: E501
-    R_H_num = df_interest[(df_interest['Element'] == 'H') & ((df_interest['Direction'] == 'D2R') | ((df_interest['Direction'] == 'miss') & (df_interest['Final Type'] == 'real')))]['Atom Name Number'].to_numpy(dtype=int)  # noqa: E501
-    D_H_num = df_interest[(df_interest['Element'] == 'H') & ((df_interest['Direction'] == 'R2D') | ((df_interest['Direction'] == 'miss') & (df_interest['Final Type'] == 'dummy')))]['Atom Name Number'].to_numpy(dtype=int)  # noqa: E501
-    R_C_num.sort()
-    D_C_num.sort()
-    R_H_num.sort()
-    D_H_num.sort()
     for i in range(line_start, len(orig_file)-1):
         # Some atoms are added out of order from file A and thus must be skipped when they come up
         if i in skip_line:
@@ -1007,116 +983,64 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             else:
                 current_num = np.NaN
             current_element = line[1].strip('0123456789')
+            if 'V' in current_element:
+                current_element = current_element.strip('V')
+            if 'D' in current_element:
+                current_element = current_element.strip('D')
             if line[1] in miss:  # Do not write coordinates if atoms are not present in B
                 atom_num_B -= 1
                 atom_num_A += 1
                 continue
-            elif (current_element == 'C' and current_num in D_C_num) or (current_element == 'H' and current_num in D_H_num):  # Skip this line for now as we will add it in later  # noqa: E501
-                atom_num_B -= 1
-                atom_num_A += 1
-                continue
-            elif (current_element == 'C' and (current_num > R_C_num).any()):  # We need to add an atom or move an atom to a new line position  # noqa: E501
-                while (current_num > R_C_num).any():
-                    # Either add atom or perform swap
-                    pick = np.where(current_num > R_C_num)[0][0]
-                    df_select = df_interest[(df_interest['Atom Name Number'] == str(R_C_num[pick])) & (df_interest['Element'] == 'C')]  # noqa: E501
-                    skip_line, R_C_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, R_C_num, pick)  # noqa: E501
-                    atom_num_B += 1
-                if i not in skip_line:
-                    write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # Add this current line too  # noqa: E501
-            elif (len(R_C_num) != 0 and current_element == 'H'):  # Add remaining real heavy atoms if all heavy atoms have been written  # noqa: E501
-                while len(R_C_num) != 0:
-                    df_select = df_interest[(df_interest['Atom Name Number'] == str(R_C_num[0])) & (df_interest['Element'] == 'C')]  # noqa: E501
-                    skip_line, R_C_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, R_C_num, 0)  # noqa: E501
-                    atom_num_B += 1
-                if i not in skip_line:
-                    write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # Add this current line too  # noqa: E501
-            elif current_element == 'H' and (current_num > R_H_num).any():  # Add real Hs in proper order
-                while (current_num > R_H_num).any():
-                    # Either add atom or perform swap
-                    pick = np.where(current_num > R_H_num)[0][0]
-                    df_select = df_interest[(df_interest['Atom Name Number'] == str(R_H_num[pick])) & (df_interest['Element'] == 'H')]  # noqa: E501
-                    skip_line, R_H_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, R_H_num, pick)  # noqa: E501
-                    atom_num_B += 1
-                if i not in skip_line:
-                    write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # Add this current line too  # noqa: E501
-            elif len(R_H_num) != 0 and (current_element == 'DC' or current_element == 'HV'):  # Add remaining real Hs if all H atoms have been written  # noqa: E501
-                while len(R_H_num) != 0:
-                    df_select = df_interest[(df_interest['Atom Name Number'] == str(R_H_num[0])) & (df_interest['Element'] == 'H')]  # noqa: E501
-                    skip_line, R_H_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, R_H_num, 0)  # noqa: E501
-                    atom_num_B += 1
-                if current_element == 'DC':
-                    while (current_num > D_C_num).any():
-                        # Either add atom or perform swap
-                        pick = np.where(current_num > D_C_num)[0][0]
-                        df_select = df_interest[(df_interest['Atom Name Number'] == str(D_C_num[pick])) & (df_interest['Element'] == 'C')]  # noqa: E501
-                        skip_line, D_C_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, D_C_num, pick)  # noqa: E501
-                        atom_num_B += 1
-                if i not in skip_line:
-                    write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # Add this current line too  # noqa: E501
-            elif current_element == 'DC' and (current_num > D_C_num).any():  # Add dummy Cs in correct order  # noqa: E501
-                while (current_num > D_C_num).any():
-                    # Either add atom or perform swap
-                    pick = np.where(current_num > D_C_num)[0][0]
-                    df_select = df_interest[(df_interest['Atom Name Number'] == str(D_C_num[pick])) & (df_interest['Element'] == 'C')]  # noqa: E501
-                    skip_line, D_C_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, D_C_num, pick)  # noqa: E501
-                    atom_num_B += 1
-                if i not in skip_line:
-                    write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # Add this current line too  # noqa: E501
-            elif len(D_C_num) != 0 and current_element == 'HV':  # Add remaining dummy Cs after real Hs
-                while len(D_C_num) != 0:
-                    df_select = df_interest[(df_interest['Atom Name Number'] == str(D_C_num[0])) & (df_interest['Element'] == 'C')]  # noqa: E501
-                    skip_line, D_C_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, D_C_num, 0)  # noqa: E501
-                    atom_num_B += 1
-                if i not in skip_line:
-                    write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # Add this current line too  # noqa: E501
-            elif current_element == 'HV' and (current_num > D_H_num).any():  # Add dummy Hs in proper order  # noqa: E501
-                while (current_num > D_H_num).any():
-                    # Either add atom or perform swap
-                    pick = np.where(current_num > D_H_num)[0][0]
-                    df_select = df_interest[(df_interest['Atom Name Number'] == str(D_H_num[0])) & (df_interest['Element'] == 'H')]  # noqa: E501
-                    skip_line, D_H_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, D_H_num, 0)  # noqa: E501
-                    atom_num_B += 1
-                if i not in skip_line:
-                    write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # Add this current line too  # noqa: E501
-            else:
+            elif line[1] == atom_order[res_interest_atom]:  # Just change atom or residue number as needed since atom is in the right order
                 write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # noqa: E501
+                res_interest_atom += 1
+            elif (f'{current_element}{current_num}' == atom_order[res_interest_atom]) or (f'{current_element}V{current_num}' == atom_order[res_interest_atom]) or (f'D{current_element}{current_num}' == atom_order[res_interest_atom]):  # Since atom is not in missing it must be a D2R flip  # noqa: E501
+                df_select = df_interest[df_interest['Name'] == line[1]]
+                skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+                res_interest_atom += 1
+            elif line[1] in atom_order:  # Atom is in the molecule, but there are other atoms before it
+                atom_pos = atom_order.index(line[1])
+                for x in range(res_interest_atom, atom_pos):
+                    df_select = df_interest[df_interest['Name'] == atom_order[x]]
+                    skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
+                    atom_num_B += 1
+                    res_interest_atom += 1
+                write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # noqa: E501
+                res_interest_atom += 1
+            elif (f'{current_element}{current_num}' in atom_order) or (f'{current_element}V{current_num}' in atom_order) or (f'D{current_element}{current_num}' in atom_order):  # Atom is in the molecule, but needs swapped AND there are other atoms before it  # noqa: E501
+                if (f'{current_element}{current_num}' in atom_order):
+                    atom_pos = atom_order.index(f'{current_element}{current_num}')
+                elif (f'{current_element}V{current_num}' in atom_order):
+                    atom_pos = atom_order.index(f'{current_element}V{current_num}')
+                elif (f'D{current_element}{current_num}' in atom_order):
+                    atom_pos = atom_order.index(f'D{current_element}{current_num}')
+
+                for x in range(res_interest_atom, atom_pos):
+                    df_select = df_interest[df_interest['Name'] == atom_order[x]]
+                    skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
+                    atom_num_B += 1
+                    res_interest_atom += 1
+                df_select = df_interest[df_interest['Name'] == line[1]]
+                skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+                res_interest_atom += 1
+            else:
+                print(f'Warning {line} not written')
         elif resname != old_res_name and prev_resname == old_res_name:  # Add dummy atoms at the end of the residue
-            while len(R_H_num) != 0:
-                df_select = df_interest[(df_interest['Atom Name Number'] == str(R_H_num[0])) & (df_interest['Element'] == 'H')]  # noqa: E501
-                skip_line, R_H_num = add_or_swap(df_select, new_file, int(resnum)-1, new_res_name, vel, atom_num_B, orig_coords, skip_line, R_H_num, 0)  # noqa: E501
+            while res_interest_atom < len(atom_order):
+                df_select = df_interest[df_interest['Name'] == atom_order[res_interest_atom]]
+                skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
                 atom_num_B += 1
-            while len(D_C_num) != 0:
-                df_select = df_interest[(df_interest['Atom Name Number'] == str(D_C_num[0])) & (df_interest['Element'] == 'C')]  # noqa: E501
-                skip_line, D_C_num = add_or_swap(df_select, new_file, int(resnum)-1, new_res_name, vel, atom_num_B, orig_coords, skip_line, D_C_num, 0)  # noqa: E501
-                atom_num_B += 1
-            while len(D_H_num) != 0:
-                df_select = df_interest[(df_interest['Atom Name Number'] == str(D_H_num[0])) & (df_interest['Element'] == 'H')]  # noqa: E501
-                skip_line, D_H_num = add_or_swap(df_select, new_file, int(resnum)-1, new_res_name, vel, atom_num_B, orig_coords, skip_line, D_H_num, 0)  # noqa: E501
-                atom_num_B += 1
-            line, prev_line = process_line(orig_file, i)
+                res_interest_atom += 1
             write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A])
         else:
             print(f'Warning line {i+1} not written')
         atom_num_A += 1
 
-    if len(R_H_num) != 0:  # If we hit end of coordinates without adding Hs add them now
-        while len(R_H_num) != 0:
-            atom_num_B += 1
-            df_select = df_interest[(df_interest['Atom Name Number'] == str(R_H_num[0])) & (df_interest['Element'] == 'H')]  # noqa: E501
-            skip_line, R_H_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, R_H_num, 0)  # noqa: E501
-
-    if len(D_C_num) != 0:  # If we hit end of coordinates without adding Cs add them now
-        while len(D_C_num) != 0:
-            atom_num_B += 1
-            df_select = df_interest[(df_interest['Atom Name Number'] == str(D_C_num[0])) & (df_interest['Element'] == 'C')]  # noqa: E501
-            skip_line, D_C_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, D_C_num, 0)  # noqa: E501
-
-    if len(D_H_num) != 0:  # If we hit end of coordinates without adding Hs add them now
-        while len(D_H_num) != 0:
-            atom_num_B += 1
-            df_select = df_interest[(df_interest['Atom Name Number'] == str(D_H_num[0])) & (df_interest['Element'] == 'H')]  # noqa: E501
-            skip_line, D_H_num = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, D_H_num, 0)  # noqa: E501
+    while res_interest_atom < len(atom_order):
+        df_select = df_interest[df_interest['Name'] == atom_order[res_interest_atom]]
+        skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+        atom_num_B += 1
+        res_interest_atom += 1
 
     # Add Box dimensions to file
     new_file.write(orig_file[-1])

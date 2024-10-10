@@ -408,3 +408,37 @@ def read_top(file_name, resname):
                     if len(line_sep) > 4 and line_sep[3] == resname:
                         return input_file
     raise Exception(f'Residue {resname} can not be found in {file_name}')
+
+
+def deter_atom_order(mol_file, resname):
+    """
+    Determine the order of atoms in the residue we will modify to ensure the output GRO is formatted properly
+    
+    Parameters
+    ----------
+    file_name : list of str
+        Contains the contents of the original GRO file
+    resname : str
+        Name of the residue of interest we are searching for.
+
+    Returns
+    -------
+    atom_order : list of str
+        List of the atom names in the order they appear in the GRO file
+    
+    """
+    from ensemble_md.utils import coordinate_swap
+
+    atom_order = []
+    for line in mol_file:
+        split_line = line.split(' ')
+        while '' in split_line:
+            split_line.remove('')
+        if resname in split_line[0]:
+            if len(split_line[1]) > 5:
+                split_line = coordinate_swap.sep_merge(split_line)
+            atom_order.append(split_line[1])
+        elif len(atom_order) != 0:
+            break
+            
+    return atom_order

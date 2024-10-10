@@ -1565,18 +1565,23 @@ class ReplicaExchangeEE:
         if len(miss_A) != 0:
             df_atom_swap = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_atom_swap, 'A2B', swap_map[(swap_map['Swap A'] == nameA) & (swap_map['Swap B'] == nameB)])  # noqa: E501
 
+        # Step 5: Parse Current file to ensure atoms are added in the correct order
+        atom_order_A = gmx_parser.deter_atom_order(molA_file, nameA)
+        atom_order_B = gmx_parser.deter_atom_order(molB_file, nameB)
+
+        # Step 6: Write the new file
         # Reprint preamble text
         line_start = coordinate_swap.print_preamble(molA_file, molB_new, len(miss_B), len(miss_A))
 
         # Print new coordinates to file for molB
-        coordinate_swap.write_new_file(df_atom_swap, 'A2B', 'B2A', line_start, molA_file, molB_new, nameA, nameB, copy.deepcopy(molA.xyz[0]), miss_A)  # noqa: E501
+        coordinate_swap.write_new_file(df_atom_swap, 'A2B', 'B2A', line_start, molA_file, molB_new, nameA, nameB, copy.deepcopy(molA.xyz[0]), miss_A, atom_order_B)  # noqa: E501
 
         # Print new coordinates to file
         # Reprint preamble text
         line_start = coordinate_swap.print_preamble(molB_file, molA_new, len(miss_A), len(miss_B))
 
         # Print new coordinates for molA
-        coordinate_swap.write_new_file(df_atom_swap, 'B2A', 'A2B', line_start, molB_file, molA_new, nameB, nameA, copy.deepcopy(molB.xyz[0]), miss_B)  # noqa: E501
+        coordinate_swap.write_new_file(df_atom_swap, 'B2A', 'A2B', line_start, molB_file, molA_new, nameB, nameA, copy.deepcopy(molB.xyz[0]), miss_B, atom_order_A)  # noqa: E501
 
         # Rename temp files
         os.rename('A_hybrid_swap.gro', molB_dir + '/confout.gro')
