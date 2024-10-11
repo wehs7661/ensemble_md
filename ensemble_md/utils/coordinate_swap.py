@@ -229,12 +229,12 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
             broken_pairs = check_break(mol, atom_pairs)
             continue
         else:
-            mol, fixed = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 2)
+            mol, fixed, shift_atom = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 2)
             if fixed:
                 broken_pairs = check_break(mol, atom_pairs)
                 continue
             else:
-                mol, fixed = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 3)
+                mol, fixed, shift_atom = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 3)
                 if fixed:
                     broken_pairs = check_break(mol, atom_pairs)
                     continue

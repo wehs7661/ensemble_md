@@ -272,7 +272,7 @@ def test_dummy_real_swap():
     orig_coords = np.zeros((22, 3))
     orig_coords[17] = [2.5837841, 1.4738766, 2.5511920]
 
-    coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords)  # noqa: E501
+    coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords, 'C8')  # noqa: E501
     test_file.close()
 
     reopen_test_file = open('test_dummy_real_swap.gro', 'r').readlines()
@@ -320,17 +320,14 @@ def test_add_or_swap():
     orig_coords[18] = [2.5970387, 1.5708300, 2.5017865]
     skip_line = []
 
-    R_o_D_num = ['4', '8', '9', '10']
-    skip_line, R_o_D_num = coordinate_swap.add_or_swap(df[df['Name'] == 'HV4'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 22, orig_coords, skip_line, R_o_D_num, 0)  # noqa: E501
-    skip_line, R_o_D_num = coordinate_swap.add_or_swap(df[df['Name'] == 'HV8'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 15, orig_coords, skip_line, R_o_D_num, 0)  # noqa: E501
+    skip_line = coordinate_swap.add_or_swap(df[df['Name'] == 'HV4'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 22, orig_coords, skip_line, 'HV4')  # noqa: E501
+    skip_line = coordinate_swap.add_or_swap(df[df['Name'] == 'HV8'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 15, orig_coords, skip_line, 'H8')  # noqa: E501
     test_file.close()
 
     reopen_test_file = open('test_add_or_swap.gro', 'r').readlines()
     assert reopen_test_file[0] == '    1E2F    HV4   22   2.3651702   1.4678032   2.8239074   0.000   0.000   0.000\n'
     assert reopen_test_file[1] == '    1E2F     H8   15   2.5970387   1.5708300   2.5017865   0.000   0.000   0.000\n'
     os.remove('test_add_or_swap.gro')
-
-    assert (R_o_D_num == ['9', '10']).all
 
     assert skip_line == [20]
 

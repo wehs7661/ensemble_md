@@ -452,9 +452,9 @@ class ReplicaExchangeEE:
         if self.modify_coords is not None:
             if self.modify_coords == 'default':
                 if self.swap_rep_pattern is None and (not os.path.exists('residue_connect.csv') or not os.path.exists('residue_swap_map.csv')):  # noqa: E501
-                    raise Exception('swap_rep_pattern option must be filled in if using default swapping function and not swap guide')  # noqa: E501
+                    raise ParameterError('swap_rep_pattern option must be filled in if using default swapping function and not swap guide')  # noqa: E501
                 if self.resname_list is None and (not os.path.exists('residue_connect.csv') or not os.path.exists('residue_swap_map.csv')):  # noqa: E501
-                    raise Exception('resname_list option must be filled in if using default swapping function and not swap guide')  # noqa: E501
+                    raise ParameterError('resname_list option must be filled in if using default swapping function and not swap guide')  # noqa: E501
                 self.modify_coords_fn = self.default_coords_fn
             else:
                 module_file = os.path.basename(self.modify_coords)
