@@ -1001,6 +1001,8 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
                 x_element, x_num = _sep_num_element(atom_order[res_interest_atom])
                 df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
                 if len(df_select.index) == 0:
+                    atom_num_B -= 1
+                    atom_num_A += 1
                     continue
                 else:
                     for x in range(res_interest_atom, atom_pos):
@@ -1018,7 +1020,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             while res_interest_atom < len(atom_order):
                 x_element, x_num = _sep_num_element(atom_order[res_interest_atom])
                 df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
-                skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+                skip_line = _add_or_swap(df_select, new_file, str(int(resnum)-1), new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
                 atom_num_B += 1
                 res_interest_atom += 1
             write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A])
