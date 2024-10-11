@@ -188,16 +188,16 @@ def test_get_miss_coord():
 
 
 def test_process_line():
-    file = open(f'{input_path}/coord_swap/sim_A/confout_backup.gro', 'r').readlines()
+    file = open(f'{input_path}/coord_swap/sample_process.gro', 'r').readlines()
 
     line, prev_line = coordinate_swap._process_line(file, 5)
 
-    assert prev_line == ['1D2E', 'N3', '3', '2.229', '1.274', '2.620', '0.0270', '-0.2197', '0.0105\n']
-    assert line == ['1D2E', 'C4', '4', '2.226', '1.138', '2.607', '-0.8557', '0.2885', '0.1035\n']
+    assert prev_line == ['19GLU', 'H2', '3', '1.800', '4.155', '4.152', '2.0821', '0.4011', '-1.2490\n']
+    assert line == ['19GLU', 'H3', '4', '1.833', '4.306', '4.113', '-0.3604', '0.3093', '-1.3761\n']
 
-    line, prev_line = coordinate_swap._process_line(file, 22)
-    assert prev_line == ['1D2E', 'HV9', '20', '2.510', '1.423', '2.489', '1.4858', '0.4341', '-3.5063\n']
-    assert line == ['1D2E', 'HV10', '21', '2.676', '1.415', '2.541', '-0.1731', '-0.2227', '-0.1934\n']
+    line, prev_line = coordinate_swap._process_line(file, 15429)
+    assert prev_line == ['4487SOL', 'HW1', '15427', '5.528', '0.500', '4.439', '1.2407', '1.5381', '-0.1116\n'] #15429
+    assert line == ['4487SOL', 'HW2', '15428', '5.477', '0.613', '4.526', '-0.4379', '1.1843', '-0.6399\n'] #15430
 
 
 def test_print_preamble():
