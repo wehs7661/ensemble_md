@@ -44,8 +44,8 @@ def test_get_dimensions():
 
 
 def test_find_common():
-    test_file1 = open(f'{input_path}/coord_swap/input_A.gro', 'r').readlines()
-    test_file2 = open(f'{input_path}/coord_swap/input_B.gro', 'r').readlines()
+    test_file1 = open(f'{input_path}/coord_swap/sim_A/confout_backup.gro', 'r').readlines()
+    test_file2 = open(f'{input_path}/coord_swap/sim_B/confout_backup.gro', 'r').readlines()
     test_df = coordinate_swap.find_common(test_file1, test_file2, 'D2E', 'E2F')
     df = pd.read_csv(f'{input_path}/coord_swap/find_common.csv')
 
@@ -71,7 +71,7 @@ def test_R2D_D2R_miss():
                         'C9', 'H3', 'C2', 'N3', 'H13', 'C5']
     lineB_list = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
 
-    test_df = coordinate_swap.find_R2D_D2R_miss(nameB_list, nameA_list, common_atoms_all, lineB_list, 'B2A')
+    test_df = coordinate_swap._find_R2D_D2R_miss(nameB_list, nameA_list, common_atoms_all, lineB_list, 'B2A')
     df = pd.read_csv(f'{input_path}/coord_swap/find_R2D_D2R_miss.csv')
 
     for index, row in df.iterrows():
@@ -105,9 +105,9 @@ def test_fix_break():
 def test_perform_shift():
     broken_mol = md.load(f'{input_path}/coord_swap/broken_mol_1D.gro')
 
-    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 1)  # noqa: E501
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap._perform_shift(broken_mol, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 1)  # noqa: E501
 
-    broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
+    broken_pairs = coordinate_swap._check_break(partial_fix, [[0, 4]])
 
     assert prev_shifted_atoms == [4]
     assert was_it_fixed is True
@@ -115,9 +115,9 @@ def test_perform_shift():
 
     broken_mol_2D = md.load(f'{input_path}/coord_swap/broken_mol_2D.gro')
 
-    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift(broken_mol_2D, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 2)  # noqa: E501
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap._perform_shift(broken_mol_2D, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 2)  # noqa: E501
 
-    broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
+    broken_pairs = coordinate_swap._check_break(partial_fix, [[0, 4]])
 
     assert prev_shifted_atoms == [4]
     assert was_it_fixed is True
@@ -125,9 +125,9 @@ def test_perform_shift():
 
     broken_mol_3D = md.load(f'{input_path}/coord_swap/broken_mol_3D.gro')
 
-    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap.perform_shift(broken_mol_3D, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 3)  # noqa: E501
+    partial_fix, was_it_fixed, prev_shifted_atoms = coordinate_swap._perform_shift(broken_mol_3D, [2.74964, 2.74964, 2.74964], [[0, 4]], [], 3)  # noqa: E501
 
-    broken_pairs = coordinate_swap.check_break(partial_fix, [[0, 4]])
+    broken_pairs = coordinate_swap._check_break(partial_fix, [[0, 4]])
 
     assert prev_shifted_atoms == [4]
     assert was_it_fixed is True
@@ -149,22 +149,22 @@ def test_check_break():
     for atoms in atom_connect:
         atom_pairs.append(list(mol_top.select(f"resname {resname} and (name {atoms[0]} or name {atoms[1]})")))
 
-    broken_pairs = coordinate_swap.check_break(broken_mol, atom_pairs)
+    broken_pairs = coordinate_swap._check_break(broken_mol, atom_pairs)
 
     assert broken_pairs == [[0, 4], [1, 2]] or broken_pairs == [[1, 2], [0, 4]]
 
 
 def test_get_miss_coord():
-    molA_file = f'{input_path}/coord_swap/input_A.gro'
-    molB_file = f'{input_path}/coord_swap/input_B.gro'
+    molA_file = f'{input_path}/coord_swap/sim_A/confout_backup.gro'
+    molB_file = f'{input_path}/coord_swap/sim_B/confout_backup.gro'
     nameA = 'D2E'
     nameB = 'E2F'
 
     connection_map = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
     swap_map = pd.read_csv(f'{input_path}/coord_swap/residue_swap_map.csv')
 
-    molA = md.load(f'{input_path}/coord_swap/input_A.trr', top=molA_file).slice(-1)
-    molB = md.load(f'{input_path}/coord_swap/input_B.trr', top=molB_file).slice(-1)
+    molA = md.load(f'{input_path}/coord_swap/sim_A/traj.trr', top=molA_file).slice(-1)
+    molB = md.load(f'{input_path}/coord_swap/sim_B/traj.trr', top=molB_file).slice(-1)
 
     A_dimensions = coordinate_swap.get_dimensions(open(molA_file, 'r').readlines())
     B_dimensions = coordinate_swap.get_dimensions(open(molB_file, 'r').readlines())
@@ -188,20 +188,20 @@ def test_get_miss_coord():
 
 
 def test_process_line():
-    file = open(f'{input_path}/coord_swap/input_A.gro', 'r').readlines()
+    file = open(f'{input_path}/coord_swap/sim_A/confout_backup.gro', 'r').readlines()
 
-    line, prev_line = coordinate_swap.process_line(file, 5)
+    line, prev_line = coordinate_swap._process_line(file, 5)
 
     assert prev_line == ['1D2E', 'N3', '3', '2.229', '1.274', '2.620', '0.0270', '-0.2197', '0.0105\n']
     assert line == ['1D2E', 'C4', '4', '2.226', '1.138', '2.607', '-0.8557', '0.2885', '0.1035\n']
 
-    line, prev_line = coordinate_swap.process_line(file, 22)
+    line, prev_line = coordinate_swap._process_line(file, 22)
     assert prev_line == ['1D2E', 'HV9', '20', '2.510', '1.423', '2.489', '1.4858', '0.4341', '-3.5063\n']
     assert line == ['1D2E', 'HV10', '21', '2.676', '1.415', '2.541', '-0.1731', '-0.2227', '-0.1934\n']
 
 
 def test_print_preamble():
-    file = open(f'{input_path}/coord_swap/input_A.gro', 'r').readlines()
+    file = open(f'{input_path}/coord_swap/sim_A/confout_backup.gro', 'r').readlines()
     temp_file = open('test_print_preamble.gro', 'w')
 
     coordinate_swap.print_preamble(file, temp_file, 5, 1)
@@ -256,8 +256,8 @@ def test_add_atom():
     df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
     temp_file = open('test_add_atom.gro', 'w')
 
-    coordinate_swap.add_atom(temp_file, 1, 'D2E', df[(df['Name'] == 'H5') & (df['Swap'] == 'A2B')], ['0.000', '0.000', '0.000\n'], 12)  # noqa: E501
-    coordinate_swap.add_atom(temp_file, 1, 'E2F', df[(df['Name'] == 'DC10') & (df['Swap'] == 'B2A')], ['0.000', '0.000', '0.000\n'], 21)  # noqa: E501
+    coordinate_swap._add_atom(temp_file, 1, 'D2E', df[(df['Name'] == 'H5') & (df['Swap'] == 'A2B')], ['0.000', '0.000', '0.000\n'], 12)  # noqa: E501
+    coordinate_swap._add_atom(temp_file, 1, 'E2F', df[(df['Name'] == 'DC10') & (df['Swap'] == 'B2A')], ['0.000', '0.000', '0.000\n'], 21)  # noqa: E501
     temp_file.close()
 
     read_temp_file = open('test_add_atom.gro', 'r').readlines()
@@ -272,7 +272,7 @@ def test_dummy_real_swap():
     orig_coords = np.zeros((22, 3))
     orig_coords[17] = [2.5837841, 1.4738766, 2.5511920]
 
-    coordinate_swap.dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords, 'C8')  # noqa: E501
+    coordinate_swap._dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords, 'C8')  # noqa: E501
     test_file.close()
 
     reopen_test_file = open('test_dummy_real_swap.gro', 'r').readlines()
@@ -282,13 +282,13 @@ def test_dummy_real_swap():
 
 def test_sep_merge():
     sample_line = ['36B2C', 'N11549', '3.964', '6.464', '6.901', '-0.0888', '-0.6098', '0.8167']
-    test_split = coordinate_swap.sep_merge(sample_line)
+    test_split = coordinate_swap._sep_merge(sample_line)
     assert test_split[0] == '36B2C'
     assert test_split[1] == 'N'
     assert test_split[2] == '11549'
 
     sample_line = ['36B2C', 'O211557', '3.983', '6.536', '6.608', '-0.2254', '-0.0182', '-0.1860']
-    test_split = coordinate_swap.sep_merge(sample_line)
+    test_split = coordinate_swap._sep_merge(sample_line)
     assert test_split[0] == '36B2C'
     assert test_split[1] == 'O2'
     assert test_split[2] == '11557'
@@ -300,7 +300,7 @@ def test_rotate_point_around_axis():
     axis = np.array([0.15, 0.82, 0.14])
     angle = 0.13
     rotated_point = [0.1693233, 0.18548463, -0.0335421]
-    assert (coordinate_swap.rotate_point_around_axis(initial_point, vertex, axis, angle) == rotated_point).all
+    assert (coordinate_swap._rotate_point_around_axis(initial_point, vertex, axis, angle) == rotated_point).all
 
 
 def test_find_rotation_angle():
@@ -309,7 +309,7 @@ def test_find_rotation_angle():
     axis = np.array([0.15, 0.82, 0.14])
     rotated_point = [0.1693233, 0.18548463, -0.0335421]
     angle = 0.13
-    test_angle = coordinate_swap.find_rotation_angle(initial_point, vertex, rotated_point, axis)
+    test_angle = coordinate_swap._find_rotation_angle(initial_point, vertex, rotated_point, axis)
     assert np.isclose(angle, test_angle, 10**(-5))
 
 
@@ -320,8 +320,8 @@ def test_add_or_swap():
     orig_coords[18] = [2.5970387, 1.5708300, 2.5017865]
     skip_line = []
 
-    skip_line = coordinate_swap.add_or_swap(df[df['Name'] == 'HV4'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 22, orig_coords, skip_line, 'HV4')  # noqa: E501
-    skip_line = coordinate_swap.add_or_swap(df[df['Name'] == 'HV8'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 15, orig_coords, skip_line, 'H8')  # noqa: E501
+    skip_line = coordinate_swap._add_or_swap(df[df['Name'] == 'HV4'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 22, orig_coords, skip_line, 'HV4')  # noqa: E501
+    skip_line = coordinate_swap._add_or_swap(df[df['Name'] == 'HV8'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 15, orig_coords, skip_line, 'H8')  # noqa: E501
     test_file.close()
 
     reopen_test_file = open('test_add_or_swap.gro', 'r').readlines()
@@ -337,8 +337,8 @@ def test_swap_name():
 
     name_list = ['C2', 'C5', 'DC7', 'HV5']
     flip_name_list = ['C2', 'C5', 'C7', 'H5']
-    test_name_list = coordinate_swap.swap_name(name_list, 'B2C', df_top)
-    test_flip_name_list = coordinate_swap.swap_name(flip_name_list, 'A2B', df_top)
+    test_name_list = coordinate_swap._swap_name(name_list, 'B2C', df_top)
+    test_flip_name_list = coordinate_swap._swap_name(flip_name_list, 'A2B', df_top)
 
     assert test_name_list == flip_name_list
     assert test_flip_name_list == name_list

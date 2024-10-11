@@ -73,7 +73,7 @@ def find_common(molA_file, molB_file, nameA, nameB):
             split_line.remove("")
         if len(split_line) > 2:
             if len(split_line[1]) > 5:
-                split_line = sep_merge(split_line)
+                split_line = _sep_merge(split_line)
             if nameA in split_line[0]:
                 nameA_list.append(split_line[1])
                 lineA_list.append(l)
@@ -84,7 +84,7 @@ def find_common(molA_file, molB_file, nameA, nameB):
             split_line.remove("")
         if len(split_line) > 2:
             if len(split_line[1]) > 5:
-                split_line = sep_merge(split_line)
+                split_line = _sep_merge(split_line)
             if nameB in split_line[0]:
                 nameB_list.append(split_line[1])
                 lineB_list.append(l)
@@ -93,8 +93,8 @@ def find_common(molA_file, molB_file, nameA, nameB):
     common_atoms_all = list(set(nameA_list) & set(nameB_list))
 
     # Determine the swaps for each transformation
-    df_A2B = find_R2D_D2R_miss(nameA_list, nameB_list, common_atoms_all, lineA_list, 'A2B')
-    df_B2A = find_R2D_D2R_miss(nameB_list, nameA_list, common_atoms_all, lineB_list, 'B2A')
+    df_A2B = _find_R2D_D2R_miss(nameA_list, nameB_list, common_atoms_all, lineA_list, 'A2B')
+    df_B2A = _find_R2D_D2R_miss(nameB_list, nameA_list, common_atoms_all, lineB_list, 'B2A')
 
     # Add D2R
     df = pd.concat([df_A2B, df_B2A])
@@ -102,7 +102,7 @@ def find_common(molA_file, molB_file, nameA, nameB):
     return df
 
 
-def find_R2D_D2R_miss(name_list, name_other_list, common_atoms, line_list, swap):
+def _find_R2D_D2R_miss(name_list, name_other_list, common_atoms, line_list, swap):
     """
     Determines which atoms are swapped between dummy and real states and which are missing.
 
@@ -207,7 +207,7 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
         atom_pairs.append(list(mol_top.select(f"resname {resname} and (name {atoms[0]} or name {atoms[1]})")))
 
     # Find any broken bonds
-    broken_pairs = check_break(mol, atom_pairs)
+    broken_pairs = _check_break(mol, atom_pairs)
 
     if len(broken_pairs) == 0:
         print('No breaks found')
@@ -224,19 +224,19 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
         iter += 1
 
         # Fix this break
-        mol, fixed, shift_atom = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 1)
+        mol, fixed, shift_atom = _perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 1)
         if fixed:
-            broken_pairs = check_break(mol, atom_pairs)
+            broken_pairs = _check_break(mol, atom_pairs)
             continue
         else:
-            mol, fixed, shift_atom = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 2)
+            mol, fixed, shift_atom = _perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 2)
             if fixed:
-                broken_pairs = check_break(mol, atom_pairs)
+                broken_pairs = _check_break(mol, atom_pairs)
                 continue
             else:
-                mol, fixed, shift_atom = perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 3)
+                mol, fixed, shift_atom = _perform_shift(mol, box_dimensions, broken_pairs, shift_atom, 3)
                 if fixed:
-                    broken_pairs = check_break(mol, atom_pairs)
+                    broken_pairs = _check_break(mol, atom_pairs)
                     continue
                 else:
                     raise Exception('Break could not be fixed')
@@ -244,7 +244,7 @@ def fix_break(mol, resname, box_dimensions, atom_connect_all):
     return mol
 
 
-def perform_shift(mol, box_dimensions, broken_pairs_init, prev_shift_atom, num_shift_dimensions):
+def _perform_shift(mol, box_dimensions, broken_pairs_init, prev_shift_atom, num_shift_dimensions):
     """
     Shifts the input trajectory across the periodic boundaries in 1D.
 
@@ -309,7 +309,7 @@ def perform_shift(mol, box_dimensions, broken_pairs_init, prev_shift_atom, num_s
     return mol, fixed, prev_shift_atom
 
 
-def check_break(mol, atom_pairs):
+def _check_break(mol, atom_pairs):
     """
     Determines whether a break is present between the atom pairs of interest.
 
@@ -367,27 +367,6 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
     df_atom_swap : pandas.DataFrame
         Same dataframe as the input, but with coordinates for the missing atoms.
     """
-    def compute_angle(coords):
-        """
-        Computes the angle between two vectors.
-
-        Parameters
-        ----------
-        coords : list
-            A list of numpy arrays containing the XYZ coordinates of 3 points, for which the angle 1-2-3 is to be computed. # noqa: E501
-
-        Returns
-        -------
-        angle : int
-            Angle in radians between the two points.
-        """
-        vec1 = coords[0] - coords[1]
-        vec2 = coords[2] - coords[1]
-
-        angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
-
-        return angle
-
     # Create a new column for coordinates if one does not exist
     if 'X Coordinates' not in df_atom_swap.columns:
         df_atom_swap['X Coordinates'] = np.NaN
@@ -429,11 +408,11 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         ref_vec = mol_ref_select.xyz[0, conn1_ref, :] - mol_ref_select.xyz[0, conn0_ref, :]  # defing 0-1 vector in ref  # noqa: E501
         align_vec = mol_align_select.xyz[0, conn1_align, :] - mol_ref_select.xyz[0, conn0_ref, :]  # defing 0-1 vector in align  # noqa: E501
         axis_rot = np.cross(ref_vec/np.linalg.norm(ref_vec), (align_vec/np.linalg.norm(align_vec)))  # Perpendicular vector to ref and align vectors  # noqa: E501
-        theta = find_rotation_angle(mol_align_select.xyz[0, conn1_align, :], mol_ref_select.xyz[0, conn0_ref, :], mol_ref_select.xyz[0, conn1_ref, :], axis_rot)  # noqa: E501
+        theta = _find_rotation_angle(mol_align_select.xyz[0, conn1_align, :], mol_ref_select.xyz[0, conn0_ref, :], mol_ref_select.xyz[0, conn1_ref, :], axis_rot)  # noqa: E501
 
         for a in range(mol_align_select.n_atoms):
             if a != conn0_align:
-                mol_align_select.xyz[0, a, :] = rotate_point_around_axis(mol_align_select.xyz[0, a, :], mol_ref_select.xyz[0, conn0_ref, :], axis_rot, theta)  # noqa: E501
+                mol_align_select.xyz[0, a, :] = _rotate_point_around_axis(mol_align_select.xyz[0, a, :], mol_ref_select.xyz[0, conn0_ref, :], axis_rot, theta)  # noqa: E501
 
         # Step 3: Rotate around 0-1 bond to get the correct angle for connecting atom
         angle_atoms = [
@@ -441,7 +420,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
             mol_align.topology.select(f'resname {name_align} and name {geom_fix_select[1]}')[0],
             mol_align.topology.select(f'resname {name_align} and name {geom_fix_select[2]}')[0]
         ]
-        internal_angle = compute_angle([mol_align.xyz[0, angle_atoms[0], :], mol_align.xyz[0, angle_atoms[1], :], mol_align.xyz[0, angle_atoms[2], :]])  # noqa: E501
+        internal_angle = _compute_angle([mol_align.xyz[0, angle_atoms[0], :], mol_align.xyz[0, angle_atoms[1], :], mol_align.xyz[0, angle_atoms[2], :]])  # noqa: E501
         change_atoms = mol_align_select.topology.select(f'resname {name_align} and name {geom_fix_select[0]}')
         axis_rot = mol_align_select.xyz[0, conn0_align, :] - mol_align_select.xyz[0, conn1_align, :]  # noqa: E501
         axis_rot = axis_rot / np.linalg.norm(axis_rot)
@@ -455,9 +434,9 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         ]
         for theta in np.linspace(0, 2 * np.pi, num=10):
             new_coors = np.zeros((3, 3))
-            new_coors[0, :] = rotate_point_around_axis(init_coords, mol_ref_select.xyz[0, conn0_ref, :], axis_rot, theta)  # noqa: E501
+            new_coors[0, :] = _rotate_point_around_axis(init_coords, mol_ref_select.xyz[0, conn0_ref, :], axis_rot, theta)  # noqa: E501
             new_coors[1:, :] = constant_coords
-            iangle = compute_angle(new_coors)
+            iangle = _compute_angle(new_coors)
             if abs(iangle - internal_angle) < min_dev_angle:
                 theta_min = theta
                 min_dev_angle = abs(iangle - internal_angle)
@@ -466,7 +445,7 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
         # Perform the rotation
         for a in range(mol_align_select.n_atoms):
             if a != conn0_align:
-                mol_align_select.xyz[0, a, :] = rotate_point_around_axis(mol_align_select.xyz[0, a, :], mol_ref_select.xyz[0, conn0_ref, :], axis_rot, theta_min)  # noqa: E501
+                mol_align_select.xyz[0, a, :] = _rotate_point_around_axis(mol_align_select.xyz[0, a, :], mol_ref_select.xyz[0, conn0_ref, :], axis_rot, theta_min)  # noqa: E501
 
         # Add coordinates to df
         for r in range(len(df_atom_swap.index)):
@@ -482,7 +461,29 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
     return df_atom_swap
 
 
-def process_line(mol_file, i):
+def _compute_angle(coords):
+    """
+    Computes the angle between two vectors.
+
+    Parameters
+    ----------
+    coords : list
+        A list of numpy arrays containing the XYZ coordinates of 3 points, for which the angle 1-2-3 is to be computed. # noqa: E501
+
+    Returns
+    -------
+    angle : int
+        Angle in radians between the two points.
+    """
+    vec1 = coords[0] - coords[1]
+    vec2 = coords[2] - coords[1]
+
+    angle = np.arccos(np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2)))
+
+    return angle
+
+
+def _process_line(mol_file, i):
     """
     Seperates the line by spaces and corrects for when the atom number merges the atom name
 
@@ -512,9 +513,9 @@ def process_line(mol_file, i):
 
     # Control for atom name and atom number merging
     if len(line[1]) > 5:
-        line = sep_merge(line)
+        line = _sep_merge(line)
     if i > 2 and len(prev_line[1]) > 5:
-        prev_line = sep_merge(prev_line)
+        prev_line = _sep_merge(prev_line)
 
     return line, prev_line
 
@@ -627,7 +628,7 @@ def identify_res(mol_top, resname_options):
     return resname
 
 
-def add_atom(mol_new, resnum, resname, df, vel, atom_num):
+def _add_atom(mol_new, resnum, resname, df, vel, atom_num):
     """
     Adds a new atom to the GRO file.
 
@@ -679,7 +680,7 @@ def add_atom(mol_new, resnum, resname, df, vel, atom_num):
     return atom_num
 
 
-def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords, name_new):
+def _dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords, name_new):
     """
     Adds an atom to the file which is switching between dummy and real state or vice versa.
 
@@ -729,7 +730,7 @@ def dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords, na
     return line_num
 
 
-def sep_merge(line):
+def _sep_merge(line):
     """
     Seperates two GRO file columns which no longer have a space sperating them.
 
@@ -754,7 +755,7 @@ def sep_merge(line):
     return temp_line
 
 
-def rotate_point_around_axis(point, vertex, axis, angle):
+def _rotate_point_around_axis(point, vertex, axis, angle):
     """
     Rotates a 3D point around an arbitrary axis.
 
@@ -809,7 +810,7 @@ def rotate_point_around_axis(point, vertex, axis, angle):
     return rotated_point
 
 
-def find_rotation_angle(initial_point, vertex, rotated_point, axis):
+def _find_rotation_angle(initial_point, vertex, rotated_point, axis):
     """
     Determines the angle of rotation around an arbitrary axis in 3D space.
 
@@ -847,18 +848,11 @@ def find_rotation_angle(initial_point, vertex, rotated_point, axis):
 
     # Determine the rotational angle to line-up point
     cos_arg = (x - a - u * C) / (Q * np.sqrt(A ** 2 + B ** 2))
-    if cos_arg > 1 or cos_arg < -1:
-        if abs(cos_arg - 1) < .0001:
-            cos_arg = 1
-        elif abs(cos_arg + 1) < .0001:
-            cos_arg = -1
-        else:
-            raise Exception(f'Invalid arccos argument: {(x - a - u * C) / (Q * np.sqrt(A ** 2 + B ** 2))}')
     arc_cos = np.arccos(cos_arg)
     angle = L + arc_cos
 
     # Test point
-    new_pt = rotate_point_around_axis(initial_point, vertex, axis / np.linalg.norm(axis), angle)
+    new_pt = _rotate_point_around_axis(initial_point, vertex, axis / np.linalg.norm(axis), angle)
     if abs(new_pt[1] - y) < 0.0001:
         return angle
     else:
@@ -870,7 +864,7 @@ def find_rotation_angle(initial_point, vertex, rotated_point, axis):
     return angle
 
 
-def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, skip_line, name_new):
+def _add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, skip_line, name_new):
     """
     Determine if the atom needs added or swapped between real and dummy state and then add the atom to the new file
 
@@ -903,9 +897,9 @@ def add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, 
     c = df_select.index.values.tolist()
 
     if df_select.loc[c[0], 'Direction'] == 'miss':  # Add atom if missing
-        add_atom(file_new, resnum, resname, df_select, vel, atom_num)
+        _add_atom(file_new, resnum, resname, df_select, vel, atom_num)
     else:  # Swap from dummy to real
-        line = dummy_real_swap(file_new, resnum, resname, df_select, vel, atom_num, orig_coor, name_new)  # Add the dummy atom from A as a real atom in B and save the line so it can be skipped later  # noqa: E501
+        line = _dummy_real_swap(file_new, resnum, resname, df_select, vel, atom_num, orig_coor, name_new)  # Add the dummy atom from A as a real atom in B and save the line so it can be skipped later  # noqa: E501
         skip_line.append(line)
 
     return skip_line
@@ -960,7 +954,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             atom_num_B = 0
 
         # Process input lines
-        line, prev_line = process_line(orig_file, i)
+        line, prev_line = _process_line(orig_file, i)
 
         # Seperate resname from resnumber
         res_i = [*line[0]]
@@ -985,14 +979,14 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
                 res_interest_atom += 1
             elif (f'{current_element}{current_num}' == atom_order[res_interest_atom]) or (f'{current_element}V{current_num}' == atom_order[res_interest_atom]) or (f'D{current_element}{current_num}' == atom_order[res_interest_atom]):  # Since atom is not in missing it must be a D2R flip  # noqa: E501
                 df_select = df_interest[df_interest['Name'] == line[1]]
-                skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+                skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
                 res_interest_atom += 1
             elif line[1] in atom_order:  # Atom is in the molecule, but there are other atoms before it
                 atom_pos = atom_order.index(line[1])
                 for x in range(res_interest_atom, atom_pos):
                     x_element, x_num = _sep_num_element(atom_order[x])
                     df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
-                    skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
+                    skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
                     atom_num_B += 1
                     res_interest_atom += 1
                 write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # noqa: E501
@@ -1012,11 +1006,11 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
                     for x in range(res_interest_atom, atom_pos):
                         x_element, x_num = _sep_num_element(atom_order[x])
                         df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
-                        skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
+                        skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
                         atom_num_B += 1
                         res_interest_atom += 1
                     df_select = df_interest[df_interest['Name'] == line[1]]
-                    skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+                    skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
                     res_interest_atom += 1
             else:
                 print(f'Warning {line} not written')
@@ -1024,7 +1018,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             while res_interest_atom < len(atom_order):
                 x_element, x_num = _sep_num_element(atom_order[res_interest_atom])
                 df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
-                skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+                skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
                 atom_num_B += 1
                 res_interest_atom += 1
             write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A])
@@ -1034,7 +1028,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
 
     while res_interest_atom < len(atom_order):
         df_select = df_interest[df_interest['Name'] == atom_order[res_interest_atom]]
-        skip_line = add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+        skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
         atom_num_B += 1
         res_interest_atom += 1
 
@@ -1071,7 +1065,7 @@ def _sep_num_element(atom_name):
     return element, num
 
 
-def swap_name(init_atom_names, new_resname, df_top):
+def _swap_name(init_atom_names, new_resname, df_top):
     """
     Determines the corresponding atom name in new molecule
 
@@ -1256,9 +1250,9 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
         angle_atoms.append(angle_atom[-1])
 
     # Now let's figure out what these atoms are called in the other molecule
-    anchor_atoms_B = swap_name(anchor_atoms, other_name, df_top)
-    angle_atoms_B = swap_name(angle_atoms, other_name, df_top)
-    align_atoms_B = swap_name(align_atoms, other_name, df_top)
+    anchor_atoms_B = _swap_name(anchor_atoms, other_name, df_top)
+    angle_atoms_B = _swap_name(angle_atoms, other_name, df_top)
+    align_atoms_B = _swap_name(align_atoms, other_name, df_top)
     df = pd.DataFrame(
         {
             'Swap A': main_name,
@@ -1273,12 +1267,9 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
     )
     miss_sep_reformat = []
     for missing in miss_sep:
-        if isinstance(missing, list):
-            missing_reformat = missing[0]
-            for atom in missing[1:]:
-                missing_reformat += f' {atom}'
-        else:
-            missing_reformat = missing
+        missing_reformat = missing[0]
+        for atom in missing[1:]:
+            missing_reformat += f' {atom}'
         miss_sep_reformat.append(missing_reformat)
     df['Missing Atom Name'] = miss_sep_reformat
 
