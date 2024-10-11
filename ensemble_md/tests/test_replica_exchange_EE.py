@@ -884,19 +884,19 @@ class Test_ReplicaExchangeEE:
 
     def test_default_coords_fn(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
-        # os.system(f'cp {input_path}/coord_swap/residue_connect.csv .')
-        # os.system(f'cp {input_path}/coord_swap/residue_swap_map.csv .')
-        # REXEE.default_coords_fn(f'{input_path}/coord_swap/sim_A/confout_backup.gro', f'{input_path}/coord_swap/sim_B/confout_backup.gro')  # noqa: E501
+        os.system(f'cp {input_path}/coord_swap/residue_connect.csv .')
+        os.system(f'cp {input_path}/coord_swap/residue_swap_map.csv .')
+        REXEE.default_coords_fn(f'{input_path}/coord_swap/sim_A/confout_backup.gro', f'{input_path}/coord_swap/sim_B/confout_backup.gro')  # noqa: E501
 
-        # true_output_A = open(f'{input_path}/coord_swap/output_A.gro', 'r').readlines()
-        # test_output_A = open(f'{input_path}/coord_swap/sim_B/confout.gro', 'r').readlines()
-        # true_output_B = open(f'{input_path}/coord_swap/output_B.gro', 'r').readlines()
-        # test_output_B = open(f'{input_path}/coord_swap/sim_A/confout.gro', 'r').readlines()
+        true_output_A = open(f'{input_path}/coord_swap/output_A.gro', 'r').readlines()
+        test_output_A = open(f'{input_path}/coord_swap/sim_B/confout.gro', 'r').readlines()
+        true_output_B = open(f'{input_path}/coord_swap/output_B.gro', 'r').readlines()
+        test_output_B = open(f'{input_path}/coord_swap/sim_A/confout.gro', 'r').readlines()
 
-        # os.remove('residue_connect.csv')
-        # os.remove('residue_swap_map.csv')
-        # assert true_output_A == test_output_A
-        # assert true_output_B == test_output_B
+        os.remove('residue_connect.csv')
+        os.remove('residue_swap_map.csv')
+        assert true_output_A == test_output_A
+        assert true_output_B == test_output_B
 
         os.system(f'cp {input_path}/coord_swap/residue_connect_alt.csv residue_connect.csv')
         os.system(f'cp {input_path}/coord_swap/residue_swap_map_alt.csv residue_swap_map.csv')
