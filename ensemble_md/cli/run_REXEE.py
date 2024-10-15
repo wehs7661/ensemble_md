@@ -336,8 +336,8 @@ def main():
 
                 print('\n----- Saving .npy files to checkpoint the simulation ---')
                 np.save(args.ckpt, REXEE.rep_trajs)
-            if REXEE.fixed_weights is not True:
-                np.save(args.equil, REXEE.equil) 
+                if REXEE.fixed_weights is not True:
+                    np.save(args.equil, REXEE.equil)
 
     # Save the npy files at the end of the simulation anyway.
     if rank == 0:
