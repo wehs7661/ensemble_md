@@ -390,6 +390,13 @@ class Test_ReplicaExchangeEE:
             REXEE = get_REXEE_instance(params_dict)
         os.remove('ensemble_md/tests/data/check_gro.py')
 
+        # 2-2. The case where we use the dafult function
+        params_dict['modify_coords'] = 'default'
+        params_dict['swap_rep_pattern'] = [[[0, 1], [1, 0]], [[[1, 1], [2, 0]]]]
+        params_dict['resname_list'] = ['A', 'B']
+        REXEE = get_REXEE_instance(params_dict)
+        assert REXEE.modify_coords_fn.__name__ == 'default_coords_fn'
+
     @patch('ensemble_md.replica_exchange_EE.subprocess.run')
     @patch('builtins.print')
     def test_check_gmx_executable(self, mock_print, mock_run, params_dict):
@@ -874,3 +881,53 @@ class Test_ReplicaExchangeEE:
 
         hist_modified = REXEE.histogram_correction(hist)
         assert hist_modified == [[416, 332, 161, 98, 98], [332, 161, 98, 98, 178]]
+
+    def test_default_coords_fn(self, params_dict):
+        REXEE = get_REXEE_instance(params_dict)
+        os.system(f'cp {input_path}/coord_swap/residue_connect.csv .')
+        os.system(f'cp {input_path}/coord_swap/residue_swap_map.csv .')
+        REXEE.default_coords_fn(f'{input_path}/coord_swap/sim_A/confout_backup.gro', f'{input_path}/coord_swap/sim_B/confout_backup.gro')  # noqa: E501
+
+        true_output_A = open(f'{input_path}/coord_swap/output_A.gro', 'r').readlines()
+        test_output_A = open(f'{input_path}/coord_swap/sim_B/confout.gro', 'r').readlines()
+        true_output_B = open(f'{input_path}/coord_swap/output_B.gro', 'r').readlines()
+        test_output_B = open(f'{input_path}/coord_swap/sim_A/confout.gro', 'r').readlines()
+
+        os.remove('residue_connect.csv')
+        os.remove('residue_swap_map.csv')
+        assert true_output_A == test_output_A
+        assert true_output_B == test_output_B
+
+        os.system(f'cp {input_path}/coord_swap/residue_connect_alt.csv residue_connect.csv')
+        os.system(f'cp {input_path}/coord_swap/residue_swap_map_alt.csv residue_swap_map.csv')
+        REXEE.default_coords_fn(f'{input_path}/coord_swap/sim_C/confout_backup.gro', f'{input_path}/coord_swap/sim_D/confout_backup.gro')  # noqa: E501
+
+        true_output_C = open(f'{input_path}/coord_swap/output_C.gro', 'r').readlines()
+        test_output_C = open(f'{input_path}/coord_swap/sim_D/confout.gro', 'r').readlines()
+        true_output_D = open(f'{input_path}/coord_swap/output_D.gro', 'r').readlines()
+        test_output_D = open(f'{input_path}/coord_swap/sim_C/confout.gro', 'r').readlines()
+
+        os.remove('residue_connect.csv')
+        os.remove('residue_swap_map.csv')
+        assert true_output_C == test_output_C
+        assert true_output_D == test_output_D
+
+    def test_process_top(self, params_dict):
+        import pandas as pd
+
+        REXEE = get_REXEE_instance(params_dict)
+        REXEE.resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
+        REXEE.swap_rep_pattern = [[[0, 1], [1, 0]], [[1, 1], [2, 0]], [[2, 1], [3, 0]], [[3, 1], [4, 0]]]
+        REXEE.top = [f'{input_path}/coord_swap/A-B.top',
+                     f'{input_path}/coord_swap/B-C.top',
+                     f'{input_path}/coord_swap/C-D.top',
+                     f'{input_path}/coord_swap/D-E.top',
+                     f'{input_path}/coord_swap/E-F.top']
+        REXEE.process_top()
+        test_res_connect = pd.read_csv('residue_connect.csv')
+        test_swap_map = pd.read_csv('residue_swap_map.csv')
+        true_res_connect = pd.read_csv(f'{input_path}/coord_swap/residue_connect.csv')
+        true_swap_map = pd.read_csv(f'{input_path}/coord_swap/residue_swap_map.csv')
+
+        assert true_res_connect.equals(test_res_connect)
+        assert true_swap_map.equals(test_swap_map)
