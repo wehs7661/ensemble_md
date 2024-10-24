@@ -44,6 +44,12 @@ def initialize(args):
                         help='The file path of the NPY file containing the time series of the whole-range\
                             alchemical weights. This file is a necessary input if one wants to update the \
                             file when extending a weight-updating simulation. (Default: g_vecs.npy)')
+    parser.add_argument('-e',
+                        '--equil',
+                        type=str,
+                        default='equil.npy',
+                        help='The file path of the NPY file containing the equilibration times for all simulations \
+                            when completing a variable weight REXEE simulation. (Default: equil.npy)')
     parser.add_argument('-o',
                         '--output',
                         type=str,
@@ -124,11 +130,15 @@ def main():
                         shutil.rmtree(f'{REXEE.working_dir}/sim_{i}/iteration_{j}')
 
             # Read g_vecs.npy and rep_trajs.npy so that new data can be appended, if any.
+            # Read equil.npy if running variable weight REXEE simulations
             # Note that these two arrays are created in rank 0 and should always be operated in rank 0,
             # or broadcasting is required.
             REXEE.rep_trajs = [list(i) for i in ckpt_data]
             if os.path.isfile(args.g_vecs) is True:
                 REXEE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
+            if REXEE.fixed_weights is not True and os.path.isfile(args.equil) is True:
+                REXEE.equil = np.load(args.equil)
+            print(REXEE.equil)
         else:
             start_idx = None
 
@@ -322,16 +332,20 @@ def main():
             if (i + 1) % REXEE.n_ckpt == 0:
                 if len(REXEE.g_vecs) != 0:
                     # Save g_vec as a function of time if weight combination was used.
-                    np.save('g_vecs.npy', REXEE.g_vecs)
+                    np.save(args.g_vecs, REXEE.g_vecs)
 
                 print('\n----- Saving .npy files to checkpoint the simulation ---')
-                np.save('rep_trajs.npy', REXEE.rep_trajs)
+                np.save(args.ckpt, REXEE.rep_trajs)
+                if REXEE.fixed_weights is not True:
+                    np.save(args.equil, REXEE.equil)
 
     # Save the npy files at the end of the simulation anyway.
     if rank == 0:
         if len(REXEE.g_vecs) != 0:  # The length will be 0 only if there is no weight combination.
-            np.save('g_vecs.npy', REXEE.g_vecs)
-        np.save('rep_trajs.npy', REXEE.rep_trajs)
+            np.save(args.g_vecs, REXEE.g_vecs)
+        np.save(args.ckpt, REXEE.rep_trajs)
+        if REXEE.fixed_weights is not True:
+            np.save(args.equil, REXEE.equil)
 
     # Step 5: Write a summary for the simulation ensemble
     if rank == 0:

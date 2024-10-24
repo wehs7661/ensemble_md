@@ -1340,7 +1340,16 @@ class ReplicaExchangeEE:
                 dg_vec.append(utils.weighted_mean(dg_list, dg_err_list)[0])
 
         dg_vec.insert(0, 0)
-        g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
+        nan_loc = [i for i, x in enumerate(dg_vec) if np.isnan(x)]
+        if len(nan_loc) != 0:
+            g_vec = np.zeros(len(dg_vec))
+            for i in range(1, len(dg_vec)):
+                if i in nan_loc:
+                    continue
+                else:
+                    g_vec[i] = g_vec[i-1] + dg_vec[i]
+        else:
+            g_vec = np.array([sum(dg_vec[:(i + 1)]) for i in range(len(dg_vec))])
 
         # (3) Determine the vector of alchemical weights for each replica
         weights_modified = np.zeros_like(weights)
