@@ -1608,7 +1608,10 @@ class ReplicaExchangeEE:
                 input_file = gmx_parser.read_top(file_name, self.resname_list[f])
 
                 # Determine the atom names corresponding to the atom numbers
-                start_line, atom_name, state = coordinate_swap.get_names(input_file)
+                start_line, atom_name, atom_num, state = coordinate_swap.get_names(input_file, self.resname_list[f])
+                print(f'start line #: {start_line}')
+                print(f'atom name: {atom_name}')
+                print(f'atom #: {atom_num}')
 
                 # Determine the connectivity of all atoms
                 connect_1, connect_2, state_1, state_2 = [], [], [], []  # Atom 1 and atom 2 which are connected and which state they are dummy atoms  # noqa: E501
@@ -1620,10 +1623,14 @@ class ReplicaExchangeEE:
                         break
                     while '' in line_sep:
                         line_sep.remove('')
-                    connect_1.append(atom_name[int(line_sep[0])-1])
-                    connect_2.append(atom_name[int(line_sep[1])-1])
-                    state_1.append(state[int(line_sep[0])-1])
-                    state_2.append(state[int(line_sep[1])-1])
+                    if int(line_sep[0]) in atom_num and int(line_sep[1]) in atom_num:
+                        num_1 = np.where(atom_num == int(line_sep[0]))[0][0]
+                        num_2 = np.where(atom_num == int(line_sep[1]))[0][0]
+                        connect_1.append(atom_name[num_1])
+                        connect_2.append(atom_name[num_2])
+                        state_1.append(state[num_1])
+                        state_2.append(state[num_2])
+
                 df = pd.DataFrame({'Resname': self.resname_list[f], 'Connect 1': connect_1, 'Connect 2': connect_2, 'State 1': state_1, 'State 2': state_2})  # noqa: E501
                 df_top = pd.concat([df_top, df])
             df_top.to_csv('residue_connect.csv')
@@ -1638,9 +1645,9 @@ class ReplicaExchangeEE:
                 lam = {X: int(swap[0][1]), Y: int(swap[1][1])}
                 for A, B in zip([X, Y], [Y, X]):
                     input_A = gmx_parser.read_top(self.top[A], self.resname_list[A])
-                    start_line, A_name, state = coordinate_swap.get_names(input_A)
+                    start_line, A_name, A_num, state = coordinate_swap.get_names(input_A, self.resname_list[A])
                     input_B = gmx_parser.read_top(self.top[B], self.resname_list[B])
-                    start_line, B_name, state = coordinate_swap.get_names(input_B)
+                    start_line, B_name, B_num, state = coordinate_swap.get_names(input_B, self.resname_list[B])
 
                     A_only = [x for x in A_name if x not in B_name]
                     B_only = [x for x in B_name if x not in A_name]

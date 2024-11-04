@@ -1114,7 +1114,7 @@ def _swap_name(init_atom_names, new_resname, df_top):
     return new_atom_names
 
 
-def get_names(input):
+def get_names(input, resname):
     """
     Determines the names of all atoms in the topology and which :math:`lambda` state for which they are dummy atoms.
 
@@ -1122,18 +1122,21 @@ def get_names(input):
     ----------
     input : list
         A list of strings containing the lines of the input topology.
-
+    resname : str
+        Name of residue of interest for which to extract atom names
     Returns
     -------
     start_line : int
         The next line to start reading from the topology.
     atom_name : list
-        All atom names in the topology.
+        All atom names in the topology corresponding to the residue of interest.
+    atom_num : list
+        The atom numbers corresponding to the atom names in atom_name
     state : list
         The state that the atom is a dummy atom (:math:`lambda=0`, :math:`lambda=1`, or -1 if nevver dummy).
     """
     atom_section = False
-    atom_name, state = [], []
+    atom_name, atom_num, state = [], [], []
     for l, line in enumerate(input):  # noqa: E741
         if atom_section:
             line_sep = line.split(' ')
@@ -1144,18 +1147,18 @@ def get_names(input):
             if line_sep[0] == '\n':
                 start_line = l+2
                 break
-            atom_name.append(line_sep[4])
-            if len(line_sep) < 10:
-                state.append(-1)
-            elif float(line_sep[6]) == 0:
-                state.append(0)
-            elif float(line_sep[9]) == 0:
-                state.append(1)
-            else:
-                state.append(-1)
+            if line_sep[3] == resname:
+                atom_name.append(line_sep[4])
+                atom_num.append(int(line_sep[0]))
+                if float(line_sep[6]) == 0:
+                    state.append(0)
+                elif float(line_sep[9]) == 0:
+                    state.append(1)
+                else:
+                    state.append(-1)
         if line == '[ atoms ]\n':
             atom_section = True
-    return start_line, atom_name, state
+    return start_line, atom_name, np.array(atom_num), state
 
 
 def determine_connection(main_only, other_only, main_name, other_name, df_top, main_state):
@@ -1190,9 +1193,15 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
     align_atom, angle_atom = [], []
     for atom in main_only:
         element = atom.strip('0123456789')
-        real_element = element.strip('DV')
+        e_split = list(element)
+        if e_split[0] == 'D':
+            real_element = ''.join(e_split[1:])
+        elif len(e_split) > 2 and e_split[1] == 'V':
+            del e_split[1]
+            real_element = ''.join(e_split)
+        else:
+            real_element = element
         num = atom.strip('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-
         if f'D{atom}' in other_only or f'{element}V{num}' in other_only:
             D2R.append(atom)
         elif f'{real_element}{num}' in other_only:
@@ -1200,6 +1209,7 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
         else:
             miss.append(atom)
     df_select = df_top[df_top['Resname'] == main_name]
+
     # Seperate into each seperate functional group to be added
     anchor_atoms = []
 
