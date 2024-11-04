@@ -1609,9 +1609,6 @@ class ReplicaExchangeEE:
 
                 # Determine the atom names corresponding to the atom numbers
                 start_line, atom_name, atom_num, state = coordinate_swap.get_names(input_file, self.resname_list[f])
-                print(f'start line #: {start_line}')
-                print(f'atom name: {atom_name}')
-                print(f'atom #: {atom_num}')
 
                 # Determine the connectivity of all atoms
                 connect_1, connect_2, state_1, state_2 = [], [], [], []  # Atom 1 and atom 2 which are connected and which state they are dummy atoms  # noqa: E501

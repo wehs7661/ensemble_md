@@ -1099,16 +1099,26 @@ def _swap_name(init_atom_names, new_resname, df_top):
             continue
         atom_num = re.findall(r'[0-9]+', atom)[0]
         atom_identifier = re.findall(r'[a-zA-Z]+', atom)[0]
-        if 'D' in atom_identifier:
-            atom_identifier = atom_identifier.strip('D')
-        if 'V' in atom_identifier:
-            atom_identifier = atom_identifier.strip('V')
-        if f'{atom_identifier}V{atom_num}' in new_names:
-            new_atom_names.append(f'{atom_identifier}V{atom_num}')
-        elif f'{atom_identifier}{atom_num}' in new_names:
-            new_atom_names.append(f'{atom_identifier}{atom_num}')
-        elif f'D{atom_identifier}{atom_num}' in new_names:
-            new_atom_names.append(f'D{atom_identifier}{atom_num}')
+        if list(atom_identifier)[0] == 'D':
+            element = list(atom_identifier)[1]
+            if len(list(atom_identifier)) > 2:
+                extra = ''.join(list(atom_identifier)[2:])
+            else:
+                extra = ''
+        else:
+            element = list(atom_identifier)[0]
+            if len(list(atom_identifier)) > 1:
+                extra = ''.join(list(atom_identifier)[1:])
+            else:
+                extra = ''
+        if 'V' in extra:
+            extra = extra.strip('V')
+        if f'{element}V{extra}{atom_num}' in new_names:
+            new_atom_names.append(f'{element}V{extra}{atom_num}')
+        elif f'{element}{extra}{atom_num}' in new_names:
+            new_atom_names.append(f'{element}{extra}{atom_num}')
+        elif f'D{element}{extra}{atom_num}' in new_names:
+            new_atom_names.append(f'D{element}{extra}{atom_num}')
         else:
             raise Exception(f'Compatible atom could not be found for {atom}')
     return new_atom_names
@@ -1192,17 +1202,23 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
     miss, D2R, R2D = [], [], []
     align_atom, angle_atom = [], []
     for atom in main_only:
-        element = atom.strip('0123456789')
-        e_split = list(element)
+        raw_element = atom.strip('0123456789')
+        e_split = list(raw_element)
         if e_split[0] == 'D':
             real_element = ''.join(e_split[1:])
         elif len(e_split) > 2 and e_split[1] == 'V':
             del e_split[1]
             real_element = ''.join(e_split)
         else:
-            real_element = element
+            real_element = raw_element
+        if len(real_element) != 1:
+            element = list(real_element)[0]
+            identifier = ''.join(list(real_element)[1:])
+        else:
+            element = real_element
+            identifier = ''
         num = atom.strip('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-        if f'D{atom}' in other_only or f'{element}V{num}' in other_only:
+        if f'D{atom}' in other_only or f'{element}V{identifier}{num}' in other_only:
             D2R.append(atom)
         elif f'{real_element}{num}' in other_only:
             R2D.append(atom)
@@ -1223,7 +1239,7 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
 
         # If the atom connects to non-missing atoms than keep these as anchors
         for a in connected_atoms:
-            if a not in miss:
+            if a not in miss and a not in anchor_atoms:
                 anchor_atoms.append(a)
 
     # Seperate missing atoms connected to each anchor
