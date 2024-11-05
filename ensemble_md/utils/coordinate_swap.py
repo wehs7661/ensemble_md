@@ -1162,7 +1162,7 @@ def get_names(input, resname):
                 atom_num.append(int(line_sep[0]))
                 if float(line_sep[6]) == 0:
                     state.append(0)
-                elif float(line_sep[9]) == 0:
+                elif len(line_sep) > 8 and float(line_sep[9]) == 0:
                     state.append(1)
                 else:
                     state.append(-1)
@@ -1217,10 +1217,12 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
         else:
             element = real_element
             identifier = ''
+        if 'V' in identifier:
+            identifier = identifier.strip('V')
         num = atom.strip('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
         if f'D{atom}' in other_only or f'{element}V{identifier}{num}' in other_only:
             D2R.append(atom)
-        elif f'{real_element}{num}' in other_only:
+        elif f'{element}{identifier}{num}' in other_only:
             R2D.append(atom)
         else:
             miss.append(atom)
