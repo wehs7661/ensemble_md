@@ -1005,8 +1005,6 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
                         continue
                     else:
                         for x in range(res_interest_atom, atom_pos):
-                            print(df_interest)
-                            print(atom_order[x])
                             df_select = _get_subset_df(df_interest, atom_order[x])
                             skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
                             atom_num_B += 1
@@ -1026,7 +1024,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
         else:
             print(f'Warning line {i+1} not written')
         atom_num_A += 1
-
+    atom_num_B += 1
     while res_interest_atom < len(atom_order):
         df_select = _get_subset_df(df_interest, atom_order[res_interest_atom])
         skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
