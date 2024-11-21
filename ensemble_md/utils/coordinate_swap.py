@@ -844,6 +844,17 @@ def _find_rotation_angle(initial_point, vertex, rotated_point, axis):
 
     # Determine the rotational angle to line-up point
     cos_arg = (x - a - u * C) / (Q * np.sqrt(A ** 2 + B ** 2))
+    if cos_arg > 1:
+        if (cos_arg - 1) < 0.001:
+            cos_arg = 1
+        else:
+            raise Exception(f'Invalid cos argument: {cos_arg}')
+    if cos_arg < -1:
+        if (cos_arg + 1) < 0.001:
+            cos_arg = -1
+        else:
+            raise Exception(f'Invalid cos argument: {cos_arg}')
+
     arc_cos = np.arccos(cos_arg)
     angle = L + arc_cos
 
