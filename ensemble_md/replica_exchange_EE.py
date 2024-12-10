@@ -196,7 +196,7 @@ class ReplicaExchangeEE:
                 self.warnings.append(f'Warning: Parameter "{i}" specified in the input YAML file is not recognizable.')
 
         # Step 4: Check if the parameters in the YAML file are well-defined
-        if self.proposal not in [None, 'single', 'neighboring', 'exhaustive']:  # deprecated option: multiple
+        if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'forced_swap']:  # deprecated option: multiple  # noqa: E501
             raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', and 'exhaustive'.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
@@ -791,7 +791,7 @@ class ReplicaExchangeEE:
         return wl_delta, weights, counts
 
     @staticmethod
-    def identify_swappable_pairs(states, state_ranges, neighbor_exchange, add_swappables=None):
+    def identify_swappable_pairs(self, states, state_ranges, neighbor_exchange, add_swappables=None, iteration=None):
         """
         Identifies swappable pairs. By definition, a pair of simulation is considered swappable only if
         their last sampled states are in the alchemical ranges of both simulations. This is required
@@ -815,6 +815,9 @@ class ReplicaExchangeEE:
             For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that if a replica samples state 4,
             it can be swapped with another replica that samples state 5 and vice versa. The same logic applies
             to states 14 and 15. This parameter is only relevant to MT-REXEE simulations.
+        iteration : int
+            The iteration number will determine which direction the swaps will be performed. This option is
+            only necessary when using the "forced_swap" proposal scheme.
 
         Returns
         -------
@@ -838,26 +841,36 @@ class ReplicaExchangeEE:
         """
         n_sim = len(states)
         sim_idx = list(range(n_sim))
-        all_pairs = list(combinations(sim_idx, 2))
+        if self.proposal == 'forced_swap':
+            if iteration % 2 == 0:  # Swap up for self.n_sim - 1 swaps
+                swappables = []
+                for n in np.arange(0, self.n_sim-2, 2):
+                    swappables.append([n, n+1])
+            else:  # and then swap down for self.n_sim - 1 swaps and repeat
+                swappables = []
+                for n in np.arange(1, self.n_sim-2, 2):
+                    swappables.append([n, n+1])
+        else:
+            all_pairs = list(combinations(sim_idx, 2))
 
-        # First, we identify pairs of replicas with overlapping ranges
-        swappables = [i for i in all_pairs if set(state_ranges[i[0]]).intersection(set(state_ranges[i[1]])) != set()]  # noqa: E501
+            # First, we identify pairs of replicas with overlapping ranges
+            swappables = [i for i in all_pairs if set(state_ranges[i[0]]).intersection(set(state_ranges[i[1]])) != set()]  # noqa: E501
 
-        # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
-        # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the acceptance cannot be calculated.
-        swappables = [i for i in swappables if states[i[0]] in state_ranges[i[1]] and states[i[1]] in state_ranges[i[0]]]  # noqa: E501
+            # Then, from these pairs, we exclude the ones whose the last sampled states are not present in both alchemical ranges  # noqa: E501
+            # In this case, U^i_n, U_^j_m, g^i_n, and g_^j_m are unknown and the acceptance cannot be calculated.
+            swappables = [i for i in swappables if states[i[0]] in state_ranges[i[1]] and states[i[1]] in state_ranges[i[0]]]  # noqa: E501
 
-        # Expand the definition of swappable pairs when add_swappables is specified
-        if add_swappables is not None:
-            all_paired_states = [[states[p[0]], states[p[1]]] for p in all_pairs]
-            for i in all_paired_states:
-                if i in add_swappables:
-                    pair = all_pairs[all_paired_states.index(i)]
-                    if pair not in swappables:
-                        swappables.append(pair)
+            # Expand the definition of swappable pairs when add_swappables is specified
+            if add_swappables is not None:
+                all_paired_states = [[states[p[0]], states[p[1]]] for p in all_pairs]
+                for i in all_paired_states:
+                    if i in add_swappables:
+                        pair = all_pairs[all_paired_states.index(i)]
+                        if pair not in swappables:
+                            swappables.append(pair)
 
-        if neighbor_exchange is True:
-            swappables = [i for i in swappables if np.abs(i[0] - i[1]) == 1]
+            if neighbor_exchange is True:
+                swappables = [i for i in swappables if np.abs(i[0] - i[1]) == 1]
 
         return swappables
 
@@ -884,7 +897,7 @@ class ReplicaExchangeEE:
 
         return swap
 
-    def get_swapping_pattern(self, dhdl_files, states):
+    def get_swapping_pattern(self, dhdl_files, states, iteration=None):
         """
         Generates a list (:code:`swap_pattern`) that represents how the configurations should be swapped in the
         next iteration. The indices of the output list correspond to the simulation/replica indices, and the
@@ -908,6 +921,9 @@ class ReplicaExchangeEE:
             A list of last sampled states (in global indices) of ALL simulations. :code:`states[i]=j` means that
             the configuration in replica :code:`i` is at state :code:`j` at the time when the exchange is performed.
             This list can be generated :obj:`.extract_final_dhdl_info`.
+        iteration : int
+            The iteration number will determine which direction the swaps will be performed. This option is only
+            necessary when using the "forced_swap" proposal scheme.
 
         Returns
         -------
@@ -917,7 +933,10 @@ class ReplicaExchangeEE:
             A list of tuples showing the accepted swaps.
         """
         swap_list = []
-        if self.proposal == 'exhaustive':
+        if self.proposal == 'forced_swap':
+            n_ex = int(np.floor(self.n_sim / 2))  # This is the maximum, not necessarily the number that will always be reached.  # noqa
+            swap_index = []
+        elif self.proposal == 'exhaustive':
             n_ex = int(np.floor(self.n_sim / 2))  # This is the maximum, not necessarily the number that will always be reached.  # noqa
             n_ex_exhaustive = 0    # The actual number of swaps atttempted.
         else:
@@ -935,7 +954,7 @@ class ReplicaExchangeEE:
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         state_ranges = copy.deepcopy(self.state_ranges)
         # states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges --> was needed for the multiple exchange proposal scheme  # noqa: E501
-        swappables = ReplicaExchangeEE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.add_swappables)  # noqa: E501
+        swappables = ReplicaExchangeEE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.add_swappables, iteration)  # noqa: E501
 
         # Note that if there is only 1 swappable pair, then it will still be the only swappable pair
         # after an attempted swap is accepted. Therefore, there is no need to perform multiple swaps or re-identify
@@ -947,7 +966,7 @@ class ReplicaExchangeEE:
         print(f"Swappable pairs: {swappables}")
         for i in range(n_ex):
             # Update the list of swappable pairs starting from the 2nd attempted swap for the exhaustive swap method.
-            if self.proposal == 'exhaustive' and i >= 1:
+            if (self.proposal == 'exhaustive' or self.proposal == 'forced_swap') and i >= 1:
                 # Note that this should be done regardless of the acceptance/rejection of the previously drawn pairs.
                 # Also note that at this point, swap is still the last attempted swap.
                 swappables = [i for i in swappables if set(i).intersection(set(swap)) == set()]  # noqa: F821
@@ -963,7 +982,10 @@ class ReplicaExchangeEE:
                 if self.proposal == 'exhaustive':
                     n_ex_exhaustive += 1
 
-                swap = ReplicaExchangeEE.propose_swap(swappables)
+                if self.propoal == 'forced_swap':
+                    swap = swappables[0]
+                else:
+                    swap = ReplicaExchangeEE.propose_swap(swappables)
                 print(f'\nProposed swap: {swap}')
                 if swap == []:  # the same as len(swappables) == 0, self.proposal must not be exhaustive if this line is reached.  # noqa: E501
                     self.n_empty_swappable += 1
@@ -973,6 +995,10 @@ class ReplicaExchangeEE:
                     self.n_swap_attempts += 1
                     if self.verbose is True and self.proposal != 'exhaustive':
                         print(f'A swap ({i + 1}/{n_ex}) is proposed between the configurations of Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
+
+                    if self.proposal == 'forced_swap':
+                        index = self._deter_swap_index(swap, dhdl_files, shifts, self.add_swappables)
+                        swap_index.append(index)
 
                     if self.modify_coords_fn is not None:
                         swap_bool = True  # always accept the move
@@ -1024,7 +1050,7 @@ class ReplicaExchangeEE:
         for i in range(self.n_sim):
             self.rep_trajs[i].append(self.configs.index(i))
 
-        return swap_pattern, swap_list
+        return swap_pattern, swap_list, swap_index
 
     def calc_prob_acc(self, swap, dhdl_files, states, shifts):
         """
@@ -1126,6 +1152,54 @@ class ReplicaExchangeEE:
                 if self.verbose is True:
                     print("  Swap rejected! ")
         return swap_bool
+
+    def _deter_swap_index(self, swap, dhdl_files, add_swappables):
+        """
+        Determine which frames in the trajectory are sampling compatible lambda states to engage in a swap
+
+        Parameters
+        ----------
+        swap : list
+        The simulations for which the swap is occuring
+        dhdl_files : list
+            A list of paths to the DHDL files. The indicies in the DHDL filenames should be in an ascending order, e.g.
+            :code:`[dhdl_0.xvg, dhdl_1.xvg, ..., dhdl_N.xvg]`.
+        add_swappables: list
+            A list of lists that additionally consider states (in global indices) that can be swapped.
+            For example, :code:`add_swappables=[[4, 5], [14, 15]]` means that if a replica samples state 4,
+            it can be swapped with another replica that samples state 5 and vice versa. The same logic applies
+            to states 14 and 15. This parameter is only relevant to MT-REXEE simulations.
+
+        Returns
+        -------
+        swap_bool : bool
+            A boolean variable indicating whether the swap should be accepted.
+        """
+        # Determine possible lambda states that swap partner i can be in to allow a swap
+        swappable_global_states = []
+        for swappable in add_swappables:
+            A, B = swappable
+            swappable_global_states.append(A)
+            swappable_global_states.append(B)
+
+        swap_index = []
+        for i in range(1):
+            n = swap[i]
+            # Determine all frames for which swap partner i is in those states
+            potential_swap_index = []
+            headers = get_headers(dhdl_files[n])
+            state_local = list(extract_dataframe(dhdl_files[i], headers=headers)['Thermodynamic state'])  # local index for all states  # noqa: E501
+            for s, state in enumerate(state_local):
+                state_global = state + i * self.s  # global index of the last state
+                if state_global in swappable_global_states:
+                    potential_swap_index.append(s)
+
+            # Select a random frame which is in the last 50% of the trajectory to have the swap occur
+            potential_swap_index = np.array(potential_swap_index)
+            potential_swap_index = potential_swap_index[potential_swap_index > (len(state_local)/2)]
+            swap_index.append(np.random.choice(potential_swap_index))
+
+        return swap_index
 
     def get_averaged_weights(self, log_files):
         """
