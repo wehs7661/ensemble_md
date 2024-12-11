@@ -791,7 +791,7 @@ class ReplicaExchangeEE:
         return wl_delta, weights, counts
 
     @staticmethod
-    def identify_swappable_pairs(self, states, state_ranges, neighbor_exchange, add_swappables=None, iteration=None):
+    def identify_swappable_pairs(states, state_ranges, neighbor_exchange, forced_swap, add_swappables=None, iteration=None):
         """
         Identifies swappable pairs. By definition, a pair of simulation is considered swappable only if
         their last sampled states are in the alchemical ranges of both simulations. This is required
@@ -841,15 +841,16 @@ class ReplicaExchangeEE:
         """
         n_sim = len(states)
         sim_idx = list(range(n_sim))
-        if self.proposal == 'forced_swap':
+        if forced_swap is True:
             if iteration % 2 == 0:  # Swap up for self.n_sim - 1 swaps
                 swappables = []
-                for n in np.arange(0, self.n_sim-2, 2):
+                for n in np.arange(0, n_sim-2, 2):
                     swappables.append([n, n+1])
             else:  # and then swap down for self.n_sim - 1 swaps and repeat
                 swappables = []
-                for n in np.arange(1, self.n_sim-2, 2):
+                for n in np.arange(1, n_sim-2, 2):
                     swappables.append([n, n+1])
+            print(f'swappables: {swappables}')
         else:
             all_pairs = list(combinations(sim_idx, 2))
 
@@ -954,7 +955,7 @@ class ReplicaExchangeEE:
         swap_pattern = list(range(self.n_sim))   # Can be regarded as the indices of DHDL files/configurations
         state_ranges = copy.deepcopy(self.state_ranges)
         # states_copy = copy.deepcopy(states)  # only for re-identifying swappable pairs given updated state_ranges --> was needed for the multiple exchange proposal scheme  # noqa: E501
-        swappables = ReplicaExchangeEE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.add_swappables, iteration)  # noqa: E501
+        swappables = ReplicaExchangeEE.identify_swappable_pairs(states, state_ranges, self.proposal == 'neighboring', self.proposal == 'forced_swap', self.add_swappables, iteration)  # noqa: E501
 
         # Note that if there is only 1 swappable pair, then it will still be the only swappable pair
         # after an attempted swap is accepted. Therefore, there is no need to perform multiple swaps or re-identify
@@ -963,7 +964,6 @@ class ReplicaExchangeEE:
             if n_ex > 1:
                 n_ex = 1  # n_ex is set back to 1 since there is only 1 swappable pair.
 
-        print(f"Swappable pairs: {swappables}")
         for i in range(n_ex):
             # Update the list of swappable pairs starting from the 2nd attempted swap for the exhaustive swap method.
             if (self.proposal == 'exhaustive' or self.proposal == 'forced_swap') and i >= 1:
@@ -982,7 +982,7 @@ class ReplicaExchangeEE:
                 if self.proposal == 'exhaustive':
                     n_ex_exhaustive += 1
 
-                if self.propoal == 'forced_swap':
+                if self.proposal == 'forced_swap':
                     swap = swappables[0]
                 else:
                     swap = ReplicaExchangeEE.propose_swap(swappables)
@@ -997,7 +997,7 @@ class ReplicaExchangeEE:
                         print(f'A swap ({i + 1}/{n_ex}) is proposed between the configurations of Simulation {swap[0]} (state {states[swap[0]]}) and Simulation {swap[1]} (state {states[swap[1]]}) ...')  # noqa: E501
 
                     if self.proposal == 'forced_swap':
-                        index = self._deter_swap_index(swap, dhdl_files, shifts, self.add_swappables)
+                        index = self._deter_swap_index(swap, dhdl_files, self.add_swappables)
                         swap_index.append(index)
 
                     if self.modify_coords_fn is not None:
@@ -1181,6 +1181,7 @@ class ReplicaExchangeEE:
             A, B = swappable
             swappable_global_states.append(A)
             swappable_global_states.append(B)
+        print(swappable_global_states)
 
         swap_index = []
         for i in range(1):
