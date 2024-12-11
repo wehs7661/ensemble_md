@@ -790,7 +790,6 @@ class ReplicaExchangeEE:
 
         return wl_delta, weights, counts
 
-    @staticmethod
     def identify_swappable_pairs(self, states, state_ranges, neighbor_exchange, add_swappables=None, iteration=None):
         """
         Identifies swappable pairs. By definition, a pair of simulation is considered swappable only if
