@@ -197,7 +197,7 @@ class ReplicaExchangeEE:
 
         # Step 4: Check if the parameters in the YAML file are well-defined
         if self.proposal not in [None, 'single', 'neighboring', 'exhaustive', 'forced_swap']:  # deprecated option: multiple  # noqa: E501
-            raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', and 'exhaustive'.")  # noqa: E501
+            raise ParameterError("The specified proposal scheme is not available. Available options include 'single', 'neighboring', 'exhaustive', and 'forced_swap.")  # noqa: E501
 
         if self.df_method not in [None, 'TI', 'BAR', 'MBAR']:
             raise ParameterError("The specified free energy estimator is not available. Available options include 'TI', 'BAR', and 'MBAR'.")  # noqa: E501
