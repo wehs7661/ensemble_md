@@ -138,7 +138,6 @@ def main():
                 REXEE.g_vecs = [list(i) for i in np.load(args.g_vecs)]
             if REXEE.fixed_weights is not True and os.path.isfile(args.equil) is True:
                 REXEE.equil = np.load(args.equil)
-            print(REXEE.equil)
         else:
             start_idx = None
 
@@ -173,7 +172,8 @@ def main():
                 states = copy.deepcopy(states_)
                 weights = copy.deepcopy(weights_)
                 counts = copy.deepcopy(counts_)
-                swap_pattern, swap_list = REXEE.get_swapping_pattern(dhdl_files, states_, i)  # swap_list will only be used for modify_coords  # noqa: E501
+                swap_pattern, swap_list, swap_index, states = REXEE.get_swapping_pattern(dhdl_files, states_, i)  # swap_list will only be used for modify_coords  # noqa: E501
+                print(f'swap pattern: {swap_pattern}')
 
                 # 3-3. Perform weight correction/weight combination
                 if wl_delta != [None for i in range(REXEE.n_sim)]:  # weight-updating
@@ -305,20 +305,21 @@ def main():
                 try:
                     if rank == 0:
                         for j in range(len(swap_list)):
-                            print('\nModifying the coordinates of the following output GRO files ...')
-                            # gro_1 and gro_2 are the simlation outputs (that we want to back up) and the inputs to modify_coords  # noqa: E501
-                            gro_1 = f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
-                            gro_2 = f'{REXEE.working_dir}/sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
-                            print(f'  - {gro_1}\n  - {gro_2}')
+                            if not os.path.exists(f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout_backup.gro') and not os.path.exists(f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout_backup.gro'):
+                                print('\nModifying the coordinates of the following output GRO files ...')
+                                # gro_1 and gro_2 are the simlation outputs (that we want to back up) and the inputs to modify_coords  # noqa: E501
+                                gro_1 = f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
+                                gro_2 = f'{REXEE.working_dir}/sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
+                                print(f'  - {gro_1}\n  - {gro_2}')
 
-                            # Now we rename gro_1 and gro_2 to back them up
-                            gro_1_backup = gro_1.split('.gro')[0] + '_backup.gro'
-                            gro_2_backup = gro_2.split('.gro')[0] + '_backup.gro'
-                            os.rename(gro_1, gro_1_backup)
-                            os.rename(gro_2, gro_2_backup)
+                                # Now we rename gro_1 and gro_2 to back them up
+                                gro_1_backup = gro_1.split('.gro')[0] + '_backup.gro'
+                                gro_2_backup = gro_2.split('.gro')[0] + '_backup.gro'
+                                os.rename(gro_1, gro_1_backup)
+                                os.rename(gro_2, gro_2_backup)
 
-                            # Here we input gro_1_backup and gro_2_backup and modify_coords_fn will save the modified gro files as gro_1 and gro_2  # noqa: E501
-                            REXEE.modify_coords_fn(gro_1_backup, gro_2_backup)  # the order should not matter
+                                # Here we input gro_1_backup and gro_2_backup and modify_coords_fn will save the modified gro files as gro_1 and gro_2  # noqa: E501
+                                REXEE.modify_coords_fn(gro_1_backup, gro_2_backup, swap_index[j])  # the order should not matter
                 except Exception:
                     print('\n--------------------------------------------------------------------------\n')
                     print(f'\nAn error occurred on rank 0:\n{traceback.format_exc()}')
