@@ -305,7 +305,7 @@ def main():
                 try:
                     if rank == 0:
                         for j in range(len(swap_list)):
-                            if not os.path.exists(f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout_backup.gro') and not os.path.exists(f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout_backup.gro'):
+                            if not os.path.exists(f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout_backup.gro') and not os.path.exists(f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout_backup.gro'):  # noqa: E501
                                 print('\nModifying the coordinates of the following output GRO files ...')
                                 # gro_1 and gro_2 are the simlation outputs (that we want to back up) and the inputs to modify_coords  # noqa: E501
                                 gro_1 = f'{REXEE.working_dir}/sim_{swap_list[j][0]}/iteration_{i-1}/confout.gro'
@@ -319,7 +319,7 @@ def main():
                                 os.rename(gro_2, gro_2_backup)
 
                                 # Here we input gro_1_backup and gro_2_backup and modify_coords_fn will save the modified gro files as gro_1 and gro_2  # noqa: E501
-                                REXEE.modify_coords_fn(gro_1_backup, gro_2_backup, swap_index[j])  # the order should not matter
+                                REXEE.modify_coords_fn(gro_1_backup, gro_2_backup, swap_index[j])  # the order should not matter  # noqa: E501
                 except Exception:
                     print('\n--------------------------------------------------------------------------\n')
                     print(f'\nAn error occurred on rank 0:\n{traceback.format_exc()}')
