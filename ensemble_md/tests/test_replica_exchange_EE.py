@@ -655,14 +655,14 @@ class Test_ReplicaExchangeEE:
         dhdl_files = [os.path.join(input_path, f"dhdl/dhdl_{i}.xvg") for i in range(4)]
 
         # Case 1: Any case that is not neighboring swap has the same definition for the swappable pairs
-        swappables, swap_index, states_for_swap = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, dhdl_files)
+        swappables, swap_index, states_for_swap = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, dhdl_files)  # noqa: E501
         assert swappables == [(0, 1), (0, 2), (1, 2)]
         assert swap_index == []
         assert states_for_swap == []
 
         # Case 2: Neighboring exchange
         REXEE.proposal = 'neighboring'
-        swappables, swap_index, states_for_swap = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, dhdl_files)
+        swappables, swap_index, states_for_swap = REXEE.identify_swappable_pairs(states, REXEE.state_ranges, dhdl_files)  # noqa: E501
         assert swappables == [(0, 1), (1, 2)]
         assert swap_index == []
         assert states_for_swap == []
