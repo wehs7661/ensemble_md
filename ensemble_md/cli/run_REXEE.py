@@ -311,7 +311,8 @@ def main():
                             gro_2 = f'{REXEE.working_dir}/sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
                             print(f'  - {gro_1}\n  - {gro_2}')
 
-                            if os.path.exists(gro_1.split('.gro')[0] + '_backup.gro') and os.path.exists(gro_2.split('.gro')[0] + '_backup.gro'):
+                            # Check that swap was not performed before checkpoint was created
+                            if os.path.exists(gro_1.split('.gro')[0] + '_backup.gro') and os.path.exists(gro_2.split('.gro')[0] + '_backup.gro'):  # noqa: E501
                                 print('\nSwap already performed')
                             else:
                                 # Now we rename gro_1 and gro_2 to back them up
