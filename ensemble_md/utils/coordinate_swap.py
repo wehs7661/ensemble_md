@@ -365,9 +365,9 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
     """
     # Create a new column for coordinates if one does not exist
     if 'X Coordinates' not in df_atom_swap.columns:
-        df_atom_swap['X Coordinates'] = np.NaN
-        df_atom_swap['Y Coordinates'] = np.NaN
-        df_atom_swap['Z Coordinates'] = np.NaN
+        df_atom_swap['X Coordinates'] = np.nan
+        df_atom_swap['Y Coordinates'] = np.nan
+        df_atom_swap['Z Coordinates'] = np.nan
 
     if len(df_swap.index) == 0:
         return df_atom_swap

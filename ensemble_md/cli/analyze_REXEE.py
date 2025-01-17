@@ -25,7 +25,7 @@ from deeptime.markov.tools.analysis import is_transition_matrix
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 from ensemble_md.utils import utils  # noqa: E402
-from ensemble_md.utils import gmx_parser
+from ensemble_md.utils import gmx_parser  # noqa: E402
 from ensemble_md.analysis import analyze_traj  # noqa: E402
 from ensemble_md.analysis import analyze_matrix  # noqa: E402
 from ensemble_md.analysis import msm_analysis  # noqa: E402
@@ -462,7 +462,7 @@ def main():
         n_sim, n_iter = np.shape(rep_trajs)
         if REXEE.swap_rep_pattern is None:
             raise Exception('MT-REXEE trajectory analysis requires swap_rep_pattern to be defined')
-        analyze_traj.end_states_only_traj(REXEE.working_dir, n_sim, n_iter, l0, l1, REXEE.swap_rep_pattern, ps_per_frame)
+        analyze_traj.end_states_only_traj(REXEE.working_dir, n_sim, n_iter, l0, l1, REXEE.swap_rep_pattern, ps_per_frame)  # noqa: E501
 
         # Section 5.2. Create concatenated trajectories for each individual simulation
 
