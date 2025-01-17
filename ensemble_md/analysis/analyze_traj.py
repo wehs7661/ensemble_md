@@ -539,7 +539,14 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
         hist, bins = np.histogram(traj, bins=np.arange(lower_bound, upper_bound + 1, 1))
         hist_data.append(hist)
     if save_hist is True:
-        np.save('hist_data.npy', hist_data)
+        if len(fig_name.split('/')) > 1:
+            dir_list = []
+            for i in fig_name.split('/')[:-1]:
+                dir_list.append(i)
+            dir_path = ''.join(dir_list)
+            np.save(f'{dir_path}/hist_data.npy', hist_data)
+        else:
+            np.save('hist_data.npy', hist_data)
 
     # Use the same bins for all histograms
     bins = bins[:-1]  # Remove the last bin edge because there are n+1 bin edges for n bins
