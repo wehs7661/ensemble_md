@@ -418,7 +418,7 @@ class ReplicaExchangeEE:
 
         # 7-5. A list of sets of state indices
         start_idx = [i * self.s for i in range(self.n_sim)]
-        self.state_ranges = [list(np.arange(i, i + self.n_sub)) for i in start_idx]
+        self.state_ranges = [list(np.arange(i, i + self.n_sub, dtype=int)) for i in start_idx]
 
         # 7-6. A list of time it took to get the weights equilibrated
         self.equil = [-1 for i in range(self.n_sim)]   # -1 means unequilibrated
