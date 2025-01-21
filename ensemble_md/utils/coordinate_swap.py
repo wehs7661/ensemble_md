@@ -134,27 +134,23 @@ def _find_R2D_D2R_miss(name_list, name_other_list, common_atoms, line_list, swap
     # Determine atoms unique to either molecule
     names, an_num, elements, directions, swaps, lines, final_type = [], [], [], [], [], [], []
     for a, atom in enumerate(name_list):
-        element = atom.strip('0123456789')
-        real_element = element.strip('DV')
-        num = atom.strip('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+        element, num, extra = _sep_num_element(atom)
         if atom not in common_atoms:
             names.append(atom)
             an_num.append(num)
             swaps.append(swap)
             lines.append(line_list[a])
-            if 'C' in element:
-                elements.append('C')
-            else:
-                elements.append('H')
-            if f'D{atom}' in name_other_list or f'{element}V{num}' in name_other_list:
+            elements.append(f'{element}{extra}')
+
+            if f'D{atom}' in name_other_list or f'{element}V{extra}{num}' in name_other_list:
                 directions.append('R2D')
                 final_type.append('dummy')
-            elif f'{real_element}{num}' in name_other_list:
+            elif f'{element}{extra}{num}' in name_other_list:
                 directions.append('D2R')
                 final_type.append('real')
             else:
                 directions.append('miss')
-                if 'V' in atom or 'DC' in atom:
+                if list(atom)[0] == 'D' or (len(list(atom)) > 2 and list(atom)[1] == 'V'):
                     final_type.append('dummy')
                 else:
                     final_type.append('real')
@@ -369,9 +365,9 @@ def get_miss_coord(mol_align, mol_ref, name_align, name_ref, df_atom_swap, dir, 
     """
     # Create a new column for coordinates if one does not exist
     if 'X Coordinates' not in df_atom_swap.columns:
-        df_atom_swap['X Coordinates'] = np.NaN
-        df_atom_swap['Y Coordinates'] = np.NaN
-        df_atom_swap['Z Coordinates'] = np.NaN
+        df_atom_swap['X Coordinates'] = np.nan
+        df_atom_swap['Y Coordinates'] = np.nan
+        df_atom_swap['Z Coordinates'] = np.nan
 
     if len(df_swap.index) == 0:
         return df_atom_swap
@@ -848,6 +844,17 @@ def _find_rotation_angle(initial_point, vertex, rotated_point, axis):
 
     # Determine the rotational angle to line-up point
     cos_arg = (x - a - u * C) / (Q * np.sqrt(A ** 2 + B ** 2))
+    if cos_arg > 1:
+        if (cos_arg - 1) < 0.001:
+            cos_arg = 1
+        else:
+            raise Exception(f'Invalid cos argument: {cos_arg}')
+    if cos_arg < -1:
+        if (cos_arg + 1) < 0.001:
+            cos_arg = -1
+        else:
+            raise Exception(f'Invalid cos argument: {cos_arg}')
+
     arc_cos = np.arccos(cos_arg)
     angle = L + arc_cos
 
@@ -969,7 +976,7 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A])
         elif resname == old_res_name:  # Atom manipulation required for acyl chain
             # determine the number for the atom being written in the current line
-            current_element, current_num = _sep_num_element(line[1])
+            current_element, current_num, current_extra = _sep_num_element(line[1])
             if line[1] in miss:  # Do not write coordinates if atoms are not present in B
                 atom_num_B -= 1
                 atom_num_A += 1
@@ -977,49 +984,50 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
             elif line[1] == atom_order[res_interest_atom]:  # Just change atom or residue number as needed since atom is in the right order  # noqa: E501
                 write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # noqa: E501
                 res_interest_atom += 1
-            elif (f'{current_element}{current_num}' == atom_order[res_interest_atom]) or (f'{current_element}V{current_num}' == atom_order[res_interest_atom]) or (f'D{current_element}{current_num}' == atom_order[res_interest_atom]):  # Since atom is not in missing it must be a D2R flip  # noqa: E501
+            elif (f'{current_element}{current_extra}{current_num}' == atom_order[res_interest_atom]) or (f'{current_element}V{current_extra}{current_num}' == atom_order[res_interest_atom]) or (f'D{current_element}{current_num}' == atom_order[res_interest_atom]):  # Since atom is not in missing it must be a D2R flip  # noqa: E501
                 df_select = df_interest[df_interest['Name'] == line[1]]
                 skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
                 res_interest_atom += 1
             elif line[1] in atom_order:  # Atom is in the molecule, but there are other atoms before it
                 atom_pos = atom_order.index(line[1])
                 for x in range(res_interest_atom, atom_pos):
-                    x_element, x_num = _sep_num_element(atom_order[x])
-                    df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
+                    df_select = _get_subset_df(df_interest, atom_order[x])
                     skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
                     atom_num_B += 1
                     res_interest_atom += 1
                 write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # noqa: E501
                 res_interest_atom += 1
-            elif (f'{current_element}{current_num}' in atom_order) or (f'{current_element}V{current_num}' in atom_order) or (f'D{current_element}{current_num}' in atom_order):  # Atom is in the molecule, but needs swapped AND there are other atoms before it  # noqa: E501
-                if (f'{current_element}{current_num}' in atom_order):
-                    atom_pos = atom_order.index(f'{current_element}{current_num}')
-                elif (f'{current_element}V{current_num}' in atom_order):
-                    atom_pos = atom_order.index(f'{current_element}V{current_num}')
-                elif (f'D{current_element}{current_num}' in atom_order):
-                    atom_pos = atom_order.index(f'D{current_element}{current_num}')
-                x_element, x_num = _sep_num_element(atom_order[res_interest_atom])
-                df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
-                if len(df_select.index) == 0:
+            elif (f'{current_element}{current_extra}{current_num}' in atom_order) or (f'{current_element}V{current_extra}{current_num}' in atom_order) or (f'D{current_element}{current_extra}{current_num}' in atom_order):  # Atom is in the molecule, but needs swapped AND there are other atoms before it  # noqa: E501
+                if line[1] in df_interest['Name'].values:
                     atom_num_B -= 1
                     atom_num_A += 1
                     continue
                 else:
-                    for x in range(res_interest_atom, atom_pos):
-                        x_element, x_num = _sep_num_element(atom_order[x])
-                        df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
-                        skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
-                        atom_num_B += 1
+                    if (f'{current_element}{current_extra}{current_num}' in atom_order):
+                        atom_pos = atom_order.index(f'{current_element}{current_extra}{current_num}')
+                    elif (f'{current_element}V{current_extra}{current_num}' in atom_order):
+                        atom_pos = atom_order.index(f'{current_element}V{current_extra}{current_num}')
+                    elif (f'D{current_element}{current_extra}{current_num}' in atom_order):
+                        atom_pos = atom_order.index(f'D{current_element}{current_extra}{current_num}')
+                    df_select = _get_subset_df(df_interest, atom_order[res_interest_atom])
+                    if len(df_select.index) == 0:
+                        atom_num_B -= 1
+                        atom_num_A += 1
+                        continue
+                    else:
+                        for x in range(res_interest_atom, atom_pos):
+                            df_select = _get_subset_df(df_interest, atom_order[x])
+                            skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
+                            atom_num_B += 1
+                            res_interest_atom += 1
+                        df_select = df_interest[df_interest['Name'] == line[1]]
+                        skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
                         res_interest_atom += 1
-                    df_select = df_interest[df_interest['Name'] == line[1]]
-                    skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
-                    res_interest_atom += 1
             else:
                 print(f'Warning {line} not written')
         elif resname != old_res_name and prev_resname == old_res_name:  # Add dummy atoms at the end of the residue
             while res_interest_atom < len(atom_order):
-                x_element, x_num = _sep_num_element(atom_order[res_interest_atom])
-                df_select = df_interest[(df_interest['Atom Name Number'] == str(x_num)) & (df_interest['Element'] == x_element)]  # noqa: E501
+                df_select = _get_subset_df(df_interest, atom_order[res_interest_atom])
                 skip_line = _add_or_swap(df_select, new_file, str(int(resnum)-1), new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
                 atom_num_B += 1
                 res_interest_atom += 1
@@ -1027,9 +1035,9 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
         else:
             print(f'Warning line {i+1} not written')
         atom_num_A += 1
-
+    atom_num_B += 1
     while res_interest_atom < len(atom_order):
-        df_select = df_interest[df_interest['Name'] == atom_order[res_interest_atom]]
+        df_select = _get_subset_df(df_interest, atom_order[res_interest_atom])
         skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
         atom_num_B += 1
         res_interest_atom += 1
@@ -1037,6 +1045,31 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
     # Add Box dimensions to file
     new_file.write(orig_file[-1])
     new_file.close()
+
+
+def _get_subset_df(df, atom):
+    """
+    Get the subset df for a particular atom
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Full dataframe of interest
+    atom : str
+        Name of the atom of interest
+
+    Returns
+    -------
+    df_select : pd.DataFrame
+        Subset dataframe for only the atom of interest
+    """
+    x_element, x_num, x_extra = _sep_num_element(atom)
+    if not isinstance(x_num, str):
+        df_select = df[(df['Atom Name Number'].isnull()) & (df['Element'] == f'{x_element}{x_extra}')]
+    else:
+        df_select = df[(df['Atom Name Number'] == str(x_num)) & (df['Element'] == f'{x_element}{x_extra}')]  # noqa: E501
+
+    return df_select
 
 
 def _sep_num_element(atom_name):
@@ -1052,19 +1085,29 @@ def _sep_num_element(atom_name):
     -------
     element : str
         The letter element identifier without dummy atom modifiers
-    num : str
+    num : str or np.nan
         The atom number
     """
-    if len(atom_name) > 1:
-        num = int(atom_name.strip('CVHDSON'))
+    if len(re.findall(r'[0-9]+', atom_name)) == 0:
+        num = np.nan
     else:
-        num = np.NaN
-    element = atom_name.strip('0123456789')
-    if 'V' in element:
-        element = element.strip('V')
-    if 'D' in element:
-        element = element.strip('D')
-    return element, num
+        num = re.findall(r'[0-9]+', atom_name)[0]
+    atom_identifier = re.findall(r'[a-zA-Z]+', atom_name)[0]
+    if list(atom_identifier)[0] == 'D':
+        element = list(atom_identifier)[1]
+        if len(list(atom_identifier)) > 2:
+            extra = ''.join(list(atom_identifier)[2:])
+        else:
+            extra = ''
+    else:
+        element = list(atom_identifier)[0]
+        if len(list(atom_identifier)) > 1:
+            extra = ''.join(list(atom_identifier)[1:])
+        else:
+            extra = ''
+    if 'V' in extra:
+        extra = extra.strip('V')
+    return element, num, extra
 
 
 def _swap_name(init_atom_names, new_resname, df_top):
@@ -1097,24 +1140,21 @@ def _swap_name(init_atom_names, new_resname, df_top):
         if atom in new_names:
             new_atom_names.append(atom)
             continue
-        atom_num = re.findall(r'[0-9]+', atom)[0]
-        atom_identifier = re.findall(r'[a-zA-Z]+', atom)[0]
-        if 'D' in atom_identifier:
-            atom_identifier = atom_identifier.strip('D')
-        if 'V' in atom_identifier:
-            atom_identifier = atom_identifier.strip('V')
-        if f'{atom_identifier}V{atom_num}' in new_names:
-            new_atom_names.append(f'{atom_identifier}V{atom_num}')
-        elif f'{atom_identifier}{atom_num}' in new_names:
-            new_atom_names.append(f'{atom_identifier}{atom_num}')
-        elif f'D{atom_identifier}{atom_num}' in new_names:
-            new_atom_names.append(f'D{atom_identifier}{atom_num}')
+        element, atom_num, extra = _sep_num_element(atom)
+        if 'V' in extra:
+            extra = extra.strip('V')
+        if f'{element}V{extra}{atom_num}' in new_names:
+            new_atom_names.append(f'{element}V{extra}{atom_num}')
+        elif f'{element}{extra}{atom_num}' in new_names:
+            new_atom_names.append(f'{element}{extra}{atom_num}')
+        elif f'D{element}{extra}{atom_num}' in new_names:
+            new_atom_names.append(f'D{element}{extra}{atom_num}')
         else:
             raise Exception(f'Compatible atom could not be found for {atom}')
     return new_atom_names
 
 
-def get_names(input):
+def get_names(input, resname):
     """
     Determines the names of all atoms in the topology and which :math:`lambda` state for which they are dummy atoms.
 
@@ -1122,18 +1162,21 @@ def get_names(input):
     ----------
     input : list
         A list of strings containing the lines of the input topology.
-
+    resname : str
+        Name of residue of interest for which to extract atom names
     Returns
     -------
     start_line : int
         The next line to start reading from the topology.
     atom_name : list
-        All atom names in the topology.
+        All atom names in the topology corresponding to the residue of interest.
+    atom_num : list
+        The atom numbers corresponding to the atom names in atom_name
     state : list
         The state that the atom is a dummy atom (:math:`lambda=0`, :math:`lambda=1`, or -1 if nevver dummy).
     """
     atom_section = False
-    atom_name, state = [], []
+    atom_name, atom_num, state = [], [], []
     for l, line in enumerate(input):  # noqa: E741
         if atom_section:
             line_sep = line.split(' ')
@@ -1144,18 +1187,18 @@ def get_names(input):
             if line_sep[0] == '\n':
                 start_line = l+2
                 break
-            atom_name.append(line_sep[4])
-            if len(line_sep) < 10:
-                state.append(-1)
-            elif float(line_sep[6]) == 0:
-                state.append(0)
-            elif float(line_sep[9]) == 0:
-                state.append(1)
-            else:
-                state.append(-1)
+            if line_sep[3] == resname:
+                atom_name.append(line_sep[4])
+                atom_num.append(int(line_sep[0]))
+                if float(line_sep[6]) == 0:
+                    state.append(0)
+                elif len(line_sep) > 8 and float(line_sep[9]) == 0:
+                    state.append(1)
+                else:
+                    state.append(-1)
         if line == '[ atoms ]\n':
             atom_section = True
-    return start_line, atom_name, state
+    return start_line, atom_name, np.array(atom_num), state
 
 
 def determine_connection(main_only, other_only, main_name, other_name, df_top, main_state):
@@ -1189,17 +1232,32 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
     miss, D2R, R2D = [], [], []
     align_atom, angle_atom = [], []
     for atom in main_only:
-        element = atom.strip('0123456789')
-        real_element = element.strip('DV')
+        raw_element = atom.strip('0123456789')
+        e_split = list(raw_element)
+        if e_split[0] == 'D':
+            real_element = ''.join(e_split[1:])
+        elif len(e_split) > 2 and e_split[1] == 'V':
+            del e_split[1]
+            real_element = ''.join(e_split)
+        else:
+            real_element = raw_element
+        if len(real_element) != 1:
+            element = list(real_element)[0]
+            identifier = ''.join(list(real_element)[1:])
+        else:
+            element = real_element
+            identifier = ''
+        if 'V' in identifier:
+            identifier = identifier.strip('V')
         num = atom.strip('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-
-        if f'D{atom}' in other_only or f'{element}V{num}' in other_only:
+        if f'D{atom}' in other_only or f'{element}V{identifier}{num}' in other_only:
             D2R.append(atom)
-        elif f'{real_element}{num}' in other_only:
+        elif f'{element}{identifier}{num}' in other_only:
             R2D.append(atom)
         else:
             miss.append(atom)
     df_select = df_top[df_top['Resname'] == main_name]
+
     # Seperate into each seperate functional group to be added
     anchor_atoms = []
 
@@ -1213,7 +1271,7 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
 
         # If the atom connects to non-missing atoms than keep these as anchors
         for a in connected_atoms:
-            if a not in miss:
+            if a not in miss and a not in anchor_atoms:
                 anchor_atoms.append(a)
 
     # Seperate missing atoms connected to each anchor
