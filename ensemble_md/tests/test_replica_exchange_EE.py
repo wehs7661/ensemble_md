@@ -839,6 +839,22 @@ class Test_ReplicaExchangeEE:
         assert swap_bool_2 is False
         assert swap_bool_3 is True
 
+    def test_deter_swap_index(self, params_dict):
+        REXEE = get_REXEE_instance(params_dict)
+        REXEE.n_tot = 28
+        REXEE.s = 7
+        REXEE.template['nstdhdl'] = 100
+        REXEE.template['nstxout'] = 1000
+        REXEE.template['n_sim'] = 4
+
+        dhdl_files = [
+            os.path.join(input_path, f"dhdl/forced-swap/dhdl_{i}.xvg") for i in range(REXEE.n_sim)
+        ]
+        swap_index, swap_state = REXEE._deter_swap_index([0, 1], dhdl_files, [[6, 7], [13, 14], [20, 21]])
+        assert swap_index[0] in [14, 15, 16]
+        assert swap_index[1] in [10, 16, 19]
+        assert swap_state == [6, 7]
+
     def test_weight_correction(self, params_dict):
         REXEE = get_REXEE_instance(params_dict)
 
