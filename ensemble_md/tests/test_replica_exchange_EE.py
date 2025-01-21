@@ -924,7 +924,7 @@ class Test_ReplicaExchangeEE:
 
         os.remove('residue_connect.csv')
         os.remove('residue_swap_map.csv')
-        
+
         check_file(true_output_A, test_output_A)
         check_file(true_output_B, test_output_B)
 
