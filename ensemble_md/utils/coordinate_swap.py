@@ -998,7 +998,8 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
                 write_line(new_file, orig_file[i], line, atom_num_B, vel, orig_coords[atom_num_A], resnum, new_res_name)  # noqa: E501
                 res_interest_atom += 1
             elif (f'{current_element}{current_extra}{current_num}' in atom_order) or (f'{current_element}V{current_extra}{current_num}' in atom_order) or (f'D{current_element}{current_extra}{current_num}' in atom_order):  # Atom is in the molecule, but needs swapped AND there are other atoms before it  # noqa: E501
-                if line[1] in df_interest['Name'].values:
+                df_select = _get_subset_df(df_interest, atom_order[res_interest_atom])
+                if line[1] in df_interest['Name'].values or len(df_select.index) == 0:
                     atom_num_B -= 1
                     atom_num_A += 1
                     continue
@@ -1009,20 +1010,14 @@ def write_new_file(df_atom_swap, swap, r_swap, line_start, orig_file, new_file, 
                         atom_pos = atom_order.index(f'{current_element}V{current_extra}{current_num}')
                     elif (f'D{current_element}{current_extra}{current_num}' in atom_order):
                         atom_pos = atom_order.index(f'D{current_element}{current_extra}{current_num}')
-                    df_select = _get_subset_df(df_interest, atom_order[res_interest_atom])
-                    if len(df_select.index) == 0:
-                        atom_num_B -= 1
-                        atom_num_A += 1
-                        continue
-                    else:
-                        for x in range(res_interest_atom, atom_pos):
-                            df_select = _get_subset_df(df_interest, atom_order[x])
-                            skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
-                            atom_num_B += 1
-                            res_interest_atom += 1
-                        df_select = df_interest[df_interest['Name'] == line[1]]
-                        skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+                    for x in range(res_interest_atom, atom_pos):
+                        df_select = _get_subset_df(df_interest, atom_order[x])
+                        skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[x])  # noqa: E501
+                        atom_num_B += 1
                         res_interest_atom += 1
+                    df_select = df_interest[df_interest['Name'] == line[1]]
+                    skip_line = _add_or_swap(df_select, new_file, resnum, new_res_name, vel, atom_num_B, orig_coords, skip_line, atom_order[res_interest_atom])  # noqa: E501
+                    res_interest_atom += 1
             else:
                 print(f'Warning {line} not written')
         elif resname != old_res_name and prev_resname == old_res_name:  # Add dummy atoms at the end of the residue

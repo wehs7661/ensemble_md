@@ -312,6 +312,11 @@ def test_find_rotation_angle():
     test_angle = coordinate_swap._find_rotation_angle(initial_point, vertex, rotated_point, axis)
     assert np.isclose(angle, test_angle, 10**(-5))
 
+    initial_point = np.array([0, 1, 0])
+    rotated_point = np.array([0, 1, 0])
+    angle = 2*np.pi
+    test_angle = coordinate_swap._find_rotation_angle(initial_point, vertex, rotated_point, axis)
+    assert np.isclose(angle, test_angle, 10**(-5))
 
 def test_add_or_swap():
     test_file = open('test_add_or_swap.gro', 'w')
