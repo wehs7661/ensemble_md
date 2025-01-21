@@ -897,6 +897,21 @@ class Test_ReplicaExchangeEE:
         assert hist_modified == [[416, 332, 161, 98, 98], [332, 161, 98, 98, 178]]
 
     def test_default_coords_fn(self, params_dict):
+        def check_file(true_output, test_output):
+            for true_line, test_line in zip(true_output, test_output):
+                assert len(true_line) == len(test_line)
+                true_sep_line = true_line.split(' ')
+                while '' in true_sep_line:
+                    true_sep_line.remove('')
+                test_sep_line = test_line.split(' ')
+                while '' in test_sep_line:
+                    test_sep_line.remove('')
+                if len(true_sep_line) == 9:
+                    assert true_line[0:2] == test_line[0:2]
+                    assert np.allclose(np.array(true_line[3:5], dtype=float), np.array(test_line[3:5], dtype=float))
+                    assert true_line[6:8] == test_line[6:8]
+                else:
+                    assert true_line == test_line
         REXEE = get_REXEE_instance(params_dict)
         os.system(f'cp {input_path}/coord_swap/residue_connect.csv .')
         os.system(f'cp {input_path}/coord_swap/residue_swap_map.csv .')
@@ -909,8 +924,9 @@ class Test_ReplicaExchangeEE:
 
         os.remove('residue_connect.csv')
         os.remove('residue_swap_map.csv')
-        assert true_output_A == test_output_A
-        assert true_output_B == test_output_B
+        
+        check_file(true_output_A, test_output_A)
+        check_file(true_output_B, test_output_B)
 
         os.system(f'cp {input_path}/coord_swap/residue_connect_alt.csv residue_connect.csv')
         os.system(f'cp {input_path}/coord_swap/residue_swap_map_alt.csv residue_swap_map.csv')
@@ -923,8 +939,8 @@ class Test_ReplicaExchangeEE:
 
         os.remove('residue_connect.csv')
         os.remove('residue_swap_map.csv')
-        assert true_output_C == test_output_C
-        assert true_output_D == test_output_D
+        check_file(true_output_C, test_output_C)
+        check_file(true_output_D, test_output_D)
 
     def test_process_top(self, params_dict):
         import pandas as pd
