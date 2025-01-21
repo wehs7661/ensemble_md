@@ -460,9 +460,9 @@ class Test_ReplicaExchangeEE:
         L += "Additional runtime arguments: None\n"
         L += "External modules for coordinate manipulation: None\n"
         L += "MDP parameters differing across replicas: None\n"
-        L += f"Alchemical ranges of each replica in REXEE:\n  - Replica 0: States {[0, 1, 2, 3, 4, 5]}\n"
-        L += f"  - Replica 1: States {[1, 2, 3, 4, 5, 6]}\n  - Replica 2: States {[2, 3, 4, 5, 6, 7]}\n"
-        L += f"  - Replica 3: States {[3, 4, 5, 6, 7, 8]}\n"
+        L += f"Alchemical ranges of each replica in REXEE:\n  - Replica 0: States {[np.int32(0), np.int32(1), np.int32(2), np.int32(3), np.int32(4), np.int32(5)]}\n"  # noqa: E501
+        L += f"  - Replica 1: States {[np.int32(1), np.int32(2), np.int32(3), np.int32(4), np.int32(5), np.int32(6)]}\n  - Replica 2: States {[np.int32(2), np.int32(3), np.int32(4), np.int32(5), np.int32(6), np.int32(7)]}\n"  # noqa: E501
+        L += f"  - Replica 3: States {[np.int32(3), np.int32(4), np.int32(5), np.int32(6), np.int32(7), np.int32(8)]}\n"  # noqa: E501
         assert out == L
 
         REXEE.reformatted_mdp = True  # Just to test the case where REXEE.reformatted_mdp is True
