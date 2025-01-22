@@ -311,14 +311,18 @@ def main():
                             gro_2 = f'{REXEE.working_dir}/sim_{swap_list[j][1]}/iteration_{i-1}/confout.gro'
                             print(f'  - {gro_1}\n  - {gro_2}')
 
-                            # Now we rename gro_1 and gro_2 to back them up
-                            gro_1_backup = gro_1.split('.gro')[0] + '_backup.gro'
-                            gro_2_backup = gro_2.split('.gro')[0] + '_backup.gro'
-                            os.rename(gro_1, gro_1_backup)
-                            os.rename(gro_2, gro_2_backup)
+                            # Check that swap was not performed before checkpoint was created
+                            if os.path.exists(gro_1.split('.gro')[0] + '_backup.gro') and os.path.exists(gro_2.split('.gro')[0] + '_backup.gro'):  # noqa: E501
+                                print('\nSwap already performed')
+                            else:
+                                # Now we rename gro_1 and gro_2 to back them up
+                                gro_1_backup = gro_1.split('.gro')[0] + '_backup.gro'
+                                gro_2_backup = gro_2.split('.gro')[0] + '_backup.gro'
+                                os.rename(gro_1, gro_1_backup)
+                                os.rename(gro_2, gro_2_backup)
 
-                            # Here we input gro_1_backup and gro_2_backup and modify_coords_fn will save the modified gro files as gro_1 and gro_2  # noqa: E501
-                            REXEE.modify_coords_fn(gro_1_backup, gro_2_backup)  # the order should not matter
+                                # Here we input gro_1_backup and gro_2_backup and modify_coords_fn will save the modified gro files as gro_1 and gro_2  # noqa: E501
+                                REXEE.modify_coords_fn(gro_1_backup, gro_2_backup)  # the order should not matter
                 except Exception:
                     print('\n--------------------------------------------------------------------------\n')
                     print(f'\nAn error occurred on rank 0:\n{traceback.format_exc()}')
