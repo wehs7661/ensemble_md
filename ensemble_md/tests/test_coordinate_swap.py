@@ -334,7 +334,7 @@ def test_add_or_swap():
 
 def test_swap_name():  # Update needed
     atom_name_mapping = pd.read_csv(f'{input_path}/coord_swap/atom_name_mapping.csv')
-    swap_name_match = atom_name_mapping[(atom_name_mapping['resname A']=='A2B') & (atom_name_mapping['resname B']=='B2C')]  # noqa: E501
+    swap_name_match = atom_name_mapping[(atom_name_mapping['resname A'] == 'A2B') & (atom_name_mapping['resname B'] == 'B2C')]  # noqa: E501
 
     name_list = ['C2', 'C5', 'DC7', 'HV5']
     flip_name_list = ['C2', 'C5', 'C7', 'H5']
@@ -376,7 +376,7 @@ def test_determine_connection():
     E2F_names = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13', 'DC10', 'HV4', 'HV14', 'HV15', 'HV16']  # noqa: E501
 
     # Determine shared atom names
-    swap_name_match = atom_name_mapping[(atom_name_mapping['resname A']=='A2B') & (atom_name_mapping['resname B']=='B2C')]  # noqa: E501
+    swap_name_match = atom_name_mapping[(atom_name_mapping['resname A'] == 'A2B') & (atom_name_mapping['resname B'] == 'B2C')]  # noqa: E501
     if len(swap_name_match[swap_name_match['resname A'] == 'A2B']) != 0:
         common_atoms_A = list(swap_name_match['atom name A'].values)
         common_atoms_B = list(swap_name_match['atom name B'].values)
@@ -395,7 +395,7 @@ def test_determine_connection():
     for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']:  # noqa: E501
         assert test_df[col].to_list()[0] == select_cmpr_df[col].to_list()[0]
 
-    swap_name_match = atom_name_mapping[(atom_name_mapping['resname A']=='D2E') & (atom_name_mapping['resname B']=='E2F')]  # noqa: E501
+    swap_name_match = atom_name_mapping[(atom_name_mapping['resname A'] == 'D2E') & (atom_name_mapping['resname B'] == 'E2F')]  # noqa: E501
     if len(swap_name_match[swap_name_match['resname A'] == 'D2E']) != 0:
         common_atoms_A = list(swap_name_match['atom name A'].values)
         common_atoms_B = list(swap_name_match['atom name B'].values)
