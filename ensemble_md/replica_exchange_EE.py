@@ -1601,6 +1601,11 @@ class ReplicaExchangeEE:
         Processes the input topologies in order to determine the atoms for alignment in the default GRO swapping
         function. Output as csv files to prevent needing to re-run this step.
         """
+        if not os.path.exists('atom_name_mapping.csv'):
+            raise Exception('atom_name_mapping.csv file is required if deault function is being used')
+        else:
+            atom_name_mapping = pd.read_csv('atom_name_mapping.csv')
+
         if not os.path.exists('residue_connect.csv'):
             df_top = pd.DataFrame()
             for f, file_name in enumerate(self.top):
@@ -1640,17 +1645,23 @@ class ReplicaExchangeEE:
                 # Determine atoms not present in both molecules
                 X, Y = [int(swap[0][0]), int(swap[1][0])]
                 lam = {X: int(swap[0][1]), Y: int(swap[1][1])}
+                swap_name_match = atom_name_mapping[(atom_name_mapping['resname A'].isin([self.resname_list[X], self.resname_list[Y]])) & (atom_name_mapping['resname B'].isin([self.resname_list[X], self.resname_list[Y]]))]  # noqa: E501
                 for A, B in zip([X, Y], [Y, X]):
+                    # Swapping coordinates from B to A
                     input_A = gmx_parser.read_top(self.top[A], self.resname_list[A])
                     start_line, A_name, A_num, state = coordinate_swap.get_names(input_A, self.resname_list[A])
                     input_B = gmx_parser.read_top(self.top[B], self.resname_list[B])
                     start_line, B_name, B_num, state = coordinate_swap.get_names(input_B, self.resname_list[B])
 
-                    A_only = [x for x in A_name if x not in B_name]
-                    B_only = [x for x in B_name if x not in A_name]
+                    # Determine shared atom names
+                    if len(swap_name_match[swap_name_match['resname A'] == self.resname_list[A]]) != 0:
+                        common_atoms_A = list(swap_name_match['atom name A'].values)
+                    else:
+                        common_atoms_A = list(swap_name_match['atom name B'].values)
+                    A_only = [x for x in A_name if x not in common_atoms_A]
 
                     # Seperate real to dummy switches
-                    df = coordinate_swap.determine_connection(A_only, B_only, self.resname_list[A], self.resname_list[B], df_top, lam[A])  # noqa: E501
+                    df = coordinate_swap.determine_connection(A_only, swap_name_match, self.resname_list[A], self.resname_list[B], df_top, lam[A])  # noqa: E501
 
                     df_map = pd.concat([df_map, df])
 

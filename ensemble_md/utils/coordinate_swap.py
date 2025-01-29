@@ -1110,7 +1110,7 @@ def _sep_num_element(atom_name):
     return element, num, extra
 
 
-def _swap_name(init_atom_names, new_resname, df_top):
+def _swap_name(init_atom_names, new_resname, swap_name_match):
     """
     Determines the corresponding atom name in new molecule
 
@@ -1120,37 +1120,26 @@ def _swap_name(init_atom_names, new_resname, df_top):
         A list of atom names in the original molecule.
     new_resname : str
         Resname for the new molecule.
-    df_top : pandas.DataFrame
-        A pandas Dataframe containing the connectivity between the atoms in each molecule.
+    swap_name_match : pd.DataFrame
+        Names for all common atoms in the target molecule and their name in the current molecule
 
     Returns
     -------
     new_atom_names : list
         A list of atom names in the new molecule.
     """
-    # Find all atom names in new moleucle
-    new_names = set(
-        df_top[df_top['Resname'] == new_resname]['Connect 1'].to_list() +
-        df_top[df_top['Resname'] == new_resname]['Connect 1'].to_list() +
-        df_top[df_top['Resname'] == new_resname]['Connect 2'].to_list() +
-        df_top[df_top['Resname'] == new_resname]['Connect 2'].to_list()
-    )
+    if len(swap_name_match[swap_name_match['resname A'] == new_resname]) != 0:
+        new_state = 'A'
+        old_state = 'B'
+    else:
+        old_state = 'A'
+        new_state = 'B'
     new_atom_names = []
     for atom in init_atom_names:
-        if atom in new_names:
-            new_atom_names.append(atom)
-            continue
-        element, atom_num, extra = _sep_num_element(atom)
-        if 'V' in extra:
-            extra = extra.strip('V')
-        if f'{element}V{extra}{atom_num}' in new_names:
-            new_atom_names.append(f'{element}V{extra}{atom_num}')
-        elif f'{element}{extra}{atom_num}' in new_names:
-            new_atom_names.append(f'{element}{extra}{atom_num}')
-        elif f'D{element}{extra}{atom_num}' in new_names:
-            new_atom_names.append(f'D{element}{extra}{atom_num}')
-        else:
+        # Find the atom in the map
+        if len(swap_name_match[swap_name_match[f'atom name {old_state}'] == atom]) == 0:
             raise Exception(f'Compatible atom could not be found for {atom}')
+        new_atom_names.append(swap_name_match[swap_name_match[f'atom name {old_state}'] == atom][f'atom name {new_state}'].values[0])  # noqa: E501
     return new_atom_names
 
 
@@ -1201,16 +1190,16 @@ def get_names(input, resname):
     return start_line, atom_name, np.array(atom_num), state
 
 
-def determine_connection(main_only, other_only, main_name, other_name, df_top, main_state):
+def determine_connection(miss, swap_name_match, main_name, other_name, df_top, main_state):
     """
     Determines the connectivity of the missing atoms in the topology.
 
     Parameters
     ----------
-    main_only : list
-        All atoms which can be found only in the molecule of interest.
-    other_only : list
-        All atoms which can be found only in the other molecule.
+    miss : list
+        Names of atoms which are not present in the current molecule but are present in the target molecule
+    swap_name_match : pandas.DataFrame
+        Names for all common atoms in the target molecule and their name in the current molecule
     main_name : str
         resname for the molecule of interest.
     other_name : str
@@ -1229,33 +1218,8 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
           - The real anchor atom that connects them
           - The atom to be used to determine the angle to place the missing atoms
     """
-    miss, D2R, R2D = [], [], []
+    print(f'miss all: {miss}')
     align_atom, angle_atom = [], []
-    for atom in main_only:
-        raw_element = atom.strip('0123456789')
-        e_split = list(raw_element)
-        if e_split[0] == 'D':
-            real_element = ''.join(e_split[1:])
-        elif len(e_split) > 2 and e_split[1] == 'V':
-            del e_split[1]
-            real_element = ''.join(e_split)
-        else:
-            real_element = raw_element
-        if len(real_element) != 1:
-            element = list(real_element)[0]
-            identifier = ''.join(list(real_element)[1:])
-        else:
-            element = real_element
-            identifier = ''
-        if 'V' in identifier:
-            identifier = identifier.strip('V')
-        num = atom.strip('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
-        if f'D{atom}' in other_only or f'{element}V{identifier}{num}' in other_only:
-            D2R.append(atom)
-        elif f'{element}{identifier}{num}' in other_only:
-            R2D.append(atom)
-        else:
-            miss.append(atom)
     df_select = df_top[df_top['Resname'] == main_name]
 
     # Seperate into each seperate functional group to be added
@@ -1277,6 +1241,7 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
     # Seperate missing atoms connected to each anchor
     miss_sep, align_atoms, angle_atoms = [], [], []
     for anchor in anchor_atoms:
+        print(f'anchor: {anchor}')
         miss_anchor = []
 
         # Which missing atoms are connected to the anchor
@@ -1295,6 +1260,7 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
                     miss.remove(atom)
         included_atoms.remove(anchor)
         miss_sep.append(included_atoms)
+        print(f'miss: {included_atoms}')
 
         # Find atoms connected to the anchor which are real in main state, but dummy when the atoms we are building are real  # noqa: E501
         align_1 = list(df_select[(df_select['Connect 1'] == anchor) & (df_select['State 2'] != main_state) & (df_select['State 2'] != -1)]['Connect 2'].values)  # noqa: E501
@@ -1310,9 +1276,9 @@ def determine_connection(main_only, other_only, main_name, other_name, df_top, m
         angle_atoms.append(angle_atom[-1])
 
     # Now let's figure out what these atoms are called in the other molecule
-    anchor_atoms_B = _swap_name(anchor_atoms, other_name, df_top)
-    angle_atoms_B = _swap_name(angle_atoms, other_name, df_top)
-    align_atoms_B = _swap_name(align_atoms, other_name, df_top)
+    anchor_atoms_B = _swap_name(anchor_atoms, other_name, swap_name_match)
+    angle_atoms_B = _swap_name(angle_atoms, other_name, swap_name_match)
+    align_atoms_B = _swap_name(align_atoms, other_name, swap_name_match)
     df = pd.DataFrame(
         {
             'Swap A': main_name,

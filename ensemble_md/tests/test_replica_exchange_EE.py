@@ -928,6 +928,7 @@ class Test_ReplicaExchangeEE:
 
     def test_process_top(self, params_dict):
         import pandas as pd
+        os.system(f'cp {input_path}/coord_swap/atom_name_mapping.csv .')
 
         REXEE = get_REXEE_instance(params_dict)
         REXEE.resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
