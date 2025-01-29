@@ -1295,3 +1295,86 @@ def determine_connection(miss, swap_name_match, main_name, other_name, df_top, m
     df['Missing Atom Name'] = miss_sep_reformat
 
     return df
+
+
+def _read_gro(side, resname_list, gro_list):
+    """
+
+    """
+    name, num = [], []
+    in_res = False
+    [sim_num, l] = side
+    resname = resname_list[sim_num]
+    gro = open(gro_list[sim_num]).readlines()
+    for line in gro:
+        split_line = line.split(' ')
+        while '' in split_line:
+            split_line.remove('')
+        if resname in split_line[0]:
+            in_res = True
+        elif in_res is True:
+            break
+
+        if in_res is True:
+            name.append(split_line[1])
+            num.append(split_line[2])
+
+    return name, num
+
+
+def create_atom_map(gro_list, resname_list, swap_patterns):
+    """
+    If you generate your hybrid topologies in a way that the
+    same atom has the same name in each molecule then this
+    function will create the atom name transformation map.
+
+    Parameters
+    ----------
+    gro_list : list
+        list of input gro file names
+    resname_list : list
+        list of residue names with the transformation
+    swap_patterns : list of list of intergers
+        swapping pattern between simulations
+
+    Returns
+    -------
+    None just creates pandas DataFrame atom_name_mapping.csv
+    """
+    output_df = pd.DataFrame()
+    for swap_pattern in swap_patterns:
+        nameA, numA = _read_gro(swap_pattern[0], resname_list, gro_list)
+        nameB, numB = _read_gro(swap_pattern[1], resname_list, gro_list)
+
+        atomnameA, atomidA, atomnameB, atomidB = [], [], [], []
+        for n, name in enumerate(nameA):
+            if name in nameB:
+                atomnameA.append(name)
+                atomidA.append(numA[n])
+                nb = nameB.index(name)
+                atomnameB.append(name)
+                atomidB.append(numB[nb])
+            element, num, extra = _sep_num_element(name)
+            if f'{element}{num}' in nameB:
+                atomnameA.append(name)
+                atomidA.append(numA[n])
+                nb = nameB.index(f'{element}{num}')
+                atomnameB.append(f'{element}{num}')
+                atomidB.append(numB[nb])
+            elif f'{element}V{num}' in nameB:
+                atomnameA.append(name)
+                atomidA.append(numA[n])
+                nb = nameB.index(f'{element}V{num}')
+                atomnameB.append(f'{element}V{num}')
+                atomidB.append(numB[nb])
+            elif f'D{element}{num}' in nameB:
+                atomnameA.append(name)
+                atomidA.append(numA[n])
+                nb = nameB.index(f'D{element}{num}')
+                atomnameB.append(f'D{element}{num}')
+                atomidB.append(numB[nb])
+
+        df = pd.DataFrame({'resname A': resname_list[swap_pattern[0][0]], 'resname B': resname_list[swap_pattern[1][0]], 'atomid A': atomidA, 'atom name A': atomnameA, 'atomid B': atomidB, 'atom name B': atomnameB})  # noqa: E501
+        output_df = pd.concat([output_df, df])
+    output_df.reindex()
+    output_df.to_csv('atom_name_mapping.csv')

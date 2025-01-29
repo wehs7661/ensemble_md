@@ -1602,7 +1602,7 @@ class ReplicaExchangeEE:
         function. Output as csv files to prevent needing to re-run this step.
         """
         if not os.path.exists('atom_name_mapping.csv'):
-            raise Exception('atom_name_mapping.csv file is required if deault function is being used')
+            coordinate_swap.create_atom_map(self.gro, self.resname_list, self.swap_rep_pattern)
         else:
             atom_name_mapping = pd.read_csv('atom_name_mapping.csv')
 

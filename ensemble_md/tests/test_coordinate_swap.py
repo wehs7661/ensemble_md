@@ -419,3 +419,14 @@ def test_determine_connection():
     select_cmpr_df = cmpr_df[(cmpr_df['Swap A'] == 'E2F') & (cmpr_df['Swap B'] == 'D2E')]
     for col in ['Anchor Atom Name A', 'Anchor Atom Name B', 'Alignment Atom A', 'Alignment Atom B', 'Angle Atom A', 'Angle Atom B', 'Missing Atom Name']:  # noqa: E501
         assert test_df[col].to_list()[0] == select_cmpr_df[col].to_list()[0]
+
+
+def test_create_atom_map():
+    gro = [f'{input_path}/coord_swap/A-B.gro', f'{input_path}/coord_swap/B-C.gro', f'{input_path}/coord_swap/C-D.gro', f'{input_path}/coord_swap/D-E.gro', f'{input_path}/coord_swap/E-F.gro']  # noqa: E501
+    names = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
+    swap_pattern = [[[0, 1], [1, 0]], [[1, 1], [2, 0]], [[2, 1], [3, 0]], [[3, 1], [4, 0]]]
+
+    atom_name_mapping_true = pd.read_csv(f'{input_path}/coord_swap/atom_name_mapping.csv')
+    coordinate_swap.create_atom_map(gro, names, swap_pattern)
+    atom_name_mapping_test = pd.read_csv('atom_name_mapping.csv')
+    assert (atom_name_mapping_true == atom_name_mapping_test).all
