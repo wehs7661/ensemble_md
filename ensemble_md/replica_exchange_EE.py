@@ -1585,8 +1585,9 @@ class ReplicaExchangeEE:
         # Print new coordinates to file for molB
         line_restart, atom_num_restart = coordinate_swap.write_modified(df_atom_swap, 'A2B', line_start, molA_file, molB_new, atom_num_restart, nameA, nameB, copy.deepcopy(molA.xyz[0]), atom_mapping, atom_order_B, atom_order_A)  # noqa: E501
 
-        # Print rest of file after modified residue
-        coordinate_swap.write_unmodified(line_restart, molA_file, molB_new, nameA, atom_num_restart, line_start, copy.deepcopy(molA.xyz[0]))  # noqa: E501
+        if line_restart is not None:
+            # Print rest of file after modified residue
+            coordinate_swap.write_unmodified(line_restart, molA_file, molB_new, nameA, atom_num_restart, line_start, copy.deepcopy(molA.xyz[0]))  # noqa: E501
 
         # Print box size
         molB_new.write(molA_file[-1])
@@ -1601,8 +1602,9 @@ class ReplicaExchangeEE:
         # Print new coordinates to file for molA
         line_restart, atom_num_restart = coordinate_swap.write_modified(df_atom_swap, 'B2A', line_start, molB_file, molA_new, atom_num_restart, nameB, nameA, copy.deepcopy(molB.xyz[0]), atom_mapping, atom_order_A, atom_order_B)  # noqa: E501
 
-        # Print rest of file after modified residue
-        coordinate_swap.write_unmodified(line_restart, molB_file, molA_new, nameB, atom_num_restart, line_start, copy.deepcopy(molB.xyz[0]))  # noqa: E501
+        if line_restart is not None:
+            # Print rest of file after modified residue
+            coordinate_swap.write_unmodified(line_restart, molB_file, molA_new, nameB, atom_num_restart, line_start, copy.deepcopy(molB.xyz[0]))  # noqa: E501
 
         # Print box size
         molA_new.write(molB_file[-1])
@@ -1618,6 +1620,7 @@ class ReplicaExchangeEE:
         """
         if not os.path.exists('atom_name_mapping.csv'):
             coordinate_swap.create_atom_map(self.gro, self.resname_list, self.swap_rep_pattern)
+            atom_name_mapping = pd.read_csv('atom_name_mapping.csv')
         else:
             atom_name_mapping = pd.read_csv('atom_name_mapping.csv')
 

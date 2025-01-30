@@ -43,20 +43,15 @@ def test_get_dimensions():
     os.remove('test.gro')
 
 
-def test_find_common():  # Function changed to extract_missing -- Need to rewrite
-    test_file1 = open(f'{input_path}/coord_swap/sim_A/confout_backup.gro', 'r').readlines()
-    test_file2 = open(f'{input_path}/coord_swap/sim_B/confout_backup.gro', 'r').readlines()
-    test_df = coordinate_swap.find_common(test_file1, test_file2, 'D2E', 'E2F')
-    df = pd.read_csv(f'{input_path}/coord_swap/find_common.csv')
+def test_extract_missing():  # Function changed to extract_missing -- Need to rewrite
+    swap_map = pd.read_csv(f'{input_path}/coord_swap/residue_swap_map.csv')
+    test_df = coordinate_swap.extract_missing('D2E', 'E2F', swap_map)
+    df = pd.read_csv(f'{input_path}/coord_swap/extract_missing.csv')
 
     for index, row in df.iterrows():
+        assert row['Name'] in test_df['Name'].to_list()
         test_row = test_df[test_df['Name'] == row['Name']]
-        assert row['Atom Name Number'] == int(test_row['Atom Name Number'].to_list()[0])
-        assert row['Element'] == test_row['Element'].to_list()[0]
-        assert row['Direction'] == test_row['Direction'].to_list()[0]
-        assert row['Swap'] == test_row['Swap'].to_list()[0]
-        assert row['File line'] == int(test_row['File line'].to_list()[0])
-        assert row['Final Type'] == test_row['Final Type'].to_list()[0]
+        assert row['Swap'] == test_row['Swap'].values[0]
 
 
 def test_fix_break():
@@ -147,13 +142,13 @@ def test_get_miss_coord():
     molA = coordinate_swap.fix_break(molA, nameA, A_dimensions, connection_map[connection_map['Resname'] == nameA])
     molB = coordinate_swap.fix_break(molB, nameB, B_dimensions, connection_map[connection_map['Resname'] == nameB])
 
-    df_no_coords = pd.read_csv(f'{input_path}/coord_swap/find_common.csv')
+    df_no_coords = pd.read_csv(f'{input_path}/coord_swap/extract_missing.csv')
     df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
     df_no_nan = df.dropna()
 
-    df_test = coordinate_swap.get_miss_coord(molB, molA, nameB, nameA, df_no_coords, 'B2A',
+    df_test = coordinate_swap.get_miss_coord(molB, molA, nameB, nameA, df_no_coords, 'A2B',
                                              swap_map[(swap_map['Swap A'] == nameB) & (swap_map['Swap B'] == nameA)])
-    df_test = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_test, 'A2B',
+    df_test = coordinate_swap.get_miss_coord(molA, molB, nameA, nameB, df_test, 'B2A',
                                              swap_map[(swap_map['Swap A'] == nameA) & (swap_map['Swap B'] == nameB)])
 
     for index, row in df_no_nan.iterrows():
@@ -192,29 +187,23 @@ def test_print_preamble():
 def test_write_line():
     test_file = open('test_write_line.gro', 'w')
 
-    line_merged = '   36F2G    C1011574   3.917   6.393   5.463  0.2985 -0.1406  0.4882/n'
-    line = ['36F2G', 'C10', '11574', '3.917', '6.393', '5.463', '0.2985', '-0.1406', '0.4882/n']
     new_coord = [3.9165084, 6.3927655, 5.4633074]
     vel = ['0.000', '0.000', '0.000\n']
     atom_num = 11574
+    atom_name = 'C10'
 
-    coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord, 36, 'E2F')
+    coordinate_swap.write_line(test_file, atom_name, atom_num, vel, new_coord, 36, 'E2F')
 
-    line_merged = '  812SOL     OW12270   5.440   0.656   8.311  0.4628 -0.0392  0.2554/n'
-    line = ['812SOL', 'OW', '12270', '5.440', '0.656', '8.311', '0.4628', '-0.0392', '0.2554/n']
     new_coord = [5.4400544, 0.6561325, 8.3108530]
     atom_num = 12264
-    coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord)
-    line_merged = '   2.74964   2.74964   2.74964\n'
-    line = ['2.74964', '2.74964', '2.74964\n']
-    coordinate_swap.write_line(test_file, line_merged, line, atom_num, vel, new_coord)
+    atom_name = 'OW'
+    coordinate_swap.write_line(test_file, atom_name, atom_num, vel, new_coord, 812, 'SOL')
     test_file.close()
 
     reopen_test = open('test_write_line.gro', 'r').readlines()
 
     assert reopen_test[0] == '   36E2F    C1011574   3.9165084   6.3927655   5.4633074   0.000   0.000   0.000\n'
     assert reopen_test[1] == '  812SOL     OW12264   5.4400544   0.6561325   8.3108530   0.000   0.000   0.000\n'
-    assert reopen_test[2] == '   2.74964   2.74964   2.74964\n'
     os.remove('test_write_line.gro')
 
 
@@ -359,3 +348,4 @@ def test_create_atom_map():
     coordinate_swap.create_atom_map(gro, names, swap_pattern)
     atom_name_mapping_test = pd.read_csv('atom_name_mapping.csv')
     assert (atom_name_mapping_true == atom_name_mapping_test).all
+    os.remove('atom_name_mapping.csv')

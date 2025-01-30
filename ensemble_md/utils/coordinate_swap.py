@@ -719,6 +719,7 @@ def write_modified(df_atom_swap, swap, line_start, orig_file, new_file, atom_num
     res_i = [*line[0]]
     resnum = "".join(res_i[:-3])
 
+    line_restart = None
     atom_num = copy.deepcopy(atom_num_init)
     for atom in atom_order:
         # If the atom is not missing
@@ -944,7 +945,6 @@ def determine_connection(miss, swap_name_match, main_name, other_name, df_top, m
           - The real anchor atom that connects them
           - The atom to be used to determine the angle to place the missing atoms
     """
-    print(f'miss all: {miss}')
     align_atom, angle_atom = [], []
     df_select = df_top[df_top['Resname'] == main_name]
 
