@@ -525,108 +525,6 @@ def identify_res(mol_top, resname_options):
     return resname
 
 
-def _add_atom(mol_new, resnum, resname, df, vel, atom_num):
-    """
-    Adds a new atom to the GRO file.
-
-    Parameters
-    ----------
-    mol_new : file
-        The temporary file for the new GRO.
-    resnum : int
-        The residue number of the atom being added.
-    resname : str
-        The name of the residue which the atom being added belongs to.
-    df : pandas.DataFrame
-        The master DataFrame which contains the coordinates for the atom being added.
-    vel : list
-        The list of velocities in the x, y, and z directions to be assigned to the atom in this line.
-    atom_num : int
-        The atom number to assign to the atom being added.
-
-    Returns
-    -------
-    atom_num : int
-        The atom number for the next atom in the file.
-    """
-    name_new = df['Name'].to_list()[0]
-    # Reformat coordiantes
-    x_init = df['X Coordinates'].to_list()
-    y_init = df['Y Coordinates'].to_list()
-    z_init = df['Z Coordinates'].to_list()
-    x_temp = np.round(x_init[0], decimals=7)
-    x = format(x_temp, '.7f')
-    y_temp = np.round(y_init[0], decimals=7)
-    y = format(y_temp, '.7f')
-    z_temp = np.round(z_init[0], decimals=7)
-    z = format(z_temp, '.7f')
-    # Write line for new atom
-    mol_new.write(
-        f'{resnum}{resname}'.rjust(8, ' ') +
-        name_new.rjust(7, ' ') +
-        str(atom_num).rjust(5, ' ') +
-        str(x).rjust(12, ' ') +
-        str(y).rjust(12, ' ') +
-        str(z).rjust(12, ' ') +
-        vel[0].rjust(8, ' ') +
-        vel[1].rjust(8, ' ') +
-        vel[2].rjust(9, ' ')
-    )
-    atom_num += 1
-
-    return atom_num
-
-
-def _dummy_real_swap(mol_new, resnum, resname, df, vel, atom_num, orig_coords, name_new):
-    """
-    Adds an atom to the file which is switching between dummy and real state or vice versa.
-
-    Parameters
-    ----------
-    mol_new : file
-        The temporary file for the new GRO.
-    resnum : int
-        The residue number of the atom being added.
-    resname : str
-        The name of the residue which the atom being added belongs to.
-    df : pandas.DataFrame
-        The master DataFrame which contains the coordinates for the atom being added.
-    vel : list of float
-        The list of velocities in the x, y, and z directions to be assigned to the atom in this line.
-    atom_num : int
-        The atom number to assign to the atom being added.
-    orig_coords : list
-        The XYZ coordinates for the atom being added.
-    name_new : str
-        The new name for the atom after the swap
-
-    Returns
-    -------
-    line_num : int
-        Since the atom may be added in a different order than it was in the previous file save the line
-        number so that we skip it when we come to it.
-    """
-    # These may be added out of order so lets make sure we have the right coordinates
-    line_num = df['File line'].to_list()[0]
-    c = line_num - 2
-    orig_coor = orig_coords[c]
-    x, y, z = ["{:.7f}".format(orig_coor[0]), "{:.7f}".format(orig_coor[1]), "{:.7f}".format(orig_coor[2])]
-
-    # Write line
-    mol_new.write(
-        f'{resnum}{resname}'.rjust(8, ' ') +
-        name_new.rjust(7, ' ') +
-        str(atom_num).rjust(5, ' ') +
-        str(x).rjust(12, ' ') +
-        str(y).rjust(12, ' ') +
-        str(z).rjust(12, ' ') +
-        vel[0].rjust(8, ' ') +
-        vel[1].rjust(8, ' ') +
-        vel[2].rjust(9, ' ')
-    )
-    return line_num
-
-
 def _sep_merge(line):
     """
     Seperates two GRO file columns which no longer have a space sperating them.
@@ -772,47 +670,6 @@ def _find_rotation_angle(initial_point, vertex, rotated_point, axis):
     return angle
 
 
-def _add_or_swap(df_select, file_new, resnum, resname, vel, atom_num, orig_coor, skip_line, name_new):
-    """
-    Determine if the atom needs added or swapped between real and dummy state and then add the atom to the new file
-
-    Parameters
-    ----------
-    df_select : pandas.DataFrame
-        This dataframe should include only the atom which is currently being added or having it's name swapped.
-    file_new : file-like object
-        The temporary file for the new GRO
-    resnum : int
-        The residue number of the atom being added.
-    resname : str
-        The name of the residue which the atom being added belongs to.
-    vel : list of float
-        The velocity in the x, y, and z directions to assign to the atom being added.
-    atom_num : int
-        The atom number to assign to the atom being added.
-    orig_coords : list of float
-        The XYZ coordinates for the atom being added.
-    skip_line : list
-        A list of line numbers that should be skipped when we come across them while reading the file.
-    name_new : str
-        The new name for the atom after the swap
-
-    Returns
-    -------
-    skip_line : list
-        Updated list of line numbers that should be skipped when we come across them while reading the file.
-    """
-    c = df_select.index.values.tolist()
-
-    if df_select.loc[c[0], 'Direction'] == 'miss':  # Add atom if missing
-        _add_atom(file_new, resnum, resname, df_select, vel, atom_num)
-    else:  # Swap from dummy to real
-        line = _dummy_real_swap(file_new, resnum, resname, df_select, vel, atom_num, orig_coor, name_new)  # Add the dummy atom from A as a real atom in B and save the line so it can be skipped later  # noqa: E501
-        skip_line.append(line)
-
-    return skip_line
-
-
 def write_modified(df_atom_swap, swap, line_start, orig_file, new_file, atom_num_init, old_res_name, new_res_name, orig_coords, atom_mapping, atom_order, old_atom_order):  # noqa: E501
     """
     Writes a new GRO file.
@@ -939,31 +796,6 @@ def write_unmodified(line_start, orig_file, new_file, old_res_name, atom_num, pr
         atom_num += 1
     if line_restart is not np.nan:
         return line_restart, atom_num_restart
-
-
-def _get_subset_df(df, atom):
-    """
-    Get the subset df for a particular atom
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Full dataframe of interest
-    atom : str
-        Name of the atom of interest
-
-    Returns
-    -------
-    df_select : pd.DataFrame
-        Subset dataframe for only the atom of interest
-    """
-    x_element, x_num, x_extra = _sep_num_element(atom)
-    if not isinstance(x_num, str):
-        df_select = df[(df['Atom Name Number'].isnull()) & (df['Element'] == f'{x_element}{x_extra}')]
-    else:
-        df_select = df[(df['Atom Name Number'] == str(x_num)) & (df['Element'] == f'{x_element}{x_extra}')]  # noqa: E501
-
-    return df_select
 
 
 def _sep_num_element(atom_name):

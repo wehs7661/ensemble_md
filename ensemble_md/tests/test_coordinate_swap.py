@@ -228,34 +228,6 @@ def test_identify_res():
         assert name == real_name
 
 
-def test_add_atom():
-    df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
-    temp_file = open('test_add_atom.gro', 'w')
-
-    coordinate_swap._add_atom(temp_file, 1, 'D2E', df[(df['Name'] == 'H5') & (df['Swap'] == 'A2B')], ['0.000', '0.000', '0.000\n'], 12)  # noqa: E501
-    coordinate_swap._add_atom(temp_file, 1, 'E2F', df[(df['Name'] == 'DC10') & (df['Swap'] == 'B2A')], ['0.000', '0.000', '0.000\n'], 21)  # noqa: E501
-    temp_file.close()
-
-    read_temp_file = open('test_add_atom.gro', 'r').readlines()
-    assert read_temp_file[0] == '    1D2E     H5   12   0.0926050   1.6340195   0.3355029   0.000   0.000   0.000\n'
-    assert read_temp_file[1] == '    1E2F   DC10   21   2.6200285   1.4039259   2.7885396   0.000   0.000   0.000\n'
-    os.remove('test_add_atom.gro')
-
-
-def test_dummy_real_swap():
-    test_file = open('test_dummy_real_swap.gro', 'w')
-    df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
-    orig_coords = np.zeros((22, 3))
-    orig_coords[17] = [2.5837841, 1.4738766, 2.5511920]
-
-    coordinate_swap._dummy_real_swap(test_file, 1, 'E2F', df[df['Name'] == 'DC8'], ['0.000', '0.000', '0.000\n'], 8, orig_coords, 'C8')  # noqa: E501
-    test_file.close()
-
-    reopen_test_file = open('test_dummy_real_swap.gro', 'r').readlines()
-    assert reopen_test_file[0] == '    1E2F     C8    8   2.5837841   1.4738766   2.5511920   0.000   0.000   0.000\n'
-    os.remove('test_dummy_real_swap.gro')
-
-
 def test_sep_merge():
     sample_line = ['36B2C', 'N11549', '3.964', '6.464', '6.901', '-0.0888', '-0.6098', '0.8167']
     test_split = coordinate_swap._sep_merge(sample_line)
@@ -293,25 +265,6 @@ def test_find_rotation_angle():
     angle = 2*np.pi
     test_angle = coordinate_swap._find_rotation_angle(initial_point, vertex, rotated_point, axis)
     assert np.isclose(angle, test_angle, 10**(-5))
-
-
-def test_add_or_swap():
-    test_file = open('test_add_or_swap.gro', 'w')
-    df = pd.read_csv(f'{input_path}/coord_swap/df_atom_swap.csv')
-    orig_coords = np.zeros((21, 3))
-    orig_coords[18] = [2.5970387, 1.5708300, 2.5017865]
-    skip_line = []
-
-    skip_line = coordinate_swap._add_or_swap(df[df['Name'] == 'HV4'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 22, orig_coords, skip_line, 'HV4')  # noqa: E501
-    skip_line = coordinate_swap._add_or_swap(df[df['Name'] == 'HV8'], test_file, 1, 'E2F', ['0.000', '0.000', '0.000\n'], 15, orig_coords, skip_line, 'H8')  # noqa: E501
-    test_file.close()
-
-    reopen_test_file = open('test_add_or_swap.gro', 'r').readlines()
-    assert reopen_test_file[0] == '    1E2F    HV4   22   2.3651702   1.4678032   2.8239074   0.000   0.000   0.000\n'
-    assert reopen_test_file[1] == '    1E2F     H8   15   2.5970387   1.5708300   2.5017865   0.000   0.000   0.000\n'
-    os.remove('test_add_or_swap.gro')
-
-    assert skip_line == [20]
 
 
 def test_swap_name():  # Update needed
