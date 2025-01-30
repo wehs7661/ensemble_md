@@ -1577,36 +1577,36 @@ class ReplicaExchangeEE:
 
         # Step 6: Write the new file
         # Reprint preamble text
-        line_start = coordinate_swap.print_preamble(molA_file, molB_new, len(df_atom_swap[df_atom_swap['Swap'] == 'A2B']), len(df_atom_swap[df_atom_swap['Swap'] == 'B2A']))
+        line_start = coordinate_swap.print_preamble(molA_file, molB_new, len(df_atom_swap[df_atom_swap['Swap'] == 'A2B']), len(df_atom_swap[df_atom_swap['Swap'] == 'B2A']))  # noqa: E501
 
         # Print up until we reach the residue to modify
-        line_restart, atom_num_restart = coordinate_swap.write_unmodified(line_start, molA_file, molB_new, nameA, 1, line_start, copy.deepcopy(molA.xyz[0]))
+        line_restart, atom_num_restart = coordinate_swap.write_unmodified(line_start, molA_file, molB_new, nameA, 1, line_start, copy.deepcopy(molA.xyz[0]))  # noqa: E501
 
         # Print new coordinates to file for molB
         line_restart, atom_num_restart = coordinate_swap.write_modified(df_atom_swap, 'A2B', line_start, molA_file, molB_new, atom_num_restart, nameA, nameB, copy.deepcopy(molA.xyz[0]), atom_mapping, atom_order_B, atom_order_A)  # noqa: E501
 
         # Print rest of file after modified residue
-        coordinate_swap.write_unmodified(line_restart, molA_file, molB_new, nameA, atom_num_restart, line_start, copy.deepcopy(molA.xyz[0]))
+        coordinate_swap.write_unmodified(line_restart, molA_file, molB_new, nameA, atom_num_restart, line_start, copy.deepcopy(molA.xyz[0]))  # noqa: E501
 
         # Print box size
         molB_new.write(molA_file[-1])
 
         # Print new coordinates to file
         # Reprint preamble text
-        line_start = coordinate_swap.print_preamble(molB_file, molA_new, len(df_atom_swap[df_atom_swap['Swap'] == 'B2A']), len(df_atom_swap[df_atom_swap['Swap'] == 'A2B']))
+        line_start = coordinate_swap.print_preamble(molB_file, molA_new, len(df_atom_swap[df_atom_swap['Swap'] == 'B2A']), len(df_atom_swap[df_atom_swap['Swap'] == 'A2B']))  # noqa: E501
 
         # Print up until we reach the residue to modify
-        line_restart, atom_num_restart = coordinate_swap.write_unmodified(line_start, molB_file, molA_new, nameB, 1, line_start, copy.deepcopy(molB.xyz[0]))
+        line_restart, atom_num_restart = coordinate_swap.write_unmodified(line_start, molB_file, molA_new, nameB, 1, line_start, copy.deepcopy(molB.xyz[0]))  # noqa: E501
 
         # Print new coordinates to file for molA
         line_restart, atom_num_restart = coordinate_swap.write_modified(df_atom_swap, 'B2A', line_start, molB_file, molA_new, atom_num_restart, nameB, nameA, copy.deepcopy(molB.xyz[0]), atom_mapping, atom_order_A, atom_order_B)  # noqa: E501
 
         # Print rest of file after modified residue
-        coordinate_swap.write_unmodified(line_restart, molB_file, molA_new, nameB, atom_num_restart, line_start, copy.deepcopy(molB.xyz[0]))
+        coordinate_swap.write_unmodified(line_restart, molB_file, molA_new, nameB, atom_num_restart, line_start, copy.deepcopy(molB.xyz[0]))  # noqa: E501
 
         # Print box size
         molA_new.write(molB_file[-1])
-        
+
         # Rename temp files
         os.rename('A_hybrid_swap.gro', molB_dir + '/confout.gro')
         os.rename('B_hybrid_swap.gro', molA_dir + '/confout.gro')

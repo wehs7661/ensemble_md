@@ -43,7 +43,7 @@ def test_get_dimensions():
     os.remove('test.gro')
 
 
-def test_find_common(): # Function changed to extract_missing -- Need to rewrite
+def test_find_common():  # Function changed to extract_missing -- Need to rewrite
     test_file1 = open(f'{input_path}/coord_swap/sim_A/confout_backup.gro', 'r').readlines()
     test_file2 = open(f'{input_path}/coord_swap/sim_B/confout_backup.gro', 'r').readlines()
     test_df = coordinate_swap.find_common(test_file1, test_file2, 'D2E', 'E2F')

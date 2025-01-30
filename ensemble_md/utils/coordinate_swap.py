@@ -81,9 +81,9 @@ def extract_missing(nameA, nameB, swap_map):
         split_atoms = atoms.split(' ')
         for a in split_atoms:
             missing_B2A.append(a)
-    
+
     # Determine the swaps for each transformation
-    df = pd.concat([pd.DataFrame({'Name': missing_A2B,'Swap': 'A2B'}), pd.DataFrame({'Name': missing_B2A,'Swap': 'B2A'})])
+    df = pd.concat([pd.DataFrame({'Name': missing_A2B, 'Swap': 'A2B'}), pd.DataFrame({'Name': missing_B2A, 'Swap': 'B2A'})])  # noqa: E501
     df.reset_index(inplace=True)
     df.drop('index', axis=1, inplace=True)
     return df
@@ -500,6 +500,7 @@ def write_line(mol_new, atom_name, atom_num, vel, coor, resnum, nameB):
         vel[2].rjust(9, ' ')
     )
 
+
 def identify_res(mol_top, resname_options):
     """
     Determines which of the potential residues of interest are in this molecule.
@@ -844,16 +845,16 @@ def write_modified(df_atom_swap, swap, line_start, orig_file, new_file, atom_num
     # Add vero velocity to all atoms
     vel = ['0.000', '0.000', '0.000\n']
 
-    # Determine 
-    if len(atom_mapping[(atom_mapping['resname A'] == old_res_name) & (atom_mapping['resname B'] == new_res_name)]) != 0:
-        atom_map = atom_mapping[(atom_mapping['resname A'] == old_res_name) & (atom_mapping['resname B'] == new_res_name)]
+    # Determine the direction of the swap
+    if len(atom_mapping[(atom_mapping['resname A'] == old_res_name) & (atom_mapping['resname B'] == new_res_name)]) != 0:  # noqa: E501
+        atom_map = atom_mapping[(atom_mapping['resname A'] == old_res_name) & (atom_mapping['resname B'] == new_res_name)]  # noqa: E501
         old_res_side = 'A'
         new_res_side = 'B'
     else:
-        atom_map = atom_mapping[(atom_mapping['resname B'] == old_res_name) & (atom_mapping['resname A'] == new_res_name)]
+        atom_map = atom_mapping[(atom_mapping['resname B'] == old_res_name) & (atom_mapping['resname A'] == new_res_name)]  # noqa: E501
         old_res_side = 'B'
         new_res_side = 'A'
-    
+
     # Process input lines
     line, prev_line = _process_line(orig_file, line_start)
 
@@ -866,7 +867,7 @@ def write_modified(df_atom_swap, swap, line_start, orig_file, new_file, atom_num
         # If the atom is not missing
         if atom in atom_map[f'atom name {new_res_side}'].values:
             # Determine the name of the equivalent atom in the old file
-            equivalent_atom_name = atom_map[atom_map[f'atom name {new_res_side}'] == atom][f'atom name {old_res_side}'].values[0]
+            equivalent_atom_name = atom_map[atom_map[f'atom name {new_res_side}'] == atom][f'atom name {old_res_side}'].values[0]  # noqa: E501
 
             # Determine index of this atom in the old file coordinates
             coor_index = old_atom_order.index(equivalent_atom_name) + atom_num_init - 1
@@ -897,6 +898,7 @@ def write_modified(df_atom_swap, swap, line_start, orig_file, new_file, atom_num
             break
 
     return line_restart, atom_num
+
 
 def write_unmodified(line_start, orig_file, new_file, old_res_name, atom_num, preamble_legth, coords):  # noqa: E501
     """
