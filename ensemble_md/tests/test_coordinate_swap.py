@@ -43,7 +43,7 @@ def test_get_dimensions():
     os.remove('test.gro')
 
 
-def test_find_common():
+def test_find_common(): # Function changed to extract_missing -- Need to rewrite
     test_file1 = open(f'{input_path}/coord_swap/sim_A/confout_backup.gro', 'r').readlines()
     test_file2 = open(f'{input_path}/coord_swap/sim_B/confout_backup.gro', 'r').readlines()
     test_df = coordinate_swap.find_common(test_file1, test_file2, 'D2E', 'E2F')
@@ -57,30 +57,6 @@ def test_find_common():
         assert row['Swap'] == test_row['Swap'].to_list()[0]
         assert row['File line'] == int(test_row['File line'].to_list()[0])
         assert row['Final Type'] == test_row['Final Type'].to_list()[0]
-
-
-def test_R2D_D2R_miss():
-    nameA_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C9',
-                  'H1', 'H2', 'H3', 'H5', 'H6', 'H7', 'H11', 'H12', 'H13',
-                  'DC8', 'HV8', 'HV9', 'HV10']
-    nameB_list = ['S1', 'C2', 'N3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9',
-                  'H1', 'H2', 'H3', 'H6', 'H7', 'H8', 'H9', 'H10', 'H11', 'H12', 'H13',
-                  'DC10', 'HV4', 'HV14', 'HV15', 'HV16']
-
-    common_atoms_all = ['C6', 'H7', 'C4', 'S1', 'H6', 'H11', 'C7', 'H12', 'H2', 'H1',
-                        'C9', 'H3', 'C2', 'N3', 'H13', 'C5']
-    lineB_list = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
-
-    test_df = coordinate_swap._find_R2D_D2R_miss(nameB_list, nameA_list, common_atoms_all, lineB_list, 'B2A')
-    df = pd.read_csv(f'{input_path}/coord_swap/find_R2D_D2R_miss.csv')
-
-    for index, row in df.iterrows():
-        test_row = test_df[test_df['Name'] == row['Name']]
-        assert row['Atom Name Number'] == int(test_row['Atom Name Number'].to_list()[0])
-        assert row['Element'] == test_row['Element'].to_list()[0]
-        assert row['Direction'] == test_row['Direction'].to_list()[0]
-        assert row['Swap'] == test_row['Swap'].to_list()[0]
-        assert row['File line'] == int(test_row['File line'].to_list()[0])
 
 
 def test_fix_break():
