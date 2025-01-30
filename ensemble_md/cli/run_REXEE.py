@@ -104,7 +104,7 @@ def main():
                 os.mkdir(f'{REXEE.working_dir}/sim_{i}')
                 os.mkdir(f'{REXEE.working_dir}/sim_{i}/iteration_0')
                 MDP = REXEE.initialize_MDP(i)
-                MDP.write(f"{REXEE.working_dir}/sim_{i}/iteration_0/expanded.mdp", skipempty=True)
+                MDP.write(f"{REXEE.working_dir}/sim_{i}/iteration_0/{REXEE.mdp}", skipempty=True)
             if REXEE.modify_coords == 'default' and (not os.path.exists('residue_connect.csv') or not os.path.exists('residue_swap_map.csv')):  # noqa: E501
                 REXEE.process_top()
 
@@ -262,8 +262,8 @@ def main():
                     os.mkdir(f'{REXEE.working_dir}/sim_{j}/iteration_{i}')
                     if REXEE.fixed_weights is True:
                         counts = None    # So that this should work also for GROMACS version < 2022.5
-                    MDP = REXEE.update_MDP(f"sim_{j}/iteration_{i - 1}/expanded.mdp", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
-                    MDP.write(f"{REXEE.working_dir}/sim_{j}/iteration_{i}/expanded.mdp", skipempty=True)
+                    MDP = REXEE.update_MDP(f"sim_{j}/iteration_{i - 1}/{REXEE.mdp}", j, i, states, wl_delta, weights, counts)   # modify with a new template  # noqa: E501
+                    MDP.write(f"{REXEE.working_dir}/sim_{j}/iteration_{i}/{REXEE.mdp}", skipempty=True)
                     # In run_REXEE(i, swap_pattern), where the tpr files will be generated, we use the top file at the
                     # level of the simulation (the file that will be shared by all simulations). For the gro file, we
                     # pass swap_pattern to the function to figure it out internally.
