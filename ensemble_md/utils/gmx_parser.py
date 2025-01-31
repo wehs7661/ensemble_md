@@ -445,6 +445,7 @@ def deter_atom_order(mol_file, resname):
 
     return atom_order
 
+
 def get_end_states(mdp_path):
     mdp = MDP(mdp_path)
     end_0, end_1 = [], []

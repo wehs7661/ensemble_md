@@ -539,7 +539,14 @@ def plot_state_hist(trajs, state_ranges, fig_name, stack=True, figsize=None, pre
         hist, bins = np.histogram(traj, bins=np.arange(lower_bound, upper_bound + 1, 1))
         hist_data.append(hist)
     if save_hist is True:
-        np.save('hist_data.npy', hist_data)
+        if len(fig_name.split('/')) > 1:
+            dir_list = []
+            for i in fig_name.split('/')[:-1]:
+                dir_list.append(i)
+            dir_path = ''.join(dir_list)
+            np.save(f'{dir_path}/hist_data.npy', hist_data)
+        else:
+            np.save('hist_data.npy', hist_data)
 
     # Use the same bins for all histograms
     bins = bins[:-1]  # Remove the last bin edge because there are n+1 bin edges for n bins
@@ -1349,7 +1356,7 @@ def end_states_only_traj(working_dir, n_sim, n_iter, l0_states, l1_states, swap_
 
     # Determine how many end states are present, which simulations and lambdas those end states correspond to
     state_name = ['A']
-    considered_swaps = [[0,0]]
+    considered_swaps = [[0, 0]]
     cat = ord('A') + 1
     for swap in swap_rep_pattern:
         part_1, part_2 = swap
@@ -1380,7 +1387,7 @@ def end_states_only_traj(working_dir, n_sim, n_iter, l0_states, l1_states, swap_
     state_frame_df = pd.DataFrame()
     for n in range(n_sim):
         for i in range(n_iter):
-            l0_frame, l1_frame = [],[]
+            l0_frame, l1_frame = [], []
             dhdl_file = open(f'{working_dir}/sim_{n}/iteration_{i}/dhdl.xvg', 'r').readlines()
             start = True
             for line in dhdl_file:
@@ -1393,14 +1400,14 @@ def end_states_only_traj(working_dir, n_sim, n_iter, l0_states, l1_states, swap_
                         start_time = time
                         start = False
                     state = float(split_line[1])
-                    if time%ps_per_frame == 0:
+                    if time % ps_per_frame == 0:
                         if state in l0_states:
                             l0_frame.append(int((time-start_time)/ps_per_frame))
                         elif state in l1_states:
                             l1_frame.append(int((time-start_time)/ps_per_frame))
             if len(l0_frame) != 0:
-               df_0 = pd.DataFrame({'Sim': n, 'Iteration': i, 'Frame': l0_frame, 'Lambda': 0})
-               state_frame_df = pd.concat([state_frame_df, df_0])
+                df_0 = pd.DataFrame({'Sim': n, 'Iteration': i, 'Frame': l0_frame, 'Lambda': 0})
+                state_frame_df = pd.concat([state_frame_df, df_0])
             if len(l1_frame) != 0:
                 df_1 = pd.DataFrame({'Sim': n, 'Iteration': i, 'Frame': l1_frame, 'Lambda': 1})
                 state_frame_df = pd.concat([state_frame_df, df_1])
@@ -1410,20 +1417,20 @@ def end_states_only_traj(working_dir, n_sim, n_iter, l0_states, l1_states, swap_
     for state in unique_states:
         indices = [i for i, value in enumerate(state_name) if value == state]
         for i, index in enumerate(indices):
-            rep, l = considered_swaps[index]
+            rep, lambda_rep = considered_swaps[index]
             started = False
             if os.path.exists(f'{working_dir}/sim_{rep}/iteration_0/confout_backup.gro'):
                 name = 'confout_backup'
             else:
                 name = 'confout'
             for iteration in range(n_iter):
-                frames_select = state_frame_df[(state_frame_df['Sim'] == rep) & (state_frame_df['Iteration'] == iteration) & (state_frame_df['Lambda'] == l)]['Frame'].to_numpy()
+                frames_select = state_frame_df[(state_frame_df['Sim'] == rep) & (state_frame_df['Iteration'] == iteration) & (state_frame_df['Lambda'] == lambda_rep)]['Frame'].to_numpy()  # noqa: E501
                 if len(frames_select) != 0:
                     if not started:
-                        traj = md.load(f'{working_dir}/sim_{rep}/iteration_{iteration}/traj.trr', top=f'{working_dir}/sim_{rep}/iteration_0/{name}.gro')
+                        traj = md.load(f'{working_dir}/sim_{rep}/iteration_{iteration}/traj.trr', top=f'{working_dir}/sim_{rep}/iteration_0/{name}.gro')  # noqa: E501
                         started = True
                     else:
-                        traj_add = md.load(f'{working_dir}/sim_{rep}/iteration_{iteration}/traj.trr', top=f'{working_dir}/sim_{rep}/iteration_0/{name}.gro')
+                        traj_add = md.load(f'{working_dir}/sim_{rep}/iteration_{iteration}/traj.trr', top=f'{working_dir}/sim_{rep}/iteration_0/{name}.gro')  # noqa: E501
                         traj = md.join(traj, traj_add)
             traj.save_xtc(f'{working_dir}/analysis/{state}_{rep}.xtc')
 

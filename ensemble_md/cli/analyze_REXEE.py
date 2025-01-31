@@ -25,7 +25,7 @@ from deeptime.markov.tools.analysis import is_transition_matrix
 warnings.simplefilter(action='ignore', category=UserWarning)
 
 from ensemble_md.utils import utils  # noqa: E402
-from ensemble_md.utils import gmx_parser
+from ensemble_md.utils import gmx_parser  # noqa: E402
 from ensemble_md.analysis import analyze_traj  # noqa: E402
 from ensemble_md.analysis import analyze_matrix  # noqa: E402
 from ensemble_md.analysis import msm_analysis  # noqa: E402
@@ -139,12 +139,13 @@ def main():
     counts = [analyze_traj.traj2transmtx(rep_trajs[i], REXEE.n_sim, normalize=False) for i in range(len(rep_trajs))]
     reps_mtx = np.sum(counts, axis=0)  # First sum up the counts. This should be symmetric if n_ex=1. Otherwise it might not be. # noqa: E501
     reps_mtx /= np.sum(reps_mtx, axis=1)[:, None]   # and then normalize each row
+    np.save(f'{args.dir}/reps_transmtx_allconfigs.npy', reps_mtx)
     analyze_matrix.plot_matrix(reps_mtx, f'{args.dir}/rep_transmtx_allconfigs.png')
 
     # 1-3. Calculate the spectral gap for the replica-space transition amtrix
-    print('1-3. Calculating the spectral gap of the replica-space transition matrix ...')
-    spectral_gap, spectral_gap_err, eig_vals = analyze_matrix.calc_spectral_gap(reps_mtx)
-    print(f'The spectral gap of the replica-space transition matrix: {spectral_gap:.3f}')
+#    print('1-3. Calculating the spectral gap of the replica-space transition matrix ...')
+#    spectral_gap, spectral_gap_err, eig_vals = analyze_matrix.calc_spectral_gap(reps_mtx)
+#    print(f'The spectral gap of the replica-space transition matrix: {spectral_gap:.3f}')
 
     # Section 2. Analysis based on transitions between states
     print('\n[ Section 2. Analysis based on transitions between states ]')
@@ -532,7 +533,7 @@ def main():
         n_sim, n_iter = np.shape(rep_trajs)
         if REXEE.swap_rep_pattern is None:
             raise Exception('MT-REXEE trajectory analysis requires swap_rep_pattern to be defined')
-        analyze_traj.end_states_only_traj(REXEE.working_dir, n_sim, n_iter, l0, l1, REXEE.swap_rep_pattern, ps_per_frame)
+        analyze_traj.end_states_only_traj(REXEE.working_dir, n_sim, n_iter, l0, l1, REXEE.swap_rep_pattern, ps_per_frame)  # noqa: E501
 
         # Section 5.2. Create concatenated trajectories for each individual simulation
         print('5.2. Create concatenated trajectories for each individual simulation')
