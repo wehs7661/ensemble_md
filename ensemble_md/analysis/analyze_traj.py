@@ -685,6 +685,8 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
     units : str
         The units of the time.
     """
+    import pandas as pd
+
     if dt is None:
         x = np.arange(len(trajs[0]))
         units = 'step'
@@ -824,6 +826,14 @@ def plot_transit_time(trajs, N, fig_prefix=None, dt=None, folder='.'):
                     plt.savefig(f'{folder}/hist_{fig_names[t]}', dpi=600)
                 else:
                     plt.savefig(f'{folder}/{fig_prefix}_hist_{fig_names[t]}', dpi=600)
+    #Save to csv
+    sim_list, rt_list = [], []
+    for n in range(len(t_roundtrip_list)):
+        for rt in t_roundtrip_list[n]:
+            sim_list.append(n)
+            rt_list.append(rt)
+    df_rt = pd.DataFrame({'Sim': sim_list, 'Round Trip Time': rt_list})
+    df_rt.to_csv(f'{folder}/roundtrip_times.csv')
 
     return t_0k_list, t_k0_list, t_roundtrip_list, units
 
@@ -1416,3 +1426,19 @@ def end_states_only_traj(working_dir, n_sim, n_iter, l0_states, l1_states, swap_
                         traj_add = md.load(f'{working_dir}/sim_{rep}/iteration_{iteration}/traj.trr', top=f'{working_dir}/sim_{rep}/iteration_0/{name}.gro')
                         traj = md.join(traj, traj_add)
             traj.save_xtc(f'{working_dir}/analysis/{state}_{rep}.xtc')
+
+def concat_sim_traj(working_dir, n_sim, n_iter):
+    import mdtraj as md
+    import os
+
+    for rep in range(n_sim):
+        if os.path.exists(f'{working_dir}/sim_{rep}/iteration_0/confout_backup.gro'):
+            name = 'confout_backup'
+        else:
+            name = 'confout'
+
+        traj = md.load(f'{working_dir}/sim_{rep}/iteration_0/traj.trr', top=f'{working_dir}/sim_{rep}/iteration_0/{name}.gro')
+        for iteration in range(1, n_iter):
+            traj_add = md.load(f'{working_dir}/sim_{rep}/iteration_{iteration}/traj.trr', top=f'{working_dir}/sim_{rep}/iteration_0/{name}.gro')
+            traj = md.join([traj, traj_add])
+        traj.save_xtc(f'{working_dir}/analysis/sim{rep}_concat.xtc')
