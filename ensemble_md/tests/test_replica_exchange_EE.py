@@ -914,6 +914,7 @@ class Test_ReplicaExchangeEE:
                     assert true_line == test_line
         REXEE = get_REXEE_instance(params_dict)
         os.system(f'cp {input_path}/coord_swap/residue_connect.csv .')
+        os.system(f'cp {input_path}/coord_swap/atom_name_mapping.csv .')
         os.system(f'cp {input_path}/coord_swap/residue_swap_map.csv .')
         REXEE.default_coords_fn(f'{input_path}/coord_swap/sim_A/confout_backup.gro', f'{input_path}/coord_swap/sim_B/confout_backup.gro')  # noqa: E501
 
@@ -929,6 +930,7 @@ class Test_ReplicaExchangeEE:
         check_file(true_output_B, test_output_B)
 
         os.system(f'cp {input_path}/coord_swap/residue_connect_alt.csv residue_connect.csv')
+        os.system(f'cp {input_path}/coord_swap/atom_name_mapping_alt.csv atom_name_mapping.csv')
         os.system(f'cp {input_path}/coord_swap/residue_swap_map_alt.csv residue_swap_map.csv')
         REXEE.default_coords_fn(f'{input_path}/coord_swap/sim_C/confout_backup.gro', f'{input_path}/coord_swap/sim_D/confout_backup.gro')  # noqa: E501
 
@@ -937,15 +939,25 @@ class Test_ReplicaExchangeEE:
         true_output_D = open(f'{input_path}/coord_swap/output_D.gro', 'r').readlines()
         test_output_D = open(f'{input_path}/coord_swap/sim_C/confout.gro', 'r').readlines()
 
-        os.remove('residue_connect.csv')
-        os.remove('residue_swap_map.csv')
         check_file(true_output_C, test_output_C)
         check_file(true_output_D, test_output_D)
+        os.remove('residue_connect.csv')
+        os.remove('residue_swap_map.csv')
+        os.remove('atom_name_mapping.csv')
+        os.remove(f'{input_path}/coord_swap/sim_A/confout.gro')
+        os.remove(f'{input_path}/coord_swap/sim_B/confout.gro')
+        os.remove(f'{input_path}/coord_swap/sim_C/confout.gro')
+        os.remove(f'{input_path}/coord_swap/sim_D/confout.gro')
 
     def test_process_top(self, params_dict):
         import pandas as pd
 
         REXEE = get_REXEE_instance(params_dict)
+        REXEE.gro = [f'{input_path}/coord_swap/A-B.gro',
+                     f'{input_path}/coord_swap/B-C.gro',
+                     f'{input_path}/coord_swap/C-D.gro',
+                     f'{input_path}/coord_swap/D-E.gro',
+                     f'{input_path}/coord_swap/E-F.gro']
         REXEE.resname_list = ['A2B', 'B2C', 'C2D', 'D2E', 'E2F']
         REXEE.swap_rep_pattern = [[[0, 1], [1, 0]], [[1, 1], [2, 0]], [[2, 1], [3, 0]], [[3, 1], [4, 0]]]
         REXEE.top = [f'{input_path}/coord_swap/A-B.top',
@@ -961,3 +973,7 @@ class Test_ReplicaExchangeEE:
 
         assert true_res_connect.equals(test_res_connect)
         assert true_swap_map.equals(test_swap_map)
+
+        os.remove('atom_name_mapping.csv')
+        os.remove('residue_connect.csv')
+        os.remove('residue_swap_map.csv')
