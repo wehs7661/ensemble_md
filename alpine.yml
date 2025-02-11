@@ -1,4 +1,5 @@
-# Note that this file is only for setting up the Binder environment for tutorials
+# Set-up ensemble_md on Alpine Cluster
+name: REXEE
 dependencies:
   - openmpi
   - mpi4py
