@@ -1,0 +1,8 @@
+# Note that this file is only for setting up the Binder environment for tutorials
+dependencies:
+  - openmpi
+  - mpi4py
+  - python =3.11.*
+  - pip
+  - pip:
+    - -e .
